@@ -10,10 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortalRouteImport } from './routes/portal'
+import { Route as MRouteImport } from './routes/m'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MIndexRouteImport } from './routes/m.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as MLoginRouteImport } from './routes/m.login'
+import { Route as MDashboardRouteImport } from './routes/m.dashboard'
 import { Route as AppVaultsRouteImport } from './routes/app.vaults'
 import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
@@ -34,6 +38,11 @@ const PortalRoute = PortalRouteImport.update({
   path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MRoute = MRouteImport.update({
+  id: '/m',
+  path: '/m',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -49,10 +58,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MIndexRoute = MIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MRoute,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const MLoginRoute = MLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => MRoute,
+} as any)
+const MDashboardRoute = MDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => MRoute,
 } as any)
 const AppVaultsRoute = AppVaultsRouteImport.update({
   id: '/vaults',
@@ -133,12 +157,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRoute
+  '/m/dashboard': typeof MDashboardRoute
+  '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
+  '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -158,7 +186,10 @@ export interface FileRoutesByTo {
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRoute
+  '/m/dashboard': typeof MDashboardRoute
+  '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
+  '/m': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -175,12 +206,16 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRoute
+  '/m/dashboard': typeof MDashboardRoute
+  '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
+  '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -198,12 +233,16 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
     | '/app/vaults'
+    | '/m/dashboard'
+    | '/m/login'
     | '/app/'
+    | '/m/'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -223,7 +262,10 @@ export interface FileRouteTypes {
     | '/app/audit'
     | '/app/users'
     | '/app/vaults'
+    | '/m/dashboard'
+    | '/m/login'
     | '/app'
+    | '/m'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -239,12 +281,16 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
     | '/app/vaults'
+    | '/m/dashboard'
+    | '/m/login'
     | '/app/'
+    | '/m/'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -261,6 +307,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MRoute: typeof MRouteWithChildren
   PortalRoute: typeof PortalRoute
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
@@ -273,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/portal'
       fullPath: '/portal'
       preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m': {
+      id: '/m'
+      path: '/m'
+      fullPath: '/m'
+      preLoaderRoute: typeof MRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -296,12 +350,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/m/': {
+      id: '/m/'
+      path: '/'
+      fullPath: '/m/'
+      preLoaderRoute: typeof MIndexRouteImport
+      parentRoute: typeof MRoute
+    }
     '/app/': {
       id: '/app/'
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/m/login': {
+      id: '/m/login'
+      path: '/login'
+      fullPath: '/m/login'
+      preLoaderRoute: typeof MLoginRouteImport
+      parentRoute: typeof MRoute
+    }
+    '/m/dashboard': {
+      id: '/m/dashboard'
+      path: '/dashboard'
+      fullPath: '/m/dashboard'
+      preLoaderRoute: typeof MDashboardRouteImport
+      parentRoute: typeof MRoute
     }
     '/app/vaults': {
       id: '/app/vaults'
@@ -438,10 +513,25 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface MRouteChildren {
+  MDashboardRoute: typeof MDashboardRoute
+  MLoginRoute: typeof MLoginRoute
+  MIndexRoute: typeof MIndexRoute
+}
+
+const MRouteChildren: MRouteChildren = {
+  MDashboardRoute: MDashboardRoute,
+  MLoginRoute: MLoginRoute,
+  MIndexRoute: MIndexRoute,
+}
+
+const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  MRoute: MRouteWithChildren,
   PortalRoute: PortalRoute,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,

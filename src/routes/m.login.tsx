@@ -1,0 +1,88 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, User, Lock, Eye, EyeOff, Fingerprint } from "lucide-react";
+import { useState } from "react";
+
+export const Route = createFileRoute("/m/login")({
+  component: MobileLogin,
+  head: () => ({ meta: [{ title: "DAHAM — Sign in" }] }),
+});
+
+function MobileLogin() {
+  const [show, setShow] = useState(false);
+  const navigate = useNavigate();
+
+  return (
+    <PhoneShell>
+      <div className="flex flex-1 flex-col px-7 pt-3 pb-8 relative z-10">
+        <div className="flex items-center justify-between">
+          <Link to="/m" className="text-foreground/80 hover:text-foreground"><ArrowLeft className="h-5 w-5" /></Link>
+          <button className="text-sm font-medium text-gold-deep">Help</button>
+        </div>
+
+        <div className="mt-4 flex flex-col items-center">
+          <DahamLogo size={96} />
+          <div className="mt-3 font-serif text-2xl tracking-[0.35em] text-foreground">دهــــم</div>
+          <div className="mt-1 text-lg font-semibold tracking-[0.4em] gold-text">DAHAM</div>
+          <div className="mt-2 text-xs text-foreground/80" dir="rtl">شركة دهــم للخدمات الماليـة</div>
+          <div className="text-[11px] text-muted-foreground">Dahab Financial Services Company</div>
+        </div>
+
+        <div className="mt-8 text-center">
+          <h1 className="font-serif text-3xl text-foreground">Welcome Back</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to access your account</p>
+        </div>
+
+        <form
+          className="mt-6 space-y-3"
+          onSubmit={(e) => { e.preventDefault(); navigate({ to: "/m/dashboard" }); }}
+        >
+          <div className="relative">
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-deep" />
+            <Input placeholder="Username or Email" className="h-14 rounded-2xl pl-11 bg-secondary/60 border-border" />
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-deep" />
+            <Input
+              type={show ? "text" : "password"}
+              placeholder="Password"
+              className="h-14 rounded-2xl pl-11 pr-11 bg-secondary/60 border-border"
+            />
+            <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <label className="flex items-center gap-2 text-foreground/80">
+              <Checkbox className="border-gold data-[state=checked]:bg-gold data-[state=checked]:text-primary-foreground" defaultChecked />
+              Remember me
+            </label>
+            <button type="button" className="text-gold-deep font-medium">Forgot password?</button>
+          </div>
+
+          <Button type="submit" className="w-full h-14 rounded-2xl bg-gradient-gold text-primary-foreground text-base shadow-gold hover:opacity-95 mt-2">
+            Sign In
+          </Button>
+        </form>
+
+        <div className="my-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <Button variant="outline" className="w-full h-14 rounded-2xl border-gold text-gold-deep gap-2">
+          <Fingerprint className="h-5 w-5" /> Sign In with Biometrics
+        </Button>
+
+        <div className="mt-auto pt-6 text-center text-sm text-muted-foreground">
+          Don't have an account? <button className="font-semibold text-gold-deep">Register Now</button>
+        </div>
+      </div>
+    </PhoneShell>
+  );
+}

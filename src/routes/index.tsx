@@ -30,6 +30,9 @@ function Index() {
             <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
               <Link to="/portal">Customer portal</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Link to="/m">Mobile app</Link>
+            </Button>
             <Button
               asChild
               size="sm"
