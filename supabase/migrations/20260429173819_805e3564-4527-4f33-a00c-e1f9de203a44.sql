@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.run_notification_reminders() TO service_role;
