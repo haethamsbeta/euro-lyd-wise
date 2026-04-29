@@ -1,70 +1,39 @@
 ## Goal
+On the mobile top bar in the staff app shell, the horizontal nav currently lists every page the user can access (Dashboard, New transaction, Transactions, Accounts, Vaults, Approvals, My activity, Audit log, Users & roles, Notifications). On a 714px viewport this scrolls horizontally and feels noisy. We'll keep only the first three role-visible items as pill links, and group the remaining items into a single "More" dropdown menu — making the primary actions immediately clear while keeping all options accessible.
 
-Provide working admin credentials and seed realistic demo data so the app can be tested end-to-end immediately.
+## Scope
+- File: `src/components/app/app-shell.tsx` (mobile top bar block only — desktop sidebar stays unchanged)
+- No route, role, or behavior changes; purely a presentational regrouping.
 
-## 1. Demo users (created via Lovable Cloud Auth)
+## Changes
 
-Create three pre-confirmed users with known passwords, then assign roles in `user_roles`:
+1. In the mobile nav block (lines ~149-168), split `visibleNav` into:
+   - `primaryNav = visibleNav.slice(0, 3)` → rendered as the existing pill links
+   - `moreNav = visibleNav.slice(3)` → rendered inside a dropdown trigger labeled **More** (with a `ChevronDown` icon)
 
-| Role     | Email                  | Password      | Purpose                       |
-| -------- | ---------------------- | ------------- | ----------------------------- |
-| admin    | admin@demo.test        | Admin#12345   | Approves, manages users       |
-| teller   | teller@demo.test       | Teller#12345  | Posts deposits/withdrawals    |
-| auditor  | auditor@demo.test      | Auditor#12345 | Read-only audit + ledger view |
-| consumer | consumer@demo.test     | Customer#1234 | Customer portal view          |
+2. Use the existing `DropdownMenu` primitives from `@/components/ui/dropdown-menu`:
+   - Trigger: a pill matching the current pill style. If any item in `moreNav` is the active route, the "More" trigger gets the active gold styling so the user still sees they're on a sub-page.
+   - Content: each `moreNav` entry as a `DropdownMenuItem` rendering a `<Link>` with its icon + label, with the active item highlighted in gold.
 
-These will be created using the admin API (service role) inside a one-shot SQL migration that calls `auth.admin.create_user`-equivalent inserts is not allowed directly — instead we'll use a server-side seeding script that runs against the Lovable Cloud Auth admin API, then a SQL migration assigns roles + seeds the rest.
+3. Imports to add at the top of `app-shell.tsx`:
+   - `ChevronDown` from `lucide-react`
+   - `DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem` from `@/components/ui/dropdown-menu`
 
-## 2. Demo ledger data (SQL migration)
+4. Desktop sidebar (`<aside>`) is untouched — full vertical list remains there.
 
-Seed the following idempotently (guard with `ON CONFLICT` / `WHERE NOT EXISTS`):
+## Visual result (mobile)
 
-- **Vaults** (kind=`vault`):
-  - Cash Vault — USD, EUR, LYD
-  - Bank Vault — USD, EUR, LYD
-  - Wire Vault — USD
-  - Each with a starting `account_balances` row of 1,000,000 minor units (USD/EUR) / 5,000,000 (LYD) so deposits/withdrawals work.
+```
+[Dashboard] [New transaction] [Transactions]   [More ▾]
+                                                 ├─ Accounts
+                                                 ├─ Vaults
+                                                 ├─ Approvals
+                                                 ├─ My activity
+                                                 ├─ Audit log
+                                                 ├─ Users & roles
+                                                 └─ Notifications
+```
 
-- **Customer accounts** (kind=`customer`, auto-numbered):
-  - "Layla Hassan" (owned by consumer@demo.test) — USD + LYD balances
-  - "Omar Khalifa" — LYD balance
-  - "Sara Ahmed" — USD + EUR balances
-  - "Mohamed Ali" — USD balance, with a small debit limit
-  - "Fatima Saleh" — EUR balance
-
-- **Transactions** (call `post_transaction` as the teller):
-  - 6 posted deposits (mix of cash/bank, mix of currencies, varying amounts)
-  - 4 posted withdrawals (within balance)
-  - 2 pending withdrawals (over balance → routed to approvals queue)
-  - 1 large transaction (above default threshold) to demonstrate the alert
-
-- **Notification preferences**: insert default rows for the three staff users so the bell + push toggles are pre-populated.
-
-- **Audit log**: a few seeded entries are produced automatically by `post_transaction` / approval calls, so no extra inserts needed.
-
-## 3. Admin credentials banner on the Login page
-
-Add a small dismissible "Demo credentials" card under the sign-in form listing the four logins with one-click "Fill" buttons. Only shown when no user has signed up yet would be ideal, but simpler: always show it, gated behind a `VITE_DEMO_MODE` flag set to `true` so it can be hidden later. Include a copy-to-clipboard action.
-
-## 4. How seeding runs
-
-Because Lovable Cloud Auth users can't be created from a pure SQL migration, use a **TanStack server route** at `/api/public/admin/seed-demo` (POST, protected by a one-time `SEED_TOKEN` env var) that:
-
-1. Uses `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name } })` for each demo user — idempotent (skip if user already exists).
-2. Inserts the matching `user_roles` rows.
-3. Calls a SQL function `seed_demo_ledger(admin_id, teller_id, consumer_id)` (created in a migration) that inserts vaults, customer accounts, balances, and demo transactions in one transaction — also idempotent.
-4. Returns a JSON summary of what was created vs. skipped.
-
-Then call this endpoint once from the dev sandbox so the demo data is live. The endpoint stays available so you (or QA) can re-seed at any time without re-running the AI.
-
-## Technical details
-
-- **New migration**: enums already exist; just add `seed_demo_ledger(uuid, uuid, uuid)` SECURITY DEFINER function + role grants.
-- **New file**: `src/routes/api/public/admin/seed-demo.ts` — server route, verifies `x-seed-token` header against `process.env.SEED_TOKEN`, then performs steps 1–3.
-- **New secret**: `SEED_TOKEN` (any random string, requested via add_secret).
-- **Updated file**: `src/routes/login.tsx` — add demo credentials card with Fill / Copy buttons.
-- **Auto-confirm**: passing `email_confirm: true` to the admin API bypasses the email verification step, so the demo accounts can sign in immediately without changing project-wide auth settings.
-
-## Result
-
-After approval and one click of "Run seed", you can sign in as `admin@demo.test / Admin#12345` and immediately see vaults, ~5 customer accounts, posted transactions, pending approvals, audit entries, and notifications.
+## Notes
+- Order follows the existing `NAV` array, which already places the most important actions first, so "first three" gives Dashboard / New transaction / Transactions for admins and tellers, and Dashboard / Transactions / Accounts for auditors (since auditors don't see "New transaction"). That matches each role's primary workflow.
+- No new dependencies; `dropdown-menu.tsx` is already in `src/components/ui/`.

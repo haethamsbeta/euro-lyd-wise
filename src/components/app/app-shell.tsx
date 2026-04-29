@@ -5,11 +5,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell,
+  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
   to: string;
@@ -147,24 +153,68 @@ export function AppShell() {
               </div>
             </div>
             <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
-              {visibleNav.map((i) => {
-                const active = location.pathname === i.to ||
-                  (i.to !== "/app" && location.pathname.startsWith(i.to));
+              {(() => {
+                const primaryNav = visibleNav.slice(0, 3);
+                const moreNav = visibleNav.slice(3);
+                const isActive = (to: string) =>
+                  location.pathname === to || (to !== "/app" && location.pathname.startsWith(to));
+                const moreActive = moreNav.some((i) => isActive(i.to));
                 return (
-                  <Link
-                    key={i.to}
-                    to={i.to}
-                    className={cn(
-                      "whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
-                      active
-                        ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
-                        : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
+                  <>
+                    {primaryNav.map((i) => {
+                      const active = isActive(i.to);
+                      return (
+                        <Link
+                          key={i.to}
+                          to={i.to}
+                          className={cn(
+                            "whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
+                            active
+                              ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
+                              : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
+                          )}
+                        >
+                          {i.label}
+                        </Link>
+                      );
+                    })}
+                    {moreNav.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className={cn(
+                            "inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
+                            moreActive
+                              ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
+                              : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
+                          )}
+                        >
+                          More <ChevronDown className="h-3 w-3" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-48">
+                          {moreNav.map((i) => {
+                            const active = isActive(i.to);
+                            const Icon = i.icon;
+                            return (
+                              <DropdownMenuItem key={i.to} asChild>
+                                <Link
+                                  to={i.to}
+                                  className={cn(
+                                    "flex w-full items-center gap-2 text-sm",
+                                    active && "text-gold",
+                                  )}
+                                >
+                                  <Icon className="h-4 w-4" />
+                                  {i.label}
+                                </Link>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                  >
-                    {i.label}
-                  </Link>
+                  </>
                 );
-              })}
+              })()}
             </div>
           </div>
           <Outlet />
