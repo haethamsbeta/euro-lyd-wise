@@ -27,6 +27,7 @@ import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transa
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
 import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
 import { Route as ApiPublicHooksNotificationsTickRouteImport } from './routes/api/public/hooks/notifications-tick'
+import { Route as ApiPublicAdminSeedDemoRouteImport } from './routes/api/public/admin/seed-demo'
 
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
@@ -122,6 +123,11 @@ const ApiPublicHooksNotificationsTickRoute =
     path: '/api/public/hooks/notifications-tick',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAdminSeedDemoRoute = ApiPublicAdminSeedDemoRouteImport.update({
+  id: '/api/public/admin/seed-demo',
+  path: '/api/public/admin/seed-demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
+  '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts'
     | '/app/transactions'
+    | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRoute
+  ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
 
@@ -381,6 +394,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksNotificationsTickRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/admin/seed-demo': {
+      id: '/api/public/admin/seed-demo'
+      path: '/api/public/admin/seed-demo'
+      fullPath: '/api/public/admin/seed-demo'
+      preLoaderRoute: typeof ApiPublicAdminSeedDemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -423,6 +443,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRoute,
+  ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
 export const routeTree = rootRouteImport
