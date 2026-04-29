@@ -95,7 +95,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       items,
       unread: items.filter((i) => !i.read_at).length,
       markRead: async (ids) => {
-        await supabase.rpc("notifications_mark_read", { p_ids: ids ?? null });
+        await supabase.rpc("notifications_mark_read", { p_ids: (ids ?? null) as unknown as string[] });
         setItems((prev) =>
           prev.map((it) => (!it.read_at && (!ids || ids.includes(it.id)) ? { ...it, read_at: new Date().toISOString() } : it)),
         );
