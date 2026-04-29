@@ -20,6 +20,7 @@ import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
+import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
@@ -81,6 +82,12 @@ const AppAccountsIndexRoute = AppAccountsIndexRouteImport.update({
   path: '/accounts/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsNotificationsRoute =
+  AppSettingsNotificationsRouteImport.update({
+    id: '/settings/notifications',
+    path: '/settings/notifications',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMeActivityRoute = AppMeActivityRouteImport.update({
   id: '/me/activity',
   path: '/me/activity',
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
+  '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
+  '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -157,6 +166,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
+  '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/accounts/$id'
     | '/app/me/activity'
+    | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/app/transactions/new/deposit'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/accounts/$id'
     | '/app/me/activity'
+    | '/app/settings/notifications'
     | '/app/accounts'
     | '/app/transactions'
     | '/app/transactions/new/deposit'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/accounts/$id'
     | '/app/me/activity'
+    | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/app/transactions/new/deposit'
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/settings/notifications': {
+      id: '/app/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/app/settings/notifications'
+      preLoaderRoute: typeof AppSettingsNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/me/activity': {
       id: '/app/me/activity'
       path: '/me/activity'
@@ -351,6 +371,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
+  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppAccountsIndexRoute: typeof AppAccountsIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
   AppTransactionsNewDepositRoute: typeof AppTransactionsNewDepositRoute
@@ -366,6 +387,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAccountsIdRoute: AppAccountsIdRoute,
   AppMeActivityRoute: AppMeActivityRoute,
+  AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppAccountsIndexRoute: AppAccountsIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
   AppTransactionsNewDepositRoute: AppTransactionsNewDepositRoute,
