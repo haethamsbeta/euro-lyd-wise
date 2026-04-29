@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Landmark, LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity,
+  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell,
 } from "lucide-react";
+import { NotificationsProvider } from "@/lib/notifications";
+import { NotificationBell } from "@/components/app/notification-bell";
 
 type NavItem = {
   to: string;
@@ -25,6 +27,7 @@ const NAV: NavItem[] = [
   { to: "/app/me/activity", label: "My activity", icon: Activity, roles: ["admin", "teller"] },
   { to: "/app/audit", label: "Audit log", icon: ScrollText, roles: ["admin", "auditor"] },
   { to: "/app/users", label: "Users & roles", icon: UserCog, roles: ["admin"] },
+  { to: "/app/settings/notifications", label: "Notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
 ];
 
 export function AppShell() {
@@ -63,6 +66,7 @@ export function AppShell() {
   const visibleNav = NAV.filter((i) => hasAnyRole(roles, i.roles));
 
   return (
+    <NotificationsProvider>
     <div className="flex min-h-screen bg-muted/30">
       <aside className="hidden w-60 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
         <div className="flex h-14 items-center gap-2 border-b px-4 font-semibold">
@@ -102,12 +106,18 @@ export function AppShell() {
         </div>
       </aside>
       <main className="flex-1 overflow-x-hidden">
+        <div className="hidden items-center justify-end gap-2 border-b bg-background px-4 py-2 md:flex">
+          <NotificationBell />
+        </div>
         <div className="border-b bg-background px-4 py-3 md:hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-semibold">
               <Landmark className="h-5 w-5" /> Vault Ledger
             </div>
-            <Button onClick={() => signOut()} variant="ghost" size="sm"><LogOut className="h-4 w-4" /></Button>
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <Button onClick={() => signOut()} variant="ghost" size="sm"><LogOut className="h-4 w-4" /></Button>
+            </div>
           </div>
           <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
             {visibleNav.map((i) => (
@@ -120,6 +130,7 @@ export function AppShell() {
         <Outlet />
       </main>
     </div>
+    </NotificationsProvider>
   );
 }
 
