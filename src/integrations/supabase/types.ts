@@ -420,6 +420,45 @@ export type Database = {
         }
         Returns: undefined
       }
+      _seed_pending_tx: {
+        Args: {
+          p_amount: number
+          p_channel: Database["public"]["Enums"]["vault_channel"]
+          p_comment: string
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_customer: string
+          p_direction: Database["public"]["Enums"]["tx_direction"]
+          p_teller: string
+          p_vault: string
+        }
+        Returns: undefined
+      }
+      _seed_post_tx: {
+        Args: {
+          p_amount: number
+          p_channel: Database["public"]["Enums"]["vault_channel"]
+          p_comment: string
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_customer: string
+          p_direction: Database["public"]["Enums"]["tx_direction"]
+          p_teller: string
+          p_vault: string
+        }
+        Returns: undefined
+      }
+      _upsert_customer: {
+        Args: { p_name: string; p_owner: string }
+        Returns: string
+      }
+      _upsert_vault: {
+        Args: {
+          p_ch: Database["public"]["Enums"]["vault_channel"]
+          p_cur: Database["public"]["Enums"]["currency_code"]
+          p_name: string
+          p_start: number
+        }
+        Returns: string
+      }
       approve_transaction: {
         Args: { p_tx_id: string }
         Returns: {
@@ -516,6 +555,10 @@ export type Database = {
         }
       }
       run_notification_reminders: { Args: never; Returns: Json }
+      seed_demo_ledger: {
+        Args: { p_admin_id: string; p_consumer_id: string; p_teller_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       account_kind: "customer" | "vault"
