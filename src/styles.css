@@ -140,73 +140,81 @@
                     0 0 0 4px oklch(0.78 0.14 85 / 0.04);
 }
 
-/* Dark mode — DAHAB's signature look. This is the default we ship with. */
+/* DAHAB — luxury cream + gold (the new default look, applied via the
+   .dark class so the whole app re-skins without per-route changes).
+   Palette spec from the brand guide:
+     cream bg #FAF7F0 · ivory card #FFFFFF · beige border #E8DFD0
+     charcoal #1F1F1F · muted #6B6B6B
+     champagne #E8C766 · luxury gold #D4AF37 · deep gold #B98216
+     success #198754
+*/
 .dark {
-  --background:        oklch(0.13 0.012 70);   /* deep obsidian with warm undertone */
-  --foreground:        oklch(0.96 0.02  85);
-  --card:              oklch(0.17 0.015 70);
-  --card-foreground:   oklch(0.96 0.02  85);
-  --popover:           oklch(0.17 0.015 70);
-  --popover-foreground:oklch(0.96 0.02  85);
+  --background:        oklch(0.975 0.012 88);   /* #FAF7F0 cream */
+  --foreground:        oklch(0.20  0.012 60);   /* #1F1F1F charcoal */
+  --card:              oklch(1     0     0);    /* #FFFFFF ivory */
+  --card-foreground:   oklch(0.20  0.012 60);
+  --popover:           oklch(1     0     0);
+  --popover-foreground:oklch(0.20  0.012 60);
 
-  --primary:           oklch(0.82 0.14  85);   /* polished gold */
-  --primary-foreground:oklch(0.14 0.02  60);
+  --primary:           oklch(0.74  0.135 82);   /* #D4AF37 luxury gold */
+  --primary-foreground:oklch(1     0     0);
 
-  --secondary:         oklch(0.22 0.02  70);
-  --secondary-foreground: oklch(0.94 0.02 85);
-  --muted:             oklch(0.20 0.018 70);
-  --muted-foreground:  oklch(0.72 0.04  82);
-  --accent:            oklch(0.26 0.04  78);
-  --accent-foreground: oklch(0.95 0.05  85);
+  --secondary:         oklch(0.955 0.018 86);   /* warm cream tint */
+  --secondary-foreground: oklch(0.22 0.015 60);
+  --muted:             oklch(0.955 0.018 86);
+  --muted-foreground:  oklch(0.50  0.012 60);   /* #6B6B6B */
+  --accent:            oklch(0.92  0.05  85);   /* champagne wash */
+  --accent-foreground: oklch(0.25  0.04  60);
 
-  --destructive:       oklch(0.65 0.20  25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success:           oklch(0.72 0.16 150);
-  --success-foreground:oklch(0.12 0.02 150);
-  --warning:           oklch(0.82 0.16  78);
-  --warning-foreground:oklch(0.14 0.04  60);
+  --destructive:       oklch(0.55  0.20  25);
+  --destructive-foreground: oklch(1 0 0);
+  --success:           oklch(0.55  0.13 150);   /* #198754 */
+  --success-foreground:oklch(1     0    0);
+  --warning:           oklch(0.74  0.135 82);
+  --warning-foreground:oklch(0.20  0.04  60);
 
-  --border:            oklch(0.78 0.14 85 / 0.16);
-  --input:             oklch(0.78 0.14 85 / 0.18);
-  --ring:              oklch(0.82 0.14 85 / 0.55);
+  --border:            oklch(0.89  0.022 85);   /* #E8DFD0 beige */
+  --input:             oklch(0.91  0.018 85);
+  --ring:              oklch(0.74  0.135 82 / 0.55);
 
-  --gold:              oklch(0.82 0.14 85);
-  --gold-soft:         oklch(0.90 0.09 88);
-  --gold-deep:         oklch(0.55 0.12 72);
+  --gold:              oklch(0.74  0.135 82);   /* luxury gold #D4AF37 */
+  --gold-soft:         oklch(0.84  0.10  86);   /* champagne #E8C766 */
+  --gold-deep:         oklch(0.58  0.115 72);   /* deep gold #B98216 */
 
-  --chart-1: oklch(0.82 0.14 85);
-  --chart-2: oklch(0.68 0.12 78);
-  --chart-3: oklch(0.92 0.08 90);
-  --chart-4: oklch(0.50 0.08 70);
-  --chart-5: oklch(0.40 0.04 60);
+  --chart-1: oklch(0.74 0.135 82);
+  --chart-2: oklch(0.58 0.115 72);
+  --chart-3: oklch(0.84 0.10  86);
+  --chart-4: oklch(0.55 0.13 150);
+  --chart-5: oklch(0.50 0.012 60);
 
-  --sidebar:                    oklch(0.11 0.012 70);
-  --sidebar-foreground:         oklch(0.94 0.03  85);
-  --sidebar-primary:            oklch(0.82 0.14  85);
-  --sidebar-primary-foreground: oklch(0.14 0.02  60);
-  --sidebar-accent:             oklch(0.20 0.02  70);
-  --sidebar-accent-foreground:  oklch(0.96 0.04  85);
-  --sidebar-border:             oklch(0.78 0.14 85 / 0.14);
-  --sidebar-ring:               oklch(0.82 0.14 85 / 0.55);
+  --sidebar:                    oklch(1     0     0);    /* ivory rail */
+  --sidebar-foreground:         oklch(0.22  0.015 60);
+  --sidebar-primary:            oklch(0.74  0.135 82);
+  --sidebar-primary-foreground: oklch(1     0    0);
+  --sidebar-accent:             oklch(0.955 0.018 86);
+  --sidebar-accent-foreground:  oklch(0.22  0.015 60);
+  --sidebar-border:             oklch(0.89  0.022 85);
+  --sidebar-ring:               oklch(0.74  0.135 82 / 0.45);
 
+  /* Brand gradients — champagne → luxury gold → deep gold */
   --gradient-gold: linear-gradient(135deg,
-      oklch(0.93 0.08 90) 0%,
-      oklch(0.82 0.14 85) 35%,
-      oklch(0.65 0.13 78) 70%,
-      oklch(0.45 0.10 70) 100%);
+      oklch(0.88 0.09  88) 0%,
+      oklch(0.84 0.10  86) 25%,
+      oklch(0.74 0.135 82) 60%,
+      oklch(0.58 0.115 72) 100%);
   --gradient-gold-text: linear-gradient(180deg,
-      oklch(0.96 0.06 92) 0%,
-      oklch(0.85 0.14 86) 45%,
-      oklch(0.62 0.13 75) 100%);
+      oklch(0.78 0.13  84) 0%,
+      oklch(0.68 0.13  78) 50%,
+      oklch(0.50 0.10  70) 100%);
   --gradient-vault: radial-gradient(ellipse 80% 60% at 50% 0%,
-      oklch(0.82 0.14 85 / 0.18) 0%,
+      oklch(0.74 0.135 82 / 0.10) 0%,
       transparent 70%);
-  --shadow-gold:    0 12px 50px -12px oklch(0.82 0.14 85 / 0.40);
-  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.06) inset,
-                    0 30px 80px -30px oklch(0 0 0 / 0.85),
-                    0 0 0 1px oklch(0.82 0.14 85 / 0.08);
-  --shadow-rim:     0 0 0 1px oklch(0.82 0.14 85 / 0.22),
-                    0 0 0 4px oklch(0.82 0.14 85 / 0.05);
+  --shadow-gold:    0 14px 40px -14px oklch(0.58 0.115 72 / 0.35);
+  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.7) inset,
+                    0 24px 60px -30px oklch(0.40 0.10 60 / 0.18),
+                    0 0 0 1px oklch(0.89 0.022 85 / 0.6);
+  --shadow-rim:     0 0 0 1px oklch(0.74 0.135 82 / 0.28),
+                    0 0 0 4px oklch(0.74 0.135 82 / 0.06);
 }
 
 @layer base {
@@ -225,15 +233,15 @@
   .dark body {
     background-image:
       radial-gradient(ellipse 1200px 600px at 50% -10%,
-        oklch(0.82 0.14 85 / 0.06) 0%, transparent 60%),
+        oklch(0.74 0.135 82 / 0.07) 0%, transparent 60%),
       radial-gradient(ellipse 800px 600px at 100% 100%,
-        oklch(0.55 0.12 60 / 0.05) 0%, transparent 60%);
+        oklch(0.58 0.115 72 / 0.05) 0%, transparent 60%);
     background-attachment: fixed;
   }
 
   h1, h2, .font-serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
 
-  ::selection { background: oklch(0.82 0.14 85 / 0.35); color: oklch(0.98 0.02 85); }
+  ::selection { background: oklch(0.74 0.135 82 / 0.30); color: oklch(0.20 0.012 60); }
 
   /* Custom utilities */
   .text-gold     { color: var(--gold); }
@@ -264,9 +272,9 @@
   .card-luxe {
     position: relative;
     background: linear-gradient(180deg,
-      oklch(0.19 0.018 72) 0%,
-      oklch(0.16 0.014 70) 100%);
-    border: 1px solid oklch(0.82 0.14 85 / 0.18);
+      oklch(1     0     0) 0%,
+      oklch(0.985 0.012 88) 100%);
+    border: 1px solid oklch(0.89 0.022 85);
     box-shadow: var(--shadow-elegant);
   }
   .card-luxe::before {
@@ -275,13 +283,21 @@
     border-radius: inherit;
     padding: 1px;
     background: linear-gradient(135deg,
-      oklch(0.82 0.14 85 / 0.45),
+      oklch(0.74 0.135 82 / 0.55),
       transparent 40%,
       transparent 60%,
-      oklch(0.82 0.14 85 / 0.25));
+      oklch(0.74 0.135 82 / 0.25));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
             mask-composite: exclude;
     pointer-events: none;
+  }
+
+  /* Cream surface for full-page wrappers, with a faint gold wave at bottom */
+  .surface-cream {
+    background-color: oklch(0.975 0.012 88);
+    background-image:
+      radial-gradient(ellipse 1000px 400px at 50% 100%,
+        oklch(0.74 0.135 82 / 0.07) 0%, transparent 70%);
   }
 }
