@@ -83,6 +83,16 @@ export function AppShell() {
 
   const visibleNav = NAV.filter((i) => hasAnyRole(roles, i.roles));
 
+  // Active match: pick the longest nav prefix that matches the current path.
+  // Prevents `/app/transactions` from looking active when on `/app/transactions/new`.
+  const activeTo = (() => {
+    const matches = visibleNav.filter((i) =>
+      location.pathname === i.to || (i.to !== "/app" && location.pathname.startsWith(i.to + "/")) || (i.to === "/app" && location.pathname === "/app")
+    );
+    if (matches.length === 0) return null;
+    return matches.reduce((a, b) => (b.to.length > a.to.length ? b : a)).to;
+  })();
+
   return (
     <NotificationsProvider>
       <div className="flex min-h-screen bg-background">
@@ -94,8 +104,7 @@ export function AppShell() {
           </Link>
           <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
             {visibleNav.map((item) => {
-              const active = location.pathname === item.to ||
-                (item.to !== "/app" && location.pathname.startsWith(item.to));
+              const active = item.to === activeTo;
               const Icon = item.icon;
               return (
                 <Link
@@ -156,8 +165,7 @@ export function AppShell() {
               {(() => {
                 const primaryNav = visibleNav.slice(0, 3);
                 const moreNav = visibleNav.slice(3);
-                const isActive = (to: string) =>
-                  location.pathname === to || (to !== "/app" && location.pathname.startsWith(to));
+                const isActive = (to: string) => to === activeTo;
                 const moreActive = moreNav.some((i) => isActive(i.to));
                 return (
                   <>
