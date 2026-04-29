@@ -6,12 +6,13 @@ import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Landmark, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 import { formatMinor, formatDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/portal")({
   component: Portal,
-  head: () => ({ meta: [{ title: "Customer portal — Vault Ledger" }] }),
+  head: () => ({ meta: [{ title: "Customer portal — Dahab" }] }),
 });
 
 function Portal() {
@@ -63,7 +64,7 @@ function Portal() {
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
         <div className="container mx-auto flex h-14 items-center justify-between px-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold"><Landmark className="h-5 w-5" /> Vault Ledger</Link>
+          <Link to="/" className="flex items-center gap-3"><DahabCoin /><DahabMark size="sm" showArabic={false} /></Link>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
