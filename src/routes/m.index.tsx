@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/m")({
+export const Route = createFileRoute("/m/")({
   component: MobileWelcome,
   head: () => ({ meta: [{ title: "DAHAM — Banking with the strength of gold" }] }),
 });

@@ -10,10 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortalRouteImport } from './routes/portal'
-import { Route as MRouteImport } from './routes/m'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MIndexRouteImport } from './routes/m.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as MLoginRouteImport } from './routes/m.login'
 import { Route as MDashboardRouteImport } from './routes/m.dashboard'
@@ -37,11 +37,6 @@ const PortalRoute = PortalRouteImport.update({
   path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MRoute = MRouteImport.update({
-  id: '/m',
-  path: '/m',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -55,6 +50,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MIndexRoute = MIndexRouteImport.update({
+  id: '/m/',
+  path: '/m/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -151,7 +151,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -160,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
+  '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -174,7 +174,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -183,6 +182,7 @@ export interface FileRoutesByTo {
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
+  '/m': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -199,7 +199,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -208,6 +207,7 @@ export interface FileRoutesById {
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
+  '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
@@ -225,7 +225,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
-    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
@@ -234,6 +233,7 @@ export interface FileRouteTypes {
     | '/m/dashboard'
     | '/m/login'
     | '/app/'
+    | '/m/'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -248,7 +248,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
@@ -257,6 +256,7 @@ export interface FileRouteTypes {
     | '/m/dashboard'
     | '/m/login'
     | '/app'
+    | '/m'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -272,7 +272,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
-    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
@@ -281,6 +280,7 @@ export interface FileRouteTypes {
     | '/m/dashboard'
     | '/m/login'
     | '/app/'
+    | '/m/'
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
@@ -297,8 +297,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  MRoute: typeof MRouteWithChildren
   PortalRoute: typeof PortalRoute
+  MIndexRoute: typeof MIndexRoute
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
@@ -310,13 +310,6 @@ declare module '@tanstack/react-router' {
       path: '/portal'
       fullPath: '/portal'
       preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m': {
-      id: '/m'
-      path: '/m'
-      fullPath: '/m'
-      preLoaderRoute: typeof MRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -338,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m/': {
+      id: '/m/'
+      path: '/m'
+      fullPath: '/m/'
+      preLoaderRoute: typeof MIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -496,24 +496,12 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
-interface MRouteChildren {
-  MDashboardRoute: typeof MDashboardRoute
-  MLoginRoute: typeof MLoginRoute
-}
-
-const MRouteChildren: MRouteChildren = {
-  MDashboardRoute: MDashboardRoute,
-  MLoginRoute: MLoginRoute,
-}
-
-const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  MRoute: MRouteWithChildren,
   PortalRoute: PortalRoute,
+  MIndexRoute: MIndexRoute,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
