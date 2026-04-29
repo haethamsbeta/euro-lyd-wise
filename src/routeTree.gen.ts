@@ -26,6 +26,7 @@ import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
 import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
+import { Route as ApiPublicHooksNotificationsTickRouteImport } from './routes/api/public/hooks/notifications-tick'
 
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
@@ -115,6 +116,12 @@ const AppTransactionsNewDepositRoute =
     path: '/transactions/new/deposit',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiPublicHooksNotificationsTickRoute =
+  ApiPublicHooksNotificationsTickRouteImport.update({
+    id: '/api/public/hooks/notifications-tick',
+    path: '/api/public/hooks/notifications-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
   '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
@@ -149,6 +157,7 @@ export interface FileRoutesByTo {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
+  '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
   '/app/transactions/new': typeof AppTransactionsNewIndexRoute
@@ -169,6 +178,7 @@ export interface FileRoutesById {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
   '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
   '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
     | '/app/transactions/new/'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts'
     | '/app/transactions'
+    | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
     | '/app/transactions/new'
@@ -227,6 +239,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
     | '/app/transactions/new/withdraw'
     | '/app/transactions/new/'
@@ -237,6 +250,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRoute
+  ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -360,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTransactionsNewDepositRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/hooks/notifications-tick': {
+      id: '/api/public/hooks/notifications-tick'
+      path: '/api/public/hooks/notifications-tick'
+      fullPath: '/api/public/hooks/notifications-tick'
+      preLoaderRoute: typeof ApiPublicHooksNotificationsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -402,6 +423,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRoute,
+  ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
