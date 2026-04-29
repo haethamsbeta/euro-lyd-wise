@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortalRouteImport } from './routes/portal'
+import { Route as MRouteImport } from './routes/m'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ const PortalRoute = PortalRouteImport.update({
   path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MRoute = MRouteImport.update({
+  id: '/m',
+  path: '/m',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -53,9 +59,9 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const MIndexRoute = MIndexRouteImport.update({
-  id: '/m/',
-  path: '/m/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => MRoute,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -199,6 +206,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -225,6 +233,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/m'
     | '/portal'
     | '/app/approvals'
     | '/app/audit'
@@ -297,8 +307,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MRoute: typeof MRouteWithChildren
   PortalRoute: typeof PortalRoute
-  MIndexRoute: typeof MIndexRoute
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
@@ -310,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/portal'
       fullPath: '/portal'
       preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m': {
+      id: '/m'
+      path: '/m'
+      fullPath: '/m'
+      preLoaderRoute: typeof MRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -335,10 +352,10 @@ declare module '@tanstack/react-router' {
     }
     '/m/': {
       id: '/m/'
-      path: '/m'
+      path: '/'
       fullPath: '/m/'
       preLoaderRoute: typeof MIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MRoute
     }
     '/app/': {
       id: '/app/'
@@ -496,12 +513,26 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface MRouteChildren {
+  MDashboardRoute: typeof MDashboardRoute
+  MLoginRoute: typeof MLoginRoute
+  MIndexRoute: typeof MIndexRoute
+}
+
+const MRouteChildren: MRouteChildren = {
+  MDashboardRoute: MDashboardRoute,
+  MLoginRoute: MLoginRoute,
+  MIndexRoute: MIndexRoute,
+}
+
+const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  MRoute: MRouteWithChildren,
   PortalRoute: PortalRoute,
-  MIndexRoute: MIndexRoute,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
