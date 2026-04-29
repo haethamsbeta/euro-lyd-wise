@@ -4,11 +4,12 @@ import { useAuth, hasAnyRole, type AppRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Landmark, LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
+  LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
   ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
+import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 
 type NavItem = {
   to: string;
@@ -41,22 +42,33 @@ export function AppShell() {
   }, [session, loading, nav]);
 
   if (loading || !session) {
-    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <DahabMark size="md" />
+          <span className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Loading…</span>
+        </div>
+      </div>
+    );
   }
 
   const isStaff = hasAnyRole(roles, ["admin", "teller", "auditor"]);
   if (!isStaff) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-        <div className="max-w-md rounded-lg border bg-card p-8 text-center shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="card-luxe max-w-md rounded-xl p-8 text-center">
           <ShieldAlert className="mx-auto h-10 w-10 text-warning" />
-          <h1 className="mt-3 text-xl font-semibold">No staff access</h1>
+          <h1 className="mt-3 font-serif text-xl font-semibold">No staff access</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your account is not assigned a staff role. If you are a customer, open the customer portal instead.
           </p>
           <div className="mt-6 flex justify-center gap-2">
-            <Button asChild variant="secondary"><Link to="/portal">Customer portal</Link></Button>
-            <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
+            <Button asChild variant="outline" className="border-[oklch(0.82_0.14_85/0.3)]">
+              <Link to="/portal">Customer portal</Link>
+            </Button>
+            <Button onClick={() => signOut()} className="bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95">
+              Sign out
+            </Button>
           </div>
         </div>
       </div>
@@ -67,80 +79,108 @@ export function AppShell() {
 
   return (
     <NotificationsProvider>
-    <div className="flex min-h-screen bg-muted/30">
-      <aside className="hidden w-60 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
-        <div className="flex h-14 items-center gap-2 border-b px-4 font-semibold">
-          <Landmark className="h-5 w-5" /> Vault Ledger
-        </div>
-        <nav className="flex-1 space-y-0.5 p-2">
-          {visibleNav.map((item) => {
-            const active = location.pathname === item.to ||
-              (item.to !== "/app" && location.pathname.startsWith(item.to));
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4" /> {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t p-3 text-xs">
-          <div className="truncate font-medium">{user?.email}</div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {roles.map((r) => (
-              <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{r}</span>
-            ))}
-          </div>
-          <Button onClick={() => signOut()} variant="ghost" size="sm" className="mt-2 w-full justify-start">
-            <LogOut className="h-4 w-4" /> Sign out
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-x-hidden">
-        <div className="hidden items-center justify-end gap-2 border-b bg-background px-4 py-2 md:flex">
-          <NotificationBell />
-        </div>
-        <div className="border-b bg-background px-4 py-3 md:hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 font-semibold">
-              <Landmark className="h-5 w-5" /> Vault Ledger
+      <div className="flex min-h-screen bg-background">
+        {/* Sidebar */}
+        <aside className="hidden w-64 flex-col border-r border-[oklch(0.82_0.14_85/0.12)] bg-sidebar text-sidebar-foreground md:flex">
+          <Link to="/app" className="flex h-20 items-center gap-3 border-b border-[oklch(0.82_0.14_85/0.12)] px-5">
+            <DahabCoin />
+            <DahabMark size="sm" showArabic={false} />
+          </Link>
+          <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+            {visibleNav.map((item) => {
+              const active = location.pathname === item.to ||
+                (item.to !== "/app" && location.pathname.startsWith(item.to));
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
+                    active
+                      ? "bg-[oklch(0.82_0.14_85/0.10)] text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground",
+                  )}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r bg-gradient-gold shadow-gold" aria-hidden />
+                  )}
+                  <Icon className={cn("h-4 w-4", active ? "text-gold" : "")} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="border-t border-[oklch(0.82_0.14_85/0.12)] p-4">
+            <div className="truncate text-xs font-medium text-foreground">{user?.email}</div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {roles.map((r) => (
+                <span key={r} className="rounded border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gold">
+                  {r}
+                </span>
+              ))}
             </div>
-            <div className="flex items-center gap-1">
-              <NotificationBell />
-              <Button onClick={() => signOut()} variant="ghost" size="sm"><LogOut className="h-4 w-4" /></Button>
+            <Button onClick={() => signOut()} variant="ghost" size="sm" className="mt-3 w-full justify-start text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground">
+              <LogOut className="mr-2 h-4 w-4" /> Sign out
+            </Button>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <main className="flex-1 overflow-x-hidden">
+          {/* Desktop top bar */}
+          <div className="hidden items-center justify-end gap-2 border-b border-[oklch(0.82_0.14_85/0.12)] bg-background/60 px-6 py-2.5 backdrop-blur md:flex">
+            <NotificationBell />
+          </div>
+          {/* Mobile top bar */}
+          <div className="border-b border-[oklch(0.82_0.14_85/0.12)] bg-background px-4 py-3 md:hidden">
+            <div className="flex items-center justify-between">
+              <Link to="/app" className="flex items-center gap-2">
+                <DahabCoin />
+                <DahabMark size="sm" showArabic={false} />
+              </Link>
+              <div className="flex items-center gap-1">
+                <NotificationBell />
+                <Button onClick={() => signOut()} variant="ghost" size="sm">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+              {visibleNav.map((i) => {
+                const active = location.pathname === i.to ||
+                  (i.to !== "/app" && location.pathname.startsWith(i.to));
+                return (
+                  <Link
+                    key={i.to}
+                    to={i.to}
+                    className={cn(
+                      "whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
+                      active
+                        ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
+                        : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
+                    )}
+                  >
+                    {i.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
-          <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
-            {visibleNav.map((i) => (
-              <Link key={i.to} to={i.to} className="whitespace-nowrap rounded border px-2 py-1 text-xs">
-                {i.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <Outlet />
-      </main>
-    </div>
+          <Outlet />
+        </main>
+      </div>
     </NotificationsProvider>
   );
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
   return (
-    <div className="border-b bg-background">
-      <div className="flex flex-wrap items-end justify-between gap-3 px-6 py-5">
+    <div className="border-b border-[oklch(0.82_0.14_85/0.12)] bg-background">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-6 py-6">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-          {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">{title}</h1>
+          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {actions}
       </div>
