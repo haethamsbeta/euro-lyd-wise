@@ -9,38 +9,246 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalRouteImport } from './routes/portal'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppVaultsRouteImport } from './routes/app.vaults'
+import { Route as AppUsersRouteImport } from './routes/app.users'
+import { Route as AppAuditRouteImport } from './routes/app.audit'
+import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
+import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
+import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
+import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
+import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
+import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
+import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
+import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
 
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVaultsRoute = AppVaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApprovalsRoute = AppApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionsIndexRoute = AppTransactionsIndexRouteImport.update({
+  id: '/transactions/',
+  path: '/transactions/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountsIndexRoute = AppAccountsIndexRouteImport.update({
+  id: '/accounts/',
+  path: '/accounts/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMeActivityRoute = AppMeActivityRouteImport.update({
+  id: '/me/activity',
+  path: '/me/activity',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountsIdRoute = AppAccountsIdRouteImport.update({
+  id: '/accounts/$id',
+  path: '/accounts/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionsNewIndexRoute = AppTransactionsNewIndexRouteImport.update({
+  id: '/transactions/new/',
+  path: '/transactions/new/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionsNewWithdrawRoute =
+  AppTransactionsNewWithdrawRouteImport.update({
+    id: '/transactions/new/withdraw',
+    path: '/transactions/new/withdraw',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppTransactionsNewDepositRoute =
+  AppTransactionsNewDepositRouteImport.update({
+    id: '/transactions/new/deposit',
+    path: '/transactions/new/deposit',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/portal': typeof PortalRoute
+  '/app/approvals': typeof AppApprovalsRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/vaults': typeof AppVaultsRoute
+  '/app/': typeof AppIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/me/activity': typeof AppMeActivityRoute
+  '/app/accounts/': typeof AppAccountsIndexRoute
+  '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/portal': typeof PortalRoute
+  '/app/approvals': typeof AppApprovalsRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/vaults': typeof AppVaultsRoute
+  '/app': typeof AppIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/me/activity': typeof AppMeActivityRoute
+  '/app/accounts': typeof AppAccountsIndexRoute
+  '/app/transactions': typeof AppTransactionsIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/portal': typeof PortalRoute
+  '/app/approvals': typeof AppApprovalsRoute
+  '/app/audit': typeof AppAuditRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/vaults': typeof AppVaultsRoute
+  '/app/': typeof AppIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/me/activity': typeof AppMeActivityRoute
+  '/app/accounts/': typeof AppAccountsIndexRoute
+  '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/portal'
+    | '/app/approvals'
+    | '/app/audit'
+    | '/app/users'
+    | '/app/vaults'
+    | '/app/'
+    | '/app/accounts/$id'
+    | '/app/me/activity'
+    | '/app/accounts/'
+    | '/app/transactions/'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/portal'
+    | '/app/approvals'
+    | '/app/audit'
+    | '/app/users'
+    | '/app/vaults'
+    | '/app'
+    | '/app/accounts/$id'
+    | '/app/me/activity'
+    | '/app/accounts'
+    | '/app/transactions'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/portal'
+    | '/app/approvals'
+    | '/app/audit'
+    | '/app/users'
+    | '/app/vaults'
+    | '/app/'
+    | '/app/accounts/$id'
+    | '/app/me/activity'
+    | '/app/accounts/'
+    | '/app/transactions/'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  PortalRoute: typeof PortalRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,21 +256,131 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vaults': {
+      id: '/app/vaults'
+      path: '/vaults'
+      fullPath: '/app/vaults'
+      preLoaderRoute: typeof AppVaultsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/users': {
+      id: '/app/users'
+      path: '/users'
+      fullPath: '/app/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/audit': {
+      id: '/app/audit'
+      path: '/audit'
+      fullPath: '/app/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/approvals': {
+      id: '/app/approvals'
+      path: '/approvals'
+      fullPath: '/app/approvals'
+      preLoaderRoute: typeof AppApprovalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/': {
+      id: '/app/transactions/'
+      path: '/transactions'
+      fullPath: '/app/transactions/'
+      preLoaderRoute: typeof AppTransactionsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/accounts/': {
+      id: '/app/accounts/'
+      path: '/accounts'
+      fullPath: '/app/accounts/'
+      preLoaderRoute: typeof AppAccountsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/me/activity': {
+      id: '/app/me/activity'
+      path: '/me/activity'
+      fullPath: '/app/me/activity'
+      preLoaderRoute: typeof AppMeActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/accounts/$id': {
+      id: '/app/accounts/$id'
+      path: '/accounts/$id'
+      fullPath: '/app/accounts/$id'
+      preLoaderRoute: typeof AppAccountsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/new/': {
+      id: '/app/transactions/new/'
+      path: '/transactions/new'
+      fullPath: '/app/transactions/new/'
+      preLoaderRoute: typeof AppTransactionsNewIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/new/withdraw': {
+      id: '/app/transactions/new/withdraw'
+      path: '/transactions/new/withdraw'
+      fullPath: '/app/transactions/new/withdraw'
+      preLoaderRoute: typeof AppTransactionsNewWithdrawRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/new/deposit': {
+      id: '/app/transactions/new/deposit'
+      path: '/transactions/new/deposit'
+      fullPath: '/app/transactions/new/deposit'
+      preLoaderRoute: typeof AppTransactionsNewDepositRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppApprovalsRoute: typeof AppApprovalsRoute
+  AppAuditRoute: typeof AppAuditRoute
+  AppUsersRoute: typeof AppUsersRoute
+  AppVaultsRoute: typeof AppVaultsRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppAccountsIdRoute: typeof AppAccountsIdRoute
+  AppMeActivityRoute: typeof AppMeActivityRoute
+  AppAccountsIndexRoute: typeof AppAccountsIndexRoute
+  AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
+  AppTransactionsNewDepositRoute: typeof AppTransactionsNewDepositRoute
+  AppTransactionsNewWithdrawRoute: typeof AppTransactionsNewWithdrawRoute
+  AppTransactionsNewIndexRoute: typeof AppTransactionsNewIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppApprovalsRoute: AppApprovalsRoute,
+  AppAuditRoute: AppAuditRoute,
+  AppUsersRoute: AppUsersRoute,
+  AppVaultsRoute: AppVaultsRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppAccountsIdRoute: AppAccountsIdRoute,
+  AppMeActivityRoute: AppMeActivityRoute,
+  AppAccountsIndexRoute: AppAccountsIndexRoute,
+  AppTransactionsIndexRoute: AppTransactionsIndexRoute,
+  AppTransactionsNewDepositRoute: AppTransactionsNewDepositRoute,
+  AppTransactionsNewWithdrawRoute: AppTransactionsNewWithdrawRoute,
+  AppTransactionsNewIndexRoute: AppTransactionsNewIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
+  PortalRoute: PortalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

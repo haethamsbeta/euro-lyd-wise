@@ -1,0 +1,7 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/app/app-shell";
+
+export const Route = createFileRoute("/app")({
+  component: AppShell,
+  head: () => ({ meta: [{ title: "Back-office — Vault Ledger" }] }),
+});
