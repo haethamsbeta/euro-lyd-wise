@@ -157,6 +157,105 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          browser_push_enabled: boolean
+          daily_summary_enabled: boolean
+          daily_summary_time: string
+          enabled: Json
+          large_tx_threshold: Json
+          low_vault_threshold: Json
+          pending_reminder_minutes: number
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          browser_push_enabled?: boolean
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string
+          enabled?: Json
+          large_tx_threshold?: Json
+          low_vault_threshold?: Json
+          pending_reminder_minutes?: number
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          browser_push_enabled?: boolean
+          daily_summary_enabled?: boolean
+          daily_summary_time?: string
+          enabled?: Json
+          large_tx_threshold?: Json
+          low_vault_threshold?: Json
+          pending_reminder_minutes?: number
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_reminders_state: {
+        Row: {
+          kind: string
+          last_sent_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          last_sent_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          last_sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          data: Json
+          event_type: Database["public"]["Enums"]["notification_event"]
+          id: string
+          read_at: string | null
+          severity: Database["public"]["Enums"]["notification_severity"]
+          title: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          data?: Json
+          event_type: Database["public"]["Enums"]["notification_event"]
+          id?: string
+          read_at?: string | null
+          severity?: Database["public"]["Enums"]["notification_severity"]
+          title: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          data?: Json
+          event_type?: Database["public"]["Enums"]["notification_event"]
+          id?: string
+          read_at?: string | null
+          severity?: Database["public"]["Enums"]["notification_severity"]
+          title?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -172,6 +271,33 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          granted: boolean
+          id: string
+          label: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted?: boolean
+          id?: string
+          label?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted?: boolean
+          id?: string
+          label?: string | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -270,6 +396,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _notify_role: {
+        Args: {
+          p_body: string
+          p_data: Json
+          p_event: Database["public"]["Enums"]["notification_event"]
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_severity: Database["public"]["Enums"]["notification_severity"]
+          p_title: string
+          p_tx: string
+        }
+        Returns: undefined
+      }
+      _notify_user: {
+        Args: {
+          p_body: string
+          p_data: Json
+          p_event: Database["public"]["Enums"]["notification_event"]
+          p_severity: Database["public"]["Enums"]["notification_severity"]
+          p_title: string
+          p_tx: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       approve_transaction: {
         Args: { p_tx_id: string }
         Returns: {
@@ -304,6 +454,8 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      notifications_mark_all_read: { Args: never; Returns: number }
+      notifications_mark_read: { Args: { p_ids: string[] }; Returns: number }
       post_transaction: {
         Args: {
           p_amount_minor: number
@@ -363,6 +515,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      run_notification_reminders: { Args: never; Returns: Json }
     }
     Enums: {
       account_kind: "customer" | "vault"
@@ -370,6 +523,18 @@ export type Database = {
       app_role: "admin" | "teller" | "auditor" | "consumer"
       currency_code: "USD" | "EUR" | "LYD"
       entry_side: "debit" | "credit"
+      notification_event:
+        | "tx_posted"
+        | "pending_created"
+        | "approval_decision"
+        | "large_tx"
+        | "low_vault"
+        | "overdraft"
+        | "daily_summary"
+        | "account_change"
+        | "reminder_pending"
+        | "reminder_shift"
+      notification_severity: "info" | "warning" | "critical"
       tx_direction: "deposit" | "withdraw"
       tx_status: "posted" | "pending" | "rejected"
       vault_channel: "cash" | "bank"
@@ -505,6 +670,19 @@ export const Constants = {
       app_role: ["admin", "teller", "auditor", "consumer"],
       currency_code: ["USD", "EUR", "LYD"],
       entry_side: ["debit", "credit"],
+      notification_event: [
+        "tx_posted",
+        "pending_created",
+        "approval_decision",
+        "large_tx",
+        "low_vault",
+        "overdraft",
+        "daily_summary",
+        "account_change",
+        "reminder_pending",
+        "reminder_shift",
+      ],
+      notification_severity: ["info", "warning", "critical"],
       tx_direction: ["deposit", "withdraw"],
       tx_status: ["posted", "pending", "rejected"],
       vault_channel: ["cash", "bank"],
