@@ -13,6 +13,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
+import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
+import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -34,17 +37,40 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTransactionsNewIndexRoute = AppTransactionsNewIndexRouteImport.update({
+  id: '/transactions/new/',
+  path: '/transactions/new/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransactionsNewWithdrawRoute =
+  AppTransactionsNewWithdrawRouteImport.update({
+    id: '/transactions/new/withdraw',
+    path: '/transactions/new/withdraw',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppTransactionsNewDepositRoute =
+  AppTransactionsNewDepositRouteImport.update({
+    id: '/transactions/new/deposit',
+    path: '/transactions/new/deposit',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -52,13 +78,37 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
+  '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
+  '/app/transactions/new/withdraw': typeof AppTransactionsNewWithdrawRoute
+  '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login' | '/app/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/app'
-  id: '__root__' | '/' | '/app' | '/login' | '/app/'
+  to:
+    | '/'
+    | '/login'
+    | '/app'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/transactions/new/deposit'
+    | '/app/transactions/new/withdraw'
+    | '/app/transactions/new/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -97,15 +147,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/transactions/new/': {
+      id: '/app/transactions/new/'
+      path: '/transactions/new'
+      fullPath: '/app/transactions/new/'
+      preLoaderRoute: typeof AppTransactionsNewIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/new/withdraw': {
+      id: '/app/transactions/new/withdraw'
+      path: '/transactions/new/withdraw'
+      fullPath: '/app/transactions/new/withdraw'
+      preLoaderRoute: typeof AppTransactionsNewWithdrawRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/transactions/new/deposit': {
+      id: '/app/transactions/new/deposit'
+      path: '/transactions/new/deposit'
+      fullPath: '/app/transactions/new/deposit'
+      preLoaderRoute: typeof AppTransactionsNewDepositRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppTransactionsNewDepositRoute: typeof AppTransactionsNewDepositRoute
+  AppTransactionsNewWithdrawRoute: typeof AppTransactionsNewWithdrawRoute
+  AppTransactionsNewIndexRoute: typeof AppTransactionsNewIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppTransactionsNewDepositRoute: AppTransactionsNewDepositRoute,
+  AppTransactionsNewWithdrawRoute: AppTransactionsNewWithdrawRoute,
+  AppTransactionsNewIndexRoute: AppTransactionsNewIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
