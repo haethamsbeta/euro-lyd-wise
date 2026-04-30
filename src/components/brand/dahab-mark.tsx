@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import dahabIcon from "@/assets/dahab-icon.png";
 
 /**
  * The Dahab wordmark. A serif "DAHAB" with a thin gold rule and the Arabic
@@ -8,20 +9,31 @@ export function DahabMark({
   className,
   size = "md",
   showArabic = true,
+  showIcon = true,
 }: {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
   showArabic?: boolean;
+  showIcon?: boolean;
 }) {
   const sizes = {
-    sm: { wordmark: "text-base", arabic: "text-[10px]", rule: "w-6" },
-    md: { wordmark: "text-xl", arabic: "text-[11px]", rule: "w-8" },
-    lg: { wordmark: "text-3xl", arabic: "text-sm", rule: "w-12" },
-    xl: { wordmark: "text-5xl", arabic: "text-base", rule: "w-16" },
+    sm: { wordmark: "text-base", arabic: "text-[10px]", rule: "w-6", icon: "h-7 w-7" },
+    md: { wordmark: "text-xl", arabic: "text-[11px]", rule: "w-8", icon: "h-9 w-9" },
+    lg: { wordmark: "text-3xl", arabic: "text-sm", rule: "w-12", icon: "h-16 w-16" },
+    xl: { wordmark: "text-5xl", arabic: "text-base", rule: "w-16", icon: "h-24 w-24" },
   } as const;
   const s = sizes[size];
   return (
     <div className={cn("inline-flex flex-col items-center leading-none", className)}>
+      {showIcon ? (
+        <img
+          src={dahabIcon}
+          alt="Dahab"
+          className={cn("mb-3 object-contain drop-shadow-[0_6px_18px_oklch(0.58_0.115_72/0.35)]", s.icon)}
+          width={256}
+          height={256}
+        />
+      ) : null}
       <span
         className={cn(
           "font-serif font-semibold tracking-[0.32em] gold-text",
