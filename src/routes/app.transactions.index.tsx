@@ -539,7 +539,7 @@ function SkeletonRows({ cols }: { cols: number }) {
   );
 }
 
-/* ---------------- Attachments side sheet ---------------- */
+/* ---------------- Details side sheet ---------------- */
 
 type Attachment = {
   id: string;
@@ -548,21 +548,88 @@ type Attachment = {
   content_type: string | null;
   size_bytes: number | null;
   created_at: string;
+  uploaded_by: string;
 };
 
-function AttachmentsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void }) {
+type TxDetails = {
+  tx_number: string;
+  posted_at: string | null;
+  reject_reason: string | null;
+  correction_reason: string | null;
+  approved_by_user_id: string | null;
+  created_by_user_id: string;
+  vault: { name: string; vault_channel: string | null } | null;
+  ledger: { id: string; account_id: string; side: string; amount_minor: number; currency: string }[];
+  attachments: Attachment[];
+  creator_name: string | null;
+  approver_name: string | null;
+};
+
+function TxDetailsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void }) {
   const open = !!tx;
   const { data, isLoading, error } = useQuery({
-    queryKey: ["tx.attachments", tx?.id],
+    queryKey: ["tx.details", tx?.id],
     enabled: open,
-    queryFn: async (): Promise<Attachment[]> => {
-      const { data, error } = await supabase
-        .from("transaction_attachments")
-        .select("id, file_name, storage_path, content_type, size_bytes, created_at")
-        .eq("transaction_id", tx!.id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as Attachment[];
+    queryFn: async (): Promise<TxDetails> => {
+      // Core transaction (with vault embed) + ledger + attachments in parallel
+      const [txRes, ledgerRes, attRes] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select(
+            `tx_number, posted_at, reject_reason, correction_reason,
+             approved_by_user_id, created_by_user_id,
+             vault:accounts!transactions_vault_account_id_fkey(name, vault_channel)`,
+          )
+          .eq("id", tx!.id)
+          .single(),
+        supabase
+          .from("ledger_entries")
+          .select("id, account_id, side, amount_minor, currency")
+          .eq("transaction_id", tx!.id),
+        supabase
+          .from("transaction_attachments")
+          .select("id, file_name, storage_path, content_type, size_bytes, created_at, uploaded_by")
+          .eq("transaction_id", tx!.id)
+          .order("created_at", { ascending: true }),
+      ]);
+      if (txRes.error) throw txRes.error;
+      if (ledgerRes.error) throw ledgerRes.error;
+      if (attRes.error) throw attRes.error;
+
+      const t = txRes.data as any;
+
+      // Resolve user names from profiles (separate schema, can't embed via FK)
+      const userIds = Array.from(
+        new Set(
+          [t.created_by_user_id, t.approved_by_user_id, ...(attRes.data ?? []).map((a: any) => a.uploaded_by)]
+            .filter(Boolean),
+        ),
+      ) as string[];
+      let nameMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+        (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name || ""));
+      }
+
+      return {
+        tx_number: t.tx_number,
+        posted_at: t.posted_at,
+        reject_reason: t.reject_reason,
+        correction_reason: t.correction_reason,
+        approved_by_user_id: t.approved_by_user_id,
+        created_by_user_id: t.created_by_user_id,
+        vault: t.vault ?? null,
+        ledger: (ledgerRes.data ?? []) as any,
+        attachments: ((attRes.data ?? []) as any).map((a: any) => ({
+          ...a,
+          uploader_name: nameMap.get(a.uploaded_by) ?? null,
+        })),
+        creator_name: nameMap.get(t.created_by_user_id) ?? null,
+        approver_name: t.approved_by_user_id ? nameMap.get(t.approved_by_user_id) ?? null : null,
+      };
     },
   });
 
@@ -570,17 +637,17 @@ function AttachmentsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Paperclip className="h-4 w-4" /> Attachments
+          <SheetTitle className="flex items-center gap-2 font-mono text-base">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            {tx?.tx_number}
           </SheetTitle>
           <SheetDescription>
             {tx ? (
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-foreground">{tx.tx_number}</span>
-                <span>·</span>
-                <span>{tx.customer_name ?? "—"}</span>
-                <span>·</span>
-                <span className="font-mono">{formatMinor(tx.amount_minor, tx.currency)} {tx.currency}</span>
+              <span className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-foreground">{tx.customer_name ?? "—"}</span>
+                {tx.customer_account_number ? (
+                  <span className="text-muted-foreground">#{tx.customer_account_number}</span>
+                ) : null}
                 <span>·</span>
                 <StatusBadge tx={tx} />
               </span>
@@ -588,28 +655,195 @@ function AttachmentsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void 
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[0, 1].map((i) => (
-                <div key={i} className="h-32 animate-pulse rounded-md bg-muted" />
-              ))}
+        {tx ? (
+          <div className="mt-4 space-y-5">
+            {/* Headline amount */}
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    tx.direction === "deposit"
+                      ? "bg-success/10 text-success"
+                      : "bg-destructive/10 text-destructive",
+                  )}
+                >
+                  {tx.direction === "deposit" ? (
+                    <ArrowDownCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowUpCircle className="h-3.5 w-3.5" />
+                  )}
+                  {tx.direction === "deposit" ? "Deposit" : "Withdrawal"} · {tx.channel}
+                </span>
+                <div className="text-right font-mono tabular-nums">
+                  <div className="text-xl font-semibold">
+                    {formatMinor(tx.amount_minor, tx.currency)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{tx.currency}</div>
+                </div>
+              </div>
+              {tx.comment ? (
+                <div className="mt-3 rounded-md bg-muted/40 p-2.5 text-sm">{tx.comment}</div>
+              ) : null}
             </div>
-          ) : error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Could not load attachments</AlertTitle>
-              <AlertDescription>{(error as Error).message}</AlertDescription>
-            </Alert>
-          ) : !data || data.length === 0 ? (
-            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No files attached to this transaction.
+
+            {/* People + timing */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <DetailCell
+                icon={<Clock className="h-3.5 w-3.5" />}
+                label="Created"
+                value={formatDateTime(tx.created_at)}
+              />
+              <DetailCell
+                icon={<UserIcon className="h-3.5 w-3.5" />}
+                label="Created by (teller)"
+                value={data?.creator_name || (isLoading ? "…" : "—")}
+              />
+              <DetailCell
+                icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                label="Posted"
+                value={data?.posted_at ? formatDateTime(data.posted_at) : tx.status === "pending" ? "Awaiting approval" : "—"}
+              />
+              <DetailCell
+                icon={<UserIcon className="h-3.5 w-3.5" />}
+                label="Approved by (admin)"
+                value={data?.approver_name || (data?.approved_by_user_id ? "—" : "Auto-posted / —")}
+              />
+              <DetailCell
+                icon={tx.channel === "cash" ? <Wallet className="h-3.5 w-3.5" /> : <Building2 className="h-3.5 w-3.5" />}
+                label="Vault"
+                value={data?.vault?.name ? `${data.vault.name} (${data.vault.vault_channel ?? tx.channel})` : (isLoading ? "…" : "—")}
+              />
+              <DetailCell
+                icon={<Hash className="h-3.5 w-3.5" />}
+                label="Customer #"
+                value={tx.customer_account_number ?? "—"}
+              />
             </div>
-          ) : (
-            data.map((att) => <AttachmentCard key={att.id} att={att} />)
-          )}
-        </div>
+
+            {/* Reject / correction notes */}
+            {data?.reject_reason ? (
+              <Alert variant="destructive">
+                <XCircle className="h-4 w-4" />
+                <AlertTitle>Rejected</AlertTitle>
+                <AlertDescription>{data.reject_reason}</AlertDescription>
+              </Alert>
+            ) : null}
+            {data?.correction_reason ? (
+              <Alert>
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Correction reason</AlertTitle>
+                <AlertDescription>{data.correction_reason}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {/* Ledger */}
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Ledger entries
+              </h3>
+              {isLoading ? (
+                <div className="h-16 animate-pulse rounded-md bg-muted" />
+              ) : !data || data.ledger.length === 0 ? (
+                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  No ledger entries (transaction not posted).
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left">Account</th>
+                        <th className="px-3 py-1.5 text-left">Side</th>
+                        <th className="px-3 py-1.5 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {data.ledger.map((l) => {
+                        const isCustomer = l.account_id === tx.customer_account_id;
+                        return (
+                          <tr key={l.id}>
+                            <td className="px-3 py-1.5">
+                              {isCustomer
+                                ? `${tx.customer_name ?? "Customer"} (#${tx.customer_account_number ?? ""})`
+                                : data.vault?.name ?? "Vault"}
+                            </td>
+                            <td className="px-3 py-1.5 capitalize">
+                              <span
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-xs",
+                                  l.side === "debit"
+                                    ? "bg-warning/15 text-warning"
+                                    : "bg-success/15 text-success",
+                                )}
+                              >
+                                {l.side}
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums">
+                              {formatMinor(l.amount_minor, l.currency as any)} {l.currency}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* Attachments */}
+            <section>
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Paperclip className="h-3.5 w-3.5" /> Attachments
+                {data ? <span className="font-normal normal-case">({data.attachments.length})</span> : null}
+              </h3>
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="h-32 animate-pulse rounded-md bg-muted" />
+                  ))}
+                </div>
+              ) : error ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Could not load details</AlertTitle>
+                  <AlertDescription>{(error as Error).message}</AlertDescription>
+                </Alert>
+              ) : !data || data.attachments.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  No files attached to this transaction.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {data.attachments.map((att) => (
+                    <AttachmentCard key={att.id} att={att} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DetailCell({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        {icon} {label}
+      </div>
+      <div className="mt-0.5 truncate text-sm">{value}</div>
+    </div>
   );
 }
 
