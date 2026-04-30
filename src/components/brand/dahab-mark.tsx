@@ -1,6 +1,11 @@
 import { cn } from "@/lib/utils";
-import dahabIcon from "@/assets/dahab-icon.png";
-import dahabLogoFull from "@/assets/dahab-logo-full.png";
+
+// Brand assets are served from /public so they stay out of the JS bundle and
+// can be cached by the browser like any other static asset.
+const DAHAB_ICON = "/brand/dahab-icon.webp";
+const DAHAB_ICON_FALLBACK = "/brand/dahab-icon.png";
+const DAHAB_LOGO_FULL = "/brand/dahab-logo-full.webp";
+const DAHAB_LOGO_FULL_FALLBACK = "/brand/dahab-logo-full.png";
 
 /**
  * The Dahab wordmark. A serif "DAHAB" with a thin gold rule and the Arabic
@@ -11,11 +16,14 @@ export function DahabMark({
   size = "md",
   showArabic = true,
   showIcon = false,
+  priority = false,
 }: {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
   showArabic?: boolean;
   showIcon?: boolean;
+  /** Eagerly load the icon (set true on hero/login). Defaults to lazy. */
+  priority?: boolean;
 }) {
   const sizes = {
     sm: { wordmark: "text-base", arabic: "text-[10px]", rule: "w-6", icon: "h-8 w-8" },
@@ -27,17 +35,23 @@ export function DahabMark({
   return (
     <div className={cn("inline-flex flex-col items-center leading-none", className)}>
       {showIcon ? (
-        <img
-          src={dahabIcon}
-          alt="Dahab"
-          className={cn(
-            "mb-3 object-contain",
-            "drop-shadow-[0_8px_24px_oklch(0.58_0.135_72/0.45)]",
-            s.icon,
-          )}
-          width={256}
-          height={256}
-        />
+        <picture>
+          <source srcSet={DAHAB_ICON} type="image/webp" />
+          <img
+            src={DAHAB_ICON_FALLBACK}
+            alt="Dahab"
+            className={cn(
+              "mb-3 object-contain",
+              "drop-shadow-[0_8px_24px_oklch(0.58_0.135_72/0.45)]",
+              s.icon,
+            )}
+            width={256}
+            height={256}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "auto"}
+          />
+        </picture>
       ) : null}
       <span
         className={cn(
@@ -77,13 +91,19 @@ export function DahabCoin({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <img
-        src={dahabIcon}
-        alt=""
-        className="h-full w-full object-contain drop-shadow-[0_4px_10px_oklch(0.58_0.135_72/0.45)]"
-        width={64}
-        height={64}
-      />
+      <picture>
+        <source srcSet={DAHAB_ICON} type="image/webp" />
+        <img
+          src={DAHAB_ICON_FALLBACK}
+          alt=""
+          className="h-full w-full object-contain drop-shadow-[0_4px_10px_oklch(0.58_0.135_72/0.45)]"
+          width={64}
+          height={64}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+        />
+      </picture>
     </span>
   );
 }
@@ -107,16 +127,22 @@ export function DahabLogoFull({
     lg: "h-64",
   } as const;
   return (
-    <img
-      src={dahabLogoFull}
-      alt="Dahab Financial Services Company — شركة ذهب للخدمات المالية"
-      className={cn(
-        "w-auto object-contain select-none",
-        "drop-shadow-[0_12px_36px_oklch(0.58_0.135_72/0.35)]",
-        sizes[size],
-        className,
-      )}
-      draggable={false}
-    />
+    <picture>
+      <source srcSet={DAHAB_LOGO_FULL} type="image/webp" />
+      <img
+        src={DAHAB_LOGO_FULL_FALLBACK}
+        alt="Dahab Financial Services Company — شركة ذهب للخدمات المالية"
+        className={cn(
+          "w-auto object-contain select-none",
+          "drop-shadow-[0_12px_36px_oklch(0.58_0.135_72/0.35)]",
+          sizes[size],
+          className,
+        )}
+        draggable={false}
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
+    </picture>
   );
 }

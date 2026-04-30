@@ -40,7 +40,7 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell() {
-  const { session, roles, loading, signOut, user } = useAuth();
+  const { session, roles, loading, rolesLoading, signOut, user } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
   const t = useT();
@@ -50,7 +50,7 @@ export function AppShell() {
     if (!session) nav({ to: "/login" });
   }, [session, loading, nav]);
 
-  if (loading || !session) {
+  if (loading || !session || rolesLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

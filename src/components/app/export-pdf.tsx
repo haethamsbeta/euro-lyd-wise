@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +44,13 @@ export function ExportPdfButton({
   async function handleExport() {
     try {
       setBusy(true);
+      // Lazy-load jsPDF + autotable on demand. They add ~250KB gzipped that
+      // would otherwise be in every page that mounts the export button.
+      const [{ jsPDF }, autoTableModule] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const autoTable = autoTableModule.default;
       const fromD = new Date(`${from}T00:00:00`);
       const toD = new Date(`${to}T23:59:59.999`);
       const rows = await Promise.resolve(buildRows(fromD, toD));

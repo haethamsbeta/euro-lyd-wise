@@ -16,6 +16,7 @@ import { Plus, Search } from "lucide-react";
 import { formatMinor } from "@/lib/format";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { useDebounced } from "@/hooks/use-debounced";
 
 export const Route = createFileRoute("/app/accounts/")({ component: AccountsList });
 
@@ -24,17 +25,19 @@ function AccountsList() {
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const [q, setQ] = useState("");
+  const debouncedQ = useDebounced(q, 250);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["accounts.list", q],
+    queryKey: ["accounts.list", debouncedQ],
     queryFn: async () => {
       let query = supabase
         .from("accounts")
         .select("id, name, account_number, phone, national_id, nature, status, account_balances(currency, balance_minor)")
         .eq("kind", "customer")
         .order("created_at", { ascending: false });
-      if (q.trim()) {
-        query = query.or(`name.ilike.%${q}%,account_number.ilike.%${q}%,phone.ilike.%${q}%,national_id.ilike.%${q}%`);
+      if (debouncedQ.trim()) {
+        const term = debouncedQ.trim();
+        query = query.or(`name.ilike.%${term}%,account_number.ilike.%${term}%,phone.ilike.%${term}%,national_id.ilike.%${term}%`);
       }
       const { data, error } = await query;
       if (error) throw error;
