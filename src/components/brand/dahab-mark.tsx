@@ -9,7 +9,7 @@ export function DahabMark({
   className,
   size = "md",
   showArabic = true,
-  showIcon = true,
+  showIcon = false,
 }: {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
