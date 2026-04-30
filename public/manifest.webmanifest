@@ -1,0 +1,19 @@
+{
+  "name": "Dahab — Private Banking Ledger",
+  "short_name": "Dahab",
+  "description": "Dahab Financial Services Company — a private banking ledger built on double-entry precision and gold-standard auditability.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16120c",
+  "theme_color": "#16120c",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
