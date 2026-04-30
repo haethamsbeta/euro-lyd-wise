@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, hasAnyRole } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +18,20 @@ export const Route = createFileRoute("/portal")({
 });
 
 function Portal() {
-  const { session, loading, signOut, user } = useAuth();
+  const { session, loading, signOut, user, roles } = useAuth();
   const nav = useNavigate();
   const t = useT();
-  useEffect(() => { if (!loading && !session) nav({ to: "/login" }); }, [session, loading, nav]);
+  useEffect(() => {
+    if (loading) return;
+    if (!session) {
+      nav({ to: "/login", search: { portal: "consumer" } as any });
+      return;
+    }
+    // Staff users belong in the back-office, not the customer portal.
+    if (hasAnyRole(roles, ["admin", "teller", "auditor"])) {
+      nav({ to: "/app" });
+    }
+  }, [session, loading, roles, nav]);
 
   const { data } = useQuery({
     queryKey: ["portal", user?.id],
