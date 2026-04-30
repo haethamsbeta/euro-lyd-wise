@@ -218,6 +218,105 @@
                     0 0 0 4px oklch(0.74 0.135 82 / 0.06);
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   DAHAB · Night — true dark theme. Activated by toggling the
+   `theme-night` class on <html>. Wins over `.dark` because it appears
+   later in the cascade and uses the same custom-property surface.
+   Palette: deep onyx background, ivory text, muted champagne accents.
+   ────────────────────────────────────────────────────────────────────── */
+html.theme-night {
+  --background:        oklch(0.16  0.014 60);   /* deep warm onyx */
+  --foreground:        oklch(0.96  0.012 85);   /* ivory text */
+  --card:              oklch(0.20  0.014 60);   /* card surface, slightly lifted */
+  --card-foreground:   oklch(0.96  0.012 85);
+  --popover:           oklch(0.20  0.014 60);
+  --popover-foreground:oklch(0.96  0.012 85);
+
+  --primary:           oklch(0.78  0.13  82);   /* champagne gold */
+  --primary-foreground:oklch(0.14  0.02  60);
+
+  --secondary:         oklch(0.24  0.014 60);
+  --secondary-foreground: oklch(0.94 0.01 85);
+  --muted:             oklch(0.22  0.014 60);
+  --muted-foreground:  oklch(0.74  0.012 85);   /* readable on onyx */
+  --accent:            oklch(0.30  0.04  78);
+  --accent-foreground: oklch(0.96  0.012 85);
+
+  --destructive:       oklch(0.62  0.22  25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success:           oklch(0.66  0.13 150);
+  --success-foreground:oklch(0.10  0.02 60);
+  --warning:           oklch(0.78  0.13 82);
+  --warning-foreground:oklch(0.14  0.02 60);
+
+  --border:            oklch(0.30  0.018 60 / 0.7);
+  --input:             oklch(0.24  0.014 60);
+  --ring:              oklch(0.78  0.13 82 / 0.55);
+
+  --gold:              oklch(0.82  0.13 84);
+  --gold-soft:         oklch(0.88  0.10 86);
+  --gold-deep:         oklch(0.62  0.115 72);
+
+  --chart-1: oklch(0.82 0.13 84);
+  --chart-2: oklch(0.66 0.13 78);
+  --chart-3: oklch(0.88 0.10 86);
+  --chart-4: oklch(0.66 0.13 150);
+  --chart-5: oklch(0.80 0.012 85);
+
+  --sidebar:                    oklch(0.13  0.014 60);
+  --sidebar-foreground:         oklch(0.94  0.012 85);
+  --sidebar-primary:            oklch(0.82  0.13 84);
+  --sidebar-primary-foreground: oklch(0.14  0.02 60);
+  --sidebar-accent:             oklch(0.22  0.018 60);
+  --sidebar-accent-foreground:  oklch(0.94  0.012 85);
+  --sidebar-border:             oklch(0.28  0.018 60);
+  --sidebar-ring:               oklch(0.82  0.13 84 / 0.45);
+
+  --gradient-gold: linear-gradient(135deg,
+      oklch(0.92 0.09  88) 0%,
+      oklch(0.86 0.11  86) 25%,
+      oklch(0.78 0.13  82) 60%,
+      oklch(0.60 0.12  72) 100%);
+  --gradient-gold-text: linear-gradient(180deg,
+      oklch(0.92 0.09  88) 0%,
+      oklch(0.82 0.13  84) 50%,
+      oklch(0.66 0.12  76) 100%);
+  --gradient-vault: radial-gradient(ellipse 80% 60% at 50% 0%,
+      oklch(0.78 0.13 82 / 0.18) 0%,
+      transparent 70%);
+  --shadow-gold:    0 18px 50px -16px oklch(0.78 0.13 82 / 0.45);
+  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.04) inset,
+                    0 24px 60px -28px oklch(0 0 0 / 0.55),
+                    0 0 0 1px oklch(0.30 0.018 60 / 0.7);
+  --shadow-rim:     0 0 0 1px oklch(0.78 0.13 82 / 0.30),
+                    0 0 0 4px oklch(0.78 0.13 82 / 0.08);
+}
+
+/* Night-mode body wash overrides the sand vignette */
+html.theme-night body {
+  background-image:
+    radial-gradient(ellipse 1200px 600px at 50% -10%,
+      oklch(0.78 0.13 82 / 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 800px 600px at 100% 100%,
+      oklch(0.62 0.115 72 / 0.16) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Card-luxe needs a dark-friendly version under night theme */
+html.theme-night .card-luxe {
+  background: linear-gradient(180deg,
+    oklch(0.20 0.014 60) 0%,
+    oklch(0.17 0.014 60) 100%);
+  border-color: oklch(0.30 0.018 60 / 0.7);
+}
+
+html.theme-night .surface-cream {
+  background-color: oklch(0.18 0.014 60);
+  background-image:
+    radial-gradient(ellipse 1000px 400px at 50% 100%,
+      oklch(0.78 0.13 82 / 0.10) 0%, transparent 70%);
+}
+
 @layer base {
   * { border-color: var(--color-border); }
 
