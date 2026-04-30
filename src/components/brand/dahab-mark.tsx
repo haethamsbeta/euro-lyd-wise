@@ -72,13 +72,51 @@ export function DahabCoin({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-7 w-7 items-center justify-center rounded-full font-serif text-[12px] font-bold text-primary-foreground shadow-gold",
-        "bg-gradient-gold",
+        "inline-flex h-8 w-8 items-center justify-center",
         className,
       )}
       aria-hidden
     >
-      D
+      <img
+        src={dahabIcon}
+        alt=""
+        className="h-full w-full object-contain drop-shadow-[0_4px_10px_oklch(0.58_0.135_72/0.45)]"
+        width={64}
+        height={64}
+      />
     </span>
+  );
+}
+
+/**
+ * Full official Dahab brand lockup as supplied by the client — the gold "D"
+ * emblem above the DAHAB wordmark with the Arabic company name beneath.
+ * Use on hero surfaces (login, marketing) where a single, definitive
+ * presentation of the brand is desired.
+ */
+export function DahabLogoFull({
+  className,
+  size = "md",
+}: {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizes = {
+    sm: "h-32",
+    md: "h-48",
+    lg: "h-64",
+  } as const;
+  return (
+    <img
+      src={dahabLogoFull}
+      alt="Dahab Financial Services Company — شركة ذهب للخدمات المالية"
+      className={cn(
+        "w-auto object-contain select-none",
+        "drop-shadow-[0_12px_36px_oklch(0.58_0.135_72/0.35)]",
+        sizes[size],
+        className,
+      )}
+      draggable={false}
+    />
   );
 }
