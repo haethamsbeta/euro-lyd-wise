@@ -26,24 +26,24 @@ function VaultsPage() {
   return (
     <div>
       <PageHeader title={t("vaults.title")} description={t("vaults.subtitle")} />
-      <div className="grid gap-4 p-6 md:grid-cols-2">
+      <div className="grid gap-4 p-4 sm:p-6 md:grid-cols-2">
         {data?.map((v: any) => (
           <Card key={v.id}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                {v.vault_channel === "cash" ? <Banknote className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
-                {v.name}
-                <span className="ms-auto text-xs uppercase text-muted-foreground">{t(`tx.channel.${v.vault_channel}`)}</span>
+                {v.vault_channel === "cash" ? <Banknote className="h-5 w-5 shrink-0" /> : <Building2 className="h-5 w-5 shrink-0" />}
+                <span className="truncate">{v.name}</span>
+                <span className="ms-auto shrink-0 text-xs uppercase text-muted-foreground">{t(`tx.channel.${v.vault_channel}`)}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {(["USD", "EUR", "LYD"] as const).map((c) => {
                   const b = v.account_balances?.find((x: any) => x.currency === c)?.balance_minor ?? 0;
                   return (
-                    <div key={c} className="rounded border p-3">
+                    <div key={c} className="flex items-center justify-between rounded border p-3 sm:block">
                       <div className="text-xs text-muted-foreground">{c}</div>
-                      <div className="mt-1 font-mono">{formatMinor(b, c)}</div>
+                      <div className="font-mono sm:mt-1">{formatMinor(b, c)}</div>
                     </div>
                   );
                 })}
