@@ -42,7 +42,9 @@ export function DahabMark({
             alt="Dahab"
             className={cn(
               "mb-3 object-contain",
-              "drop-shadow-[0_8px_24px_oklch(0.58_0.135_72/0.45)]",
+              // Very soft warm shadow so the gold emblem floats on the sand
+              // background without a dark edge halo.
+              "drop-shadow-[0_2px_6px_oklch(0.58_0.135_72/0.18)]",
               s.icon,
             )}
             width={256}
@@ -96,7 +98,7 @@ export function DahabCoin({ className }: { className?: string }) {
         <img
           src={DAHAB_ICON_FALLBACK}
           alt=""
-          className="h-full w-full object-contain drop-shadow-[0_4px_10px_oklch(0.58_0.135_72/0.45)]"
+          className="h-full w-full object-contain drop-shadow-[0_1px_3px_oklch(0.58_0.135_72/0.15)]"
           width={64}
           height={64}
           loading="eager"
