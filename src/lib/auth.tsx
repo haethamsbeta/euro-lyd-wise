@@ -37,7 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      loadRoles(data.session?.user.id).finally(() => setLoading(false));
+      // Unblock the UI as soon as we know the session — load roles in the
+      // background. Routes that require a specific role gate on `roles`
+      // separately, so the landing/login pages can paint immediately.
+      setLoading(false);
+      loadRoles(data.session?.user.id);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
