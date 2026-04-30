@@ -296,7 +296,7 @@ function DayGroup({
   isAdmin,
   byId,
   onEdit,
-  onReview,
+  onOpen,
 }: {
   label: string;
   items: Tx[];
@@ -304,7 +304,7 @@ function DayGroup({
   isAdmin: boolean;
   byId: Map<string, Tx>;
   onEdit: (tx: Tx) => void;
-  onReview: (tx: Tx) => void;
+  onOpen: (tx: Tx) => void;
 }) {
   return (
     <>
@@ -320,7 +320,7 @@ function DayGroup({
           isAdmin={isAdmin}
           byId={byId}
           onEdit={onEdit}
-          onReview={onReview}
+          onOpen={onOpen}
         />
       ))}
     </>
@@ -332,13 +332,13 @@ function TxRow({
   isAdmin,
   byId,
   onEdit,
-  onReview,
+  onOpen,
 }: {
   tx: Tx;
   isAdmin: boolean;
   byId: Map<string, Tx>;
   onEdit: (tx: Tx) => void;
-  onReview: (tx: Tx) => void;
+  onOpen: (tx: Tx) => void;
 }) {
   const canEdit =
     isAdmin && tx.status === "posted" && !tx.reverses_tx_id && !tx.corrected_by_tx_id;
@@ -354,8 +354,13 @@ function TxRow({
 
   const accent = statusAccent(tx);
 
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
-    <tr className="group transition-colors hover:bg-muted/40">
+    <tr
+      className="group cursor-pointer transition-colors hover:bg-muted/40"
+      onClick={() => onOpen(tx)}
+    >
       <td className={cn("w-1 p-0", accent.bar)} aria-hidden />
       <td className="px-3 py-2.5 align-top">
         <div className="font-mono text-[13px] font-medium">{tx.tx_number}</div>
@@ -412,7 +417,7 @@ function TxRow({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => onReview(tx)}
+                onClick={(e) => { stop(e); onOpen(tx); }}
                 className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-xs text-foreground hover:bg-accent"
               >
                 <Paperclip className="h-3 w-3" />
@@ -438,7 +443,7 @@ function TxRow({
         )}
       </td>
       {isAdmin ? (
-        <td className="px-3 py-2.5 text-right align-top">
+        <td className="px-3 py-2.5 text-right align-top" onClick={stop}>
           {canEdit ? (
             <Button size="sm" variant="outline" onClick={() => onEdit(tx)}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
