@@ -48,7 +48,7 @@ function AccountsList() {
   return (
     <div>
       <PageHeader title={t("accounts.title")} description={t("accounts.subtitle")} actions={isAdmin ? <NewAccountDialog /> : null} />
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="ps-9" placeholder={t("accounts.search")} value={q} onChange={(e) => setQ(e.target.value)} />
@@ -56,7 +56,7 @@ function AccountsList() {
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2 text-start">{t("accounts.col.number")}</th>
