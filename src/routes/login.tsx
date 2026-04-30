@@ -53,7 +53,7 @@ function LoginPage() {
 
       <div className="flex w-full max-w-md flex-col gap-5">
         <div className="flex flex-col items-center text-center">
-          <DahabMark size="lg" />
+          <DahabMark size="lg" showIcon />
           <p className="mt-4 text-xs uppercase tracking-[0.32em] text-muted-foreground">
             {t("login.privateBankingLedger")}
           </p>
