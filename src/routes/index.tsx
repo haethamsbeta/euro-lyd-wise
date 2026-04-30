@@ -32,7 +32,7 @@ function Index() {
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <DahabCoin />
-            <DahabMark size="sm" showArabic={false} showIcon={false} />
+            <DahabMark size="sm" showArabic={false} />
           </div>
           <nav className="flex items-center gap-2">
             <LanguageToggle className="me-1" />
