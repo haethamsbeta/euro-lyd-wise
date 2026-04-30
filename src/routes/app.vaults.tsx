@@ -5,10 +5,12 @@ import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format";
 import { Banknote, Building2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/vaults")({ component: VaultsPage });
 
 function VaultsPage() {
+  const t = useT();
   const { data } = useQuery({
     queryKey: ["vaults"],
     queryFn: async () => {
@@ -23,7 +25,7 @@ function VaultsPage() {
 
   return (
     <div>
-      <PageHeader title="Vaults" description="Cash and bank vaults per currency. Read-only — vaults move only via posted transactions." />
+      <PageHeader title={t("vaults.title")} description={t("vaults.subtitle")} />
       <div className="grid gap-4 p-6 md:grid-cols-2">
         {data?.map((v: any) => (
           <Card key={v.id}>
@@ -31,7 +33,7 @@ function VaultsPage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 {v.vault_channel === "cash" ? <Banknote className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
                 {v.name}
-                <span className="ml-auto text-xs uppercase text-muted-foreground">{v.vault_channel}</span>
+                <span className="ms-auto text-xs uppercase text-muted-foreground">{t(`tx.channel.${v.vault_channel}`)}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
