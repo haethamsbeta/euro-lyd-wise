@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -38,6 +40,7 @@ let __fillSignIn: Filler | null = null;
 function LoginPage() {
   const { session, loading } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   useEffect(() => {
     if (!loading && session) nav({ to: "/app" });
   }, [session, loading, nav]);
@@ -51,19 +54,21 @@ function LoginPage() {
       <div className="flex w-full max-w-md flex-col gap-5">
         <div className="flex flex-col items-center text-center">
           <DahabMark size="lg" />
-          <p className="mt-4 text-xs uppercase tracking-[0.32em] text-muted-foreground">Private Banking Ledger</p>
+          <p className="mt-4 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+            {t("login.privateBankingLedger")}
+          </p>
         </div>
 
         <Card className="card-luxe rounded-xl">
           <CardHeader className="text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-gold/80">
-              Private Banking · ذهب
+              {t("login.privateBadge")}
             </p>
             <CardTitle className="mt-2 font-serif text-3xl font-semibold gold-text">
-              Welcome back
+              {t("login.welcomeBack")}
             </CardTitle>
             <CardDescription className="mt-2 text-foreground/70">
-              Sign in to the back-office, or create a new account to request access.
+              {t("login.subtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,13 +78,13 @@ function LoginPage() {
                   value="signin"
                   className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-[oklch(0.18_0.03_60)] data-[state=active]:shadow-[inset_0_0_0_1px_oklch(0.55_0.12_72/0.5)]"
                 >
-                  Sign in
+                  {t("login.tabSignIn")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="signup"
                   className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-[oklch(0.18_0.03_60)] data-[state=active]:shadow-[inset_0_0_0_1px_oklch(0.55_0.12_72/0.5)]"
                 >
-                  Create account
+                  {t("login.tabCreate")}
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="signin" className="pt-5">
@@ -91,19 +96,24 @@ function LoginPage() {
             </Tabs>
             <p className="mt-6 text-center text-xs text-muted-foreground">
               <Link to="/" className="hover:text-gold hover:underline underline-offset-4">
-                ← Back to home
+                {t("login.backHome")}
               </Link>
             </p>
           </CardContent>
         </Card>
 
         <DemoCredentials />
+
+        <div className="flex justify-center pt-1">
+          <LanguageToggle variant="subtle" />
+        </div>
       </div>
     </div>
   );
 }
 
 function SignInForm() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -124,17 +134,17 @@ function SignInForm() {
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setBusy(false);
     if (error) toast.error(error.message);
-    else toast.success("Welcome back");
+    else toast.success(t("login.welcomeToast"));
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("common.email")}</Label>
         <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("common.password")}</Label>
         <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </div>
       <Button
@@ -142,13 +152,14 @@ function SignInForm() {
         className="w-full bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95"
         disabled={busy}
       >
-        {busy ? "Signing in…" : "Sign in"}
+        {busy ? t("login.signingIn") : t("common.signIn")}
       </Button>
     </form>
   );
 }
 
 function SignUpForm() {
+  const t = useT();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -172,21 +183,21 @@ function SignUpForm() {
     });
     setBusy(false);
     if (error) toast.error(error.message);
-    else toast.success("Account created. You can sign in now.");
+    else toast.success(t("login.accountCreated"));
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="full_name">Full name</Label>
+        <Label htmlFor="full_name">{t("common.fullName")}</Label>
         <Input id="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="su_email">Email</Label>
+        <Label htmlFor="su_email">{t("common.email")}</Label>
         <Input id="su_email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="su_password">Password</Label>
+        <Label htmlFor="su_password">{t("common.password")}</Label>
         <Input id="su_password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </div>
       <Button
@@ -194,16 +205,17 @@ function SignUpForm() {
         className="w-full bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95"
         disabled={busy}
       >
-        {busy ? "Creating…" : "Create account"}
+        {busy ? t("login.creating") : t("login.createAccount")}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        New accounts have no role until an admin assigns one.
+        {t("login.newAccountNote")}
       </p>
     </form>
   );
 }
 
 function DemoCredentials() {
+  const t = useT();
   const [seeding, setSeeding] = useState(false);
   const [seeded, setSeeded] = useState(false);
 
@@ -214,9 +226,9 @@ function DemoCredentials() {
       const json = await res.json();
       if (!res.ok || json.ok === false) throw new Error(json.error || "Seed failed");
       setSeeded(true);
-      toast.success("Demo vault prepared — sign in to explore.");
+      toast.success(t("demo.ready"));
     } catch (e: any) {
-      toast.error(e.message ?? "Seed failed");
+      toast.error(e.message ?? t("demo.failed"));
     } finally {
       setSeeding(false);
     }
@@ -225,16 +237,16 @@ function DemoCredentials() {
   function fill(email: string, password: string) {
     if (__fillSignIn) {
       __fillSignIn(email, password);
-      toast.success(`Filled ${email}`);
+      toast.success(`${t("demo.filledToast")} ${email}`);
     } else {
-      toast.message("Switch to the Sign in tab first.");
+      toast.message(t("demo.switchTab"));
     }
   }
 
   function copy(text: string, label: string) {
     navigator.clipboard.writeText(text).then(
-      () => toast.success(`${label} copied`),
-      () => toast.error("Copy failed"),
+      () => toast.success(`${label} ${t("demo.copied")}`),
+      () => toast.error(t("demo.copyFailed")),
     );
   }
 
@@ -243,10 +255,10 @@ function DemoCredentials() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 font-serif text-base font-medium">
           <Sparkles className="h-4 w-4 text-gold" />
-          Demo credentials
+          {t("demo.title")}
         </CardTitle>
         <CardDescription className="text-xs">
-          Tap <span className="font-medium text-foreground">Prepare demo vault</span> once, then choose a role to explore.
+          {t("demo.intro")} <span className="font-medium text-foreground">{t("demo.introCta")}</span> {t("demo.introTail")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -262,11 +274,11 @@ function DemoCredentials() {
           variant={seeded ? "outline" : "default"}
         >
           {seeding ? (
-            <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Preparing…</>
+            <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{t("demo.preparing")}</>
           ) : seeded ? (
-            "Vault prepared ✓ — re-run if needed"
+            t("demo.prepared")
           ) : (
-            "Prepare demo vault"
+            t("demo.prepare")
           )}
         </Button>
 
@@ -281,7 +293,7 @@ function DemoCredentials() {
                 <div className="truncate font-mono text-[11px] text-muted-foreground">{u.password}</div>
               </div>
               <Button size="sm" variant="ghost" className="h-7 px-2 text-gold hover:bg-[oklch(0.82_0.14_85/0.1)] hover:text-gold" onClick={() => fill(u.email, u.password)}>
-                Fill
+                {t("demo.fill")}
               </Button>
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-[oklch(0.82_0.14_85/0.1)]" onClick={() => copy(`${u.email} / ${u.password}`, u.role)} aria-label={`Copy ${u.role} credentials`}>
                 <Copy className="h-3.5 w-3.5" />
@@ -291,7 +303,7 @@ function DemoCredentials() {
         </ul>
 
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          The seed installs 7 vaults, 5 customer accounts, posted transactions, and 2 pending approvals. Safe to re-run.
+          {t("demo.note")}
         </p>
       </CardContent>
     </Card>
