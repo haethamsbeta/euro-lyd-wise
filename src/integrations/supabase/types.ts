@@ -620,7 +620,7 @@ export type Database = {
         | "reminder_shift"
       notification_severity: "info" | "warning" | "critical"
       tx_direction: "deposit" | "withdraw"
-      tx_status: "posted" | "pending" | "rejected"
+      tx_status: "posted" | "pending" | "rejected" | "reversed"
       vault_channel: "cash" | "bank"
     }
     CompositeTypes: {
@@ -768,7 +768,7 @@ export const Constants = {
       ],
       notification_severity: ["info", "warning", "critical"],
       tx_direction: ["deposit", "withdraw"],
-      tx_status: ["posted", "pending", "rejected"],
+      tx_status: ["posted", "pending", "rejected", "reversed"],
       vault_channel: ["cash", "bank"],
     },
   },
