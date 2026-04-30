@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/approvals")({
   component: () => (
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/app/approvals")({
 });
 
 function Approvals() {
+  const t = useT();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["approvals"],
@@ -34,7 +36,7 @@ function Approvals() {
       const { error } = await supabase.rpc("approve_transaction", { p_tx_id: id });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Approved"); qc.invalidateQueries(); },
+    onSuccess: () => { toast.success(t("approvals.approved")); qc.invalidateQueries(); },
     onError: (e: any) => toast.error(e.message),
   });
   const reject = useMutation({
@@ -42,39 +44,39 @@ function Approvals() {
       const { error } = await supabase.rpc("reject_transaction", { p_tx_id: id, p_reason: reason });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Rejected"); qc.invalidateQueries(); },
+    onSuccess: () => { toast.success(t("approvals.rejected")); qc.invalidateQueries(); },
     onError: (e: any) => toast.error(e.message),
   });
 
   return (
     <div>
-      <PageHeader title="Pending approvals" description="Withdrawals queued for admin review." />
+      <PageHeader title={t("approvals.title")} description={t("approvals.subtitle")} />
       <div className="p-6">
         <Card>
           <CardContent className="p-0">
-            {isLoading ? <div className="p-6 text-sm text-muted-foreground">Loading…</div>
-              : data && data.length === 0 ? <div className="p-6 text-sm text-muted-foreground">Nothing pending.</div>
+            {isLoading ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
+              : data && data.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
               : (
               <ul className="divide-y">
-                {data!.map((t) => (
-                  <li key={t.id} className="p-4">
+                {data!.map((row) => (
+                  <li key={row.id} className="p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm">{t.tx_number}</span>
-                          <Badge variant="outline" className="capitalize">{t.direction}</Badge>
-                          <Badge variant="outline" className="capitalize">{t.channel}</Badge>
+                          <span className="font-mono text-sm">{row.tx_number}</span>
+                          <Badge variant="outline">{t(`tx.direction.${row.direction}`)}</Badge>
+                          <Badge variant="outline">{t(`tx.channel.${row.channel}`)}</Badge>
                         </div>
-                        <div className="text-sm">{formatMinor(t.amount_minor, t.currency)}</div>
-                        <div className="text-xs text-muted-foreground">{formatDateTime(t.created_at)}</div>
-                        <div className="text-sm">{t.comment}</div>
+                        <div className="text-sm">{formatMinor(row.amount_minor, row.currency)}</div>
+                        <div className="text-xs text-muted-foreground">{formatDateTime(row.created_at)}</div>
+                        <div className="text-sm">{row.comment}</div>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" onClick={() => {
-                          const r = window.prompt("Reject reason:");
-                          if (r && r.trim()) reject.mutate({ id: t.id, reason: r.trim() });
-                        }}>Reject</Button>
-                        <Button onClick={() => approve.mutate(t.id)}>Approve</Button>
+                          const r = window.prompt(t("approvals.rejectPrompt"));
+                          if (r && r.trim()) reject.mutate({ id: row.id, reason: r.trim() });
+                        }}>{t("approvals.reject")}</Button>
+                        <Button onClick={() => approve.mutate(row.id)}>{t("approvals.approve")}</Button>
                       </div>
                     </div>
                   </li>

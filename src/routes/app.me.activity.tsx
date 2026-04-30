@@ -6,10 +6,12 @@ import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/me/activity")({ component: MyActivity });
 
 function MyActivity() {
+  const t = useT();
   const { user } = useAuth();
   const { data } = useQuery({
     queryKey: ["my.activity", user?.id],
@@ -33,15 +35,15 @@ function MyActivity() {
 
   return (
     <div>
-      <PageHeader title="My activity" description="Transactions you have posted." />
+      <PageHeader title={t("activity.title")} description={t("activity.subtitle")} />
       <div className="space-y-4 p-6">
         <div className="grid gap-3 md:grid-cols-3">
           {(["USD", "EUR", "LYD"] as const).map((c) => (
             <Card key={c}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{c}</CardTitle></CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Deposits</span><span className="font-mono">{formatMinor(totals[`deposit-${c}`] ?? 0, c)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Withdrawals</span><span className="font-mono">{formatMinor(totals[`withdraw-${c}`] ?? 0, c)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("activity.deposits")}</span><span className="font-mono">{formatMinor(totals[`deposit-${c}`] ?? 0, c)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("activity.withdrawals")}</span><span className="font-mono">{formatMinor(totals[`withdraw-${c}`] ?? 0, c)}</span></div>
               </CardContent>
             </Card>
           ))}
@@ -50,17 +52,17 @@ function MyActivity() {
           <CardContent className="p-0">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr><th className="px-4 py-2 text-left">TX #</th><th className="px-4 py-2 text-left">When</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Channel</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2">Status</th></tr>
+                <tr><th className="px-4 py-2 text-start">{t("activity.col.tx")}</th><th className="px-4 py-2 text-start">{t("activity.col.when")}</th><th className="px-4 py-2">{t("activity.col.type")}</th><th className="px-4 py-2">{t("activity.col.channel")}</th><th className="px-4 py-2 text-end">{t("activity.col.amount")}</th><th className="px-4 py-2">{t("activity.col.status")}</th></tr>
               </thead>
               <tbody className="divide-y">
-                {data?.map((t) => (
-                  <tr key={t.id}>
-                    <td className="px-4 py-2 font-mono">{t.tx_number}</td>
-                    <td className="px-4 py-2 text-muted-foreground">{formatDateTime(t.created_at)}</td>
-                    <td className="px-4 py-2 capitalize">{t.direction}</td>
-                    <td className="px-4 py-2 capitalize">{t.channel}</td>
-                    <td className="px-4 py-2 text-right font-mono">{formatMinor(t.amount_minor, t.currency)}</td>
-                    <td className="px-4 py-2"><Badge variant={t.status === "posted" ? "secondary" : t.status === "pending" ? "outline" : "destructive"}>{t.status}</Badge></td>
+                {data?.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-4 py-2 font-mono">{row.tx_number}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{formatDateTime(row.created_at)}</td>
+                    <td className="px-4 py-2">{t(`tx.direction.${row.direction}`)}</td>
+                    <td className="px-4 py-2">{t(`tx.channel.${row.channel}`)}</td>
+                    <td className="px-4 py-2 text-end font-mono">{formatMinor(row.amount_minor, row.currency)}</td>
+                    <td className="px-4 py-2"><Badge variant={row.status === "posted" ? "secondary" : row.status === "pending" ? "outline" : "destructive"}>{t(`tx.status.${row.status}`)}</Badge></td>
                   </tr>
                 ))}
               </tbody>
