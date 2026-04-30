@@ -53,9 +53,9 @@ export function AppShell() {
   if (loading || !session || rolesLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <DahabMark size="md" />
-          <span className="text-xs uppercase tracking-[0.32em] text-muted-foreground">{t("common.loading")}</span>
+        <div className="flex flex-col items-center gap-4">
+          <DahabMark size="lg" showIcon priority />
+          <span className="mt-2 text-xs uppercase tracking-[0.32em] text-muted-foreground">{t("common.loading")}</span>
         </div>
       </div>
     );
