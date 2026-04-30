@@ -100,7 +100,7 @@ function Audit() {
   return (
     <div>
       <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
-      <div className="p-6 space-y-3">
+      <div className="p-4 sm:p-6 space-y-3">
         <div className="flex justify-end">
           <ExportPdfButton
             title="Audit Log"
