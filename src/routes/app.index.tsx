@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 
 function Dashboard() {
+  const t = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -57,11 +59,11 @@ function Dashboard() {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
-        description="Overview of vaults, customers, and recent activity."
+        title={t("dash.title")}
+        description={t("dash.subtitle")}
         actions={
           <Button asChild>
-            <Link to="/app/transactions/new"><PlusCircle className="h-4 w-4" /> New transaction</Link>
+            <Link to="/app/transactions/new"><PlusCircle className="h-4 w-4" /> {t("dash.newTransaction")}</Link>
           </Button>
         }
       />
@@ -71,15 +73,15 @@ function Dashboard() {
             <CardContent className="flex items-center gap-3 p-4">
               <AlertTriangle className="h-5 w-5 text-warning" />
               <div className="flex-1 text-sm">
-                {data.pendingCount} transaction{data.pendingCount > 1 ? "s" : ""} awaiting approval.
+                {data.pendingCount} {data.pendingCount > 1 ? t("dash.pendingMany") : t("dash.pendingOne")}
               </div>
-              <Button asChild size="sm" variant="outline"><Link to="/app/approvals">Review</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/app/approvals">{t("dash.review")}</Link></Button>
             </CardContent>
           </Card>
         ) : null}
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Vaults &amp; reconciliation</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("dash.vaultsRecon")}</h2>
           <div className="grid gap-3 md:grid-cols-3">
             {CURRENCIES.map((cur) => {
               const cash = vaultByChannelCurrency.get(`cash-${cur}`) ?? 0;
@@ -93,21 +95,21 @@ function Dashboard() {
                       <span>{cur}</span>
                       {matches ? (
                         <Badge variant="secondary" className="gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-success" /> reconciled
+                          <CheckCircle2 className="h-3 w-3 text-success" /> {t("dash.reconciled")}
                         </Badge>
                       ) : (
                         <Badge variant="destructive" className="gap-1">
-                          <AlertTriangle className="h-3 w-3" /> mismatch
+                          <AlertTriangle className="h-3 w-3" /> {t("dash.mismatch")}
                         </Badge>
                       )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <Row label="Cash vault" value={formatMinor(cash, cur)} />
-                    <Row label="Bank vault" value={formatMinor(bank, cur)} />
+                    <Row label={t("dash.cashVault")} value={formatMinor(cash, cur)} />
+                    <Row label={t("dash.bankVault")} value={formatMinor(bank, cur)} />
                     <div className="border-t pt-2">
-                      <Row label="Vaults total" value={formatMinor(cash + bank, cur)} bold />
-                      <Row label="Customers total" value={formatMinor(customer, cur)} bold />
+                      <Row label={t("dash.vaultsTotal")} value={formatMinor(cash + bank, cur)} bold />
+                      <Row label={t("dash.customersTotal")} value={formatMinor(customer, cur)} bold />
                     </div>
                   </CardContent>
                 </Card>
@@ -117,13 +119,13 @@ function Dashboard() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent transactions</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("dash.recentTx")}</h2>
           <Card>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+                <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
               ) : data && data.recentTx.length === 0 ? (
-                <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
+                <div className="p-6 text-sm text-muted-foreground">{t("dash.noTx")}</div>
               ) : (
                 <ul className="divide-y">
                   {data?.recentTx.map((tx) => (
@@ -134,15 +136,15 @@ function Dashboard() {
                         <ArrowUpCircle className="h-5 w-5 text-destructive" />
                       )}
                       <div className="flex-1">
-                        <div className="font-medium">{tx.tx_number} · {tx.direction} · {tx.channel}</div>
+                        <div className="font-medium">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
                         <div className="truncate text-xs text-muted-foreground">{tx.comment}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-end">
                         <div className="font-medium">{formatMinor(tx.amount_minor, tx.currency)}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</div>
                       </div>
                       <Badge variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
-                        {tx.status}
+                        {t(`tx.status.${tx.status}`)}
                       </Badge>
                     </li>
                   ))}
