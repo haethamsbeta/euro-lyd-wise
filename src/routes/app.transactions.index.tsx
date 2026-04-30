@@ -57,6 +57,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ExportPdfButton } from "@/components/app/export-pdf";
+import { describeTx } from "@/lib/tx-describe";
 
 export const Route = createFileRoute("/app/transactions/")({ component: TxList });
 
