@@ -11,10 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Banknote, Building2, CheckCircle2, Search, AlertTriangle } from "lucide-react";
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Banknote, Building2, CheckCircle2, Search, AlertTriangle, Upload, FileText, Image as ImageIcon, Trash2, Eye, Loader2 } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
@@ -32,6 +33,19 @@ type Balance = { currency: Currency; balance_minor: number; debit_limit_minor: n
 
 const COMMENT_MIN = 3;
 const COMMENT_MAX = 280;
+const MAX_FILES = 5;
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
+
+type PendingAttachment = {
+  id: string; // local uuid
+  storage_path: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+  preview_url: string | null; // object URL for images
+  uploading: boolean;
+};
 
 const schema = z.object({
   customer_account_id: z.string().uuid("Pick a customer account"),
@@ -55,6 +69,11 @@ export function EntryForm({ direction }: { direction: Direction }) {
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState<string>("");
+  const [previewIsPdf, setPreviewIsPdf] = useState(false);
 
   // debounce
   useEffect(() => {
@@ -145,7 +164,29 @@ export function EntryForm({ direction }: { direction: Direction }) {
         p_comment: parsed.comment,
       });
       if (error) throw error;
-      return data as any;
+      const tx = data as any;
+      // Link any uploaded attachments to the new transaction.
+      if (attachments.length > 0 && tx?.id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const rows = attachments
+          .filter((a) => !a.uploading)
+          .map((a) => ({
+            transaction_id: tx.id,
+            uploaded_by: user!.id,
+            storage_path: a.storage_path,
+            file_name: a.file_name,
+            content_type: a.content_type,
+            size_bytes: a.size_bytes,
+          }));
+        if (rows.length > 0) {
+          const { error: attErr } = await supabase.from("transaction_attachments").insert(rows);
+          if (attErr) {
+            // Don't fail the whole submission, just warn.
+            toast.error(`Transaction posted, but attaching files failed: ${attErr.message}`);
+          }
+        }
+      }
+      return tx;
     },
     onSuccess: (tx: any) => {
       qc.invalidateQueries();
@@ -160,7 +201,88 @@ export function EntryForm({ direction }: { direction: Direction }) {
     e.preventDefault();
     setSubmitted(true);
     if (!ready) return;
+    if (attachments.some((a) => a.uploading)) {
+      toast.error("Please wait for uploads to finish.");
+      return;
+    }
     post.mutate();
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const incoming = Array.from(files);
+    if (attachments.length + incoming.length > MAX_FILES) {
+      toast.error(`You can attach up to ${MAX_FILES} files.`);
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("You must be signed in to upload files.");
+      return;
+    }
+    for (const file of incoming) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        toast.error(`${file.name}: unsupported file type.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error(`${file.name}: exceeds 10 MB limit.`);
+        continue;
+      }
+      const localId = crypto.randomUUID();
+      const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+      const storage_path = `pending/${user.id}/${localId}.${ext}`;
+      const preview_url = file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+      const pending: PendingAttachment = {
+        id: localId,
+        storage_path,
+        file_name: file.name,
+        content_type: file.type,
+        size_bytes: file.size,
+        preview_url,
+        uploading: true,
+      };
+      setAttachments((prev) => [...prev, pending]);
+      const { error } = await supabase.storage.from("tx-attachments").upload(storage_path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (error) {
+        toast.error(`${file.name}: ${error.message}`);
+        setAttachments((prev) => prev.filter((a) => a.id !== localId));
+        if (preview_url) URL.revokeObjectURL(preview_url);
+      } else {
+        setAttachments((prev) => prev.map((a) => (a.id === localId ? { ...a, uploading: false } : a)));
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function removeAttachment(att: PendingAttachment) {
+    const { error } = await supabase.storage.from("tx-attachments").remove([att.storage_path]);
+    if (error) {
+      toast.error(`Could not delete: ${error.message}`);
+      return;
+    }
+    setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+    if (att.preview_url) URL.revokeObjectURL(att.preview_url);
+  }
+
+  async function openPreview(att: PendingAttachment) {
+    setPreviewName(att.file_name);
+    setPreviewIsPdf(att.content_type === "application/pdf");
+    if (att.preview_url) {
+      setPreviewUrl(att.preview_url);
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from("tx-attachments")
+      .createSignedUrl(att.storage_path, 60);
+    if (error || !data) {
+      toast.error("Could not load preview.");
+      return;
+    }
+    setPreviewUrl(data.signedUrl);
   }
 
   const banner = isDeposit ? "DEPOSIT" : "WITHDRAWAL";
@@ -334,6 +456,89 @@ export function EntryForm({ direction }: { direction: Direction }) {
             <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked?.name} />
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Attachments <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Photos or PDFs — receipts, IDs, slips. Up to {MAX_FILES} files, 10 MB each.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ACCEPTED_TYPES.join(",")}
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={attachments.length >= MAX_FILES}
+              >
+                <Upload className="mr-2 h-4 w-4" /> Add files
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {attachments.length} / {MAX_FILES}
+              </span>
+            </div>
+            {attachments.length > 0 ? (
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {attachments.map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border bg-background">
+                      {a.preview_url ? (
+                        <img src={a.preview_url} alt={a.file_name} className="h-full w-full object-cover" />
+                      ) : a.content_type === "application/pdf" ? (
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{a.file_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {(a.size_bytes / 1024).toFixed(0)} KB
+                        {a.uploading ? " · uploading…" : ""}
+                      </div>
+                    </div>
+                    {a.uploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <>
+                        <Button type="button" size="icon" variant="ghost" onClick={() => openPreview(a)} title="Preview">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" size="icon" variant="ghost" onClick={() => removeAttachment(a)} title="Remove">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) setPreviewUrl(null); }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle className="truncate">{previewName}</DialogTitle></DialogHeader>
+            {previewUrl ? (
+              previewIsPdf ? (
+                <iframe src={previewUrl} className="h-[70vh] w-full rounded border" title={previewName} />
+              ) : (
+                <img src={previewUrl} alt={previewName} className="max-h-[70vh] w-full object-contain" />
+              )
+            ) : null}
+          </DialogContent>
+        </Dialog>
 
         <div className="flex items-center justify-end gap-2">
           <Button asChild type="button" variant="outline"><Link to="/app/transactions/new">Cancel</Link></Button>
