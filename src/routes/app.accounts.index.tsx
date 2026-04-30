@@ -15,10 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search } from "lucide-react";
 import { formatMinor } from "@/lib/format";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/accounts/")({ component: AccountsList });
 
 function AccountsList() {
+  const t = useT();
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const [q, setQ] = useState("");
@@ -42,11 +44,11 @@ function AccountsList() {
 
   return (
     <div>
-      <PageHeader title="Accounts" description="Customer accounts and balances." actions={isAdmin ? <NewAccountDialog /> : null} />
+      <PageHeader title={t("accounts.title")} description={t("accounts.subtitle")} actions={isAdmin ? <NewAccountDialog /> : null} />
       <div className="space-y-4 p-6">
         <div className="relative max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search accounts…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="ps-9" placeholder={t("accounts.search")} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <Card>
           <CardContent className="p-0">
@@ -54,20 +56,20 @@ function AccountsList() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-2 text-left">Account #</th>
-                    <th className="px-4 py-2 text-left">Name</th>
-                    <th className="px-4 py-2 text-left">Nature</th>
-                    <th className="px-4 py-2 text-right">USD</th>
-                    <th className="px-4 py-2 text-right">EUR</th>
-                    <th className="px-4 py-2 text-right">LYD</th>
+                    <th className="px-4 py-2 text-start">{t("accounts.col.number")}</th>
+                    <th className="px-4 py-2 text-start">{t("accounts.col.name")}</th>
+                    <th className="px-4 py-2 text-start">{t("accounts.col.nature")}</th>
+                    <th className="px-4 py-2 text-end">USD</th>
+                    <th className="px-4 py-2 text-end">EUR</th>
+                    <th className="px-4 py-2 text-end">LYD</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {isLoading ? (
-                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">{t("common.loading")}</td></tr>
                   ) : data && data.length === 0 ? (
-                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">No accounts yet.</td></tr>
+                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">{t("accounts.empty")}</td></tr>
                   ) : data!.map((a: any) => {
                     const bals = new Map(a.account_balances?.map((b: any) => [b.currency, b.balance_minor]) ?? []);
                     return (
@@ -75,11 +77,11 @@ function AccountsList() {
                         <td className="px-4 py-2 font-mono">{a.account_number}</td>
                         <td className="px-4 py-2 font-medium">{a.name}</td>
                         <td className="px-4 py-2"><Badge variant="outline">{a.nature}</Badge></td>
-                        <td className="px-4 py-2 text-right font-mono">{formatMinor((bals.get("USD") as number) ?? 0, "USD")}</td>
-                        <td className="px-4 py-2 text-right font-mono">{formatMinor((bals.get("EUR") as number) ?? 0, "EUR")}</td>
-                        <td className="px-4 py-2 text-right font-mono">{formatMinor((bals.get("LYD") as number) ?? 0, "LYD")}</td>
-                        <td className="px-4 py-2 text-right">
-                          <Button asChild variant="ghost" size="sm"><Link to="/app/accounts/$id" params={{ id: a.id }}>View</Link></Button>
+                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("USD") as number) ?? 0, "USD")}</td>
+                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("EUR") as number) ?? 0, "EUR")}</td>
+                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("LYD") as number) ?? 0, "LYD")}</td>
+                        <td className="px-4 py-2 text-end">
+                          <Button asChild variant="ghost" size="sm"><Link to="/app/accounts/$id" params={{ id: a.id }}>{t("accounts.view")}</Link></Button>
                         </td>
                       </tr>
                     );
@@ -102,6 +104,7 @@ const newSchema = z.object({
 });
 
 function NewAccountDialog() {
+  const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -125,7 +128,7 @@ function NewAccountDialog() {
       if (bErr) throw bErr;
     },
     onSuccess: () => {
-      toast.success("Account created");
+      toast.success(t("accounts.created"));
       qc.invalidateQueries({ queryKey: ["accounts.list"] });
       setOpen(false);
       setName(""); setPhone(""); setNid(""); setNature("credit");
@@ -136,28 +139,28 @@ function NewAccountDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button><Plus className="h-4 w-4" /> New account</Button>
+        <Button><Plus className="h-4 w-4" /> {t("accounts.new")}</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>New customer account</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("accounts.newCustomer")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
-          <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
-          <div><Label>National ID</Label><Input value={nid} onChange={(e) => setNid(e.target.value)} className="mt-1" /></div>
+          <div><Label>{t("accounts.fName")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
+          <div><Label>{t("accounts.fPhone")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
+          <div><Label>{t("accounts.fNationalId")}</Label><Input value={nid} onChange={(e) => setNid(e.target.value)} className="mt-1" /></div>
           <div>
-            <Label>Nature</Label>
+            <Label>{t("accounts.fNature")}</Label>
             <Select value={nature} onValueChange={(v) => setNature(v as any)}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="credit">Credit (typical customer account)</SelectItem>
-                <SelectItem value="debit">Debit (e.g. loan / overdraft)</SelectItem>
+                <SelectItem value="credit">{t("accounts.natureCredit")}</SelectItem>
+                <SelectItem value="debit">{t("accounts.natureDebit")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={create.isPending}>Create</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("accounts.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={create.isPending}>{t("accounts.create")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

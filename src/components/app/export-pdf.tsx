@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Download } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 type Column = { header: string; width?: number };
 
@@ -36,6 +37,7 @@ export function ExportPdfButton({
   buildRows,
   buildSummary,
 }: PdfExportProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(todayISO(-7));
   const [to, setTo] = useState(todayISO(0));
@@ -104,20 +106,18 @@ export function ExportPdfButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm">
-          <Download className="mr-1.5 h-4 w-4" /> Export PDF
+          <Download className="me-1.5 h-4 w-4" /> {t("export.button")}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
         <div className="space-y-3">
           <div>
-            <h4 className="text-sm font-semibold">Export {title}</h4>
-            <p className="text-xs text-muted-foreground">
-              Generates a PDF of records within the selected date range.
-            </p>
+            <h4 className="text-sm font-semibold">{t("export.heading")} — {title}</h4>
+            <p className="text-xs text-muted-foreground">{t("export.help")}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="exp-from" className="text-xs">From</Label>
+              <Label htmlFor="exp-from" className="text-xs">{t("export.from")}</Label>
               <Input
                 id="exp-from"
                 type="date"
@@ -127,7 +127,7 @@ export function ExportPdfButton({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="exp-to" className="text-xs">To</Label>
+              <Label htmlFor="exp-to" className="text-xs">{t("export.to")}</Label>
               <Input
                 id="exp-to"
                 type="date"
@@ -139,10 +139,10 @@ export function ExportPdfButton({
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              Cancel
+              {t("export.cancel")}
             </Button>
             <Button size="sm" onClick={handleExport} disabled={busy || !from || !to}>
-              {busy ? "Generating…" : "Download PDF"}
+              {busy ? t("export.generating") : t("export.download")}
             </Button>
           </div>
         </div>
