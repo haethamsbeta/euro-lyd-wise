@@ -88,7 +88,7 @@ function TxList() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
   const [filesOnly, setFilesOnly] = useState(false);
   const [editing, setEditing] = useState<Tx | null>(null);
-  const [reviewing, setReviewing] = useState<Tx | null>(null);
+  const [details, setDetails] = useState<Tx | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v2", q],
@@ -241,7 +241,7 @@ function TxList() {
                           isAdmin={isAdmin}
                           byId={byNumber}
                           onEdit={setEditing}
-                          onReview={setReviewing}
+                          onOpen={setDetails}
                         />
                       ))
                     )}
@@ -253,7 +253,7 @@ function TxList() {
         </div>
 
         <CorrectionDialog tx={editing} onClose={() => setEditing(null)} />
-        <AttachmentsSheet tx={reviewing} onClose={() => setReviewing(null)} />
+        <TxDetailsSheet tx={details} onClose={() => setDetails(null)} />
       </div>
     </TooltipProvider>
   );
