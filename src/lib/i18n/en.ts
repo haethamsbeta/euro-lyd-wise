@@ -93,6 +93,127 @@ export const en = {
   "portal.col.amount": "Amount",
   "portal.col.status": "Status",
   "portal.col.comment": "Comment",
+
+  // dashboard
+  "dash.title": "Dashboard",
+  "dash.subtitle": "Overview of vaults, customers, and recent activity.",
+  "dash.newTransaction": "New transaction",
+  "dash.pendingOne": "transaction awaiting approval.",
+  "dash.pendingMany": "transactions awaiting approval.",
+  "dash.review": "Review",
+  "dash.vaultsRecon": "Vaults & reconciliation",
+  "dash.reconciled": "reconciled",
+  "dash.mismatch": "mismatch",
+  "dash.cashVault": "Cash vault",
+  "dash.bankVault": "Bank vault",
+  "dash.vaultsTotal": "Vaults total",
+  "dash.customersTotal": "Customers total",
+  "dash.recentTx": "Recent transactions",
+  "dash.noTx": "No transactions yet.",
+
+  // vaults page
+  "vaults.title": "Vaults",
+  "vaults.subtitle":
+    "Cash and bank vaults per currency. Read-only — vaults move only via posted transactions.",
+
+  // approvals
+  "approvals.title": "Pending approvals",
+  "approvals.subtitle": "Withdrawals queued for admin review.",
+  "approvals.empty": "Nothing pending.",
+  "approvals.approve": "Approve",
+  "approvals.reject": "Reject",
+  "approvals.rejectPrompt": "Reject reason:",
+  "approvals.approved": "Approved",
+  "approvals.rejected": "Rejected",
+
+  // users page
+  "users.title": "Users & roles",
+  "users.subtitle": "Assign admin, teller, auditor, or consumer roles to users.",
+  "users.search": "Search by name or user id…",
+  "users.col.user": "User",
+  "users.col.roles": "Roles",
+  "users.col.grant": "Grant role",
+  "users.noName": "(no name)",
+  "users.none": "none",
+  "users.allGranted": "all granted",
+  "users.role": "Role",
+  "users.grant": "Grant",
+  "users.granted": "Role granted",
+  "users.revoked": "Role revoked",
+
+  // accounts list
+  "accounts.title": "Accounts",
+  "accounts.subtitle": "Customer accounts and balances.",
+  "accounts.search": "Search accounts…",
+  "accounts.col.number": "Account #",
+  "accounts.col.name": "Name",
+  "accounts.col.nature": "Nature",
+  "accounts.empty": "No accounts yet.",
+  "accounts.view": "View",
+  "accounts.new": "New account",
+  "accounts.newCustomer": "New customer account",
+  "accounts.fName": "Name",
+  "accounts.fPhone": "Phone",
+  "accounts.fNationalId": "National ID",
+  "accounts.fNature": "Nature",
+  "accounts.natureCredit": "Credit (typical customer account)",
+  "accounts.natureDebit": "Debit (e.g. loan / overdraft)",
+  "accounts.cancel": "Cancel",
+  "accounts.create": "Create",
+  "accounts.created": "Account created",
+
+  // my activity
+  "activity.title": "My activity",
+  "activity.subtitle": "Transactions you have posted.",
+  "activity.deposits": "Deposits",
+  "activity.withdrawals": "Withdrawals",
+  "activity.col.tx": "TX #",
+  "activity.col.when": "When",
+  "activity.col.type": "Type",
+  "activity.col.channel": "Channel",
+  "activity.col.amount": "Amount",
+  "activity.col.status": "Status",
+
+  // new transaction chooser
+  "newtx.title": "New transaction",
+  "newtx.subtitle": "Choose the type of transaction you want to post.",
+  "newtx.deposit": "Deposit",
+  "newtx.withdraw": "Withdrawal",
+  "newtx.depositHint": "Add money to a customer account. Press",
+  "newtx.withdrawHint": "Take money out of a customer account. Press",
+
+  // notifications bell
+  "notif.title": "Notifications",
+  "notif.markAllRead": "Mark all read",
+  "notif.empty": "You're all caught up.",
+  "notif.markRead": "Mark read",
+  "notif.justNow": "just now",
+  "notif.minutesAgo": "m ago",
+  "notif.hoursAgo": "h ago",
+  "notif.daysAgo": "d ago",
+
+  // export pdf
+  "export.button": "Export PDF",
+  "export.heading": "Export",
+  "export.help": "Generates a PDF of records within the selected date range.",
+  "export.from": "From",
+  "export.to": "To",
+  "export.cancel": "Cancel",
+  "export.download": "Download PDF",
+  "export.generating": "Generating…",
+
+  // tx domain words
+  "tx.direction.deposit": "deposit",
+  "tx.direction.withdraw": "withdrawal",
+  "tx.channel.cash": "cash",
+  "tx.channel.bank": "bank",
+  "tx.status.posted": "posted",
+  "tx.status.pending": "pending",
+  "tx.status.rejected": "rejected",
+  "tx.status.reversed": "reversed",
+  "notif.severity.info": "info",
+  "notif.severity.warning": "warning",
+  "notif.severity.critical": "critical",
 };
 export type Dict = typeof en;
 export type DictKey = keyof Dict;
