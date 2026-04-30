@@ -26,10 +26,10 @@ export function DahabMark({
   priority?: boolean;
 }) {
   const sizes = {
-    sm: { wordmark: "text-base", arabic: "text-[10px]", rule: "w-6", icon: "h-8 w-8" },
-    md: { wordmark: "text-xl", arabic: "text-[11px]", rule: "w-8", icon: "h-11 w-11" },
-    lg: { wordmark: "text-3xl", arabic: "text-sm", rule: "w-12", icon: "h-20 w-20" },
-    xl: { wordmark: "text-5xl", arabic: "text-base", rule: "w-16", icon: "h-28 w-28" },
+    sm: { wordmark: "text-base", arabic: "text-[10px]", rule: "w-6", icon: "h-12 w-12" },
+    md: { wordmark: "text-xl", arabic: "text-[11px]", rule: "w-8", icon: "h-16 w-16" },
+    lg: { wordmark: "text-3xl", arabic: "text-sm", rule: "w-12", icon: "h-28 w-28" },
+    xl: { wordmark: "text-5xl", arabic: "text-base", rule: "w-16", icon: "h-36 w-36" },
   } as const;
   const s = sizes[size];
   return (
@@ -88,7 +88,7 @@ export function DahabCoin({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center",
+        "inline-flex h-12 w-12 items-center justify-center",
         className,
       )}
       aria-hidden
