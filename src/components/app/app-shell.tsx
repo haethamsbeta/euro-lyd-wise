@@ -237,12 +237,12 @@ export function AppShell() {
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
   return (
     <div className="border-b border-[oklch(0.82_0.14_85/0.12)] bg-background">
-      <div className="flex flex-wrap items-end justify-between gap-3 px-6 py-6">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">{title}</h1>
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:px-6 sm:py-6">
+        <div className="min-w-0">
+          <h1 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
           {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {actions}
+        {actions ? <div className="flex flex-wrap gap-2 [&>*]:w-full sm:[&>*]:w-auto">{actions}</div> : null}
       </div>
     </div>
   );

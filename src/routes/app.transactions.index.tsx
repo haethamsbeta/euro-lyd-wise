@@ -158,7 +158,7 @@ function TxList() {
           title="Transactions"
           description="All posted, pending, rejected, and reversed entries — grouped by day for quick review."
         />
-        <div className="space-y-4 p-6">
+        <div className="space-y-4 p-4 sm:p-6">
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative max-w-xs flex-1 min-w-[220px]">
@@ -266,7 +266,7 @@ function TxList() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[900px] text-sm">
                   <thead className="sticky top-0 z-10 bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur">
                     <tr>
                       <th className="w-1 px-0 py-2"></th>

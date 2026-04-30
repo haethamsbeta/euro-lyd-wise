@@ -67,22 +67,22 @@ function Dashboard() {
           </Button>
         }
       />
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-4 sm:p-6">
         {data && data.pendingCount > 0 ? (
           <Card className="border-warning/40 bg-warning/5">
-            <CardContent className="flex items-center gap-3 p-4">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              <div className="flex-1 text-sm">
+            <CardContent className="flex flex-wrap items-center gap-3 p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+              <div className="min-w-0 flex-1 text-sm">
                 {data.pendingCount} {data.pendingCount > 1 ? t("dash.pendingMany") : t("dash.pendingOne")}
               </div>
-              <Button asChild size="sm" variant="outline"><Link to="/app/approvals">{t("dash.review")}</Link></Button>
+              <Button asChild size="sm" variant="outline" className="ms-auto"><Link to="/app/approvals">{t("dash.review")}</Link></Button>
             </CardContent>
           </Card>
         ) : null}
 
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("dash.vaultsRecon")}</h2>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {CURRENCIES.map((cur) => {
               const cash = vaultByChannelCurrency.get(`cash-${cur}`) ?? 0;
               const bank = vaultByChannelCurrency.get(`bank-${cur}`) ?? 0;
@@ -129,21 +129,21 @@ function Dashboard() {
               ) : (
                 <ul className="divide-y">
                   {data?.recentTx.map((tx) => (
-                    <li key={tx.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                    <li key={tx.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
                       {tx.direction === "deposit" ? (
-                        <ArrowDownCircle className="h-5 w-5 text-success" />
+                        <ArrowDownCircle className="h-5 w-5 shrink-0 text-success" />
                       ) : (
-                        <ArrowUpCircle className="h-5 w-5 text-destructive" />
+                        <ArrowUpCircle className="h-5 w-5 shrink-0 text-destructive" />
                       )}
-                      <div className="flex-1">
-                        <div className="font-medium">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
                         <div className="truncate text-xs text-muted-foreground">{tx.comment}</div>
                       </div>
-                      <div className="text-end">
-                        <div className="font-medium">{formatMinor(tx.amount_minor, tx.currency)}</div>
+                      <div className="ms-auto text-end">
+                        <div className="font-medium font-mono">{formatMinor(tx.amount_minor, tx.currency)}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</div>
                       </div>
-                      <Badge variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
+                      <Badge className="shrink-0" variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
                         {t(`tx.status.${tx.status}`)}
                       </Badge>
                     </li>

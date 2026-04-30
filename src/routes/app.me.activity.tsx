@@ -36,8 +36,8 @@ function MyActivity() {
   return (
     <div>
       <PageHeader title={t("activity.title")} description={t("activity.subtitle")} />
-      <div className="space-y-4 p-6">
-        <div className="grid gap-3 md:grid-cols-3">
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(["USD", "EUR", "LYD"] as const).map((c) => (
             <Card key={c}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{c}</CardTitle></CardHeader>
@@ -50,7 +50,8 @@ function MyActivity() {
         </div>
         <Card>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr><th className="px-4 py-2 text-start">{t("activity.col.tx")}</th><th className="px-4 py-2 text-start">{t("activity.col.when")}</th><th className="px-4 py-2">{t("activity.col.type")}</th><th className="px-4 py-2">{t("activity.col.channel")}</th><th className="px-4 py-2 text-end">{t("activity.col.amount")}</th><th className="px-4 py-2">{t("activity.col.status")}</th></tr>
               </thead>
@@ -67,6 +68,7 @@ function MyActivity() {
                 ))}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       </div>
