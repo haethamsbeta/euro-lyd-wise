@@ -18,6 +18,10 @@ export const en = {
   "landing.enterVault": "Enter the vault",
   "landing.customerPortal": "Customer portal",
   "landing.mobileApp": "Mobile app",
+  "landing.dahabFamily": "Dahab Family",
+  "landing.dahabFamilyHint": "Back-office for staff: admins, tellers, and auditors.",
+  "landing.customerPortalHint": "Customers: view balances and transaction history.",
+  "landing.chooseEntry": "Choose how you'd like to enter",
   "landing.arabicNote": "ذهب · the Arabic word for gold",
   "landing.pillar1.title": "Double-entry, always",
   "landing.pillar1.body":
@@ -44,6 +48,14 @@ export const en = {
   "login.accountCreated": "Account created. You can sign in now.",
   "login.newAccountNote": "New accounts have no role until an admin assigns one.",
   "login.privateBankingLedger": "Private Banking Ledger",
+  "login.staffTitle": "Dahab Family · Back-office",
+  "login.staffSubtitle": "Sign in with your staff credentials.",
+  "login.consumerTitle": "Customer Portal",
+  "login.consumerSubtitle": "Sign in to view your accounts and history.",
+  "login.wrongPortalStaff": "These credentials are for a customer account. Use the Customer Portal.",
+  "login.wrongPortalConsumer": "These credentials are for a staff account. Use Dahab Family.",
+  "login.switchToConsumer": "I'm a customer →",
+  "login.switchToStaff": "I'm staff (Dahab Family) →",
 
   // demo card
   "demo.title": "Demo credentials",

@@ -20,6 +20,10 @@ export const ar: Dict = {
   "landing.enterVault": "ادخل إلى الخزينة",
   "landing.customerPortal": "بوابة العميل",
   "landing.mobileApp": "تطبيق الجوال",
+  "landing.dahabFamily": "عائلة ذهب",
+  "landing.dahabFamilyHint": "لوحة الإدارة للموظفين: المدراء، الصرّافون، والمراجعون.",
+  "landing.customerPortalHint": "للعملاء: عرض الأرصدة وسجل الحركات.",
+  "landing.chooseEntry": "اختر طريقة الدخول",
   "landing.arabicNote": "ذهب · الكلمة العربية للمعدن النفيس",
   "landing.pillar1.title": "قيد مزدوج دائمًا",
   "landing.pillar1.body":
@@ -46,6 +50,14 @@ export const ar: Dict = {
   "login.accountCreated": "تم إنشاء الحساب. يمكنك تسجيل الدخول الآن.",
   "login.newAccountNote": "الحسابات الجديدة لا تملك أي دور حتى يقوم المسؤول بتعيينه.",
   "login.privateBankingLedger": "دفتر مصرفية خاصة",
+  "login.staffTitle": "عائلة ذهب · لوحة الإدارة",
+  "login.staffSubtitle": "سجّل الدخول ببيانات اعتماد الموظف.",
+  "login.consumerTitle": "بوابة العميل",
+  "login.consumerSubtitle": "سجّل الدخول لعرض حساباتك وسجلك.",
+  "login.wrongPortalStaff": "هذه البيانات لحساب عميل. استخدم بوابة العميل.",
+  "login.wrongPortalConsumer": "هذه البيانات لحساب موظف. استخدم عائلة ذهب.",
+  "login.switchToConsumer": "أنا عميل ←",
+  "login.switchToStaff": "أنا موظف (عائلة ذهب) ←",
 
   // demo card
   "demo.title": "بيانات تجريبية",
