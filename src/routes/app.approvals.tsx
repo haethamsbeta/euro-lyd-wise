@@ -51,7 +51,7 @@ function Approvals() {
   return (
     <div>
       <PageHeader title={t("approvals.title")} description={t("approvals.subtitle")} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <CardContent className="p-0">
             {isLoading ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
@@ -60,23 +60,23 @@ function Approvals() {
               <ul className="divide-y">
                 {data!.map((row) => (
                   <li key={row.id} className="p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-sm">{row.tx_number}</span>
                           <Badge variant="outline">{t(`tx.direction.${row.direction}`)}</Badge>
                           <Badge variant="outline">{t(`tx.channel.${row.channel}`)}</Badge>
                         </div>
-                        <div className="text-sm">{formatMinor(row.amount_minor, row.currency)}</div>
+                        <div className="font-mono text-sm">{formatMinor(row.amount_minor, row.currency)}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(row.created_at)}</div>
-                        <div className="text-sm">{row.comment}</div>
+                        <div className="break-words text-sm">{row.comment}</div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => {
+                      <div className="flex gap-2 sm:shrink-0">
+                        <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => {
                           const r = window.prompt(t("approvals.rejectPrompt"));
                           if (r && r.trim()) reject.mutate({ id: row.id, reason: r.trim() });
                         }}>{t("approvals.reject")}</Button>
-                        <Button onClick={() => approve.mutate(row.id)}>{t("approvals.approve")}</Button>
+                        <Button className="flex-1 sm:flex-none" onClick={() => approve.mutate(row.id)}>{t("approvals.approve")}</Button>
                       </div>
                     </div>
                   </li>
