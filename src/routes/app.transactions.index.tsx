@@ -847,7 +847,7 @@ function DetailCell({
   );
 }
 
-function AttachmentCard({ att }: { att: Attachment }) {
+function AttachmentCard({ att }: { att: Attachment & { uploader_name?: string | null } }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -899,6 +899,7 @@ function AttachmentCard({ att }: { att: Attachment }) {
             <div className="truncate text-sm font-medium">{att.file_name}</div>
             <div className="text-[11px] text-muted-foreground">
               {formatBytes(att.size_bytes)} · {att.content_type ?? "unknown"}
+              {att.uploader_name ? ` · uploaded by ${att.uploader_name}` : ""}
             </div>
           </div>
         </div>
