@@ -66,6 +66,8 @@ export const Route = createRootRoute({
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
+      // Preload the brand mark so it paints with the first frame.
+      { rel: "preload", as: "image", href: "/brand/dahab-icon.webp", type: "image/webp" },
     ],
   }),
   shellComponent: RootShell,
@@ -101,5 +103,16 @@ function RootComponent() {
 }
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      // Treat data as fresh for 30s — switching tabs no longer refetches
+      // every dashboard/transactions/vault query.
+      staleTime: 30_000,
+      // Keep cached data around for 5 minutes so navigating back is instant.
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: "always",
+      retry: 1,
+    },
+  },
 });

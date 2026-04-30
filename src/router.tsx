@@ -59,7 +59,11 @@ export const getRouter = () => {
     routeTree,
     context: {},
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Warm the next route on hover/focus, and let React Query own freshness
+    // for 30s so navigation feels instant inside that window.
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 30_000,
+    defaultPreloadDelay: 50,
     defaultErrorComponent: DefaultErrorComponent,
   });
 
