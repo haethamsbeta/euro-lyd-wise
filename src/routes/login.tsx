@@ -2,19 +2,24 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, type AppRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2 } from "lucide-react";
+import { Sparkles, Copy, Loader2, Users, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useT } from "@/lib/i18n";
 
+type PortalKind = "staff" | "consumer";
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    portal: (s.portal === "consumer" ? "consumer" : "staff") as PortalKind,
+  }),
   component: LoginPage,
   head: () => ({ meta: [{ title: "Sign in — Dahab" }] }),
 });
@@ -41,9 +46,11 @@ function LoginPage() {
   const { session, loading } = useAuth();
   const nav = useNavigate();
   const t = useT();
+  const { portal } = Route.useSearch();
+  const isStaff = portal === "staff";
   useEffect(() => {
-    if (!loading && session) nav({ to: "/app" });
-  }, [session, loading, nav]);
+    if (!loading && session) nav({ to: isStaff ? "/app" : "/portal" });
+  }, [session, loading, nav, isStaff]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
@@ -59,16 +66,44 @@ function LoginPage() {
           </p>
         </div>
 
+        {/* Portal switcher */}
+        <div className="grid grid-cols-2 gap-2 rounded-lg border border-[oklch(0.82_0.14_85/0.2)] bg-[oklch(0.82_0.14_85/0.04)] p-1">
+          <Link
+            to="/login"
+            search={{ portal: "staff" } as any}
+            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition ${
+              isStaff
+                ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            {t("landing.dahabFamily")}
+          </Link>
+          <Link
+            to="/login"
+            search={{ portal: "consumer" } as any}
+            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition ${
+              !isStaff
+                ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <UserCircle2 className="h-3.5 w-3.5" />
+            {t("landing.customerPortal")}
+          </Link>
+        </div>
+
         <Card className="card-luxe rounded-xl">
           <CardHeader className="text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-gold/80">
               {t("login.privateBadge")}
             </p>
             <CardTitle className="mt-2 font-serif text-3xl font-semibold gold-text">
-              {t("login.welcomeBack")}
+              {isStaff ? t("login.staffTitle") : t("login.consumerTitle")}
             </CardTitle>
             <CardDescription className="mt-2 text-foreground/70">
-              {t("login.subtitle")}
+              {isStaff ? t("login.staffSubtitle") : t("login.consumerSubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -88,7 +123,7 @@ function LoginPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="signin" className="pt-5">
-                <SignInForm />
+                <SignInForm portal={portal} />
               </TabsContent>
               <TabsContent value="signup" className="pt-5">
                 <SignUpForm />
@@ -112,8 +147,9 @@ function LoginPage() {
   );
 }
 
-function SignInForm() {
+function SignInForm({ portal }: { portal: PortalKind }) {
   const t = useT();
+  const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -131,10 +167,36 @@ function SignInForm() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+    if (error) {
+      setBusy(false);
+      toast.error(error.message);
+      return;
+    }
+    // Enforce portal/credential separation by checking roles.
+    const uid = data.user?.id;
+    let roles: AppRole[] = [];
+    if (uid) {
+      const { data: rrows } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+      roles = (rrows ?? []).map((r) => r.role as AppRole);
+    }
+    const STAFF: AppRole[] = ["admin", "teller", "auditor"];
+    const isStaffUser = roles.some((r) => STAFF.includes(r));
+    if (portal === "staff" && !isStaffUser) {
+      await supabase.auth.signOut();
+      setBusy(false);
+      toast.error(t("login.wrongPortalStaff"));
+      return;
+    }
+    if (portal === "consumer" && isStaffUser) {
+      await supabase.auth.signOut();
+      setBusy(false);
+      toast.error(t("login.wrongPortalConsumer"));
+      return;
+    }
     setBusy(false);
-    if (error) toast.error(error.message);
-    else toast.success(t("login.welcomeToast"));
+    toast.success(t("login.welcomeToast"));
+    nav({ to: portal === "staff" ? "/app" : "/portal" });
   }
 
   return (
