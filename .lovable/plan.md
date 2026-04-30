@@ -1,49 +1,67 @@
-# Fix: Transactions page crash — "Cannot read properties of undefined (reading 'map')"
+# Make Transactions page clearer for admin review + inline file viewer
 
-## Root cause
+(Note: "sudoters" → admins/auditors reviewing entries.)
 
-The transactions list page (`/app/transactions`) selects three columns that **do not exist in the database**:
+## Goals
 
-- `reverses_tx_id`
-- `corrected_by_tx_id`
-- `correction_reason`
+1. Make the Transactions list **easier to scan** for reviewers — clearer grouping, better status hierarchy, customer name visible, attachment indicator at a glance.
+2. Let admins/auditors **review uploaded files inline** on the same page — no need to open the entry form.
 
-These columns (and the `reversed` value of the `tx_status` enum, plus the `correct_transaction` RPC) were added to the codebase in migration `20260430003335_add_correct_transaction.sql` for the admin "Edit entry" feature, but **the migration was never actually applied** to the live database. I confirmed via `psql`:
+## Changes
 
-- The three columns are missing from `public.transactions`.
-- The `tx_status` enum only has `posted`, `pending`, `rejected` (no `reversed`).
+### 1. `src/routes/app.transactions.index.tsx` — readability pass
 
-So the Supabase query returns an error, `data` stays `undefined`, and the component then calls `data!.map(...)` which throws the `Cannot read properties of undefined (reading 'map')` error shown in the screenshot.
+**Query updates** (single round trip, no new server code):
+- Pull customer name with the embedded select: `customer:accounts!transactions_customer_account_id_fkey(name, account_number)`. If the relationship name lookup fails, fall back to a separate batched fetch by `customer_account_id`.
+- Pull attachment count via `transaction_attachments(count)` so the row knows whether a paperclip should appear.
 
-(Side note: the user mentioned the "accounts page" but the stack trace and current route show this is actually the **Transactions** page — `/app/transactions`. The Accounts page is unaffected.)
+**Visual / structural changes**:
+- Group the rows by **date header** ("Today", "Yesterday", `Apr 28, 2026`) inserted as full-width subheader rows, so reviewers can scan a day at a time.
+- Add a left-edge **status accent bar** per row (color-coded: pending=amber, posted=neutral, rejected=red, reversed/reversal=muted warning) so status is obvious without reading the badge.
+- Reorder columns for review-first scanning:
+  `TX #` · `Time` · `Customer` · `Direction` (icon + word) · `Channel` · `Amount` (right-aligned, larger, currency suffixed) · `Status` · `Files` · `Comment` (truncated, full text in a tooltip) · `Actions`
+- **Direction** shown as a colored pill with arrow icon (↓ green deposit, ↑ red withdraw) instead of plain text.
+- **Amount** in tabular-nums, slightly bigger, with currency code dimmed after the number.
+- **Files column**: paperclip icon + count; clicking it opens the new inline preview drawer (see #2). Empty state shows a muted dash.
+- **Reversal chain**: if `reverses_tx_id` is set, show a small "↩ reverses TX-…" subtext under the TX number; if `corrected_by_tx_id` is set on a reversed entry, show "→ corrected by TX-…". Reviewers immediately see the audit chain.
+- **Filters** above the table (in addition to the existing TX# search):
+  - Status: All / Pending / Posted / Rejected / Reversed (segmented control)
+  - Direction: All / Deposit / Withdraw
+  - Has files: toggle
+- **Sticky table header** so columns stay visible while scrolling.
+- **Empty / loading / error states** keep the friendlier messaging from the previous fix; loading uses skeleton rows instead of a single "Loading…" cell.
+- **Density**: slightly tighter row padding and zebra striping on hover for fast row-by-row review.
 
-## Fix
+No design-token violations — colors come from existing semantic tokens (`success`, `destructive`, `warning`, `muted-foreground`, etc.).
 
-### 1. Re-apply the correction migration to the database
+### 2. Inline attachment review — new `AttachmentsSheet` component (same file)
 
-Re-run the SQL from `supabase/migrations/20260430003335_add_correct_transaction.sql` as a fresh migration so the schema actually reflects the code:
+Triggered by clicking the paperclip in the Files column. Opens a side **Sheet** (right-side drawer) so the table stays visible behind it.
 
-- Add `'reversed'` to the `tx_status` enum (idempotent).
-- Add `reverses_tx_id`, `corrected_by_tx_id`, `correction_reason` columns to `public.transactions`.
-- Recreate indexes and the `public.correct_transaction(...)` RPC.
+Contents:
+- Header: TX number, customer name, amount, status badge.
+- List of attachments for that transaction (queried on open):
+  - File name, content-type icon (image / PDF / generic), size.
+  - **Inline preview**:
+    - Images render directly via signed URL (60 s TTL, refreshable).
+    - PDFs render in an `<iframe>` at full sheet height.
+    - Other types show a "Download" button only.
+  - "Open in new tab" and "Download" actions per file (signed URL).
+- Read-only — no upload/delete here. (Editing files stays in the entry form, consistent with the immutable-ledger model.)
+- Uses existing `tx-attachments` bucket and existing RLS policy `tx_attach read` (admins/auditors/tellers/owner already have read access). No DB changes.
 
-All statements use `IF NOT EXISTS` / `CREATE OR REPLACE`, so re-running is safe.
+### 3. Permissions / safety
 
-### 2. Make the transactions list resilient to query failures
-
-In `src/routes/app.transactions.index.tsx`, update the `useQuery` usage so a future schema mismatch can't crash the whole route:
-
-- Pull `error` out of `useQuery` and render an inline error state (Alert) instead of letting the error bubble to the route boundary.
-- Replace `data!.map(...)` with a safe `(data ?? []).map(...)` so the renderer never dereferences `undefined`.
-- Keep the existing loading and empty states.
-
-No UI/feature changes — the table looks and behaves the same once the migration is applied; it just degrades gracefully if a query ever fails again.
+- **No new RLS, no schema migration, no new RPC.** All data is already readable per existing policies.
+- Admin-only "Edit" (correction) action stays exactly as today and remains the only mutation path.
+- Signed URLs are short-lived (60 s) and re-issued on demand; nothing is made public.
 
 ## Files touched
 
-- New: `supabase/migrations/<timestamp>_reapply_correct_transaction.sql` — same body as the existing correction migration, idempotent.
-- Edited: `src/routes/app.transactions.index.tsx` — handle `error`, guard against undefined `data`.
+- `src/routes/app.transactions.index.tsx` — list redesign, filters, date grouping, `AttachmentsSheet` component.
+- (Possibly) `src/components/ui/sheet.tsx` — already present in shadcn; just import.
 
 ## Out of scope
 
-- No changes to the Accounts page, the entry form, attachments, or the correction RPC logic itself.
+- No changes to the entry form, accounts page, attachments table, storage bucket, or correction RPC.
+- No bulk approve/reject (can be a follow-up if useful).
