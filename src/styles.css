@@ -305,9 +305,13 @@ html.theme-night body {
 /* Card-luxe needs a dark-friendly version under night theme */
 html.theme-night .card-luxe {
   background: linear-gradient(180deg,
-    oklch(0.20 0.014 60) 0%,
+    oklch(0.22 0.016 60) 0%,
     oklch(0.17 0.014 60) 100%);
-  border-color: oklch(0.30 0.018 60 / 0.7);
+  border-color: oklch(0.78 0.13 82 / 0.28);
+  box-shadow:
+    0 1px 0 0 oklch(1 0 0 / 0.04) inset,
+    0 24px 60px -28px oklch(0 0 0 / 0.7),
+    0 0 0 1px oklch(0.78 0.13 82 / 0.18);
 }
 
 html.theme-night .surface-cream {
