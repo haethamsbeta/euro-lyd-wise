@@ -11,6 +11,8 @@ import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { AccountMenu } from "@/components/app/account-menu";
 import { useT } from "@/lib/i18n";
 import {
   DropdownMenu,
@@ -130,20 +132,11 @@ export function AppShell() {
             })}
           </nav>
           <div className="border-t border-[oklch(0.82_0.14_85/0.12)] p-4">
-            <div className="truncate text-xs font-medium text-foreground">{user?.email}</div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {roles.map((r) => (
-                <span key={r} className="rounded border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-gold">
-                  {r}
-                </span>
-              ))}
-            </div>
-            <div className="mt-3 flex justify-center">
+            <AccountMenu variant="full" />
+            <div className="mt-3 flex items-center justify-center gap-2">
               <LanguageToggle />
+              <ThemeToggle />
             </div>
-            <Button onClick={() => signOut()} variant="ghost" size="sm" className="mt-3 w-full justify-start text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground">
-              <LogOut className="me-2 h-4 w-4" /> {t("common.signOut")}
-            </Button>
           </div>
         </aside>
 
@@ -152,7 +145,9 @@ export function AppShell() {
           {/* Desktop top bar */}
           <div className="hidden items-center justify-end gap-2 border-b border-[oklch(0.82_0.14_85/0.12)] bg-background/60 px-6 py-2.5 backdrop-blur md:flex">
             <LanguageToggle />
+            <ThemeToggle />
             <NotificationBell />
+            <AccountMenu />
           </div>
           {/* Mobile top bar */}
           <div className="border-b border-[oklch(0.82_0.14_85/0.12)] bg-background px-4 py-3 md:hidden">
@@ -163,10 +158,9 @@ export function AppShell() {
               </Link>
               <div className="flex items-center gap-1">
                 <LanguageToggle />
+                <ThemeToggle />
                 <NotificationBell />
-                <Button onClick={() => signOut()} variant="ghost" size="sm">
-                  <LogOut className="h-4 w-4" />
-                </Button>
+                <AccountMenu />
               </div>
             </div>
             <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
