@@ -23,6 +23,7 @@ import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppAboutRouteImport } from './routes/app.about'
+import { Route as AppVaultsIndexRouteImport } from './routes/app.vaults.index'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
@@ -105,6 +106,11 @@ const AppAboutRoute = AppAboutRouteImport.update({
   path: '/about',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVaultsIndexRoute = AppVaultsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppVaultsRoute,
+} as any)
 const AppTransactionsIndexRoute = AppTransactionsIndexRouteImport.update({
   id: '/transactions/',
   path: '/transactions/',
@@ -186,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/app/vaults/': typeof AppVaultsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -200,7 +207,6 @@ export interface FileRoutesByTo {
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
-  '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
@@ -211,6 +217,7 @@ export interface FileRoutesByTo {
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
+  '/app/vaults': typeof AppVaultsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -239,6 +246,7 @@ export interface FileRoutesById {
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
+  '/app/vaults/': typeof AppVaultsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
   '/api/public/hooks/notifications-tick': typeof ApiPublicHooksNotificationsTickRoute
   '/app/transactions/new/deposit': typeof AppTransactionsNewDepositRoute
@@ -268,6 +276,7 @@ export interface FileRouteTypes {
     | '/app/vaults/$id'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/app/vaults/'
     | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
@@ -282,7 +291,6 @@ export interface FileRouteTypes {
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
-    | '/app/vaults'
     | '/m/dashboard'
     | '/m/login'
     | '/app'
@@ -293,6 +301,7 @@ export interface FileRouteTypes {
     | '/app/vaults/$id'
     | '/app/accounts'
     | '/app/transactions'
+    | '/app/vaults'
     | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/app/vaults/$id'
     | '/app/accounts/'
     | '/app/transactions/'
+    | '/app/vaults/'
     | '/api/public/admin/seed-demo'
     | '/api/public/hooks/notifications-tick'
     | '/app/transactions/new/deposit'
@@ -437,6 +447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAboutRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/vaults/': {
+      id: '/app/vaults/'
+      path: '/'
+      fullPath: '/app/vaults/'
+      preLoaderRoute: typeof AppVaultsIndexRouteImport
+      parentRoute: typeof AppVaultsRoute
+    }
     '/app/transactions/': {
       id: '/app/transactions/'
       path: '/transactions'
@@ -519,10 +536,12 @@ declare module '@tanstack/react-router' {
 
 interface AppVaultsRouteChildren {
   AppVaultsIdRoute: typeof AppVaultsIdRoute
+  AppVaultsIndexRoute: typeof AppVaultsIndexRoute
 }
 
 const AppVaultsRouteChildren: AppVaultsRouteChildren = {
   AppVaultsIdRoute: AppVaultsIdRoute,
+  AppVaultsIndexRoute: AppVaultsIndexRoute,
 }
 
 const AppVaultsRouteWithChildren = AppVaultsRoute._addFileChildren(

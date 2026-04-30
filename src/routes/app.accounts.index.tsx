@@ -76,13 +76,13 @@ function AccountsList() {
                   ) : data!.map((a: any) => {
                     const bals = new Map(a.account_balances?.map((b: any) => [b.currency, b.balance_minor]) ?? []);
                     return (
-                      <tr key={a.id}>
-                        <td className="px-4 py-2 font-mono">{a.account_number}</td>
-                        <td className="px-4 py-2 font-medium">{a.name}</td>
-                        <td className="px-4 py-2"><Badge variant="outline">{a.nature}</Badge></td>
-                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("USD") as number) ?? 0, "USD")}</td>
-                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("EUR") as number) ?? 0, "EUR")}</td>
-                        <td className="px-4 py-2 text-end font-mono">{formatMinor((bals.get("LYD") as number) ?? 0, "LYD")}</td>
+                      <tr key={a.id} className="group transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)]">
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3 font-mono">{a.account_number}</Link></td>
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3 font-medium">{a.name}</Link></td>
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3"><Badge variant="outline">{a.nature}</Badge></Link></td>
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3 text-end font-mono">{formatMinor((bals.get("USD") as number) ?? 0, "USD")}</Link></td>
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3 text-end font-mono">{formatMinor((bals.get("EUR") as number) ?? 0, "EUR")}</Link></td>
+                        <td className="p-0"><Link to="/app/accounts/$id" params={{ id: a.id }} className="block px-4 py-3 text-end font-mono">{formatMinor((bals.get("LYD") as number) ?? 0, "LYD")}</Link></td>
                         <td className="px-4 py-2 text-end">
                           <Button asChild variant="ghost" size="sm"><Link to="/app/accounts/$id" params={{ id: a.id }}>{t("accounts.view")}</Link></Button>
                         </td>

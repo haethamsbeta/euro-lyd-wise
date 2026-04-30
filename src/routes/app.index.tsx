@@ -139,7 +139,16 @@ function Dashboard() {
                       vaultId={vaultIdByChannelCurrency.get(`bank-${cur}`) ?? vaultIdByChannel.get("bank")}
                     />
                     <div className="border-t border-[oklch(0.78_0.13_82/0.20)] pt-2">
-                      <Row icon={<Users className="h-3.5 w-3.5 text-muted-foreground" />} label={t("dash.customersTotal")} value={formatMinor(customer, cur)} bold />
+                      <Link
+                        to="/app/accounts"
+                        className="-mx-2 flex items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-[oklch(0.78_0.13_82/0.10)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.10)]"
+                      >
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          {t("dash.customersTotal")}
+                        </span>
+                        <span className="font-mono font-semibold text-foreground">{formatMinor(customer, cur)}</span>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -160,34 +169,19 @@ function Dashboard() {
                 <ul className="divide-y divide-[oklch(0.78_0.13_82/0.15)]">
                   {data?.recentTx.map((tx) => (
                     <li key={tx.id}>
-                      <Link
-                        to="/app/accounts/$id"
-                        params={{ id: tx.customer_account_id }}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.08)]"
-                      >
-                      <div className={
-                        tx.direction === "deposit"
-                          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 ring-1 ring-success/30"
-                          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30"
-                      }>
-                        {tx.direction === "deposit" ? (
-                          <ArrowDownCircle className="h-5 w-5 text-success" />
-                        ) : (
-                          <ArrowUpCircle className="h-5 w-5 text-destructive" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold text-foreground">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
-                        {tx.comment ? <div className="truncate text-xs text-muted-foreground">{tx.comment}</div> : null}
-                      </div>
-                      <div className="ms-auto text-end">
-                        <div className="font-mono text-base font-semibold text-foreground">{formatMinor(tx.amount_minor, tx.currency)}</div>
-                        <div className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</div>
-                      </div>
-                      <Badge className="shrink-0" variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
-                        {t(`tx.status.${tx.status}`)}
-                      </Badge>
-                      </Link>
+                      {tx.customer_account_id ? (
+                        <Link
+                          to="/app/accounts/$id"
+                          params={{ id: tx.customer_account_id }}
+                          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.08)]"
+                        >
+                          <RecentTransactionContent tx={tx} />
+                        </Link>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                          <RecentTransactionContent tx={tx} />
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -228,5 +222,35 @@ function VaultRow({ label, value, icon, vaultId }: { label: string; value: strin
       </span>
       <span className="font-mono text-foreground/90">{value}</span>
     </Link>
+  );
+}
+
+function RecentTransactionContent({ tx }: { tx: any }) {
+  const t = useT();
+  return (
+    <>
+      <div className={
+        tx.direction === "deposit"
+          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 ring-1 ring-success/30"
+          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30"
+      }>
+        {tx.direction === "deposit" ? (
+          <ArrowDownCircle className="h-5 w-5 text-success" />
+        ) : (
+          <ArrowUpCircle className="h-5 w-5 text-destructive" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-semibold text-foreground">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
+        {tx.comment ? <div className="truncate text-xs text-muted-foreground">{tx.comment}</div> : null}
+      </div>
+      <div className="ms-auto text-end">
+        <div className="font-mono text-base font-semibold text-foreground">{formatMinor(tx.amount_minor, tx.currency)}</div>
+        <div className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</div>
+      </div>
+      <Badge className="shrink-0" variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
+        {t(`tx.status.${tx.status}`)}
+      </Badge>
+    </>
   );
 }
