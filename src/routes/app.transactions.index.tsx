@@ -45,6 +45,13 @@ import {
   Search,
   ShieldAlert,
   File as FileIcon,
+  User as UserIcon,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Hash,
+  Wallet,
+  Building2,
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
