@@ -60,11 +60,12 @@ function UsersPage() {
   return (
     <div>
       <PageHeader title={t("users.title")} description={t("users.subtitle")} />
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <Input placeholder={t("users.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <Card>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 text-start">{t("users.col.user")}</th>
@@ -100,6 +101,7 @@ function UsersPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       </div>
