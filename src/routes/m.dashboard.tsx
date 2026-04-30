@@ -1,7 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
-import { Menu, Bell, Eye, ArrowLeftRight, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, LayoutGrid, MoreHorizontal, ShoppingBag, ArrowDownToLine } from "lucide-react";
-import { useState } from "react";
+import { Menu, Bell, Eye, ArrowLeftRight, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, MoreHorizontal, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { formatMinor, formatDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/m/dashboard")({
   component: MobileDashboard,
@@ -10,8 +14,44 @@ export const Route = createFileRoute("/m/dashboard")({
 
 function MobileDashboard() {
   const [hidden, setHidden] = useState(false);
-  const fmt = (n: number) => `SAR ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const mask = "SAR ••••••";
+  const { user, session, loading } = useAuth();
+  const nav = useNavigate();
+  useEffect(() => { if (!loading && !session) nav({ to: "/m/login" }); }, [loading, session, nav]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["m.dashboard", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data: accs, error: e1 } = await supabase
+        .from("accounts")
+        .select("id, name, account_number, account_balances(currency, balance_minor)")
+        .eq("owner_user_id", user!.id);
+      if (e1) throw e1;
+      const ids = (accs ?? []).map((a) => a.id);
+      const { data: tx, error: e2 } = ids.length
+        ? await supabase.from("transactions")
+            .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
+            .in("customer_account_id", ids)
+            .order("created_at", { ascending: false }).limit(6)
+        : { data: [], error: null as any };
+      if (e2) throw e2;
+      return { accounts: accs ?? [], tx: tx ?? [] };
+    },
+  });
+
+  const firstName = (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Guest").toString().split(" ")[0];
+
+  // aggregate balances by currency
+  const balByCur = new Map<string, number>();
+  for (const a of data?.accounts ?? []) {
+    for (const b of (a as any).account_balances ?? []) {
+      balByCur.set(b.currency, (balByCur.get(b.currency) ?? 0) + b.balance_minor);
+    }
+  }
+  const primaryCur = balByCur.size ? [...balByCur.keys()][0] : "USD";
+  const totalMinor = balByCur.get(primaryCur) ?? 0;
+  const mask = `${primaryCur} ••••••`;
+  const accountCards = (data?.accounts ?? []).slice(0, 2);
 
   return (
     <PhoneShell footer={<BottomNav />}>
@@ -21,13 +61,12 @@ function MobileDashboard() {
           <button className="text-foreground/80"><Menu className="h-6 w-6" /></button>
           <button className="relative text-foreground/80">
             <Bell className="h-6 w-6" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-gold text-[10px] font-bold text-primary-foreground grid place-items-center">2</span>
           </button>
         </div>
 
         <div>
           <div className="text-foreground/80">Good morning,</div>
-          <h1 className="font-serif text-3xl text-gold-deep">Ahmed</h1>
+          <h1 className="font-serif text-3xl text-gold-deep capitalize">{firstName}</h1>
           <p className="text-sm text-muted-foreground mt-1">Welcome back to your DAHAM account</p>
         </div>
 
@@ -39,25 +78,41 @@ function MobileDashboard() {
               Total Balance
               <button onClick={() => setHidden((h) => !h)}><Eye className="h-4 w-4" /></button>
             </div>
-            <div className="mt-2 font-serif text-3xl font-semibold tracking-tight">{hidden ? mask : fmt(87392)}</div>
+            <div className="mt-2 font-serif text-3xl font-semibold tracking-tight">
+              {hidden ? mask : formatMinor(totalMinor, primaryCur)}
+            </div>
 
-            <div className="mt-5 text-sm opacity-90">Available Balance</div>
-            <div className="text-lg font-semibold">{hidden ? mask : fmt(63820.45)}</div>
-
-            <div className="mt-4 flex items-center gap-1.5">
-              <span className="h-1.5 w-4 rounded-full bg-white/90" />
-              <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
-              <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
-              <span className="h-1.5 w-1.5 rounded-full bg-white/50" />
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+              {[...balByCur.keys()].map((c, i) => (
+                <span key={c} className={`text-[11px] px-2 py-0.5 rounded-full ${i === 0 ? "bg-white/90 text-gold-deep" : "bg-white/20 text-white"}`}>
+                  {c}
+                </span>
+              ))}
+              {balByCur.size === 0 && !isLoading ? (
+                <span className="text-[11px] opacity-80">No accounts yet</span>
+              ) : null}
             </div>
           </div>
         </div>
 
         {/* accounts */}
-        <div className="grid grid-cols-2 gap-3">
-          <AccountCard icon={<Wallet className="h-5 w-5" />} label="Current Account" mask="•• 7022" amount={fmt(54321.75)} />
-          <AccountCard icon={<PiggyBank className="h-5 w-5" />} label="Savings Account" mask="•• 6268" amount={fmt(33070.25)} />
-        </div>
+        {accountCards.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {accountCards.map((a: any, idx: number) => {
+              const b = (a.account_balances ?? [])[0];
+              const last4 = (a.account_number ?? "").toString().slice(-4) || "----";
+              return (
+                <AccountCard
+                  key={a.id}
+                  icon={idx === 0 ? <Wallet className="h-5 w-5" /> : <PiggyBank className="h-5 w-5" />}
+                  label={a.name}
+                  mask={`•• ${last4}`}
+                  amount={b ? formatMinor(b.balance_minor, b.currency) : "—"}
+                />
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* quick actions */}
         <div className="rounded-2xl bg-card border border-border p-4 grid grid-cols-4 gap-2">
@@ -71,12 +126,29 @@ function MobileDashboard() {
         <div className="rounded-2xl bg-card border border-border p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif text-lg">Recent Transactions</h2>
-            <button className="text-sm text-gold-deep font-medium flex items-center">View All <ChevronRight className="h-4 w-4" /></button>
+            <Link to="/portal" className="text-sm text-gold-deep font-medium flex items-center">View All <ChevronRight className="h-4 w-4" /></Link>
           </div>
           <div className="divide-y divide-border">
-            <Tx icon={<ArrowLeftRight className="h-4 w-4" />} title="Transfer to Ali Mohammed" sub="Transfer" amount="- SAR 150.00" time="Today, 09:30 AM" />
-            <Tx icon={<ShoppingBag className="h-4 w-4" />} title="Amazon Marketplace" sub="Shopping" amount="- SAR 249.99" time="Today, 08:15 AM" />
-            <Tx icon={<ArrowDownToLine className="h-4 w-4" />} title="Salary Credit" sub="Income" amount="+ SAR 7,500.00" time="Yesterday, 09:00 AM" positive />
+            {isLoading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+            ) : (data?.tx ?? []).length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">No transactions yet</div>
+            ) : (
+              data!.tx.map((t) => {
+                const positive = t.direction === "deposit";
+                return (
+                  <Tx
+                    key={t.id}
+                    icon={positive ? <ArrowDownToLine className="h-4 w-4" /> : <ArrowUpFromLine className="h-4 w-4" />}
+                    title={t.comment || t.tx_number}
+                    sub={`${t.direction} · ${t.channel}`}
+                    amount={`${positive ? "+ " : "- "}${formatMinor(t.amount_minor, t.currency)}`}
+                    time={formatDateTime(t.created_at)}
+                    positive={positive}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </div>
