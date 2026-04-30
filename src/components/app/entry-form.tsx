@@ -451,13 +451,6 @@ export function EntryForm({ direction }: { direction: Direction }) {
         ) : null}
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Ledger preview</CardTitle></CardHeader>
-          <CardContent>
-            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked?.name} />
-          </CardContent>
-        </Card>
-
-        <Card>
           <CardHeader>
             <CardTitle className="text-base">
               Attachments <span className="text-xs font-normal text-muted-foreground">(optional)</span>
@@ -524,6 +517,13 @@ export function EntryForm({ direction }: { direction: Direction }) {
                 ))}
               </ul>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Ledger preview</CardTitle></CardHeader>
+          <CardContent>
+            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked?.name} />
           </CardContent>
         </Card>
 
