@@ -46,7 +46,7 @@ function TxList() {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Tx | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list", q],
     queryFn: async () => {
       let query = supabase
@@ -59,7 +59,7 @@ function TxList() {
       if (q.trim()) query = query.ilike("tx_number", `%${q.trim()}%`);
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as Tx[];
+      return ((data ?? []) as unknown) as Tx[];
     },
   });
 
@@ -102,14 +102,20 @@ function TxList() {
                         Loading…
                       </td>
                     </tr>
-                  ) : data && data.length === 0 ? (
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 8 : 7} className="p-4 text-center text-destructive">
+                        Failed to load transactions: {(error as Error).message}
+                      </td>
+                    </tr>
+                  ) : !data || data.length === 0 ? (
                     <tr>
                       <td colSpan={isAdmin ? 8 : 7} className="p-4 text-center text-muted-foreground">
                         No transactions.
                       </td>
                     </tr>
                   ) : (
-                    data!.map((tx) => {
+                    data.map((tx) => {
                       const canEdit =
                         isAdmin &&
                         tx.status === "posted" &&
