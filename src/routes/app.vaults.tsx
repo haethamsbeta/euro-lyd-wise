@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
@@ -28,7 +28,13 @@ function VaultsPage() {
       <PageHeader title={t("vaults.title")} description={t("vaults.subtitle")} />
       <div className="grid gap-4 p-4 sm:p-6 md:grid-cols-2">
         {data?.map((v: any) => (
-          <Card key={v.id}>
+          <Link
+            key={v.id}
+            to="/app/vaults/$id"
+            params={{ id: v.id }}
+            className="block rounded-xl transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+          <Card className="cursor-pointer hover:border-[oklch(0.82_0.14_85/0.4)] hover:shadow-gold/30 transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 {v.vault_channel === "cash" ? <Banknote className="h-5 w-5 shrink-0" /> : <Building2 className="h-5 w-5 shrink-0" />}
@@ -50,6 +56,7 @@ function VaultsPage() {
               </div>
             </CardContent>
           </Card>
+          </Link>
         ))}
       </div>
     </div>
