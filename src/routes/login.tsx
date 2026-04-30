@@ -71,13 +71,13 @@ function LoginPage() {
               <TabsList className="grid h-11 w-full grid-cols-2 gap-1 rounded-lg border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] p-1">
                 <TabsTrigger
                   value="signin"
-                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-white data-[state=active]:shadow-[0_4px_14px_-4px_oklch(0.58_0.115_72/0.45)]"
+                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-[oklch(0.18_0.03_60)] data-[state=active]:shadow-[inset_0_0_0_1px_oklch(0.55_0.12_72/0.5)]"
                 >
                   Sign in
                 </TabsTrigger>
                 <TabsTrigger
                   value="signup"
-                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-white data-[state=active]:shadow-[0_4px_14px_-4px_oklch(0.58_0.115_72/0.45)]"
+                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-[oklch(0.18_0.03_60)] data-[state=active]:shadow-[inset_0_0_0_1px_oklch(0.55_0.12_72/0.5)]"
                 >
                   Create account
                 </TabsTrigger>
