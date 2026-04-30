@@ -66,6 +66,7 @@
   --font-serif: "Playfair Display", "Cormorant Garamond", ui-serif, Georgia, serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-arabic: "Cairo", "Amiri", "Segoe UI", Tahoma, sans-serif;
 }
 
 /* Light mode — ivory + champagne gold (still elegant for daytime) */
@@ -240,6 +241,22 @@
   }
 
   h1, h2, .font-serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
+
+  /* Arabic typography: use Cairo for body, Amiri for serif headings.
+     Triggered by <html lang="ar"> set by the LanguageProvider. */
+  html[lang="ar"] body {
+    font-family: var(--font-arabic);
+  }
+  html[lang="ar"] .font-serif,
+  html[lang="ar"] h1,
+  html[lang="ar"] h2 {
+    font-family: "Amiri", var(--font-arabic);
+    letter-spacing: 0;
+  }
+  /* Keep "DAHAB" wordmark in serif Latin even in Arabic mode */
+  html[lang="ar"] .gold-text[lang="en"] {
+    font-family: var(--font-serif);
+  }
 
   ::selection { background: oklch(0.74 0.135 82 / 0.30); color: oklch(0.20 0.012 60); }
 

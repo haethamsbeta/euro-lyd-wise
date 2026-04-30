@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { LogOut } from "lucide-react";
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 import { formatMinor, formatDateTime } from "@/lib/format";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/portal")({
   component: Portal,
@@ -18,6 +20,7 @@ export const Route = createFileRoute("/portal")({
 function Portal() {
   const { session, loading, signOut, user } = useAuth();
   const nav = useNavigate();
+  const t = useT();
   useEffect(() => { if (!loading && !session) nav({ to: "/login" }); }, [session, loading, nav]);
 
   const { data } = useQuery({
@@ -58,14 +61,15 @@ function Portal() {
     URL.revokeObjectURL(url);
   }
 
-  if (loading || !session) return <div className="p-10 text-center text-muted-foreground">Loading…</div>;
+  if (loading || !session) return <div className="p-10 text-center text-muted-foreground">{t("common.loading")}</div>;
 
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
         <div className="container mx-auto flex h-14 items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-3"><DahabCoin /><DahabMark size="sm" showArabic={false} /></Link>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <LanguageToggle />
             <span className="text-muted-foreground">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
           </div>
@@ -74,7 +78,7 @@ function Portal() {
       <main className="container mx-auto space-y-6 px-6 py-8">
         {(!data || data.accounts.length === 0) ? (
           <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
-            You don't have any accounts linked yet. Please contact your bank.
+            {t("portal.noAccounts")}
           </CardContent></Card>
         ) : (
           <>
@@ -93,21 +97,21 @@ function Portal() {
             </div>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Ledger</CardTitle>
-                <Button variant="outline" size="sm" onClick={exportCSV}>Export CSV</Button>
+                <CardTitle className="text-base">{t("portal.ledger")}</CardTitle>
+                <Button variant="outline" size="sm" onClick={exportCSV}>{t("portal.exportCsv")}</Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-2 text-left">TX #</th>
-                        <th className="px-4 py-2 text-left">Date</th>
-                        <th className="px-4 py-2 text-left">Type</th>
-                        <th className="px-4 py-2 text-left">Channel</th>
-                        <th className="px-4 py-2 text-right">Amount</th>
-                        <th className="px-4 py-2 text-left">Status</th>
-                        <th className="px-4 py-2 text-left">Comment</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.tx")}</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.date")}</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.type")}</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.channel")}</th>
+                        <th className="px-4 py-2 text-end">{t("portal.col.amount")}</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.status")}</th>
+                        <th className="px-4 py-2 text-start">{t("portal.col.comment")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -117,7 +121,7 @@ function Portal() {
                           <td className="px-4 py-2 text-muted-foreground">{formatDateTime(t.created_at)}</td>
                           <td className="px-4 py-2 capitalize">{t.direction}</td>
                           <td className="px-4 py-2 capitalize">{t.channel}</td>
-                          <td className={`px-4 py-2 text-right font-mono ${t.direction === "deposit" ? "text-success" : "text-destructive"}`}>
+                          <td className={`px-4 py-2 text-end font-mono ${t.direction === "deposit" ? "text-success" : "text-destructive"}`}>
                             {t.direction === "deposit" ? "+" : "−"}{formatMinor(t.amount_minor, t.currency)}
                           </td>
                           <td className="px-4 py-2"><Badge variant={t.status === "posted" ? "secondary" : "outline"}>{t.status}</Badge></td>
