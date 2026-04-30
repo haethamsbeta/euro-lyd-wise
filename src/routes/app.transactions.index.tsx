@@ -58,6 +58,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ExportPdfButton } from "@/components/app/export-pdf";
 import { describeTx } from "@/lib/tx-describe";
+import { useDebounced } from "@/hooks/use-debounced";
 
 export const Route = createFileRoute("/app/transactions/")({ component: TxList });
 
@@ -86,6 +87,7 @@ function TxList() {
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const [q, setQ] = useState("");
+  const debouncedQ = useDebounced(q, 250);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
   const [filesOnly, setFilesOnly] = useState(false);
@@ -93,7 +95,7 @@ function TxList() {
   const [details, setDetails] = useState<Tx | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["transactions.list.v2", q],
+    queryKey: ["transactions.list.v2", debouncedQ],
     queryFn: async () => {
       let query = supabase
         .from("transactions")
@@ -104,7 +106,7 @@ function TxList() {
         )
         .order("created_at", { ascending: false })
         .limit(200);
-      if (q.trim()) query = query.ilike("tx_number", `%${q.trim()}%`);
+      if (debouncedQ.trim()) query = query.ilike("tx_number", `%${debouncedQ.trim()}%`);
       const { data, error } = await query;
       if (error) throw error;
       const rows = (data ?? []) as any[];
