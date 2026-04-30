@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown,
+  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
@@ -39,6 +39,7 @@ const NAV: NavItem[] = [
   { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
   { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
   { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
 ];
 
 export function AppShell() {
