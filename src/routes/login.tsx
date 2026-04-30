@@ -12,6 +12,7 @@ import { Sparkles, Copy, Loader2, Users, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
 
 type PortalKind = "staff" | "consumer";
@@ -139,8 +140,9 @@ function LoginPage() {
 
         <DemoCredentials />
 
-        <div className="flex justify-center pt-1">
+        <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />
+          <ThemeToggle />
         </div>
       </div>
     </div>
