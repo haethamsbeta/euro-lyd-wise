@@ -1,67 +1,73 @@
-# Make Transactions page clearer for admin review + inline file viewer
+# Add Arabic Language Support
 
-(Note: "sudoters" → admins/auditors reviewing entries.)
+Add a user-controlled English ⇄ Arabic toggle with full RTL layout support. Because the app has dozens of routes and hundreds of strings, we'll wire the infrastructure end-to-end and translate the highest-traffic surfaces in this pass. Remaining routes can be translated incrementally without further plumbing.
 
-## Goals
+## Scope of this pass
 
-1. Make the Transactions list **easier to scan** for reviewers — clearer grouping, better status hierarchy, customer name visible, attachment indicator at a glance.
-2. Let admins/auditors **review uploaded files inline** on the same page — no need to open the entry form.
+**Infrastructure (everywhere):**
+- Language context + `useT()` hook with `en` / `ar` dictionaries
+- Persistent choice in `localStorage` (`dahab.lang`)
+- Auto-set `<html lang>` and `<html dir="rtl">` so Tailwind logical properties, text alignment, icons, and dropdowns flip correctly
+- Use Arabic-friendly font stack (Cairo / Noto Sans Arabic) when `lang=ar`
+- Reusable `<LanguageToggle />` pill (EN | عربي) styled to match the gold theme
 
-## Changes
+**Translated surfaces (this pass):**
+- Landing page (`/`)
+- Login page (`/login`) — all labels, tabs, demo card, errors are wrapped
+- App shell (`/app/*`) — sidebar nav labels, header, sign-out
+- Portal page (`/portal`)
+- Common toast/error wording used by these surfaces
 
-### 1. `src/routes/app.transactions.index.tsx` — readability pass
+**Out of scope (left in English for now, infra ready):**
+- Deep back-office routes (`/app/transactions`, `/app/audit`, `/app/users`, etc.) — these are admin/teller tools with heavy tabular data; translating now would 10x the change size. They'll continue working unchanged and can be translated incrementally by wrapping strings in `t("...")`.
+- Mobile teller flow (`/m/*`)
+- PDF export contents
 
-**Query updates** (single round trip, no new server code):
-- Pull customer name with the embedded select: `customer:accounts!transactions_customer_account_id_fkey(name, account_number)`. If the relationship name lookup fails, fall back to a separate batched fetch by `customer_account_id`.
-- Pull attachment count via `transaction_attachments(count)` so the row knows whether a paperclip should appear.
+## Where the toggle appears
 
-**Visual / structural changes**:
-- Group the rows by **date header** ("Today", "Yesterday", `Apr 28, 2026`) inserted as full-width subheader rows, so reviewers can scan a day at a time.
-- Add a left-edge **status accent bar** per row (color-coded: pending=amber, posted=neutral, rejected=red, reversed/reversal=muted warning) so status is obvious without reading the badge.
-- Reorder columns for review-first scanning:
-  `TX #` · `Time` · `Customer` · `Direction` (icon + word) · `Channel` · `Amount` (right-aligned, larger, currency suffixed) · `Status` · `Files` · `Comment` (truncated, full text in a tooltip) · `Actions`
-- **Direction** shown as a colored pill with arrow icon (↓ green deposit, ↑ red withdraw) instead of plain text.
-- **Amount** in tabular-nums, slightly bigger, with currency code dimmed after the number.
-- **Files column**: paperclip icon + count; clicking it opens the new inline preview drawer (see #2). Empty state shows a muted dash.
-- **Reversal chain**: if `reverses_tx_id` is set, show a small "↩ reverses TX-…" subtext under the TX number; if `corrected_by_tx_id` is set on a reversed entry, show "→ corrected by TX-…". Reviewers immediately see the audit chain.
-- **Filters** above the table (in addition to the existing TX# search):
-  - Status: All / Pending / Posted / Rejected / Reversed (segmented control)
-  - Direction: All / Deposit / Withdraw
-  - Has files: toggle
-- **Sticky table header** so columns stay visible while scrolling.
-- **Empty / loading / error states** keep the friendlier messaging from the previous fix; loading uses skeleton rows instead of a single "Loading…" cell.
-- **Density**: slightly tighter row padding and zebra striping on hover for fast row-by-row review.
+1. Login page — small EN | عربي pill below the form (matches the reference screenshot you uploaded)
+2. Landing page header
+3. App shell — in the top-right header next to the notification bell
+4. Portal page header
 
-No design-token violations — colors come from existing semantic tokens (`success`, `destructive`, `warning`, `muted-foreground`, etc.).
+## Technical details
 
-### 2. Inline attachment review — new `AttachmentsSheet` component (same file)
+**New files:**
+- `src/lib/i18n.tsx` — `LanguageProvider`, `useLang()`, `useT()` hook, dictionary loader, RTL side-effects (sets `document.documentElement.lang` + `dir`)
+- `src/lib/i18n/en.ts` — English dictionary (flat keys, e.g. `login.welcomeBack`, `nav.dashboard`)
+- `src/lib/i18n/ar.ts` — Arabic translations of the same keys
+- `src/components/ui/language-toggle.tsx` — the pill component (two variants: `default` for headers, `subtle` for the login footer)
 
-Triggered by clicking the paperclip in the Files column. Opens a side **Sheet** (right-side drawer) so the table stays visible behind it.
+**Edits:**
+- `src/routes/__root.tsx` — wrap app in `<LanguageProvider>`; add Cairo font from Google Fonts
+- `src/styles.css` — add `--font-arabic` token and an `html[lang="ar"] body { font-family: var(--font-arabic) }` rule; add a few RTL-aware utility tweaks where the existing layout uses physical sides
+- `src/routes/login.tsx`, `src/routes/index.tsx`, `src/routes/portal.tsx`, `src/components/app/app-shell.tsx` — wrap visible strings with `t("...")`, add the toggle in the right spots
+- `src/components/brand/dahab-mark.tsx` — already shows Arabic; no change needed
 
-Contents:
-- Header: TX number, customer name, amount, status badge.
-- List of attachments for that transaction (queried on open):
-  - File name, content-type icon (image / PDF / generic), size.
-  - **Inline preview**:
-    - Images render directly via signed URL (60 s TTL, refreshable).
-    - PDFs render in an `<iframe>` at full sheet height.
-    - Other types show a "Download" button only.
-  - "Open in new tab" and "Download" actions per file (signed URL).
-- Read-only — no upload/delete here. (Editing files stays in the entry form, consistent with the immutable-ledger model.)
-- Uses existing `tx-attachments` bucket and existing RLS policy `tx_attach read` (admins/auditors/tellers/owner already have read access). No DB changes.
+**RTL handling:**
+- Toggling to Arabic sets `<html dir="rtl">`. Most layout uses Tailwind flex/grid which mirrors automatically.
+- Dialogs, sheets (Radix) auto-flip from `dir`.
+- A small CSS pass converts a few hard-coded `ml-*` / `mr-*` / `left-*` / `right-*` on the app shell sidebar and header to logical equivalents (`ms-*` / `me-*`) so nothing looks broken in RTL.
 
-### 3. Permissions / safety
+**Dictionary shape:**
+```ts
+// src/lib/i18n/en.ts
+export const en = {
+  "common.signIn": "Sign in",
+  "common.signOut": "Sign out",
+  "login.welcomeBack": "Welcome back",
+  "login.subtitle": "Sign in to the back-office, or create a new account to request access.",
+  "nav.dashboard": "Dashboard",
+  // ...
+};
+```
+`useT()` returns a function `t(key) → string` that falls back to the key itself if a translation is missing — so untranslated strings degrade gracefully rather than breaking.
 
-- **No new RLS, no schema migration, no new RPC.** All data is already readable per existing policies.
-- Admin-only "Edit" (correction) action stays exactly as today and remains the only mutation path.
-- Signed URLs are short-lived (60 s) and re-issued on demand; nothing is made public.
+## What you'll see after approval
 
-## Files touched
+- A clear EN | عربي pill on the login page, landing page, and inside the app header
+- Switching to Arabic instantly flips the layout to RTL, swaps the font to Cairo, and translates all strings on those surfaces
+- The choice persists across sessions and page reloads
+- Untranslated admin pages will still render in English with a correct RTL mirror — they remain fully functional and can be translated next
 
-- `src/routes/app.transactions.index.tsx` — list redesign, filters, date grouping, `AttachmentsSheet` component.
-- (Possibly) `src/components/ui/sheet.tsx` — already present in shadcn; just import.
-
-## Out of scope
-
-- No changes to the entry form, accounts page, attachments table, storage bucket, or correction RPC.
-- No bulk approve/reject (can be a follow-up if useful).
+Approve to implement.
