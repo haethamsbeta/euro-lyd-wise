@@ -9,6 +9,27 @@ export const ar: Dict = {
   "common.password": "كلمة المرور",
   "common.fullName": "الاسم الكامل",
   "common.language": "اللغة",
+  "common.cancel": "إلغاء",
+
+  // theme
+  "theme.label": "السمة",
+  "theme.toggleLabel": "تغيير السمة",
+  "theme.sand": "رملي (فاتح)",
+  "theme.night": "ليلي (داكن)",
+  "theme.system": "حسب النظام",
+
+  // account / sign-out
+  "account.menuLabel": "قائمة الحساب",
+  "account.signedInAs": "مسجّل الدخول باسم",
+  "account.noRole": "لا توجد صلاحية",
+  "account.confirmSignOutTitle": "تسجيل الخروج من ذهب؟",
+  "account.confirmSignOutBody":
+    "سيتم إعادتك إلى صفحة الترحيب. سيحتاج أي شخص يستخدم هذا الجهاز إلى تسجيل الدخول مجدداً.",
+
+  // session timeout
+  "session.idleTitle": "هل ما زلت هنا؟",
+  "session.idleBody": "لأغراض الأمان، سيتم تسجيل خروجك تلقائياً خلال",
+  "session.staySignedIn": "ابقَ مسجلاً",
 
   // landing
   "landing.tagline": "مصرفية خاصة بميزان الذهب",

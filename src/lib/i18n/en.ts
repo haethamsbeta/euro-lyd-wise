@@ -7,6 +7,28 @@ export const en = {
   "common.password": "Password",
   "common.fullName": "Full name",
   "common.language": "Language",
+  "common.cancel": "Cancel",
+
+  // theme
+  "theme.label": "Theme",
+  "theme.toggleLabel": "Change theme",
+  "theme.sand": "Sand (light)",
+  "theme.night": "Night (dark)",
+  "theme.system": "Match system",
+
+  // account / sign-out
+  "account.menuLabel": "Account menu",
+  "account.signedInAs": "Signed in as",
+  "account.noRole": "No role assigned",
+  "account.confirmSignOutTitle": "Sign out of Dahab?",
+  "account.confirmSignOutBody":
+    "You'll be returned to the welcome page. Anyone using this device will need to sign in again.",
+
+  // session timeout
+  "session.idleTitle": "Are you still there?",
+  "session.idleBody":
+    "For your security, you'll be signed out automatically in",
+  "session.staySignedIn": "Stay signed in",
 
   // landing
   "landing.tagline": "Private banking, weighed in gold",
