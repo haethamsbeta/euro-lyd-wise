@@ -7,21 +7,11 @@ const STORAGE_KEY = "dahab.theme";
 type Ctx = {
   theme: ThemeChoice;
   resolved: "sand" | "night";
+  mounted: boolean;
   setTheme: (t: ThemeChoice) => void;
 };
 
 const ThemeCtx = createContext<Ctx | null>(null);
-
-function readStored(): ThemeChoice {
-  if (typeof window === "undefined") return "sand";
-  const v = window.localStorage.getItem(STORAGE_KEY);
-  return v === "night" || v === "sand" || v === "system" ? v : "sand";
-}
-
-function systemPrefersDark(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
 
 function applyTheme(resolved: "sand" | "night") {
   if (typeof document === "undefined") return;
@@ -34,8 +24,29 @@ function applyTheme(resolved: "sand" | "night") {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeChoice>(() => readStored());
-  const [systemDark, setSystemDark] = useState<boolean>(() => systemPrefersDark());
+  // SSR-safe defaults so the server and first client render match.
+  // We hydrate the real values from localStorage / matchMedia after mount.
+  const [theme, setThemeState] = useState<ThemeChoice>("sand");
+  const [systemDark, setSystemDark] = useState<boolean>(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Read persisted preference once on the client after hydration.
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(STORAGE_KEY);
+      if (v === "night" || v === "sand" || v === "system") {
+        setThemeState(v);
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      setSystemDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
+    } catch {
+      /* ignore */
+    }
+    setMounted(true);
+  }, []);
 
   // Listen for OS theme changes only when the user picked "system"
   useEffect(() => {
@@ -58,6 +69,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => ({
       theme,
       resolved,
+      mounted,
       setTheme: (t) => {
         setThemeState(t);
         try {
@@ -67,7 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [theme, resolved],
+    [theme, resolved, mounted],
   );
 
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
