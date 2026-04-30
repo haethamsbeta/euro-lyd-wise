@@ -56,18 +56,29 @@ function LoginPage() {
 
         <Card className="card-luxe rounded-xl">
           <CardHeader className="text-center">
-            <CardTitle className="font-serif text-2xl font-medium">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to the back-office or open the customer portal.
+            <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-gold/80">
+              Private Banking · ذهب
+            </p>
+            <CardTitle className="mt-2 font-serif text-3xl font-semibold gold-text">
+              Welcome back
+            </CardTitle>
+            <CardDescription className="mt-2 text-foreground/70">
+              Sign in to the back-office, or create a new account to request access.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2 bg-[oklch(0.82_0.14_85/0.06)]">
-                <TabsTrigger value="signin" className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground data-[state=active]:shadow-gold">
+              <TabsList className="grid h-11 w-full grid-cols-2 gap-1 rounded-lg border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] p-1">
+                <TabsTrigger
+                  value="signin"
+                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-white data-[state=active]:shadow-[0_4px_14px_-4px_oklch(0.58_0.115_72/0.45)]"
+                >
                   Sign in
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground data-[state=active]:shadow-gold">
+                <TabsTrigger
+                  value="signup"
+                  className="rounded-md text-sm font-semibold text-foreground/70 transition-all hover:text-foreground data-[state=active]:bg-gradient-gold data-[state=active]:font-bold data-[state=active]:!text-white data-[state=active]:shadow-[0_4px_14px_-4px_oklch(0.58_0.115_72/0.45)]"
+                >
                   Create account
                 </TabsTrigger>
               </TabsList>
