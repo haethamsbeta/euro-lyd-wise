@@ -22,8 +22,10 @@ import { Route as AppVaultsRouteImport } from './routes/app.vaults'
 import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
+import { Route as AppAboutRouteImport } from './routes/app.about'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
+import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
@@ -98,6 +100,11 @@ const AppApprovalsRoute = AppApprovalsRouteImport.update({
   path: '/approvals',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAboutRoute = AppAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransactionsIndexRoute = AppTransactionsIndexRouteImport.update({
   id: '/transactions/',
   path: '/transactions/',
@@ -107,6 +114,11 @@ const AppAccountsIndexRoute = AppAccountsIndexRouteImport.update({
   id: '/accounts/',
   path: '/accounts/',
   getParentRoute: () => AppRoute,
+} as any)
+const AppVaultsIdRoute = AppVaultsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppVaultsRoute,
 } as any)
 const AppSettingsNotificationsRoute =
   AppSettingsNotificationsRouteImport.update({
@@ -159,10 +171,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
+  '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
-  '/app/vaults': typeof AppVaultsRoute
+  '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
@@ -170,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
@@ -182,10 +196,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRoute
+  '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
-  '/app/vaults': typeof AppVaultsRoute
+  '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
@@ -193,6 +208,7 @@ export interface FileRoutesByTo {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
@@ -208,10 +224,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRoute
+  '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/users': typeof AppUsersRoute
-  '/app/vaults': typeof AppVaultsRoute
+  '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
@@ -219,6 +236,7 @@ export interface FileRoutesById {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/vaults/$id': typeof AppVaultsIdRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/api/public/admin/seed-demo': typeof ApiPublicAdminSeedDemoRoute
@@ -235,6 +253,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/m'
     | '/portal'
+    | '/app/about'
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
@@ -246,6 +265,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/vaults/$id'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/api/public/admin/seed-demo'
@@ -258,6 +278,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/portal'
+    | '/app/about'
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
@@ -269,6 +290,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/vaults/$id'
     | '/app/accounts'
     | '/app/transactions'
     | '/api/public/admin/seed-demo'
@@ -283,6 +305,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/m'
     | '/portal'
+    | '/app/about'
     | '/app/approvals'
     | '/app/audit'
     | '/app/users'
@@ -294,6 +317,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/vaults/$id'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/api/public/admin/seed-demo'
@@ -406,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApprovalsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/about': {
+      id: '/app/about'
+      path: '/about'
+      fullPath: '/app/about'
+      preLoaderRoute: typeof AppAboutRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/transactions/': {
       id: '/app/transactions/'
       path: '/transactions'
@@ -419,6 +450,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/accounts/'
       preLoaderRoute: typeof AppAccountsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/app/vaults/$id': {
+      id: '/app/vaults/$id'
+      path: '/$id'
+      fullPath: '/app/vaults/$id'
+      preLoaderRoute: typeof AppVaultsIdRouteImport
+      parentRoute: typeof AppVaultsRoute
     }
     '/app/settings/notifications': {
       id: '/app/settings/notifications'
@@ -479,11 +517,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppVaultsRouteChildren {
+  AppVaultsIdRoute: typeof AppVaultsIdRoute
+}
+
+const AppVaultsRouteChildren: AppVaultsRouteChildren = {
+  AppVaultsIdRoute: AppVaultsIdRoute,
+}
+
+const AppVaultsRouteWithChildren = AppVaultsRoute._addFileChildren(
+  AppVaultsRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppAboutRoute: typeof AppAboutRoute
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
   AppUsersRoute: typeof AppUsersRoute
-  AppVaultsRoute: typeof AppVaultsRoute
+  AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
@@ -496,10 +547,11 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAboutRoute: AppAboutRoute,
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
   AppUsersRoute: AppUsersRoute,
-  AppVaultsRoute: AppVaultsRoute,
+  AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppAccountsIdRoute: AppAccountsIdRoute,
   AppMeActivityRoute: AppMeActivityRoute,
@@ -539,3 +591,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
