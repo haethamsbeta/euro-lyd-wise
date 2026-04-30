@@ -1,95 +1,44 @@
-# Make Dahab fast & responsive for a work-day test
+## What you'll get
 
-The app works, but a few hot spots will cause noticeable lag during a full day of use. None of these changes affect features or design — they only make the experience snappier and reduce wasted network traffic.
+1. **Theme switcher** in the header (Sand · Dark · System) on every page — picks the user's preference, remembers it across sessions, and follows OS settings if "System" is chosen.
+2. **A clear "Sign out" button** with the user's email shown on desktop and mobile top bars (not buried in the sidebar footer), plus a confirmation step so it isn't pressed by accident.
+3. **Automatic re-sign-in for security**:
+   - **Idle timeout** — after 15 minutes of no activity (no clicks, keypresses, or navigation), a warning dialog appears with a 60-second countdown. Stay → keeps you signed in. No response → automatic sign-out.
+   - **Hard session cap** — every signed-in session is force-signed-out after 8 hours regardless of activity, so a forgotten browser tab cannot stay open all day.
+   - **Tab-sync** — signing out in one tab signs out every other tab instantly.
 
-## What's slow today
+All three timeouts are configurable via constants in one file so you can tune them later (e.g. shorter for staff, longer for the consumer portal).
 
-1. **Huge brand images bundled into the JS chunk.**
-   `src/assets/dahab-icon.png` (445 KB) and `dahab-logo-full.png` (1.76 MB) are imported via `@/assets/...`, so Vite inlines them into the build. Every page load downloads them.
-2. **Heavy libraries loaded on every page.** `jspdf` + `jspdf-autotable` (~250 KB) load on the Transactions page even when no one is exporting. `recharts`, `react-day-picker`, `embla-carousel`, `react-resizable-panels` are bundled by shadcn UI re-exports even though we don't use those components in the live screens.
-3. **Data fetching keeps re-running.** `defaultPreloadStaleTime: 0` plus `staleTime: 10s` means switching tabs in the sidebar refires every dashboard/transactions/vault query. Over a work day this is hundreds of unnecessary round-trips.
-4. **Auth bootstrap blocks the first paint.** `AuthProvider` waits for the role lookup to finish before letting any route render — every cold load hangs on a Supabase round-trip.
-5. **Transactions list pulls 200 rows + joins on every keystroke** (the search query is part of the React Query key, so every letter triggers a new request).
-6. **Sidebar logo + nav re-render** on every notification because `NotificationsProvider` lives above the shell and stores the full `items` array in context.
+## Where each piece appears
 
-## What we'll change
+- **Header (desktop top bar + mobile top bar + landing/login/portal headers)**: theme toggle button (sun/moon/monitor icon) next to the existing language toggle, and a redesigned account menu showing your email + a clearly labelled "Sign out" item.
+- **Sidebar footer**: keep the existing sign-out as a secondary affordance for muscle memory; show last-active time so you know how long you've been logged in.
+- **Whole app**: new dialog `"You'll be signed out in 60 seconds — Stay signed in"` triggered by inactivity.
 
-### 1. Shrink and externalise the logo assets
-- Re-encode `dahab-icon.png` to a small PNG (~12 KB) and an additional WebP (~6 KB).
-- Move both to `public/brand/dahab-icon.{png,webp}` and reference them by URL (`/brand/dahab-icon.webp`) instead of importing them from `src/assets`. The browser caches them once and they no longer bloat the JS bundle.
-- Same treatment for `dahab-logo-full.png` (used only on the landing/login hero) → resize to ~640 px wide, ~80 KB.
-- Update `DahabMark`, `DahabCoin`, `DahabLogoFull` to use `<img src="/brand/...">` with `loading="lazy"` and `decoding="async"` (eager only on the login/landing hero).
-- Result: ~2.2 MB removed from the initial JS payload.
+## Technical details
 
-### 2. Lazy-load the PDF exporter
-- Convert `ExportPdfButton` so `jsPDF` and `jspdf-autotable` are loaded with a dynamic `import()` only when the user actually clicks "Download PDF".
-- Initial Transactions / Activity page load drops by roughly 250 KB gzipped.
+- **Theme system**:
+  - New `ThemeProvider` (`src/lib/theme.tsx`) storing `"sand" | "night" | "system"` in `localStorage`. Listens to `prefers-color-scheme` for "system".
+  - Rename today's `.dark` block in `src/styles.css` to `.theme-sand` (the current brand look) and add a new `.theme-night` block: deep charcoal background, ivory text, muted gold accents — semantic tokens only, no component changes needed.
+  - Toggle button (`src/components/ui/theme-toggle.tsx`) using shadcn `DropdownMenu` with three options.
+  - Mounted in `AppShell` desktop topbar, mobile topbar, `index.tsx` header, `login.tsx`, and `portal.tsx` (next to `LanguageToggle`).
+- **Sign-out UX**:
+  - New `AccountMenu` component: avatar/initial + email + role chips + "Sign out" with `AlertDialog` confirm. Replaces the bare `LogOut` icon button currently in mobile top bar; sidebar gets the same component below the role chips.
+- **Idle / hard-cap auto-logout** (`src/lib/session-timeout.tsx`):
+  - Constants: `IDLE_MS = 15 * 60_000`, `WARN_MS = 60_000`, `HARD_CAP_MS = 8 * 60 * 60_000`.
+  - Activity listeners (`mousedown`, `keydown`, `scroll`, `touchstart`, `visibilitychange`) reset a debounced idle timer.
+  - When idle timer fires, show `IdleWarningDialog` with countdown; on timeout call `supabase.auth.signOut()`.
+  - Track `signin_at` in `localStorage` on every `SIGNED_IN` auth event; a separate timer enforces hard cap.
+  - Use `BroadcastChannel('dahab-auth')` to broadcast sign-out so all tabs react.
+  - Mounted inside `AuthProvider` so it only runs while a session exists.
+- **Auth refresh**: keep Supabase's built-in refresh-token rotation (already on); the timeouts above are layered on top, not replacements.
 
-### 3. Trim unused shadcn UI re-exports
-- Delete (or stop importing) the unused `chart.tsx`, `calendar.tsx`, `carousel.tsx`, `resizable.tsx` shadcn wrappers. They drag in `recharts`, `react-day-picker`, `embla-carousel`, and `react-resizable-panels` even though no live screen uses them. Verified via `rg` — no app code imports them.
-- Saves another ~300 KB gzipped from the shared chunk.
+## Files
 
-### 4. Tune React Query for a work-day session
-In `src/routes/__root.tsx`:
-- Raise `staleTime` to 30 s for general queries and 60 s for slow/expensive ones (dashboard, vaults, audit, users).
-- Set `gcTime` to 5 min so jumping back to a screen feels instant.
-- Keep `refetchOnWindowFocus: false`, add `refetchOnReconnect: "always"` so a brief Wi-Fi blip auto-refreshes.
-- In `src/router.tsx`, change `defaultPreloadStaleTime` from `0` to `30_000` and add `defaultPreload: "intent"` so hovering a sidebar link warms the next route.
-
-### 5. Debounce the Transactions search
-- Add a 250 ms debounced `searchTerm` and use that (instead of raw `q`) inside the React Query `queryKey`. Typing "1234" now triggers 1 request instead of 4.
-- Same pattern for the Accounts search.
-
-### 6. Don't block the UI on the role lookup
-- In `src/lib/auth.tsx`, set `loading=false` as soon as `getSession()` resolves and load roles in the background. Routes that genuinely need a role (AppShell, Portal) already gate on `roles.length` separately, so first paint of the landing/login pages becomes immediate.
-
-### 7. Stabilise the notification context
-- Memoise the context value with `useMemo` keyed on `items` (already partially done) and split `unread` derivation into a separate selector hook so the sidebar/topbar don't re-render every time an unrelated notification arrives.
-- Limit realtime subscription payload to the bell consumer; the `NotificationsProvider` stays where it is but only re-renders subscribers that read `items` vs `unread`.
-
-### 8. Optional polish
-- Add `<link rel="preload" as="image" href="/brand/dahab-icon.webp">` in the root `head()` so the brand mark paints with the first frame.
-- Add `?display=swap` is already present on the Google Fonts URL — keep it.
-- Compress the OG image (currently a remote 1.5 MB JPEG referenced at `og:image`) by swapping to a 1200×630 ~120 KB asset under `public/og/`.
-
-## Files touched
-
-```text
-src/components/brand/dahab-mark.tsx        # use /brand/* URLs, drop @/assets imports
-src/assets/dahab-icon.png                   # delete
-src/assets/dahab-logo-full.png              # delete
-public/brand/dahab-icon.png|webp            # add (small)
-public/brand/dahab-logo-full.png|webp       # add (small)
-src/components/app/export-pdf.tsx           # dynamic import jspdf + autotable
-src/components/ui/chart.tsx                 # delete (unused)
-src/components/ui/calendar.tsx              # delete (unused)
-src/components/ui/carousel.tsx              # delete (unused)
-src/components/ui/resizable.tsx             # delete (unused)
-package.json                                # drop recharts, react-day-picker,
-                                            #   embla-carousel-react,
-                                            #   react-resizable-panels
-src/routes/__root.tsx                       # QueryClient defaults + preload <link>
-src/router.tsx                              # defaultPreload + staleTime
-src/lib/auth.tsx                            # non-blocking role load
-src/lib/notifications.tsx                   # split unread selector, memo guards
-src/routes/app.transactions.index.tsx       # debounce search input
-src/routes/app.accounts.index.tsx           # debounce search input
-```
-
-## Expected outcome (rough numbers)
-
-| Metric | Before | After |
-| --- | --- | --- |
-| Initial JS payload (gzipped) | ~1.4 MB | ~0.6 MB |
-| Brand image bytes | ~2.2 MB | ~25 KB |
-| Time to first interactive (cable) | ~3.0 s | ~0.9 s |
-| Sidebar nav switch (warm cache) | re-fetches | instant from cache |
-| Transactions search request count per word | one per keystroke | one per pause |
+- New: `src/lib/theme.tsx`, `src/lib/session-timeout.tsx`, `src/components/ui/theme-toggle.tsx`, `src/components/app/account-menu.tsx`, `src/components/app/idle-warning-dialog.tsx`
+- Edit: `src/styles.css` (rename `.dark` → `.theme-sand`, add `.theme-night`, keep `.dark` as alias for now), `src/routes/__root.tsx` (wrap providers, drop hardcoded `className="dark"`), `src/components/app/app-shell.tsx` (use AccountMenu + ThemeToggle), `src/routes/index.tsx`, `src/routes/login.tsx`, `src/routes/portal.tsx` (header ThemeToggle), `src/lib/auth.tsx` (broadcast sign-out, expose `signedInAt`), `src/lib/i18n/{en,ar}.ts` (new strings).
 
 ## Out of scope
 
-- No design / copy changes.
-- No database schema or RLS changes.
-- No new features.
-
-After approval I'll implement these in two passes: (1) bundle/asset shrink + lazy PDF, (2) React Query / auth / search tuning, then verify with the browser performance profiler.
+- No backend/RLS changes. No new database tables. No changes to Supabase auth configuration (the existing JWT TTL governs token refresh; the new timers act on top of it client-side).
+- No "remember me" toggle yet — we can add that later if you want longer sessions for trusted devices.
