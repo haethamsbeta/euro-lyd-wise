@@ -9,6 +9,7 @@ type AuthState = {
   user: User | null;
   roles: AppRole[];
   loading: boolean;
+  rolesLoading: boolean;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
 };
@@ -19,14 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   async function loadRoles(uid: string | undefined) {
     if (!uid) {
       setRoles([]);
+      setRolesLoading(false);
       return;
     }
+    setRolesLoading(true);
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
     setRoles((data ?? []).map((r) => r.role as AppRole));
+    setRolesLoading(false);
   }
 
   useEffect(() => {
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     roles,
     loading,
+    rolesLoading,
     signOut: async () => {
       await supabase.auth.signOut();
     },

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/portal")({
 });
 
 function Portal() {
-  const { session, loading, signOut, user, roles } = useAuth();
+  const { session, loading, rolesLoading, signOut, user, roles } = useAuth();
   const nav = useNavigate();
   const t = useT();
   useEffect(() => {
@@ -28,10 +28,10 @@ function Portal() {
       return;
     }
     // Staff users belong in the back-office, not the customer portal.
-    if (hasAnyRole(roles, ["admin", "teller", "auditor"])) {
+    if (!rolesLoading && hasAnyRole(roles, ["admin", "teller", "auditor"])) {
       nav({ to: "/app" });
     }
-  }, [session, loading, roles, nav]);
+  }, [session, loading, rolesLoading, roles, nav]);
 
   const { data } = useQuery({
     queryKey: ["portal", user?.id],
