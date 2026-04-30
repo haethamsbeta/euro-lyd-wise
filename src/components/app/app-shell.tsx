@@ -10,6 +10,8 @@ import {
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { useT } from "@/lib/i18n";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -19,28 +21,29 @@ import {
 
 type NavItem = {
   to: string;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: AppRole[];
 };
 
 const NAV: NavItem[] = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "teller", "auditor"] },
-  { to: "/app/transactions/new", label: "New transaction", icon: PlusCircle, roles: ["admin", "teller"] },
-  { to: "/app/transactions", label: "Transactions", icon: ListOrdered, roles: ["admin", "teller", "auditor"] },
-  { to: "/app/accounts", label: "Accounts", icon: Users, roles: ["admin", "teller", "auditor"] },
-  { to: "/app/vaults", label: "Vaults", icon: Wallet, roles: ["admin", "teller", "auditor"] },
-  { to: "/app/approvals", label: "Approvals", icon: ClipboardCheck, roles: ["admin"] },
-  { to: "/app/me/activity", label: "My activity", icon: Activity, roles: ["admin", "teller"] },
-  { to: "/app/audit", label: "Audit log", icon: ScrollText, roles: ["admin", "auditor"] },
-  { to: "/app/users", label: "Users & roles", icon: UserCog, roles: ["admin"] },
-  { to: "/app/settings/notifications", label: "Notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
+  { to: "/app", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/transactions/new", labelKey: "nav.newTransaction", icon: PlusCircle, roles: ["admin", "teller"] },
+  { to: "/app/transactions", labelKey: "nav.transactions", icon: ListOrdered, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/accounts", labelKey: "nav.accounts", icon: Users, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/vaults", labelKey: "nav.vaults", icon: Wallet, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/approvals", labelKey: "nav.approvals", icon: ClipboardCheck, roles: ["admin"] },
+  { to: "/app/me/activity", labelKey: "nav.myActivity", icon: Activity, roles: ["admin", "teller"] },
+  { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
+  { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
+  { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
 ];
 
 export function AppShell() {
   const { session, roles, loading, signOut, user } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
+  const t = useT();
 
   useEffect(() => {
     if (loading) return;
@@ -52,7 +55,7 @@ export function AppShell() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <DahabMark size="md" />
-          <span className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Loading…</span>
+          <span className="text-xs uppercase tracking-[0.32em] text-muted-foreground">{t("common.loading")}</span>
         </div>
       </div>
     );
@@ -64,16 +67,16 @@ export function AppShell() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="card-luxe max-w-md rounded-xl p-8 text-center">
           <ShieldAlert className="mx-auto h-10 w-10 text-warning" />
-          <h1 className="mt-3 font-serif text-xl font-semibold">No staff access</h1>
+          <h1 className="mt-3 font-serif text-xl font-semibold">{t("shell.noStaffTitle")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your account is not assigned a staff role. If you are a customer, open the customer portal instead.
+            {t("shell.noStaffBody")}
           </p>
           <div className="mt-6 flex justify-center gap-2">
             <Button asChild variant="outline" className="border-[oklch(0.82_0.14_85/0.3)]">
-              <Link to="/portal">Customer portal</Link>
+              <Link to="/portal">{t("landing.customerPortal")}</Link>
             </Button>
             <Button onClick={() => signOut()} className="bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95">
-              Sign out
+              {t("common.signOut")}
             </Button>
           </div>
         </div>
@@ -118,10 +121,10 @@ export function AppShell() {
                   )}
                 >
                   {active && (
-                    <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r bg-gradient-gold shadow-gold" aria-hidden />
+                    <span className="absolute start-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-e bg-gradient-gold shadow-gold" aria-hidden />
                   )}
                   <Icon className={cn("h-4 w-4", active ? "text-gold" : "")} />
-                  <span>{item.label}</span>
+                  <span>{t(item.labelKey)}</span>
                 </Link>
               );
             })}
@@ -135,8 +138,11 @@ export function AppShell() {
                 </span>
               ))}
             </div>
+            <div className="mt-3 flex justify-center">
+              <LanguageToggle />
+            </div>
             <Button onClick={() => signOut()} variant="ghost" size="sm" className="mt-3 w-full justify-start text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground">
-              <LogOut className="mr-2 h-4 w-4" /> Sign out
+              <LogOut className="me-2 h-4 w-4" /> {t("common.signOut")}
             </Button>
           </div>
         </aside>
@@ -145,6 +151,7 @@ export function AppShell() {
         <main className="flex-1 overflow-x-hidden">
           {/* Desktop top bar */}
           <div className="hidden items-center justify-end gap-2 border-b border-[oklch(0.82_0.14_85/0.12)] bg-background/60 px-6 py-2.5 backdrop-blur md:flex">
+            <LanguageToggle />
             <NotificationBell />
           </div>
           {/* Mobile top bar */}
@@ -155,6 +162,7 @@ export function AppShell() {
                 <DahabMark size="sm" showArabic={false} />
               </Link>
               <div className="flex items-center gap-1">
+                <LanguageToggle />
                 <NotificationBell />
                 <Button onClick={() => signOut()} variant="ghost" size="sm">
                   <LogOut className="h-4 w-4" />
@@ -182,7 +190,7 @@ export function AppShell() {
                               : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
                           )}
                         >
-                          {i.label}
+                          {t(i.labelKey)}
                         </Link>
                       );
                     })}
@@ -196,7 +204,7 @@ export function AppShell() {
                               : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
                           )}
                         >
-                          More <ChevronDown className="h-3 w-3" />
+                          {t("nav.more")} <ChevronDown className="h-3 w-3" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-48">
                           {moreNav.map((i) => {
@@ -212,7 +220,7 @@ export function AppShell() {
                                   )}
                                 >
                                   <Icon className="h-4 w-4" />
-                                  {i.label}
+                                  {t(i.labelKey)}
                                 </Link>
                               </DropdownMenuItem>
                             );
