@@ -224,3 +224,33 @@ function VaultRow({ label, value, icon, vaultId }: { label: string; value: strin
     </Link>
   );
 }
+
+function RecentTransactionContent({ tx }: { tx: any }) {
+  const t = useT();
+  return (
+    <>
+      <div className={
+        tx.direction === "deposit"
+          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 ring-1 ring-success/30"
+          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30"
+      }>
+        {tx.direction === "deposit" ? (
+          <ArrowDownCircle className="h-5 w-5 text-success" />
+        ) : (
+          <ArrowUpCircle className="h-5 w-5 text-destructive" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-semibold text-foreground">{tx.tx_number} · {t(`tx.direction.${tx.direction}`)} · {t(`tx.channel.${tx.channel}`)}</div>
+        {tx.comment ? <div className="truncate text-xs text-muted-foreground">{tx.comment}</div> : null}
+      </div>
+      <div className="ms-auto text-end">
+        <div className="font-mono text-base font-semibold text-foreground">{formatMinor(tx.amount_minor, tx.currency)}</div>
+        <div className="text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</div>
+      </div>
+      <Badge className="shrink-0" variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
+        {t(`tx.status.${tx.status}`)}
+      </Badge>
+    </>
+  );
+}
