@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format";
-import { Banknote, Building2 } from "lucide-react";
+import { Banknote, Building2, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/vaults")({ component: VaultsPage });
@@ -53,6 +53,9 @@ function VaultsPage() {
                     </div>
                   );
                 })}
+              </div>
+              <div className="mt-3 flex items-center justify-end text-xs font-medium text-gold">
+                {t("vaults.viewTx") || "View transactions"} <ChevronRight className="h-3.5 w-3.5" />
               </div>
             </CardContent>
           </Card>
