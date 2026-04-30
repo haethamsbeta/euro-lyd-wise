@@ -16,10 +16,12 @@ import {
  * (sand → sun, night → moon) so it's always honest about what the user sees.
  */
 export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, resolved, setTheme } = useTheme();
+  const { theme, resolved, mounted, setTheme } = useTheme();
   const t = useT();
 
-  const Icon = resolved === "night" ? Moon : Sun;
+  // During SSR / before hydration, always render Sun to match the server output.
+  // After mount, switch to the resolved icon. This prevents a hydration mismatch.
+  const Icon = !mounted ? Sun : resolved === "night" ? Moon : Sun;
 
   const options: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
     { value: "sand", label: t("theme.sand"), icon: Sun },

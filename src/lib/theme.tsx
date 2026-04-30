@@ -7,6 +7,7 @@ const STORAGE_KEY = "dahab.theme";
 type Ctx = {
   theme: ThemeChoice;
   resolved: "sand" | "night";
+  mounted: boolean;
   setTheme: (t: ThemeChoice) => void;
 };
 
@@ -68,6 +69,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () => ({
       theme,
       resolved,
+      mounted,
       setTheme: (t) => {
         setThemeState(t);
         try {
@@ -77,7 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [theme, resolved],
+    [theme, resolved, mounted],
   );
 
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
