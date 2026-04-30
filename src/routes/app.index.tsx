@@ -23,7 +23,7 @@ function Dashboard() {
         supabase.from("account_balances").select("account_id, currency, balance_minor"),
         supabase
           .from("transactions")
-          .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment")
+          .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment, customer_account_id")
           .order("created_at", { ascending: false })
           .limit(8),
         supabase
@@ -42,6 +42,10 @@ function Dashboard() {
 
   const vaultByChannelCurrency = new Map<string, number>();
   const customerTotalsByCurrency = new Map<string, number>();
+  // Map (channel, currency) -> vault account id, so each row in a tile can deep-link.
+  const vaultIdByChannelCurrency = new Map<string, string>();
+  // Fallback: any vault id for a given channel (used when that channel has no balance row for this currency yet).
+  const vaultIdByChannel = new Map<string, string>();
 
   if (data) {
     const accById = new Map(data.accounts.map((a) => [a.id, a]));
@@ -50,8 +54,14 @@ function Dashboard() {
       if (!acc) continue;
       if (acc.kind === "vault") {
         vaultByChannelCurrency.set(`${acc.vault_channel}-${b.currency}`, b.balance_minor);
+        vaultIdByChannelCurrency.set(`${acc.vault_channel}-${b.currency}`, acc.id);
       } else {
         customerTotalsByCurrency.set(b.currency, (customerTotalsByCurrency.get(b.currency) ?? 0) + b.balance_minor);
+      }
+    }
+    for (const a of data.accounts) {
+      if (a.kind === "vault" && a.vault_channel && !vaultIdByChannel.has(a.vault_channel)) {
+        vaultIdByChannel.set(a.vault_channel, a.id);
       }
     }
   }
@@ -116,8 +126,18 @@ function Dashboard() {
                         {formatMinor(total, cur)}
                       </div>
                     </div>
-                    <Row icon={<Wallet className="h-3.5 w-3.5 text-gold" />} label={t("dash.cashVault")} value={formatMinor(cash, cur)} />
-                    <Row icon={<Landmark className="h-3.5 w-3.5 text-gold" />} label={t("dash.bankVault")} value={formatMinor(bank, cur)} />
+                    <VaultRow
+                      icon={<Wallet className="h-3.5 w-3.5 text-gold" />}
+                      label={t("dash.cashVault")}
+                      value={formatMinor(cash, cur)}
+                      vaultId={vaultIdByChannelCurrency.get(`cash-${cur}`) ?? vaultIdByChannel.get("cash")}
+                    />
+                    <VaultRow
+                      icon={<Landmark className="h-3.5 w-3.5 text-gold" />}
+                      label={t("dash.bankVault")}
+                      value={formatMinor(bank, cur)}
+                      vaultId={vaultIdByChannelCurrency.get(`bank-${cur}`) ?? vaultIdByChannel.get("bank")}
+                    />
                     <div className="border-t border-[oklch(0.78_0.13_82/0.20)] pt-2">
                       <Row icon={<Users className="h-3.5 w-3.5 text-muted-foreground" />} label={t("dash.customersTotal")} value={formatMinor(customer, cur)} bold />
                     </div>
@@ -139,7 +159,12 @@ function Dashboard() {
               ) : (
                 <ul className="divide-y divide-[oklch(0.78_0.13_82/0.15)]">
                   {data?.recentTx.map((tx) => (
-                    <li key={tx.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)]">
+                    <li key={tx.id}>
+                      <Link
+                        to="/app/accounts/$id"
+                        params={{ id: tx.customer_account_id }}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.08)]"
+                      >
                       <div className={
                         tx.direction === "deposit"
                           ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 ring-1 ring-success/30"
@@ -162,6 +187,7 @@ function Dashboard() {
                       <Badge className="shrink-0" variant={tx.status === "posted" ? "secondary" : tx.status === "pending" ? "outline" : "destructive"}>
                         {t(`tx.status.${tx.status}`)}
                       </Badge>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -183,5 +209,24 @@ function Row({ label, value, bold, icon }: { label: string; value: string; bold?
       </span>
       <span className={"font-mono " + (bold ? "font-semibold text-foreground" : "text-foreground/90")}>{value}</span>
     </div>
+  );
+}
+
+function VaultRow({ label, value, icon, vaultId }: { label: string; value: string; icon?: React.ReactNode; vaultId?: string }) {
+  if (!vaultId) {
+    return <Row label={label} value={value} icon={icon} />;
+  }
+  return (
+    <Link
+      to="/app/vaults/$id"
+      params={{ id: vaultId }}
+      className="-mx-2 flex items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-[oklch(0.78_0.13_82/0.10)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.10)]"
+    >
+      <span className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span className="font-mono text-foreground/90">{value}</span>
+    </Link>
   );
 }
