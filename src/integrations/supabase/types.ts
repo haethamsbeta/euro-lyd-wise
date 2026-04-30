@@ -348,6 +348,8 @@ export type Database = {
           approved_by_user_id: string | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
+          corrected_by_tx_id: string | null
+          correction_reason: string | null
           created_at: string
           created_by_user_id: string
           currency: Database["public"]["Enums"]["currency_code"]
@@ -356,6 +358,7 @@ export type Database = {
           id: string
           posted_at: string | null
           reject_reason: string | null
+          reverses_tx_id: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -365,6 +368,8 @@ export type Database = {
           approved_by_user_id?: string | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
+          corrected_by_tx_id?: string | null
+          correction_reason?: string | null
           created_at?: string
           created_by_user_id: string
           currency: Database["public"]["Enums"]["currency_code"]
@@ -373,6 +378,7 @@ export type Database = {
           id?: string
           posted_at?: string | null
           reject_reason?: string | null
+          reverses_tx_id?: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id?: string | null
@@ -382,6 +388,8 @@ export type Database = {
           approved_by_user_id?: string | null
           channel?: Database["public"]["Enums"]["vault_channel"]
           comment?: string
+          corrected_by_tx_id?: string | null
+          correction_reason?: string | null
           created_at?: string
           created_by_user_id?: string
           currency?: Database["public"]["Enums"]["currency_code"]
@@ -390,16 +398,31 @@ export type Database = {
           id?: string
           posted_at?: string | null
           reject_reason?: string | null
+          reverses_tx_id?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           tx_number?: string
           vault_account_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "transactions_corrected_by_tx_id_fkey"
+            columns: ["corrected_by_tx_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_customer_account_id_fkey"
             columns: ["customer_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_reverses_tx_id_fkey"
+            columns: ["reverses_tx_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {
@@ -507,6 +530,8 @@ export type Database = {
           approved_by_user_id: string | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
+          corrected_by_tx_id: string | null
+          correction_reason: string | null
           created_at: string
           created_by_user_id: string
           currency: Database["public"]["Enums"]["currency_code"]
@@ -515,6 +540,41 @@ export type Database = {
           id: string
           posted_at: string | null
           reject_reason: string | null
+          reverses_tx_id: string | null
+          status: Database["public"]["Enums"]["tx_status"]
+          tx_number: string
+          vault_account_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      correct_transaction: {
+        Args: {
+          p_correction_reason: string
+          p_new_amount_minor: number
+          p_new_comment: string
+          p_tx_id: string
+        }
+        Returns: {
+          amount_minor: number
+          approved_by_user_id: string | null
+          channel: Database["public"]["Enums"]["vault_channel"]
+          comment: string
+          corrected_by_tx_id: string | null
+          correction_reason: string | null
+          created_at: string
+          created_by_user_id: string
+          currency: Database["public"]["Enums"]["currency_code"]
+          customer_account_id: string
+          direction: Database["public"]["Enums"]["tx_direction"]
+          id: string
+          posted_at: string | null
+          reject_reason: string | null
+          reverses_tx_id: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -550,6 +610,8 @@ export type Database = {
           approved_by_user_id: string | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
+          corrected_by_tx_id: string | null
+          correction_reason: string | null
           created_at: string
           created_by_user_id: string
           currency: Database["public"]["Enums"]["currency_code"]
@@ -558,6 +620,7 @@ export type Database = {
           id: string
           posted_at: string | null
           reject_reason: string | null
+          reverses_tx_id: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -576,6 +639,8 @@ export type Database = {
           approved_by_user_id: string | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
+          corrected_by_tx_id: string | null
+          correction_reason: string | null
           created_at: string
           created_by_user_id: string
           currency: Database["public"]["Enums"]["currency_code"]
@@ -584,6 +649,7 @@ export type Database = {
           id: string
           posted_at: string | null
           reject_reason: string | null
+          reverses_tx_id: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -620,7 +686,7 @@ export type Database = {
         | "reminder_shift"
       notification_severity: "info" | "warning" | "critical"
       tx_direction: "deposit" | "withdraw"
-      tx_status: "posted" | "pending" | "rejected"
+      tx_status: "posted" | "pending" | "rejected" | "reversed"
       vault_channel: "cash" | "bank"
     }
     CompositeTypes: {
@@ -768,7 +834,7 @@ export const Constants = {
       ],
       notification_severity: ["info", "warning", "critical"],
       tx_direction: ["deposit", "withdraw"],
-      tx_status: ["posted", "pending", "rejected"],
+      tx_status: ["posted", "pending", "rejected", "reversed"],
       vault_channel: ["cash", "bank"],
     },
   },

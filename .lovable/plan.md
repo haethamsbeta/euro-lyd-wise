@@ -1,45 +1,49 @@
-## Goal
-Seed the database with a large, coherent mock dataset so every screen — vaults, accounts, transactions, approvals, audit, notifications, mobile (`/m`), and consumer portal — has realistic data to test against.
+# Fix: Transactions page crash — "Cannot read properties of undefined (reading 'map')"
 
-Data-only. No schema changes, no migrations, no app code changes. Uses the existing SECURITY DEFINER helpers (`_upsert_vault`, `_upsert_customer`, `_seed_post_tx`, `_seed_pending_tx`, `seed_demo_ledger`) so all double-entry ledger, balance, audit, and notification triggers fire correctly.
+## Root cause
 
-## What gets seeded
+The transactions list page (`/app/transactions`) selects three columns that **do not exist in the database**:
 
-**Users (already in place)**
-- `admin@demo.test` (admin), `teller@demo.test` (teller), `auditor@demo.test` (auditor), `consumer@demo.test` (consumer → owns Layla Hassan)
+- `reverses_tx_id`
+- `corrected_by_tx_id`
+- `correction_reason`
 
-**Vaults (7)** with healthy opening balances
-- Cash Vault — USD 250,000 / EUR 200,000 / LYD 2,500,000
-- Bank Vault — USD 500,000 / EUR 400,000 / LYD 5,000,000
-- Wire Vault — USD 300,000
+These columns (and the `reversed` value of the `tx_status` enum, plus the `correct_transaction` RPC) were added to the codebase in migration `20260430003335_add_correct_transaction.sql` for the admin "Edit entry" feature, but **the migration was never actually applied** to the live database. I confirmed via `psql`:
 
-**Customer accounts (20)** — auto-numbered, mixed currencies, a few with overdraft limits
-Layla Hassan *(linked to consumer@demo.test)*, Omar Khalifa, Sara Ahmed, Mohamed Ali (500 USD limit), Fatima Saleh, Yusuf Al-Mansouri, Aisha Benghazi, Khalid Tripoli (1,000 USD limit), Noor Al-Sharif, Tariq Misrata, Hana Derna, Ibrahim Sabha, Mariam Zliten, Anas Al-Bayda, Salma Tobruk, Rami Ghadames (300 USD limit), Layan Al-Kufra, Bilal Sirte, Dina Al-Marj, Hassan Janzour.
+- The three columns are missing from `public.transactions`.
+- The `tx_status` enum only has `posted`, `pending`, `rejected` (no `reversed`).
 
-**Posted transactions (~60)** spread across the last 30 days with backdated `posted_at` so charts and "recent activity" look natural. Mix of:
-- Salary deposits (LYD), incoming wires (USD/EUR), counter cash withdrawals
-- Cash ↔ Bank channel variety per currency
-- Several large ones to trigger large-tx notifications
-- 3–6 transactions per customer
+So the Supabase query returns an error, `data` stays `undefined`, and the component then calls `data!.map(...)` which throws the `Cannot read properties of undefined (reading 'map')` error shown in the screenshot.
 
-**Pending approvals (5)** — withdrawals exceeding balance/limit
-- Fatima 5,000 EUR bank, Mohamed 2,000 USD cash (over limit), Khalid 8,000 USD bank, Hana 1,500,000 LYD cash, Rami 1,200 USD cash (over limit)
+(Side note: the user mentioned the "accounts page" but the stack trace and current route show this is actually the **Transactions** page — `/app/transactions`. The Accounts page is unaffected.)
 
-**Notification preferences** — rows for admin + teller so thresholds work.
+## Fix
 
-## Execution
-Single SQL operation that:
-1. Calls `seed_demo_ledger(admin_id, teller_id, consumer_id)` (idempotent base seed).
-2. Adds the extra 15 customers, balances, ~50 more posted transactions (backdated across 30 days), and 3 more pending items via the existing helpers — guarded by existence checks so re-running is safe.
-3. Tops up vault balances to the figures above.
+### 1. Re-apply the correction migration to the database
 
-## Verify after
-- `/app` busy dashboard and recent activity
-- `/app/vaults` 7 vaults funded across all currencies
-- `/app/accounts` 20 customers with balances
-- `/app/transactions` ~60 posted, filterable
-- `/app/approvals` 5 pending
-- `/app/audit` dense log
-- Sign in as `consumer@demo.test` → `/m` and `/portal` show Layla's USD + LYD balances and her real history
+Re-run the SQL from `supabase/migrations/20260430003335_add_correct_transaction.sql` as a fresh migration so the schema actually reflects the code:
 
-Approve to run the seed.
+- Add `'reversed'` to the `tx_status` enum (idempotent).
+- Add `reverses_tx_id`, `corrected_by_tx_id`, `correction_reason` columns to `public.transactions`.
+- Recreate indexes and the `public.correct_transaction(...)` RPC.
+
+All statements use `IF NOT EXISTS` / `CREATE OR REPLACE`, so re-running is safe.
+
+### 2. Make the transactions list resilient to query failures
+
+In `src/routes/app.transactions.index.tsx`, update the `useQuery` usage so a future schema mismatch can't crash the whole route:
+
+- Pull `error` out of `useQuery` and render an inline error state (Alert) instead of letting the error bubble to the route boundary.
+- Replace `data!.map(...)` with a safe `(data ?? []).map(...)` so the renderer never dereferences `undefined`.
+- Keep the existing loading and empty states.
+
+No UI/feature changes — the table looks and behaves the same once the migration is applied; it just degrades gracefully if a query ever fails again.
+
+## Files touched
+
+- New: `supabase/migrations/<timestamp>_reapply_correct_transaction.sql` — same body as the existing correction migration, idempotent.
+- Edited: `src/routes/app.transactions.index.tsx` — handle `error`, guard against undefined `data`.
+
+## Out of scope
+
+- No changes to the Accounts page, the entry form, attachments, or the correction RPC logic itself.
