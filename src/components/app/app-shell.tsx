@@ -49,7 +49,7 @@ export function AppShell() {
 
   useEffect(() => {
     if (loading) return;
-    if (!session) nav({ to: "/login" });
+    if (!session) nav({ to: "/login", search: {} as any });
   }, [session, loading, nav]);
 
   if (loading || !session || rolesLoading) {
