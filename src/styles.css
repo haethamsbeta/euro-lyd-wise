@@ -150,8 +150,8 @@
      success #198754
 */
 .dark {
-  --background:        oklch(0.975 0.012 88);   /* #FAF7F0 cream */
-  --foreground:        oklch(0.20  0.012 60);   /* #1F1F1F charcoal */
+  --background:        oklch(0.86  0.018 82);   /* deeper warm sand — makes ivory cards & gold pop */
+  --foreground:        oklch(0.18  0.012 60);   /* charcoal, still strong contrast on sand */
   --card:              oklch(1     0     0);    /* #FFFFFF ivory */
   --card-foreground:   oklch(0.20  0.012 60);
   --popover:           oklch(1     0     0);
@@ -160,10 +160,10 @@
   --primary:           oklch(0.74  0.135 82);   /* #D4AF37 luxury gold */
   --primary-foreground:oklch(1     0     0);
 
-  --secondary:         oklch(0.955 0.018 86);   /* warm cream tint */
+  --secondary:         oklch(0.92  0.020 86);   /* warm cream tint, slightly deeper */
   --secondary-foreground: oklch(0.22 0.015 60);
-  --muted:             oklch(0.955 0.018 86);
-  --muted-foreground:  oklch(0.50  0.012 60);   /* #6B6B6B */
+  --muted:             oklch(0.92  0.020 86);
+  --muted-foreground:  oklch(0.42  0.012 60);   /* darker for legibility on warm sand */
   --accent:            oklch(0.92  0.05  85);   /* champagne wash */
   --accent-foreground: oklch(0.25  0.04  60);
 
@@ -174,8 +174,8 @@
   --warning:           oklch(0.74  0.135 82);
   --warning-foreground:oklch(0.20  0.04  60);
 
-  --border:            oklch(0.89  0.022 85);   /* #E8DFD0 beige */
-  --input:             oklch(0.91  0.018 85);
+  --border:            oklch(0.78  0.024 82);   /* deeper beige rim against darker bg */
+  --input:             oklch(0.96  0.014 86);   /* keep input fields bright for readability */
   --ring:              oklch(0.74  0.135 82 / 0.55);
 
   --gold:              oklch(0.74  0.135 82);   /* luxury gold #D4AF37 */
@@ -234,9 +234,9 @@
   .dark body {
     background-image:
       radial-gradient(ellipse 1200px 600px at 50% -10%,
-        oklch(0.74 0.135 82 / 0.07) 0%, transparent 60%),
+        oklch(0.74 0.135 82 / 0.12) 0%, transparent 60%),
       radial-gradient(ellipse 800px 600px at 100% 100%,
-        oklch(0.58 0.115 72 / 0.05) 0%, transparent 60%);
+        oklch(0.40 0.08  72 / 0.18) 0%, transparent 60%);
     background-attachment: fixed;
   }
 
