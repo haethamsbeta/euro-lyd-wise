@@ -56,6 +56,8 @@ import {
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ExportPdfButton } from "@/components/app/export-pdf";
+import { describeTx } from "@/lib/tx-describe";
 
 export const Route = createFileRoute("/app/transactions/")({ component: TxList });
 
@@ -195,6 +197,68 @@ function TxList() {
                 <Paperclip className="h-3.5 w-3.5" /> Has files
               </span>
             </label>
+
+            <div className="ml-auto">
+              <ExportPdfButton
+                title="Transactions"
+                filenamePrefix="transactions"
+                columns={[
+                  { header: "TX #", width: 70 },
+                  { header: "Date & Time", width: 105 },
+                  { header: "Customer", width: 120 },
+                  { header: "Direction", width: 60 },
+                  { header: "Channel", width: 50 },
+                  { header: "Amount", width: 80 },
+                  { header: "Status", width: 60 },
+                  { header: "Files", width: 35 },
+                  { header: "Description" },
+                ]}
+                buildRows={async (from, to) => {
+                  const { data, error } = await supabase
+                    .from("transactions")
+                    .select(
+                      `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, reverses_tx_id, corrected_by_tx_id,
+                       customer:accounts!transactions_customer_account_id_fkey(name, account_number),
+                       transaction_attachments(count)`,
+                    )
+                    .gte("created_at", from.toISOString())
+                    .lte("created_at", to.toISOString())
+                    .order("created_at", { ascending: false })
+                    .limit(5000);
+                  if (error) throw error;
+                  return ((data ?? []) as any[]).map((r) => {
+                    const dir = r.direction === "deposit" ? "Deposit" : "Withdraw";
+                    const customer = r.customer?.name
+                      ? `${r.customer.name}${r.customer.account_number ? ` (#${r.customer.account_number})` : ""}`
+                      : "—";
+                    const attCount = Array.isArray(r.transaction_attachments)
+                      ? Number(r.transaction_attachments[0]?.count ?? 0)
+                      : 0;
+                    const sentence = describeTx({
+                      direction: r.direction,
+                      status: r.status,
+                      channel: r.channel,
+                      amount: formatMinor(r.amount_minor, r.currency),
+                      customerName: r.customer?.name ?? null,
+                      comment: r.comment,
+                      isReversal: !!r.reverses_tx_id,
+                      isCorrected: !!r.corrected_by_tx_id,
+                    });
+                    return [
+                      r.tx_number,
+                      formatDateTime(r.created_at),
+                      customer,
+                      dir,
+                      String(r.channel),
+                      `${formatMinor(r.amount_minor, r.currency)} ${r.currency}`,
+                      String(r.status),
+                      attCount > 0 ? String(attCount) : "—",
+                      sentence,
+                    ];
+                  });
+                }}
+              />
+            </div>
           </div>
 
           <Card>

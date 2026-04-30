@@ -5,6 +5,7 @@ import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime, formatMinor } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { ExportPdfButton } from "@/components/app/export-pdf";
 
 export const Route = createFileRoute("/app/audit")({
   component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
@@ -100,6 +101,48 @@ function Audit() {
     <div>
       <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
       <div className="p-6 space-y-3">
+        <div className="flex justify-end">
+          <ExportPdfButton
+            title="Audit Log"
+            filenamePrefix="audit-log"
+            columns={[
+              { header: "Date & Time", width: 110 },
+              { header: "Action", width: 110 },
+              { header: "Actor", width: 110 },
+              { header: "Target", width: 110 },
+              { header: "Description" },
+            ]}
+            buildRows={async (from, to) => {
+              const { data: rows, error } = await supabase
+                .from("audit_log")
+                .select("id, action, target, details, created_at, actor_user_id")
+                .gte("created_at", from.toISOString())
+                .lte("created_at", to.toISOString())
+                .order("created_at", { ascending: false })
+                .limit(5000);
+              if (error) throw error;
+              const ids = Array.from(
+                new Set((rows ?? []).map((r) => r.actor_user_id).filter(Boolean) as string[]),
+              );
+              let nameMap = new Map<string, string>();
+              if (ids.length > 0) {
+                const { data: profs } = await supabase
+                  .from("profiles").select("id, full_name").in("id", ids);
+                (profs ?? []).forEach((p) => nameMap.set(p.id, p.full_name || ""));
+              }
+              return (rows ?? []).map((r: any) => {
+                const actor = (r.actor_user_id && nameMap.get(r.actor_user_id)) || "";
+                return [
+                  formatDateTime(r.created_at),
+                  actionLabel(r.action).label,
+                  actor || "—",
+                  r.target || "—",
+                  describe(r.action, r.details, actor),
+                ];
+              });
+            }}
+          />
+        </div>
         {data?.map((r) => {
           const meta = actionLabel(r.action);
           const actor = nameOf(r.actor_user_id);
