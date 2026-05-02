@@ -131,12 +131,14 @@ function Dashboard() {
                       label={t("dash.cashVault")}
                       value={formatMinor(cash, cur)}
                       vaultId={vaultIdByChannelCurrency.get(`cash-${cur}`) ?? vaultIdByChannel.get("cash")}
+                      currency={cur}
                     />
                     <VaultRow
                       icon={<Landmark className="h-3.5 w-3.5 text-gold" />}
                       label={t("dash.bankVault")}
                       value={formatMinor(bank, cur)}
                       vaultId={vaultIdByChannelCurrency.get(`bank-${cur}`) ?? vaultIdByChannel.get("bank")}
+                      currency={cur}
                     />
                     <div className="border-t border-[oklch(0.78_0.13_82/0.20)] pt-2">
                       <Link
@@ -206,7 +208,7 @@ function Row({ label, value, bold, icon }: { label: string; value: string; bold?
   );
 }
 
-function VaultRow({ label, value, icon, vaultId }: { label: string; value: string; icon?: React.ReactNode; vaultId?: string }) {
+function VaultRow({ label, value, icon, vaultId, currency }: { label: string; value: string; icon?: React.ReactNode; vaultId?: string; currency?: "USD" | "EUR" | "LYD" }) {
   if (!vaultId) {
     return <Row label={label} value={value} icon={icon} />;
   }
@@ -214,6 +216,7 @@ function VaultRow({ label, value, icon, vaultId }: { label: string; value: strin
     <Link
       to="/app/vaults/$id"
       params={{ id: vaultId }}
+      search={currency ? { currency } : {}}
       className="-mx-2 flex items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-[oklch(0.78_0.13_82/0.10)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.10)]"
     >
       <span className="flex items-center gap-2 text-muted-foreground">

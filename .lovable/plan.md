@@ -1,42 +1,58 @@
-# Make accounts in Dashboard & Vaults clickable
-
 ## Goal
-From the Dashboard and Vaults pages, every account/vault tile (and recent transaction row on the Dashboard) should be clickable and navigate to a detail page that lists all transactions for that account/vault.
 
-The good news: detail pages already exist and already render full transaction history.
-- `src/routes/app.vaults.$id.tsx` — vault detail with balances + transactions table
-- `src/routes/app.accounts.$id.tsx` — customer account detail with balances + ledger
+In the Vaults page, keep the two categories (Cash Vault, Bank Vault) but show each currency (USD, EUR, LYD) inside as a separately clickable sub-account. Clicking a currency opens a detail view showing only that vault's transactions for that currency.
 
-The Vaults list cards are already wrapped in `<Link>`. What's missing is making the **Dashboard** interactive, plus a couple of small UX touches.
+## Why this approach
+
+The database has only 2 vault accounts (Cash Vault, Bank Vault), each holding balances for all 3 currencies. Rather than splitting the schema into 6 vault accounts (which would require a migration and break existing transactions), we treat `(vault_account_id, currency)` as the addressable "sub-account". Transactions already carry both `vault_account_id` and `currency`, so filtering is clean.
 
 ## Changes
 
-### 1. Dashboard — vault currency tiles become clickable (`src/routes/app.index.tsx`)
-Each of the three currency tiles (USD/EUR/LYD) on the dashboard summarizes Cash + Bank vaults for that currency. We'll make the **Cash Vault** row and **Bank Vault** row inside each tile individually clickable, navigating to the matching `/app/vaults/$id` page.
+### 1. Vaults list page (`src/routes/app.vaults.index.tsx`)
 
-To do this, pre-compute a lookup of vault accounts by `(channel, currency_present)` from the existing `data.accounts` query (no new requests). Each "Cash Vault" / "Bank Vault" row becomes a `<Link>` that highlights on hover with the existing gold accent.
+Restructure each vault card so every currency row is its own clickable link:
 
-Fallback: if no vault account is found for that channel, render the row as plain text (current behavior).
+```text
+┌─ Cash Vault ──────────────── CASH ─┐
+│  USD   $26,135.00          →       │  ← clickable
+│  EUR   €19,845.00          →       │  ← clickable
+│  LYD   ل.د 258,320.00      →       │  ← clickable
+└────────────────────────────────────┘
+```
 
-### 2. Dashboard — recent transaction rows become clickable (`src/routes/app.index.tsx`)
-The recent transaction items already include enough info but the underlying `transactions` query doesn't return `customer_account_id`. Add `customer_account_id` to the select, then wrap each list item in a `<Link to="/app/accounts/$id" params={{ id: tx.customer_account_id }}>`. Keep the existing layout (icon, tx number, amount, status badge) but add hover styling.
+- Remove the single card-wide `<Link>` wrapper.
+- Render each currency row as its own `<Link to="/app/vaults/$id" params={{ id: v.id }} search={{ currency: c }}>` with hover state and a chevron.
+- Card header (vault name + channel badge) stays as a non-link label.
 
-### 3. Vaults list — keep current behavior, polish (`src/routes/app.vaults.tsx`)
-Already clickable. Add a small "View transactions →" affordance in the card footer so the click target is obvious.
+### 2. Vault detail route (`src/routes/app.vaults.$id.tsx`)
 
-### 4. Vault detail — already done (no change)
-Confirmed it lists every transaction posted against that vault, with each customer name linked through to that customer's account detail (where their full ledger is visible).
+Add an optional `?currency=USD|EUR|LYD` search param:
+
+- Validate via `validateSearch` returning `{ currency?: "USD"|"EUR"|"LYD" }`.
+- When `currency` is present:
+  - Page title becomes `"{Vault Name} · {currency}"`.
+  - Balances card shows only that one currency (large, prominent), with a small "View all currencies" link that clears the param.
+  - Transaction query adds `.eq("currency", currency)` so only that currency's transactions appear.
+- When `currency` is absent: current behavior (all 3 currencies, all transactions) — preserves backward-compat with existing dashboard links.
+
+### 3. Dashboard deep-links (`src/routes/app.index.tsx`)
+
+Update `VaultRow` so the Cash/Bank rows on the dashboard also pass the currency, matching the new pattern (so a user clicking "Cash Vault · USD" on the dashboard lands on the same currency-scoped view).
+
+### 4. i18n strings (`src/lib/i18n/en.ts`, `src/lib/i18n/ar.ts`)
+
+Add:
+- `vaults.viewAllCurrencies` → "View all currencies" / "عرض كل العملات"
+- `vaults.transactionsFor` → "Transactions for {currency}" / "حركات {currency}"
+
+## Files
+
+- Edit `src/routes/app.vaults.index.tsx` — per-currency clickable rows.
+- Edit `src/routes/app.vaults.$id.tsx` — optional `currency` search param + filtered query + scoped UI.
+- Edit `src/routes/app.index.tsx` — pass `search={{ currency }}` from dashboard vault rows.
+- Edit `src/lib/i18n/en.ts` and `src/lib/i18n/ar.ts` — new strings.
 
 ## Out of scope
-- No DB schema changes.
-- No new routes — both detail pages already exist.
-- No i18n string additions required (existing labels are reused).
 
-## Files to edit
-- `src/routes/app.index.tsx` — clickable vault rows + clickable recent tx rows (+ add `customer_account_id` to query select)
-- `src/routes/app.vaults.tsx` — small "View transactions →" hint inside each card
-
-## Acceptance
-- Clicking the Cash Vault or Bank Vault row inside a currency tile on the Dashboard opens that vault's detail page with its transaction history.
-- Clicking any row in "Recent transactions" on the Dashboard opens the customer account detail page showing that account's full ledger.
-- Clicking a vault card on the Vaults page opens its detail page (already works) and the affordance is visually clearer.
+- No DB migration. Vault accounts stay as 2 rows; currency is a filter, not a separate account.
+- Customer accounts unchanged.

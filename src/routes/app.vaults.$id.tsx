@@ -7,11 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Banknote, Building2 } from "lucide-react";
 import { formatMinor, formatDateTime } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 
-export const Route = createFileRoute("/app/vaults/$id")({ component: VaultDetail });
+type VaultSearch = { currency?: "USD" | "EUR" | "LYD" };
+
+export const Route = createFileRoute("/app/vaults/$id")({
+  component: VaultDetail,
+  validateSearch: (search: Record<string, unknown>): VaultSearch => {
+    const c = search.currency;
+    if (c === "USD" || c === "EUR" || c === "LYD") return { currency: c };
+    return {};
+  },
+});
 
 function VaultDetail() {
+  const t = useT();
   const { id } = Route.useParams();
+  const { currency } = Route.useSearch();
 
   const { data: vault } = useQuery({
     queryKey: ["vault.detail", id],
@@ -27,25 +39,28 @@ function VaultDetail() {
   });
 
   const { data: tx } = useQuery({
-    queryKey: ["vault.tx", id],
+    queryKey: ["vault.tx", id, currency ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, accounts:customer_account_id(name, account_number)")
         .eq("vault_account_id", id)
         .order("created_at", { ascending: false })
         .limit(200);
+      if (currency) q = q.eq("currency", currency);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
   });
 
   const Icon = vault?.vault_channel === "cash" ? Banknote : Building2;
+  const titleSuffix = currency ? ` · ${currency}` : "";
 
   return (
     <div>
       <PageHeader
-        title={vault ? vault.name : "Vault"}
+        title={vault ? `${vault.name}${titleSuffix}` : "Vault"}
         description={vault ? `${vault.vault_channel} vault · ${vault.status}` : ""}
         actions={
           <Button asChild variant="outline" size="sm">
@@ -57,17 +72,27 @@ function VaultDetail() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Icon className="h-5 w-5" /> Balances
+              <Icon className="h-5 w-5" /> {currency ? `${t("vaults.balance")} · ${currency}` : "Balances"}
+              {currency ? (
+                <Link
+                  to="/app/vaults/$id"
+                  params={{ id }}
+                  search={{}}
+                  className="ms-auto text-xs font-normal text-gold hover:underline"
+                >
+                  {t("vaults.viewAllCurrencies")}
+                </Link>
+              ) : null}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {(["USD", "EUR", "LYD"] as const).map((c) => {
+            <div className={currency ? "" : "grid gap-3 sm:grid-cols-3"}>
+              {(currency ? [currency] : (["USD", "EUR", "LYD"] as const)).map((c) => {
                 const b = vault?.account_balances?.find((x: any) => x.currency === c)?.balance_minor ?? 0;
                 return (
-                  <div key={c} className="rounded-md border p-4">
+                  <div key={c} className={currency ? "rounded-md border p-6" : "rounded-md border p-4"}>
                     <div className="text-xs text-muted-foreground">{c}</div>
-                    <div className="mt-1 font-mono text-xl">{formatMinor(b, c)}</div>
+                    <div className={currency ? "mt-2 font-mono text-3xl font-semibold" : "mt-1 font-mono text-xl"}>{formatMinor(b, c)}</div>
                   </div>
                 );
               })}
