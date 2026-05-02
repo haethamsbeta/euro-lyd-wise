@@ -150,6 +150,10 @@ export const ar: Dict = {
   "vaults.title": "الخزائن",
   "vaults.subtitle":
     "خزائن النقد والبنك لكل عملة. للقراءة فقط — تتغير الخزائن فقط من خلال المعاملات المرحّلة.",
+  "vaults.viewTx": "عرض الحركات",
+  "vaults.viewAllCurrencies": "عرض كل العملات",
+  "vaults.transactionsFor": "الحركات",
+  "vaults.balance": "الرصيد",
 
   // approvals
   "approvals.title": "الموافقات المعلّقة",
