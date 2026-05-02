@@ -150,6 +150,10 @@ export const en = {
   "vaults.title": "Vaults",
   "vaults.subtitle":
     "Cash and bank vaults per currency. Read-only — vaults move only via posted transactions.",
+  "vaults.viewTx": "View transactions",
+  "vaults.viewAllCurrencies": "View all currencies",
+  "vaults.transactionsFor": "Transactions",
+  "vaults.balance": "Balance",
 
   // approvals
   "approvals.title": "Pending approvals",
