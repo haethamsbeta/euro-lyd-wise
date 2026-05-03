@@ -141,7 +141,7 @@ function LoginPage() {
           </CardContent>
         </Card>
 
-        <DemoCredentials />
+        <DemoCredentials portal={portal} lock={!!lock} />
 
         <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />
@@ -281,10 +281,16 @@ function SignUpForm() {
   );
 }
 
-function DemoCredentials() {
+function DemoCredentials({ portal, lock }: { portal: PortalKind; lock: boolean }) {
   const t = useT();
   const [seeding, setSeeding] = useState(false);
   const [seeded, setSeeded] = useState(false);
+
+  const visible = lock
+    ? DEMO_LOGINS.filter((u) =>
+        portal === "staff" ? u.role !== "Customer" : u.role === "Customer",
+      )
+    : DEMO_LOGINS;
 
   async function runSeed() {
     setSeeding(true);
@@ -350,7 +356,7 @@ function DemoCredentials() {
         </Button>
 
         <ul className="divide-y divide-[oklch(0.82_0.14_85/0.12)] overflow-hidden rounded-md border border-[oklch(0.82_0.14_85/0.18)] text-xs">
-          {DEMO_LOGINS.map((u) => (
+          {visible.map((u) => (
             <li key={u.email} className="flex items-center gap-2 p-2.5">
               <span className={`inline-flex w-16 shrink-0 justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${u.tone}`}>
                 {u.role}
