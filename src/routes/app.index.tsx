@@ -1,20 +1,70 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { formatMinor, formatDateTime } from "@/lib/format";
-import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users, Settings2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;
+type Currency = (typeof CURRENCIES)[number];
+
+type DashPrefs = {
+  showCurrencies: Record<Currency, boolean>;
+  showCash: boolean;
+  showBank: boolean;
+  showCustomerTotal: boolean;
+  showRecent: boolean;
+};
+
+const DEFAULT_PREFS: DashPrefs = {
+  showCurrencies: { USD: true, EUR: true, LYD: true },
+  showCash: true,
+  showBank: true,
+  showCustomerTotal: true,
+  showRecent: true,
+};
+
+function usePrefs() {
+  const { user } = useAuth();
+  const key = user ? `dahab.dash.prefs:${user.id}` : null;
+  const [prefs, setPrefs] = useState<DashPrefs>(DEFAULT_PREFS);
+  useEffect(() => {
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
+    } catch {}
+  }, [key]);
+  const update = (next: DashPrefs) => {
+    setPrefs(next);
+    if (key) {
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+    }
+  };
+  return { prefs, update };
+}
 
 function Dashboard() {
   const t = useT();
+  const { prefs, update } = usePrefs();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -72,9 +122,12 @@ function Dashboard() {
         title={t("dash.title")}
         description={t("dash.subtitle")}
         actions={
-          <Button asChild>
-            <Link to="/app/transactions/new"><PlusCircle className="h-4 w-4" /> {t("dash.newTransaction")}</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <CustomizeSheet prefs={prefs} onChange={update} />
+            <Button asChild>
+              <Link to="/app/transactions/new"><PlusCircle className="h-4 w-4" /> {t("dash.newTransaction")}</Link>
+            </Button>
+          </div>
         }
       />
       <div className="space-y-6 p-4 sm:p-6">
@@ -95,7 +148,7 @@ function Dashboard() {
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("dash.vaultsRecon")}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {CURRENCIES.map((cur) => {
+            {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((cur) => {
               const cash = vaultByChannelCurrency.get(`cash-${cur}`) ?? 0;
               const bank = vaultByChannelCurrency.get(`bank-${cur}`) ?? 0;
               const customer = customerTotalsByCurrency.get(cur) ?? 0;
@@ -126,20 +179,25 @@ function Dashboard() {
                         {formatMinor(total, cur)}
                       </div>
                     </div>
-                    <VaultRow
-                      icon={<Wallet className="h-3.5 w-3.5 text-gold" />}
-                      label={t("dash.cashVault")}
-                      value={formatMinor(cash, cur)}
-                      vaultId={vaultIdByChannelCurrency.get(`cash-${cur}`) ?? vaultIdByChannel.get("cash")}
-                      currency={cur}
-                    />
-                    <VaultRow
-                      icon={<Landmark className="h-3.5 w-3.5 text-gold" />}
-                      label={t("dash.bankVault")}
-                      value={formatMinor(bank, cur)}
-                      vaultId={vaultIdByChannelCurrency.get(`bank-${cur}`) ?? vaultIdByChannel.get("bank")}
-                      currency={cur}
-                    />
+                    {prefs.showCash ? (
+                      <VaultRow
+                        icon={<Wallet className="h-3.5 w-3.5 text-gold" />}
+                        label={t("dash.cashVault")}
+                        value={formatMinor(cash, cur)}
+                        vaultId={vaultIdByChannelCurrency.get(`cash-${cur}`) ?? vaultIdByChannel.get("cash")}
+                        currency={cur}
+                      />
+                    ) : null}
+                    {prefs.showBank ? (
+                      <VaultRow
+                        icon={<Landmark className="h-3.5 w-3.5 text-gold" />}
+                        label={t("dash.bankVault")}
+                        value={formatMinor(bank, cur)}
+                        vaultId={vaultIdByChannelCurrency.get(`bank-${cur}`) ?? vaultIdByChannel.get("bank")}
+                        currency={cur}
+                      />
+                    ) : null}
+                    {prefs.showCustomerTotal ? (
                     <div className="border-t border-[oklch(0.78_0.13_82/0.20)] pt-2">
                       <Link
                         to="/app/accounts"
@@ -152,6 +210,7 @@ function Dashboard() {
                         <span className="font-mono font-semibold text-foreground">{formatMinor(customer, cur)}</span>
                       </Link>
                     </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -159,6 +218,7 @@ function Dashboard() {
           </div>
         </section>
 
+        {prefs.showRecent ? (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("dash.recentTx")}</h2>
           <Card className="card-luxe">
@@ -191,7 +251,63 @@ function Dashboard() {
             </CardContent>
           </Card>
         </section>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: DashPrefs) => void }) {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Settings2 className="h-4 w-4" /> Customize
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Customize dashboard</SheetTitle>
+          <SheetDescription>Toggle which tiles appear. Saved on this device.</SheetDescription>
+        </SheetHeader>
+        <div className="mt-6 space-y-5">
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Currencies</div>
+            <div className="space-y-2">
+              {CURRENCIES.map((c) => (
+                <div key={c} className="flex items-center justify-between rounded-md border p-2">
+                  <Label htmlFor={`cur-${c}`}>{c}</Label>
+                  <Switch
+                    id={`cur-${c}`}
+                    checked={prefs.showCurrencies[c]}
+                    onCheckedChange={(v) =>
+                      onChange({ ...prefs, showCurrencies: { ...prefs.showCurrencies, [c]: v } })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tiles</div>
+            <div className="space-y-2">
+              <ToggleRow label="Cash vault row" checked={prefs.showCash} onChange={(v) => onChange({ ...prefs, showCash: v })} />
+              <ToggleRow label="Bank vault row" checked={prefs.showBank} onChange={(v) => onChange({ ...prefs, showBank: v })} />
+              <ToggleRow label="Customer totals row" checked={prefs.showCustomerTotal} onChange={(v) => onChange({ ...prefs, showCustomerTotal: v })} />
+              <ToggleRow label="Recent transactions" checked={prefs.showRecent} onChange={(v) => onChange({ ...prefs, showRecent: v })} />
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border p-2">
+      <Label>{label}</Label>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
