@@ -26,7 +26,19 @@ async function ensureUser(email: string, password: string, full_name: string): P
 export const Route = createFileRoute("/api/public/admin/seed-demo")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        // Require a shared secret to prevent unauthenticated admin takeover.
+        const expected = process.env.SEED_SECRET;
+        if (!expected) {
+          return Response.json(
+            { ok: false, error: "Seeding disabled: SEED_SECRET is not configured." },
+            { status: 503 },
+          );
+        }
+        const provided = request.headers.get("x-seed-secret");
+        if (!provided || provided !== expected) {
+          return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
         try {
           // 1. Ensure demo auth users exist with documented passwords.
           const ids: Record<string, string> = {};
@@ -60,11 +72,13 @@ export const Route = createFileRoute("/api/public/admin/seed-demo")({
         }
       },
       GET: async () =>
-        Response.json({
-          ok: true,
-          hint: "POST to this endpoint to (re)seed demo users + ledger data.",
-          demo_logins: DEMO_USERS.map(({ email, password, role }) => ({ email, password, role })),
-        }),
+        Response.json(
+          {
+            ok: false,
+            hint: "POST to this endpoint with header 'x-seed-secret: <SEED_SECRET>' to (re)seed demo data. Credentials are not exposed via GET.",
+          },
+          { status: 405 },
+        ),
     },
   },
 });
