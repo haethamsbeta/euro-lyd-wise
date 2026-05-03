@@ -110,6 +110,8 @@ export const en = {
   "nav.notifications": "Notifications",
   "nav.about": "About",
   "nav.more": "More",
+  "nav.import": "Account import",
+  "nav.holders": "DAHAB holders",
 
   // app shell
   "shell.noStaffTitle": "No staff access",
