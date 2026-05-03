@@ -113,6 +113,7 @@ export const ar: Dict = {
   "nav.more": "المزيد",
   "nav.import": "استيراد الحسابات",
   "nav.holders": "أصحاب حسابات دهب",
+  "nav.importReview": "مراجعة الاستيراد",
 
   // app shell
   "shell.noStaffTitle": "لا يوجد وصول للموظفين",
