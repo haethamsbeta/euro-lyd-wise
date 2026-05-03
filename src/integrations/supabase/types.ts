@@ -1030,6 +1030,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resolve_review_row: {
+        Args: { p_decision: Json; p_row_id: number }
+        Returns: Json
+      }
       run_notification_reminders: { Args: never; Returns: Json }
       seed_demo_ledger: {
         Args: { p_admin_id: string; p_consumer_id: string; p_teller_id: string }
