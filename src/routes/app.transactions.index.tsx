@@ -286,23 +286,27 @@ function TxList() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-3" align="start">
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-col gap-3 w-64">
                   <div>
-                    <div className="mb-1 text-xs font-medium text-muted-foreground">From</div>
-                    <Calendar
-                      mode="single"
-                      selected={customFrom}
-                      onSelect={(d) => { setCustomFrom(d); setDatePreset("custom"); }}
-                      className={cn("p-0 pointer-events-auto")}
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      type="date"
+                      value={customFrom ? customFrom.toISOString().slice(0, 10) : ""}
+                      onChange={(e) => {
+                        setCustomFrom(e.target.value ? new Date(e.target.value) : undefined);
+                        setDatePreset("custom");
+                      }}
                     />
                   </div>
                   <div>
-                    <div className="mb-1 text-xs font-medium text-muted-foreground">To</div>
-                    <Calendar
-                      mode="single"
-                      selected={customTo}
-                      onSelect={(d) => { setCustomTo(d); setDatePreset("custom"); }}
-                      className={cn("p-0 pointer-events-auto")}
+                    <Label className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      type="date"
+                      value={customTo ? customTo.toISOString().slice(0, 10) : ""}
+                      onChange={(e) => {
+                        setCustomTo(e.target.value ? new Date(e.target.value) : undefined);
+                        setDatePreset("custom");
+                      }}
                     />
                   </div>
                 </div>
