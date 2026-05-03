@@ -89,3 +89,80 @@ export function parseWorkbook(arrayBuffer: ArrayBuffer): ParsedRow[] {
   });
   return out;
 }
+
+// ---------------- Linked-accounts (pre-grouped) parser ----------------
+
+export type LinkedRow = {
+  source_row_number: number;
+  dahab_account_number: string;
+  source_account_number: string;
+  currency_code: "LYD" | "USD" | "EUR" | "GBP" | "UNK";
+  nature: string;
+  raw_name: string; // account_display_name preserved verbatim
+  account_alias_name: string | null;
+  is_primary_account: boolean;
+  canonical_name: string | null;
+  base_name_candidate: string;
+  normalized_name_candidate: string;
+  needs_review: boolean;
+  error_message: string | null;
+};
+
+const ALLOWED_CURR = new Set(["LYD", "USD", "EUR", "GBP", "UNK"]);
+
+function pick(r: Record<string, unknown>, keys: string[]): string {
+  for (const k of keys) {
+    const found = Object.keys(r).find((kk) => kk.toLowerCase().replace(/[\s_-]/g, "") === k.toLowerCase().replace(/[\s_-]/g, ""));
+    if (found != null) {
+      const v = r[found];
+      if (v !== null && v !== undefined && String(v).trim() !== "") return String(v).trim();
+    }
+  }
+  return "";
+}
+
+export function parseLinkedAccountsWorkbook(arrayBuffer: ArrayBuffer): LinkedRow[] {
+  const wb = XLSX.read(arrayBuffer, { type: "array" });
+  // Prefer "Flat Import Table" sheet, else first sheet
+  const sheetName =
+    wb.SheetNames.find((n) => n.toLowerCase().replace(/\s+/g, "").includes("flat")) ?? wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+  const out: LinkedRow[] = [];
+  rows.forEach((r, i) => {
+    const dahab = pick(r, ["dahab_account_number", "dahab", "dahab_number", "dahabaccountnumber"]);
+    const acct = pick(r, ["account_number", "code", "bank_account_number", "accountnumber"]);
+    const curr = pick(r, ["currency_code", "currency", "currencycode"]).toUpperCase();
+    const nature = pick(r, ["account_nature", "nature"]) || "Debit";
+    const display = pick(r, ["account_display_name", "namea", "name_a", "name", "display_name", "accountdisplayname"]);
+    const alias = pick(r, ["account_alias_name", "alias", "aliasname", "accountaliasname"]);
+    const primary = pick(r, ["is_primary_account", "primary", "isprimaryaccount"]);
+    const canonical = pick(r, ["canonical_name", "holder_name", "main_customer_name", "canonicalname"]);
+    if (!dahab && !acct && !display) return; // empty row
+    const errors: string[] = [];
+    if (!dahab) errors.push("missing dahab_account_number");
+    else if (!/^DAHAB-\d{4,}$/i.test(dahab)) errors.push("invalid DAHAB # format");
+    if (!acct) errors.push("missing account_number");
+    if (!display) errors.push("missing account_display_name");
+    const currency = (ALLOWED_CURR.has(curr) ? curr : "UNK") as LinkedRow["currency_code"];
+    const baseName = canonical || stripCurrencySuffix(display) || display;
+    const normalized = normalizeArabic(baseName);
+    const needsReview = errors.length > 0 || currency === "UNK";
+    out.push({
+      source_row_number: i + 2,
+      dahab_account_number: dahab.toUpperCase(),
+      source_account_number: acct,
+      currency_code: currency,
+      nature,
+      raw_name: display,
+      account_alias_name: alias || null,
+      is_primary_account: /^(true|1|yes|y)$/i.test(primary),
+      canonical_name: canonical || null,
+      base_name_candidate: baseName,
+      normalized_name_candidate: normalized,
+      needs_review: needsReview,
+      error_message: errors.length ? errors.join("; ") : null,
+    });
+  });
+  return out;
+}

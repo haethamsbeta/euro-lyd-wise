@@ -20,7 +20,7 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,holder_accounts(id,account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
@@ -71,6 +71,9 @@ function HolderDetail() {
                           <Badge>{a.currency_code}</Badge>
                           <span className="font-mono text-sm">{a.account_number}</span>
                           <Badge variant="outline" className="text-xs">{a.account_nature}</Badge>
+                          {a.dahab_account_number && (
+                            <Badge variant="outline" className="text-xs font-mono text-gold">{a.dahab_account_number}</Badge>
+                          )}
                         </div>
                         <div className="mt-2 truncate text-base" dir="rtl">{a.account_display_name}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{a.account_alias_name}</div>

@@ -1,71 +1,81 @@
-## What's already built
+## Heads up about the uploaded file
 
-The previous turn shipped most of the spec: tables (`account_holders`, `holder_accounts`, `currencies`, `account_name_aliases`, `holder_ledger_entries`, `account_import_batches`, `account_import_staging`, `account_link_review_queue`), the `next_dahab_account_number()` sequence, the `approve_import_batch()` RPC, RLS policies, `/app/import` upload + preview + approve UI, and `/app/holders` list. The DB is currently empty (0 holders, 0 staging, 0 batches), so nothing has been imported yet.
+You called it `dahabdetasheetlinkedaccounts.xlsx` in the prompt, but the actual file you uploaded is **Apple Numbers** (`.numbers`), not Excel. Two ways forward — pick one:
 
-## What's missing / broken vs. your spec
+- **A (recommended)**: re-export from Numbers as `.xlsx` and re-upload. Faster, no extra dependency, and matches the existing import UI which already accepts `.xlsx`.
+- **B**: I add the `numbers-parser` Python/JS package and a server-side conversion step. Heavier, and Numbers→tabular conversion can lose merged cells / grouped headers.
 
-1. **`/app/holders/$id` route doesn't exist** — clicking a holder card on `/app/holders` 404s. This is the page with clickable currency cards + per-card ledger.
-2. **No review-queue UI** — uncertain rows (UNK currency, low confidence, duplicate account #) are written to `account_link_review_queue` but admins can't act on them.
-3. **Transactions page not extended** — search by DAHAB #, holder name, currency filter, date range, debit/credit toggle still missing on `/app/transactions`.
-4. **Currencies seed not verified** — need to confirm LYD/USD/EUR/GBP/UNK rows exist; if not, the FK on `holder_accounts.currency_code` will reject inserts on approve.
-5. **Sidebar `Account Import` entry exists but no `Review Queue` entry.**
-6. **You re-uploaded `Almizan_Acc_Table-2.xlsx`** — once the above is done, run the import end to end against this file.
+I'll assume **A** for the plan below. If you want B, say so and I'll add the conversion step.
+
+## What changes vs. what's already built
+
+The current importer (`src/lib/account-import.ts` + `approve_import_batch` RPC) **derives** DAHAB numbers by normalizing Arabic names and grouping. Your new file makes that obsolete: the file itself is the source of truth — it already says which bank accounts share a DAHAB number.
+
+So the new ingestion path must:
+
+1. Trust `dahab_account_number` from the file as-is.
+2. Create the holder once per DAHAB number (don't re-group by name).
+3. Attach every row underneath as a `holder_accounts` record, keeping `account_display_name` byte-for-byte from the sheet (no stripping `$`, `يورو`, `دينار`, `باوند`).
+4. Skip / report (not silently merge) any row whose DAHAB # already has a child account with the same `account_number`.
 
 ## Plan
 
-### Step 1 — Fill the gaps in DB
+### Step 1 — DB
 
-Migration: ensure currencies seed (`LYD`, `USD`, `EUR`, `GBP`, `UNK`) is present (idempotent insert). Add a small RPC `resolve_review_row(p_row_id, p_decision jsonb)` so the review UI can: assign-to-existing-holder, create-new-holder, edit-canonical-name, reject. Add unique index on `holder_accounts.account_number` if not present (your spec calls for it; prevents duplicates).
+New migration:
 
-### Step 2 — `/app/holders/$id` (new route)
+- Add `dahab_account_number` column to `holder_accounts` (denormalized copy from the parent — makes search-by-DAHAB-# trivial and matches your spec's "accounts" table fields).
+- New RPC `import_linked_accounts_batch(p_batch_id bigint)` that reads staging rows and:
+  - upserts `account_holders` keyed by `dahab_account_number` (canonical_name = first non-empty name in that group; normalized_name only for search).
+  - inserts `holder_accounts` with `account_display_name` preserved verbatim, `currency_code` from the row, `account_nature` from the row.
+  - bumps `dahab_holder_seq` past the max numeric suffix found in the file so future auto-generated DAHAB #s don't collide.
+- Add staging columns we don't have yet: `dahab_account_number`, `account_alias_name`, `is_primary_account`. (Existing `account_import_staging` is keyed to the old name-grouping flow.)
 
-`src/routes/app.holders.$id.tsx`:
+### Step 2 — Parser (`src/lib/account-import.ts`)
 
-- Header: DAHAB #, canonical name, status.
-- Grid of cards, one per `holder_accounts` row: currency badge, account #, **original `account_display_name` shown unchanged (RTL)**, nature, current balance.
-- Click a card → that card expands; others collapse. Inside the expanded card, render a ledger table from `holder_ledger_entries` filtered by `account_id` only: Date, TX #, Description, Debit, Credit, Balance After. Date-range filter + CSV export.
-- Never mix currencies. Never render the ledger outside the active card.
+Add a second parser `parseLinkedAccountsWorkbook(buf)` that:
 
-### Step 3 — `/app/import/review` (new route)
+- Reads the **Flat Import Table** sheet by name (falls back to first sheet if absent).
+- Required columns: `dahab_account_number`, `account_number`, `currency_code`, `account_nature`, `account_display_name`. Optional: `account_alias_name`, `is_primary_account`, `canonical_name`.
+- No name normalization on `account_display_name`. Normalize only the holder's canonical name for search.
+- Validates: DAHAB # format `DAHAB-\d{6}`, currency in {LYD, USD, EUR, GBP, UNK}, account_number non-empty.
+- Flags rows for review only on validation failure or unknown currency — never on name-similarity heuristics.
 
-`src/routes/app.import.review.tsx`, admin-only:
+### Step 3 — Import UI (`src/routes/app.import.tsx`)
 
-- Lists pending rows from `account_link_review_queue` with original `raw_name` shown read-only.
-- Per row: search-and-pick existing holder, "create new holder" (with editable canonical name; default = `base_name_candidate`), edit suggested currency for UNK rows, reject. All actions go through `resolve_review_row` RPC.
-- After resolution, the staging row is flipped back to `PENDING` so the next "Approve import" sweep links it.
+Add a mode toggle at the top: **"Linked accounts file (pre-grouped)"** vs. the existing **"Raw bank export (auto-group)"**. Default to the new mode. Preview shows: # holders, # linked accounts, per-currency counts, validation errors, and the first 20 rows grouped by DAHAB # so you can eyeball it before approving.
 
-### Step 4 — Sidebar + i18n
+Approve calls `import_linked_accounts_batch` instead of `approve_import_batch`.
 
-Add `Review Queue` link under Account Import in `src/components/app/app-shell.tsx`, plus EN + AR strings.
+### Step 4 — Holder profile (`src/routes/app.holders.$id.tsx`)
 
-### Step 5 — Extend `/app/transactions`
+Already does cards-per-currency + per-card ledger. Two small fixes:
 
-Update `src/routes/app.transactions.index.tsx`:
+- Show `dahab_account_number` on each card (you asked for searchability by DAHAB #).
+- Make sure ledger query stays `eq("account_id", a.id)` — already correct, just double-checking it doesn't accidentally union across linked accounts.
 
-- Add search input that matches across `tx_number`, customer account name, customer account #, **DAHAB # (via join through `accounts.account_number` ↔ `holder_accounts.account_number` ↔ `account_holders`)**, amount.
-- Filters: from-date, to-date, currency dropdown, direction (deposit=credit / withdraw=debit), holder picker.
+### Step 5 — Search
 
-Note: existing `transactions` table still references the legacy `accounts` table (vault flow). The DAHAB # join is a soft enrichment — if no `holder_accounts` row matches the customer account number, transactions still show, just without a DAHAB badge.
+`/app/holders` search already covers name + DAHAB # + account #. Add `account_display_name` ilike match (currently only `account_number` and a normalized field). Add a currency filter chip.
 
 ### Step 6 — Run the import
 
-After the code lands, open `/app/import`, drop `Almizan_Acc_Table-2.xlsx`, verify the preview counts (~553 valid, ~106 review for UNK currency), approve. Spot-check a holder like "ابراهيم الككلي" on `/app/holders` to confirm 2–4 currency cards link under one DAHAB number, and clicking each card shows an empty ledger (no transactions yet — that's expected, ledgers are import-fed).
+After code lands and you re-upload the `.xlsx`: open `/app/import`, pick **Linked accounts**, drop the file, verify counts match what you expect (one holder per DAHAB #, N child accounts), approve. Spot-check `DAHAB-000001` → 4 cards (LYD/USD/EUR/GBP), names unchanged including the `$` / `يورو` / `دينار` / `باوند` suffixes.
 
-## Files I'll add or change
+## Files
 
-- `supabase/migrations/<new>.sql` — currencies seed (idempotent), `resolve_review_row` RPC, missing unique index.
-- `src/routes/app.holders.$id.tsx` *(new)*
-- `src/routes/app.import.review.tsx` *(new)*
-- `src/routes/app.transactions.index.tsx` *(edit)*
-- `src/components/app/app-shell.tsx` *(edit — sidebar)*
-- `src/lib/i18n/en.ts`, `src/lib/i18n/ar.ts` *(edit — new strings)*
+- `supabase/migrations/<new>.sql` — new columns + new RPC
+- `src/lib/account-import.ts` — add `parseLinkedAccountsWorkbook`
+- `src/routes/app.import.tsx` — mode toggle, new preview, new approve call
+- `src/routes/app.holders.index.tsx` — add display-name search + currency filter
+- `src/routes/app.holders.$id.tsx` — show DAHAB # on cards (small)
 
 ## Out of scope
 
-- Wiring posted teller transactions into `holder_ledger_entries` automatically. The new ledger remains import/admin-fed for now (you confirmed leave the teller flow on the legacy `accounts` table).
-- Merging two existing holders post-hoc — the review queue handles uncertain matches up front, but a manual "merge holders" tool isn't in this pass.
+- Auto-wiring teller transactions into `holder_ledger_entries` (still admin/import-fed; you confirmed earlier).
+- A "merge two DAHAB holders" tool. The file is authoritative; if two DAHAB #s should be one, fix the file and re-import.
 
-## Confirm before I run
+## Confirm
 
-1. OK to add a hard unique index on `holder_accounts.account_number`? (Spec requires it, current table has no unique constraint.)
-2. After this lands, want me to auto-run the import on the uploaded file, or stop after the code is in so you click Approve yourself?
+1. Re-upload as `.xlsx` (option A), or have me add Numbers parsing (option B)?
+2. On re-import of a DAHAB # that already exists in the DB: **upsert/update** the holder + add new accounts, or **reject** and require an explicit "wipe holders" first?

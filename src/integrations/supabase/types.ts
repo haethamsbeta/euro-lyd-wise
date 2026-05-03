@@ -117,13 +117,17 @@ export type Database = {
       }
       account_import_staging: {
         Row: {
+          account_alias_name: string | null
           base_name_candidate: string | null
+          canonical_name_candidate: string | null
           confidence_score: number | null
           created_at: string
+          dahab_account_number: string | null
           error_message: string | null
           extracted_currency_code: string | null
           id: number
           import_batch_id: number | null
+          is_primary_account: boolean | null
           nature: string | null
           normalized_name_candidate: string | null
           raw_name: string | null
@@ -134,13 +138,17 @@ export type Database = {
           suggested_dahab_account_number: string | null
         }
         Insert: {
+          account_alias_name?: string | null
           base_name_candidate?: string | null
+          canonical_name_candidate?: string | null
           confidence_score?: number | null
           created_at?: string
+          dahab_account_number?: string | null
           error_message?: string | null
           extracted_currency_code?: string | null
           id?: number
           import_batch_id?: number | null
+          is_primary_account?: boolean | null
           nature?: string | null
           normalized_name_candidate?: string | null
           raw_name?: string | null
@@ -151,13 +159,17 @@ export type Database = {
           suggested_dahab_account_number?: string | null
         }
         Update: {
+          account_alias_name?: string | null
           base_name_candidate?: string | null
+          canonical_name_candidate?: string | null
           confidence_score?: number | null
           created_at?: string
+          dahab_account_number?: string | null
           error_message?: string | null
           extracted_currency_code?: string | null
           id?: number
           import_batch_id?: number | null
+          is_primary_account?: boolean | null
           nature?: string | null
           normalized_name_candidate?: string | null
           raw_name?: string | null
@@ -375,6 +387,7 @@ export type Database = {
           created_at: string
           currency_code: string
           current_balance: number
+          dahab_account_number: string | null
           id: number
           is_primary_account: boolean
           status: string
@@ -389,6 +402,7 @@ export type Database = {
           created_at?: string
           currency_code: string
           current_balance?: number
+          dahab_account_number?: string | null
           id?: number
           is_primary_account?: boolean
           status?: string
@@ -403,6 +417,7 @@ export type Database = {
           created_at?: string
           currency_code?: string
           current_balance?: number
+          dahab_account_number?: string | null
           id?: number
           is_primary_account?: boolean
           status?: string
@@ -960,6 +975,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_linked_accounts_batch: {
+        Args: { p_batch_id: number }
+        Returns: Json
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       next_dahab_account_number: { Args: never; Returns: string }
