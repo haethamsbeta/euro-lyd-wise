@@ -150,6 +150,15 @@ function Dashboard() {
           </Card>
         ) : null}
 
+        {prefs.showPinnedCustomers && prefs.pinnedAccountIds.length > 0 ? (
+          <PinnedCustomerAccounts
+            ids={prefs.pinnedAccountIds}
+            onUnpin={(id) =>
+              update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
+            }
+          />
+        ) : null}
+
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("dash.vaultsRecon")}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -222,15 +231,6 @@ function Dashboard() {
             })}
           </div>
         </section>
-
-        {prefs.showPinnedCustomers && prefs.pinnedAccountIds.length > 0 ? (
-          <PinnedCustomerAccounts
-            ids={prefs.pinnedAccountIds}
-            onUnpin={(id) =>
-              update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
-            }
-          />
-        ) : null}
 
         {prefs.showRecent ? (
         <section>
@@ -370,7 +370,7 @@ function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id:
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); onUnpin(a.id); }}
-                  className="absolute end-2 top-2 z-10 rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                  className="absolute end-2 top-2 z-10 rounded-md bg-background/80 p-1 text-muted-foreground backdrop-blur-sm transition hover:bg-muted hover:text-foreground"
                   aria-label="Unpin"
                 >
                   <X className="h-3.5 w-3.5" />
