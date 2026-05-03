@@ -43,6 +43,241 @@ export type Database = {
           },
         ]
       }
+      account_holders: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          dahab_account_number: string
+          holder_type: string
+          id: number
+          normalized_name: string
+          owner_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          dahab_account_number: string
+          holder_type?: string
+          id?: number
+          normalized_name: string
+          owner_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          dahab_account_number?: string
+          holder_type?: string
+          id?: number
+          normalized_name?: string
+          owner_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      account_import_batches: {
+        Row: {
+          failed_rows: number
+          file_name: string
+          id: number
+          imported_at: string
+          imported_by: string | null
+          review_rows: number
+          status: string
+          successful_rows: number
+          total_rows: number
+        }
+        Insert: {
+          failed_rows?: number
+          file_name: string
+          id?: number
+          imported_at?: string
+          imported_by?: string | null
+          review_rows?: number
+          status?: string
+          successful_rows?: number
+          total_rows?: number
+        }
+        Update: {
+          failed_rows?: number
+          file_name?: string
+          id?: number
+          imported_at?: string
+          imported_by?: string | null
+          review_rows?: number
+          status?: string
+          successful_rows?: number
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      account_import_staging: {
+        Row: {
+          base_name_candidate: string | null
+          confidence_score: number | null
+          created_at: string
+          error_message: string | null
+          extracted_currency_code: string | null
+          id: number
+          import_batch_id: number | null
+          nature: string | null
+          normalized_name_candidate: string | null
+          raw_name: string | null
+          review_status: string
+          source_account_number: string | null
+          source_row_number: number | null
+          suggested_account_holder_id: number | null
+          suggested_dahab_account_number: string | null
+        }
+        Insert: {
+          base_name_candidate?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          error_message?: string | null
+          extracted_currency_code?: string | null
+          id?: number
+          import_batch_id?: number | null
+          nature?: string | null
+          normalized_name_candidate?: string | null
+          raw_name?: string | null
+          review_status?: string
+          source_account_number?: string | null
+          source_row_number?: number | null
+          suggested_account_holder_id?: number | null
+          suggested_dahab_account_number?: string | null
+        }
+        Update: {
+          base_name_candidate?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          error_message?: string | null
+          extracted_currency_code?: string | null
+          id?: number
+          import_batch_id?: number | null
+          nature?: string | null
+          normalized_name_candidate?: string | null
+          raw_name?: string | null
+          review_status?: string
+          source_account_number?: string | null
+          source_row_number?: number | null
+          suggested_account_holder_id?: number | null
+          suggested_dahab_account_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_import_staging_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "account_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_link_review_queue: {
+        Row: {
+          base_name_candidate: string | null
+          confidence_score: number | null
+          created_at: string
+          extracted_currency_code: string | null
+          id: number
+          import_batch_id: number | null
+          normalized_name_candidate: string | null
+          notes: string | null
+          raw_name: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_account_number: string | null
+          staging_id: number | null
+          suggested_account_holder_id: number | null
+        }
+        Insert: {
+          base_name_candidate?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          extracted_currency_code?: string | null
+          id?: number
+          import_batch_id?: number | null
+          normalized_name_candidate?: string | null
+          notes?: string | null
+          raw_name?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_account_number?: string | null
+          staging_id?: number | null
+          suggested_account_holder_id?: number | null
+        }
+        Update: {
+          base_name_candidate?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          extracted_currency_code?: string | null
+          id?: number
+          import_batch_id?: number | null
+          normalized_name_candidate?: string | null
+          notes?: string | null
+          raw_name?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_account_number?: string | null
+          staging_id?: number | null
+          suggested_account_holder_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_link_review_queue_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "account_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_link_review_queue_staging_id_fkey"
+            columns: ["staging_id"]
+            isOneToOne: false
+            referencedRelation: "account_import_staging"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_name_aliases: {
+        Row: {
+          account_id: number
+          alias_name: string
+          alias_type: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          account_id: number
+          alias_name: string
+          alias_type?: string
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          account_id?: number
+          alias_name?: string
+          alias_type?: string
+          created_at?: string
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_name_aliases_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "holder_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           account_number: string | null
@@ -111,6 +346,138 @@ export type Database = {
           target?: string | null
         }
         Relationships: []
+      }
+      currencies: {
+        Row: {
+          currency_code: string
+          currency_name: string
+          symbol: string | null
+        }
+        Insert: {
+          currency_code: string
+          currency_name: string
+          symbol?: string | null
+        }
+        Update: {
+          currency_code?: string
+          currency_name?: string
+          symbol?: string | null
+        }
+        Relationships: []
+      }
+      holder_accounts: {
+        Row: {
+          account_alias_name: string | null
+          account_display_name: string
+          account_holder_id: number
+          account_nature: string
+          account_number: string
+          created_at: string
+          currency_code: string
+          current_balance: number
+          id: number
+          is_primary_account: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_alias_name?: string | null
+          account_display_name: string
+          account_holder_id: number
+          account_nature: string
+          account_number: string
+          created_at?: string
+          currency_code: string
+          current_balance?: number
+          id?: number
+          is_primary_account?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_alias_name?: string | null
+          account_display_name?: string
+          account_holder_id?: number
+          account_nature?: string
+          account_number?: string
+          created_at?: string
+          currency_code?: string
+          current_balance?: number
+          id?: number
+          is_primary_account?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holder_accounts_account_holder_id_fkey"
+            columns: ["account_holder_id"]
+            isOneToOne: false
+            referencedRelation: "account_holders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holder_accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["currency_code"]
+          },
+        ]
+      }
+      holder_ledger_entries: {
+        Row: {
+          account_id: number
+          balance_after: number
+          created_at: string
+          credit_amount: number
+          currency_code: string
+          debit_amount: number
+          description: string | null
+          id: number
+          posted_at: string
+          tx_number: string
+        }
+        Insert: {
+          account_id: number
+          balance_after: number
+          created_at?: string
+          credit_amount?: number
+          currency_code: string
+          debit_amount?: number
+          description?: string | null
+          id?: number
+          posted_at: string
+          tx_number: string
+        }
+        Update: {
+          account_id?: number
+          balance_after?: number
+          created_at?: string
+          credit_amount?: number
+          currency_code?: string
+          debit_amount?: number
+          description?: string | null
+          id?: number
+          posted_at?: string
+          tx_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holder_ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "holder_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holder_ledger_entries_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["currency_code"]
+          },
+        ]
       }
       ledger_entries: {
         Row: {
@@ -523,6 +890,7 @@ export type Database = {
         }
         Returns: string
       }
+      approve_import_batch: { Args: { p_batch_id: number }; Returns: Json }
       approve_transaction: {
         Args: { p_tx_id: string }
         Returns: {
@@ -594,6 +962,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      next_dahab_account_number: { Args: never; Returns: string }
       notifications_mark_all_read: { Args: never; Returns: number }
       notifications_mark_read: { Args: { p_ids: string[] }; Returns: number }
       post_transaction: {
