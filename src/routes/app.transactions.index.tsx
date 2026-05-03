@@ -52,7 +52,11 @@ import {
   Hash,
   Wallet,
   Building2,
+  Calendar as CalendarIcon,
+  X,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -82,6 +86,24 @@ type Tx = {
 
 type StatusFilter = "all" | "posted" | "pending" | "rejected" | "reversed";
 type DirectionFilter = "all" | "deposit" | "withdraw";
+type DatePreset = "all" | "today" | "week" | "month" | "custom";
+
+function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
+  const now = new Date();
+  if (p === "today") {
+    const from = new Date(now); from.setHours(0, 0, 0, 0);
+    return { from, to: now };
+  }
+  if (p === "week") {
+    const from = new Date(now); from.setDate(now.getDate() - 7);
+    return { from, to: now };
+  }
+  if (p === "month") {
+    const from = new Date(now); from.setMonth(now.getMonth() - 1);
+    return { from, to: now };
+  }
+  return { from: null, to: null };
+}
 
 function TxList() {
   const { roles } = useAuth();
@@ -93,6 +115,9 @@ function TxList() {
   const [filesOnly, setFilesOnly] = useState(false);
   const [editing, setEditing] = useState<Tx | null>(null);
   const [details, setDetails] = useState<Tx | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v2", debouncedQ],
@@ -106,7 +131,8 @@ function TxList() {
         )
         .order("created_at", { ascending: false })
         .limit(200);
-      if (debouncedQ.trim()) query = query.ilike("tx_number", `%${debouncedQ.trim()}%`);
+      // Server-side narrow on tx_number; broader fields filtered client-side below.
+      // Avoid filtering on server when the term might match a name/amount.
       const { data, error } = await query;
       if (error) throw error;
       const rows = (data ?? []) as any[];
@@ -144,8 +170,40 @@ function TxList() {
     if (statusFilter !== "all") rows = rows.filter((t) => t.status === statusFilter);
     if (directionFilter !== "all") rows = rows.filter((t) => t.direction === directionFilter);
     if (filesOnly) rows = rows.filter((t) => t.attachment_count > 0);
+    const term = debouncedQ.trim().toLowerCase();
+    if (term) {
+      rows = rows.filter((t) => {
+        const amountStr = formatMinor(t.amount_minor, t.currency).toLowerCase();
+        return (
+          t.tx_number.toLowerCase().includes(term) ||
+          (t.customer_name ?? "").toLowerCase().includes(term) ||
+          (t.customer_account_number ?? "").toLowerCase().includes(term) ||
+          (t.comment ?? "").toLowerCase().includes(term) ||
+          amountStr.includes(term) ||
+          t.currency.toLowerCase().includes(term)
+        );
+      });
+    }
+    let from: Date | null = null;
+    let to: Date | null = null;
+    if (datePreset === "custom") {
+      from = customFrom ?? null;
+      to = customTo ?? null;
+      if (to) { const t = new Date(to); t.setHours(23, 59, 59, 999); to = t; }
+    } else if (datePreset !== "all") {
+      const r = presetRange(datePreset);
+      from = r.from; to = r.to;
+    }
+    if (from || to) {
+      rows = rows.filter((t) => {
+        const d = new Date(t.created_at).getTime();
+        if (from && d < from.getTime()) return false;
+        if (to && d > to.getTime()) return false;
+        return true;
+      });
+    }
     return rows;
-  }, [data, statusFilter, directionFilter, filesOnly]);
+  }, [data, statusFilter, directionFilter, filesOnly, debouncedQ, datePreset, customFrom, customTo]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
@@ -165,7 +223,7 @@ function TxList() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Search by TX number…"
+                placeholder="Search TX #, customer, amount…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -192,6 +250,65 @@ function TxList() {
                 { value: "withdraw", label: "Withdrawals" },
               ]}
             />
+
+            <Segmented
+              value={datePreset === "custom" ? "all" : datePreset}
+              onChange={(v) => setDatePreset(v as DatePreset)}
+              options={[
+                { value: "all", label: "Any time" },
+                { value: "today", label: "Today" },
+                { value: "week", label: "7d" },
+                { value: "month", label: "30d" },
+              ]}
+            />
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={datePreset === "custom" ? "default" : "outline"}
+                  size="sm"
+                  className="h-8"
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {datePreset === "custom" && (customFrom || customTo)
+                    ? `${customFrom ? customFrom.toLocaleDateString() : "…"} – ${customTo ? customTo.toLocaleDateString() : "…"}`
+                    : "Custom range"}
+                  {datePreset === "custom" ? (
+                    <X
+                      className="ml-1.5 h-3.5 w-3.5 opacity-70 hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDatePreset("all");
+                        setCustomFrom(undefined);
+                        setCustomTo(undefined);
+                      }}
+                    />
+                  ) : null}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-3" align="start">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">From</div>
+                    <Calendar
+                      mode="single"
+                      selected={customFrom}
+                      onSelect={(d) => { setCustomFrom(d); setDatePreset("custom"); }}
+                      className={cn("p-0 pointer-events-auto")}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">To</div>
+                    <Calendar
+                      mode="single"
+                      selected={customTo}
+                      onSelect={(d) => { setCustomTo(d); setDatePreset("custom"); }}
+                      className={cn("p-0 pointer-events-auto")}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <label className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm">
               <Switch checked={filesOnly} onCheckedChange={setFilesOnly} />
