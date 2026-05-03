@@ -149,6 +149,7 @@ export const ar: Dict = {
   "dash.bankVault": "خزينة البنك",
   "dash.vaultsTotal": "إجمالي الخزائن",
   "dash.customersTotal": "إجمالي العملاء",
+  "dash.pinnedCustomers": "حسابات العملاء المثبّتة",
   "dash.recentTx": "المعاملات الأخيرة",
   "dash.noTx": "لا توجد معاملات بعد.",
 
