@@ -76,7 +76,7 @@ function Index() {
           <div className="mx-auto mt-4 grid max-w-2xl gap-3 sm:grid-cols-2">
             <Link
               to="/login"
-              search={{ portal: "staff" } as any}
+              search={{ portal: "staff", lock: 1 } as any}
               className="group relative flex flex-col items-start gap-2 rounded-xl border border-[oklch(0.82_0.14_85/0.3)] bg-[oklch(0.82_0.14_85/0.06)] p-5 text-start transition hover:border-[oklch(0.82_0.14_85/0.55)] hover:bg-[oklch(0.82_0.14_85/0.1)]"
             >
               <div className="flex w-full items-center justify-between">
@@ -90,7 +90,7 @@ function Index() {
             </Link>
             <Link
               to="/login"
-              search={{ portal: "consumer" } as any}
+              search={{ portal: "consumer", lock: 1 } as any}
               className="group relative flex flex-col items-start gap-2 rounded-xl border border-[oklch(0.82_0.14_85/0.18)] bg-card p-5 text-start transition hover:border-[oklch(0.82_0.14_85/0.45)] hover:bg-[oklch(0.82_0.14_85/0.06)]"
             >
               <div className="flex w-full items-center justify-between">
