@@ -40,7 +40,7 @@ function AccountLedger() {
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
         .eq("customer_account_id", accountId)
-        .eq("currency", currency)
+        .eq("currency", currency as any)
         .order("created_at", { ascending: false })
         .limit(500);
       if (e2) throw e2;

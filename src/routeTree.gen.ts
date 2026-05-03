@@ -26,6 +26,7 @@ import { Route as AppAboutRouteImport } from './routes/app.about'
 import { Route as AppVaultsIndexRouteImport } from './routes/app.vaults.index'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
+import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
@@ -121,6 +122,11 @@ const AppAccountsIndexRoute = AppAccountsIndexRouteImport.update({
   path: '/accounts/',
   getParentRoute: () => AppRoute,
 } as any)
+const PortalAccountIdCurrencyRoute = PortalAccountIdCurrencyRouteImport.update({
+  id: '/$accountId/$currency',
+  path: '/$accountId/$currency',
+  getParentRoute: () => PortalRoute,
+} as any)
 const AppVaultsIdRoute = AppVaultsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -176,7 +182,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
+  '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/vaults/': typeof AppVaultsIndexRoute
@@ -202,7 +209,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByTo {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
+  '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/accounts': typeof AppAccountsIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
   '/app/vaults': typeof AppVaultsIndexRoute
@@ -230,7 +238,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
+  '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/vaults/': typeof AppVaultsIndexRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
+    | '/portal/$accountId/$currency'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/app/vaults/'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
+    | '/portal/$accountId/$currency'
     | '/app/accounts'
     | '/app/transactions'
     | '/app/vaults'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
+    | '/portal/$accountId/$currency'
     | '/app/accounts/'
     | '/app/transactions/'
     | '/app/vaults/'
@@ -342,7 +354,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   MRoute: typeof MRouteWithChildren
-  PortalRoute: typeof PortalRoute
+  PortalRoute: typeof PortalRouteWithChildren
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
@@ -467,6 +479,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/accounts/'
       preLoaderRoute: typeof AppAccountsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/portal/$accountId/$currency': {
+      id: '/portal/$accountId/$currency'
+      path: '/$accountId/$currency'
+      fullPath: '/portal/$accountId/$currency'
+      preLoaderRoute: typeof PortalAccountIdCurrencyRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/app/vaults/$id': {
       id: '/app/vaults/$id'
@@ -598,12 +617,23 @@ const MRouteChildren: MRouteChildren = {
 
 const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
 
+interface PortalRouteChildren {
+  PortalAccountIdCurrencyRoute: typeof PortalAccountIdCurrencyRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalAccountIdCurrencyRoute: PortalAccountIdCurrencyRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   MRoute: MRouteWithChildren,
-  PortalRoute: PortalRoute,
+  PortalRoute: PortalRouteWithChildren,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
