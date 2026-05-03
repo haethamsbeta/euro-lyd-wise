@@ -32,6 +32,7 @@ import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$ac
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
+import { Route as AppImportReviewRouteImport } from './routes/app.import.review'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
@@ -156,6 +157,11 @@ const AppMeActivityRoute = AppMeActivityRouteImport.update({
   path: '/me/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppImportReviewRoute = AppImportReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AppImportRoute,
+} as any)
 const AppHoldersIdRoute = AppHoldersIdRouteImport.update({
   id: '/holders/$id',
   path: '/holders/$id',
@@ -204,7 +210,7 @@ export interface FileRoutesByFullPath {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRoute
+  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -234,7 +241,7 @@ export interface FileRoutesByTo {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRoute
+  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/m': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -266,7 +274,7 @@ export interface FileRoutesById {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRoute
+  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -275,6 +283,7 @@ export interface FileRoutesById {
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/accounts/$id'
     | '/app/holders/$id'
+    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/m'
     | '/app/accounts/$id'
     | '/app/holders/$id'
+    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/accounts/$id'
     | '/app/holders/$id'
+    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -558,6 +570,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/import/review': {
+      id: '/app/import/review'
+      path: '/review'
+      fullPath: '/app/import/review'
+      preLoaderRoute: typeof AppImportReviewRouteImport
+      parentRoute: typeof AppImportRoute
+    }
     '/app/holders/$id': {
       id: '/app/holders/$id'
       path: '/holders/$id'
@@ -610,6 +629,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppImportRouteChildren {
+  AppImportReviewRoute: typeof AppImportReviewRoute
+}
+
+const AppImportRouteChildren: AppImportRouteChildren = {
+  AppImportReviewRoute: AppImportReviewRoute,
+}
+
+const AppImportRouteWithChildren = AppImportRoute._addFileChildren(
+  AppImportRouteChildren,
+)
+
 interface AppVaultsRouteChildren {
   AppVaultsIdRoute: typeof AppVaultsIdRoute
   AppVaultsIndexRoute: typeof AppVaultsIndexRoute
@@ -628,7 +659,7 @@ interface AppRouteChildren {
   AppAboutRoute: typeof AppAboutRoute
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
-  AppImportRoute: typeof AppImportRoute
+  AppImportRoute: typeof AppImportRouteWithChildren
   AppUsersRoute: typeof AppUsersRoute
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
@@ -648,7 +679,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAboutRoute: AppAboutRoute,
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
-  AppImportRoute: AppImportRoute,
+  AppImportRoute: AppImportRouteWithChildren,
   AppUsersRoute: AppUsersRoute,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
