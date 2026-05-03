@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -17,7 +18,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { formatMinor, formatDateTime } from "@/lib/format";
-import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users, Settings2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users, Settings2, UserCircle2, Plus, X, Search } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
@@ -32,6 +33,8 @@ type DashPrefs = {
   showBank: boolean;
   showCustomerTotal: boolean;
   showRecent: boolean;
+  showPinnedCustomers: boolean;
+  pinnedAccountIds: string[];
 };
 
 const DEFAULT_PREFS: DashPrefs = {
@@ -40,6 +43,8 @@ const DEFAULT_PREFS: DashPrefs = {
   showBank: true,
   showCustomerTotal: true,
   showRecent: true,
+  showPinnedCustomers: true,
+  pinnedAccountIds: [],
 };
 
 function usePrefs() {
@@ -218,6 +223,15 @@ function Dashboard() {
           </div>
         </section>
 
+        {prefs.showPinnedCustomers && prefs.pinnedAccountIds.length > 0 ? (
+          <PinnedCustomerAccounts
+            ids={prefs.pinnedAccountIds}
+            onUnpin={(id) =>
+              update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
+            }
+          />
+        ) : null}
+
         {prefs.showRecent ? (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("dash.recentTx")}</h2>
@@ -270,7 +284,7 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
           <SheetTitle>Customize dashboard</SheetTitle>
           <SheetDescription>Toggle which tiles appear. Saved on this device.</SheetDescription>
         </SheetHeader>
-        <div className="mt-6 space-y-5">
+        <div className="mt-6 space-y-5 overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 8rem)" }}>
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Currencies</div>
             <div className="space-y-2">
@@ -294,12 +308,160 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
               <ToggleRow label="Cash vault row" checked={prefs.showCash} onChange={(v) => onChange({ ...prefs, showCash: v })} />
               <ToggleRow label="Bank vault row" checked={prefs.showBank} onChange={(v) => onChange({ ...prefs, showBank: v })} />
               <ToggleRow label="Customer totals row" checked={prefs.showCustomerTotal} onChange={(v) => onChange({ ...prefs, showCustomerTotal: v })} />
+              <ToggleRow label="Pinned customer accounts" checked={prefs.showPinnedCustomers} onChange={(v) => onChange({ ...prefs, showPinnedCustomers: v })} />
               <ToggleRow label="Recent transactions" checked={prefs.showRecent} onChange={(v) => onChange({ ...prefs, showRecent: v })} />
             </div>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pinned customer accounts</div>
+              <span className="text-[10px] text-muted-foreground">{prefs.pinnedAccountIds.length} pinned</span>
+            </div>
+            <PinAccountPicker
+              pinned={prefs.pinnedAccountIds}
+              onAdd={(id) => {
+                if (prefs.pinnedAccountIds.includes(id)) return;
+                onChange({ ...prefs, pinnedAccountIds: [...prefs.pinnedAccountIds, id] });
+              }}
+              onRemove={(id) => onChange({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })}
+            />
           </div>
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
+  const t = useT();
+  const { data, isLoading } = useQuery({
+    queryKey: ["dash.pinned", ids.slice().sort().join(",")],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const [{ data: accs }, { data: bals }] = await Promise.all([
+        supabase.from("accounts").select("id, name, account_number, nature").in("id", ids),
+        supabase.from("account_balances").select("account_id, currency, balance_minor").in("account_id", ids),
+      ]);
+      return { accs: accs ?? [], bals: bals ?? [] };
+    },
+  });
+  const balByAcc = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    (data?.bals ?? []).forEach((b: any) => {
+      if (!m.has(b.account_id)) m.set(b.account_id, new Map());
+      m.get(b.account_id)!.set(b.currency, b.balance_minor);
+    });
+    return m;
+  }, [data]);
+
+  return (
+    <section>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {t("dash.pinnedCustomers")}
+      </h2>
+      {isLoading ? (
+        <Card className="card-luxe"><CardContent className="p-4 text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(data?.accs ?? []).map((a: any) => {
+            const bals = balByAcc.get(a.id) ?? new Map();
+            return (
+              <Card key={a.id} className="card-luxe group relative overflow-hidden">
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); onUnpin(a.id); }}
+                  className="absolute end-2 top-2 z-10 rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                  aria-label="Unpin"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <Link to="/app/accounts/$id" params={{ id: a.id }} className="block">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <UserCircle2 className="h-4 w-4 text-gold" />
+                      <span className="truncate">{a.name}</span>
+                    </CardTitle>
+                    <div className="font-mono text-[11px] text-muted-foreground">{a.account_number}</div>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5 text-sm">
+                    {(["USD", "EUR", "LYD"] as const).map((c) => (
+                      <div key={c} className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{c}</span>
+                        <span className="font-mono text-foreground/90">{formatMinor((bals.get(c) as number) ?? 0, c)}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Link>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const { data: results } = useQuery({
+    queryKey: ["dash.pin.search", q],
+    queryFn: async () => {
+      let qb = supabase.from("accounts").select("id, name, account_number").eq("kind", "customer").order("created_at", { ascending: false }).limit(15);
+      if (q.trim()) qb = qb.or(`name.ilike.%${q.trim()}%,account_number.ilike.%${q.trim()}%`);
+      const { data } = await qb;
+      return data ?? [];
+    },
+  });
+  const { data: pinnedRows } = useQuery({
+    queryKey: ["dash.pin.list", pinned.slice().sort().join(",")],
+    enabled: pinned.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("accounts").select("id, name, account_number").in("id", pinned);
+      return data ?? [];
+    },
+  });
+  return (
+    <div className="space-y-2">
+      {pinnedRows && pinnedRows.length > 0 ? (
+        <ul className="space-y-1 rounded-md border p-1.5">
+          {pinnedRows.map((a: any) => (
+            <li key={a.id} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-xs">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{a.name}</div>
+                <div className="font-mono text-[10px] text-muted-foreground">{a.account_number}</div>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => onRemove(a.id)} aria-label="Remove">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="relative">
+        <Search className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input className="h-8 ps-7 text-xs" placeholder="Search customer accounts…" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border p-1">
+        {(results ?? []).filter((a: any) => !pinned.includes(a.id)).map((a: any) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              onClick={() => onAdd(a.id)}
+              className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-start text-xs hover:bg-muted"
+            >
+              <div className="min-w-0">
+                <div className="truncate font-medium">{a.name}</div>
+                <div className="font-mono text-[10px] text-muted-foreground">{a.account_number}</div>
+              </div>
+              <Plus className="h-3.5 w-3.5 text-gold" />
+            </button>
+          </li>
+        ))}
+        {results && results.length === 0 ? (
+          <li className="px-2 py-3 text-center text-xs text-muted-foreground">No matches</li>
+        ) : null}
+      </ul>
+    </div>
   );
 }
 

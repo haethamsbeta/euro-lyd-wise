@@ -149,6 +149,7 @@ export const en = {
   "dash.bankVault": "Bank vault",
   "dash.vaultsTotal": "Vaults total",
   "dash.customersTotal": "Customers total",
+  "dash.pinnedCustomers": "Pinned customer accounts",
   "dash.recentTx": "Recent transactions",
   "dash.noTx": "No transactions yet.",
 
