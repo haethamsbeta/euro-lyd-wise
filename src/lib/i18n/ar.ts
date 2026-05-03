@@ -164,6 +164,11 @@ export const ar: Dict = {
   "approvals.rejectPrompt": "سبب الرفض:",
   "approvals.approved": "تم الاعتماد",
   "approvals.rejected": "تم الرفض",
+  "approvals.rejectTitle": "رفض هذه المعاملة؟",
+  "approvals.rejectDescription": "اذكر سبب رفض المعاملة",
+  "approvals.rejectReason": "السبب",
+  "approvals.rejectPlaceholder": "اشرح سبب رفض هذه المعاملة (٣ أحرف على الأقل)…",
+  "approvals.confirmReject": "رفض المعاملة",
 
   // users page
   "users.title": "المستخدمون والأدوار",
