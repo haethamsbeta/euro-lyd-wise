@@ -1,10 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
@@ -20,6 +32,16 @@ export const Route = createFileRoute("/app/approvals")({
 function Approvals() {
   const t = useT();
   const qc = useQueryClient();
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; tx_number: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: ["approvals"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["transactions.list.v2"] });
+  }
+
   const { data, isLoading } = useQuery({
     queryKey: ["approvals"],
     queryFn: async () => {
@@ -36,16 +58,25 @@ function Approvals() {
       const { error } = await supabase.rpc("approve_transaction", { p_tx_id: id });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success(t("approvals.approved")); qc.invalidateQueries(); },
-    onError: (e: any) => toast.error(e.message),
+    onMutate: (id) => setBusyId(id),
+    onSettled: () => setBusyId(null),
+    onSuccess: () => { toast.success(t("approvals.approved")); invalidate(); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to approve"),
   });
   const reject = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase.rpc("reject_transaction", { p_tx_id: id, p_reason: reason });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success(t("approvals.rejected")); qc.invalidateQueries(); },
-    onError: (e: any) => toast.error(e.message),
+    onMutate: ({ id }) => setBusyId(id),
+    onSettled: () => setBusyId(null),
+    onSuccess: () => {
+      toast.success(t("approvals.rejected"));
+      invalidate();
+      setRejectTarget(null);
+      setRejectReason("");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to reject"),
   });
 
   return (
@@ -72,11 +103,20 @@ function Approvals() {
                         <div className="break-words text-sm">{row.comment}</div>
                       </div>
                       <div className="flex gap-2 sm:shrink-0">
-                        <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => {
-                          const r = window.prompt(t("approvals.rejectPrompt"));
-                          if (r && r.trim()) reject.mutate({ id: row.id, reason: r.trim() });
-                        }}>{t("approvals.reject")}</Button>
-                        <Button className="flex-1 sm:flex-none" onClick={() => approve.mutate(row.id)}>{t("approvals.approve")}</Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 sm:flex-none"
+                          disabled={busyId === row.id}
+                          onClick={() => { setRejectReason(""); setRejectTarget({ id: row.id, tx_number: row.tx_number }); }}
+                        >{t("approvals.reject")}</Button>
+                        <Button
+                          className="flex-1 sm:flex-none"
+                          disabled={busyId === row.id}
+                          onClick={() => approve.mutate(row.id)}
+                        >
+                          {busyId === row.id && approve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          {t("approvals.approve")}
+                        </Button>
                       </div>
                     </div>
                   </li>
@@ -86,6 +126,41 @@ function Approvals() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("approvals.rejectTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("approvals.rejectDescription")} <span className="font-mono">{rejectTarget?.tx_number}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">{t("approvals.rejectReason")}</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder={t("approvals.rejectPlaceholder")}
+              rows={4}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setRejectTarget(null); setRejectReason(""); }}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={rejectReason.trim().length < 3 || reject.isPending}
+              onClick={() => rejectTarget && reject.mutate({ id: rejectTarget.id, reason: rejectReason.trim() })}
+            >
+              {reject.isPending ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : null}
+              {t("approvals.confirmReject")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
