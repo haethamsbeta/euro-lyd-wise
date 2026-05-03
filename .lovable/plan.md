@@ -1,97 +1,46 @@
-# DAHAB — Improvements & Fixes
+## Goal
 
-Scope covers the 6 requested items while preserving the dark/gold luxury identity, banking layout, and DAHAB branding. Mobile and desktop will both be addressed.
+On the staff Account Detail page (`/app/accounts/$id`), replace the single tabbed ledger with **per-currency account cards** (USD, EUR, LYD). Each card shows the balance for that currency, and clicking it expands to reveal that currency's ledger — with date filters and CSV export — matching the pattern already used in the consumer portal.
 
-## 1. Consumer portal — separate currency cards + per-account ledger
+## Changes
 
-The customer portal at `/portal` currently shows one card per (account, currency) but the ledger below mixes everything together. We will:
+### 1. `src/routes/app.accounts.$id.tsx` (rewrite the layout)
 
-- Replace the cards with one **clickable** premium card per currency the customer holds (LYD, EUR, USD, GBP*).
-- Each card shows: currency code (large gold), current balance, account number, last activity timestamp, and a subtle "View ledger →" hint.
-- Clicking a card opens a dedicated route `/portal/$accountId/$currency` showing ONLY that currency's ledger for that account.
-- The single combined ledger below is removed in favor of the per-currency view.
+Replace the existing "Balances & debit limits" grid + "Ledger" tabs section with a single **stack of three currency cards** (one per USD / EUR / LYD).
 
-> *GBP note:* the database `currency_code` enum currently allows `USD`, `EUR`, `LYD` only. Adding `GBP` requires extending the enum (a tiny migration) **and** seeding a Cash/Bank vault for GBP — otherwise transactions in GBP cannot be posted. The plan assumes you want this; if not, GBP cards will only render when a customer actually holds a GBP balance and we'll skip the migration.
+Each card contains:
+- **Collapsed header (always visible):**
+  - Currency code (e.g. `USD`)
+  - Current balance for that currency
+  - Single-debit limit (with inline edit for admins, preserving the existing `BalanceCard` edit behavior)
+  - Chevron up/down indicator
+- **Expanded body (on click):**
+  - Date filter chips: Any time / Today / 7d / 30d / Custom (date-range popover with From/To inputs)
+  - CSV export button (filtered rows only)
+  - `StatementLedger` component rendered with that currency's transactions, filtered by the chosen date range
 
-## 2. Bank-statement style ledger with running balance
+Behavior:
+- One card open at a time (toggle via local state), or independent toggles — independent matches portal pattern, use that.
+- Reuse the existing `useQuery(["account.tx", id])` data; filter client-side per currency + date range with `useMemo`.
+- Keep the existing balance/limit edit mutation (admins only) intact inside the collapsed header area.
+- Keep the page header (account name, account number, phone, national ID, Back button) unchanged.
 
-The new per-currency ledger (used in both `/portal/$accountId/$currency` and the staff `/app/accounts/$id` view) becomes a true bank statement:
+### 2. Shared helpers
 
-| Date & time | TX # | Description | Debit | Credit | Balance after |
-|---|---|---|---|---|---|
+- Reuse `StatementLedger` from `src/components/app/statement-ledger.tsx` as-is.
+- Port the small `presetRange()` helper and `DateChip` UI bits from `src/routes/portal.tsx` (duplicate locally in the route file — small enough that extracting isn't worth a new module).
+- Reuse `formatMinor` and `parseAmountToMinor` from `@/lib/format`.
 
-- Only `posted` and `reversed` rows are included in the running total (pending/rejected shown but not counted, with a muted style).
-- Running balance is computed client-side from the **oldest → newest** ledger entries for the customer/currency, then displayed newest-first.
-- The "Description" column uses the existing `describeTx()` helper for human-readable text.
-- Works for staff `Account detail → Ledger` too (same component reused).
+### 3. No DB or schema changes
 
-## 3. Transactions page — search + date filtering
+All filtering is client-side; no migrations, no RLS changes, no new tables.
 
-`/app/transactions` currently searches by TX number only. Upgrade the filter bar to:
+## Out of scope
 
-- **Search input** (debounced) matches against: `tx_number`, `customer.name`, `customer.account_number`, and amount (typed as `12.50` → minor units).
-- **Date filter** with three controls in one popover:
-  - Quick chips: Today · This week · This month · Last 30 days · All time
-  - From / To date pickers (using existing `Input type="date"`)
-- Combined client+server query: server filters by date range and limit; client narrows by free-text and existing direction/status/files toggles.
-- Clear empty state ("No transactions match your filters — try widening the date range or clearing search").
-- All filters URL-synced via TanStack search params so a filtered view is shareable.
+- No changes to the accounts list page (`app.accounts.index.tsx`).
+- No changes to the consumer portal (already has this UX).
+- No changes to translations beyond reusing existing `t("portal.*")` keys; if any new copy is needed it will be inline English (matching the rest of the staff detail page which is English-only).
 
-## 4. Landing page navigation — strict portal separation
+## File touched
 
-`/` already routes both CTAs to `/login` with a `?portal=staff|consumer` param, but it can be confusing because the single login page hosts both. We will:
-
-- Keep the two distinct CTA cards on the landing page (DAHAB Family, Customer Portal).
-- On `/login` enforce the chosen portal: hide the portal switcher chips when arrived from the landing CTAs (still accessible via direct link with `?switch=1`), and hard-block role mismatches (already done) with clearer messages and a "Go to correct portal" button.
-- Update header CTA so the small "Sign in" button in the landing header explicitly goes to the **Family** portal and adds a secondary "Customer" link next to it.
-- Verify session restore: a logged-in consumer landing on `/login?portal=staff` is redirected back to `/portal`, and vice versa.
-
-## 5. Customizable dashboard
-
-The staff dashboard at `/app` has fixed Cash Vault / Bank Vault / Customers tiles per currency. We will:
-
-- Add a **"Customize dashboard"** button (gear icon) that opens a sheet listing every account: Cash Vault USD/EUR/LYD, Bank Vault USD/EUR/LYD, Wire Vault, plus all customer accounts grouped under "Customers".
-- Each row has a switch (Show / Hide on dashboard).
-- Selections are saved per-user. Storage approach: **`localStorage` keyed by user id** (no migration needed, instant). If you'd like cross-device persistence we can layer a `dashboard_preferences` table later.
-- The currency tiles re-render based on the visible set: hidden vaults are removed, customer total tile only includes visible customer accounts.
-- Default = current behavior (everything visible) so existing users see no change until they customize.
-
-## 6. Approvals page — fix accept/decline UX
-
-`/app/approvals` uses `window.prompt` for the reject reason which is blocked in some embedded previews and returns `null`, causing the action to silently no-op. The RPC itself works. We will:
-
-- Replace `window.prompt` with a proper Reject dialog: textarea + "Reason required" validation + Cancel/Confirm buttons.
-- Disable Approve/Reject buttons during the in-flight mutation and show a spinner.
-- Show success toast + optimistic removal from the list; on error show the actual Postgres message in a destructive toast and an inline alert above the row.
-- Tighten `invalidateQueries` to specific keys (`approvals`, `dashboard`, `transactions.list.v2`) so the UI updates everywhere.
-- Empty state already exists; loading skeletons added.
-- Confirm RLS/role: only admins can call the RPC (already enforced server-side); the page already wraps in `RoleGate allow=["admin"]`.
-
-## Technical details
-
-**New / changed files**
-- `src/routes/portal.tsx` — split into per-currency card grid; remove combined ledger.
-- `src/routes/portal.$accountId.$currency.tsx` *(new)* — per-account ledger.
-- `src/components/app/statement-ledger.tsx` *(new)* — shared bank-statement table with running balance.
-- `src/routes/app.accounts.$id.tsx` — use shared statement ledger; add per-currency tabs.
-- `src/routes/app.transactions.index.tsx` — broaden search, add date popover & quick chips, URL search-param sync.
-- `src/routes/index.tsx`, `src/routes/login.tsx` — landing CTAs explicit; login enforces portal lock when `lock=1` query present.
-- `src/routes/app.index.tsx` — add Customize sheet, per-user `localStorage` visibility, filtered tiles.
-- `src/components/app/dashboard-customize.tsx` *(new)* — sheet UI.
-- `src/routes/app.approvals.tsx` — replace `window.prompt` with `<Dialog>`, loading/disabled states, scoped invalidation.
-- `src/lib/i18n/en.ts` + `ar.ts` — new translation keys.
-
-**Migration (only if GBP is requested)**
-```sql
-ALTER TYPE public.currency_code ADD VALUE IF NOT EXISTS 'GBP';
--- + seed cash/bank GBP vaults via _upsert_vault
-```
-
-**Running-balance algorithm**
-1. Query all ledger entries for `(customer_account_id, currency)` ordered ascending.
-2. Walk forward, accumulating `+credit / -debit` (respecting account `nature`).
-3. Reverse for display so newest is on top, but each row carries its computed `balance_after`.
-
-**Open questions before implementation**
-- Add GBP enum + seed vaults? (otherwise GBP card only appears if the customer already has a GBP balance row)
-- Persist dashboard customization in DB (cross-device) or `localStorage` only? Plan defaults to `localStorage`.
+- `src/routes/app.accounts.$id.tsx` — rewrite balances + ledger section into expandable per-currency cards with date filters and CSV export.
