@@ -134,7 +134,7 @@ export function parseLinkedAccountsWorkbook(arrayBuffer: ArrayBuffer): LinkedRow
     const acct = pick(r, ["account_number", "code", "bank_account_number", "accountnumber"]);
     const curr = pick(r, ["currency_code", "currency", "currencycode"]).toUpperCase();
     const nature = pick(r, ["account_nature", "nature"]) || "Debit";
-    const display = pick(r, ["account_display_name", "namea", "name_a", "name", "display_name", "accountdisplayname"]);
+    const display = pick(r, ["account_display_name", "account_display_name_original", "namea", "name_a", "name", "display_name", "accountdisplayname", "accountdisplaynameoriginal"]);
     const alias = pick(r, ["account_alias_name", "alias", "aliasname", "accountaliasname"]);
     const primary = pick(r, ["is_primary_account", "primary", "isprimaryaccount"]);
     const canonical = pick(r, ["canonical_name", "holder_name", "main_customer_name", "canonicalname"]);
