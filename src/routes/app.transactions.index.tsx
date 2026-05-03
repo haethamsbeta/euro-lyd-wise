@@ -56,7 +56,6 @@ import {
   X,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
