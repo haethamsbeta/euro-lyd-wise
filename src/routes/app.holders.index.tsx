@@ -14,6 +14,21 @@ export const Route = createFileRoute("/app/holders/")({ component: HoldersList }
 function HoldersList() {
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 250);
+  const [curFilter, setCurFilter] = useState<string | null>(null);
+
+  const { data: summary } = useQuery({
+    queryKey: ["holders.summary"],
+    queryFn: async () => {
+      const [{ count: holders }, { count: accts }, byCur] = await Promise.all([
+        supabase.from("account_holders").select("id", { count: "exact", head: true }),
+        supabase.from("holder_accounts").select("id", { count: "exact", head: true }),
+        supabase.from("holder_accounts").select("currency_code"),
+      ]);
+      const counts: Record<string, number> = {};
+      for (const r of byCur.data ?? []) counts[r.currency_code] = (counts[r.currency_code] ?? 0) + 1;
+      return { holders: holders ?? 0, accts: accts ?? 0, counts };
+    },
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["holders.list", dq],
     queryFn: async () => {
@@ -42,31 +57,62 @@ function HoldersList() {
         }
         return Array.from(map.values());
       }
-      const { data, error } = await supabase
+      let qb = supabase
         .from("account_holders")
         .select("id,dahab_account_number,canonical_name,normalized_name,status,holder_accounts(id,currency_code,account_number,account_display_name)")
         .order("created_at", { ascending: false })
         .limit(200);
+      const { data, error } = await qb;
       if (error) throw error;
       return data ?? [];
     },
   });
 
+  const filtered = (data ?? []).filter((h: any) =>
+    !curFilter || (h.holder_accounts ?? []).some((a: any) => a.currency_code === curFilter),
+  );
+
   return (
     <div>
       <PageHeader title="DAHAB Holders" description="Customer profiles and their linked currency accounts." />
       <div className="space-y-4 p-4 sm:p-6">
+        {summary && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="secondary" className="text-sm">
+              {summary.holders} holders · {summary.accts} linked accounts
+            </Badge>
+            <button
+              type="button"
+              onClick={() => setCurFilter(null)}
+              className={`rounded-full border px-2.5 py-0.5 text-xs ${!curFilter ? "border-gold text-gold" : "text-muted-foreground"}`}
+            >
+              All
+            </button>
+            {Object.entries(summary.counts)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([c, n]) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCurFilter(curFilter === c ? null : c)}
+                  className={`rounded-full border px-2.5 py-0.5 text-xs ${curFilter === c ? "border-gold text-gold" : "text-muted-foreground"}`}
+                >
+                  {c} · {n}
+                </button>
+              ))}
+          </div>
+        )}
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, DAHAB #, account #" className="ps-9" />
         </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (data ?? []).length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">No holders yet. Use Account Import to load accounts from Excel.</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data!.map((h: any) => (
+            {filtered.map((h: any) => (
               <Link key={h.id} to="/app/holders/$id" params={{ id: String(h.id) }}>
                 <Card className="card-luxe transition hover:border-[oklch(0.82_0.14_85/0.5)]">
                   <CardContent className="p-4">
