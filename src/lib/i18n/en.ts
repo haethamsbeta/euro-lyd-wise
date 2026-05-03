@@ -112,6 +112,7 @@ export const en = {
   "nav.more": "More",
   "nav.import": "Account import",
   "nav.holders": "DAHAB holders",
+  "nav.importReview": "Import review",
 
   // app shell
   "shell.noStaffTitle": "No staff access",
