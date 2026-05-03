@@ -32,6 +32,7 @@ import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$ac
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
+import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
@@ -155,6 +156,11 @@ const AppMeActivityRoute = AppMeActivityRouteImport.update({
   path: '/me/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHoldersIdRoute = AppHoldersIdRouteImport.update({
+  id: '/holders/$id',
+  path: '/holders/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountsIdRoute = AppAccountsIdRouteImport.update({
   id: '/accounts/$id',
   path: '/accounts/$id',
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/m': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/m/'
     | '/app/accounts/$id'
+    | '/app/holders/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/m'
     | '/app/accounts/$id'
+    | '/app/holders/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -358,6 +369,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/m/'
     | '/app/accounts/$id'
+    | '/app/holders/$id'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
@@ -546,6 +558,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/holders/$id': {
+      id: '/app/holders/$id'
+      path: '/holders/$id'
+      fullPath: '/app/holders/$id'
+      preLoaderRoute: typeof AppHoldersIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/accounts/$id': {
       id: '/app/accounts/$id'
       path: '/accounts/$id'
@@ -614,6 +633,7 @@ interface AppRouteChildren {
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppAccountsIdRoute: typeof AppAccountsIdRoute
+  AppHoldersIdRoute: typeof AppHoldersIdRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppAccountsIndexRoute: typeof AppAccountsIndexRoute
@@ -633,6 +653,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppAccountsIdRoute: AppAccountsIdRoute,
+  AppHoldersIdRoute: AppHoldersIdRoute,
   AppMeActivityRoute: AppMeActivityRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppAccountsIndexRoute: AppAccountsIndexRoute,
@@ -682,3 +703,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
