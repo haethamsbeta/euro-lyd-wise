@@ -111,6 +111,8 @@ export const ar: Dict = {
   "nav.notifications": "الإشعارات",
   "nav.about": "حول التطبيق",
   "nav.more": "المزيد",
+  "nav.import": "استيراد الحسابات",
+  "nav.holders": "أصحاب حسابات دهب",
 
   // app shell
   "shell.noStaffTitle": "لا يوجد وصول للموظفين",

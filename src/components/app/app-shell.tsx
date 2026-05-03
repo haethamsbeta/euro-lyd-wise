@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info,
+  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info, Upload, IdCard,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
@@ -33,8 +33,10 @@ const NAV: NavItem[] = [
   { to: "/app/transactions/new", labelKey: "nav.newTransaction", icon: PlusCircle, roles: ["admin", "teller"] },
   { to: "/app/transactions", labelKey: "nav.transactions", icon: ListOrdered, roles: ["admin", "teller", "auditor"] },
   { to: "/app/accounts", labelKey: "nav.accounts", icon: Users, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/holders", labelKey: "nav.holders", icon: IdCard, roles: ["admin", "teller", "auditor"] },
   { to: "/app/vaults", labelKey: "nav.vaults", icon: Wallet, roles: ["admin", "teller", "auditor"] },
   { to: "/app/approvals", labelKey: "nav.approvals", icon: ClipboardCheck, roles: ["admin"] },
+  { to: "/app/import", labelKey: "nav.import", icon: Upload, roles: ["admin"] },
   { to: "/app/me/activity", labelKey: "nav.myActivity", icon: Activity, roles: ["admin", "teller"] },
   { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
   { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
