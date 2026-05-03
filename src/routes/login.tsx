@@ -20,6 +20,7 @@ type PortalKind = "staff" | "consumer";
 export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>) => ({
     portal: (s.portal === "consumer" ? "consumer" : "staff") as PortalKind,
+    lock: s.lock === 1 || s.lock === "1" || s.lock === true ? 1 : undefined,
   }),
   component: LoginPage,
   head: () => ({ meta: [{ title: "Sign in — Dahab" }] }),
@@ -47,7 +48,7 @@ function LoginPage() {
   const { session, loading } = useAuth();
   const nav = useNavigate();
   const t = useT();
-  const { portal } = Route.useSearch();
+  const { portal, lock } = Route.useSearch();
   const isStaff = portal === "staff";
   useEffect(() => {
     if (!loading && session) nav({ to: isStaff ? "/app" : "/portal" });
@@ -67,7 +68,8 @@ function LoginPage() {
           </p>
         </div>
 
-        {/* Portal switcher */}
+        {/* Portal switcher (hidden when locked from landing) */}
+        {!lock ? (
         <div className="grid grid-cols-2 gap-2 rounded-lg border border-[oklch(0.82_0.14_85/0.2)] bg-[oklch(0.82_0.14_85/0.04)] p-1">
           <Link
             to="/login"
@@ -94,6 +96,7 @@ function LoginPage() {
             {t("landing.customerPortal")}
           </Link>
         </div>
+        ) : null}
 
         <Card className="card-luxe rounded-xl">
           <CardHeader className="text-center">
