@@ -7,10 +7,11 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
-import { formatMinor, formatDateTime, parseAmountToMinor } from "@/lib/format";
+import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
+import { StatementLedger } from "@/components/app/statement-ledger";
 
 export const Route = createFileRoute("/app/accounts/$id")({ component: AccountDetail });
 
@@ -44,7 +45,7 @@ function AccountDetail() {
     queryFn: async () => {
       const { data, error } = await supabase.from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
-        .eq("customer_account_id", id).order("created_at", { ascending: false }).limit(200);
+        .eq("customer_account_id", id).order("created_at", { ascending: false }).limit(500);
       if (error) throw error;
       return data;
     },
@@ -89,38 +90,22 @@ function AccountDetail() {
         <Card>
           <CardHeader><CardTitle className="text-base">Ledger</CardTitle></CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left">TX #</th>
-                    <th className="px-4 py-2 text-left">When</th>
-                    <th className="px-4 py-2 text-left">Type</th>
-                    <th className="px-4 py-2 text-left">Channel</th>
-                    <th className="px-4 py-2 text-right">Amount</th>
-                    <th className="px-4 py-2 text-left">Status</th>
-                    <th className="px-4 py-2 text-left">Comment</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {tx && tx.length === 0 ? (
-                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">No entries yet.</td></tr>
-                  ) : tx?.map((t) => (
-                    <tr key={t.id}>
-                      <td className="px-4 py-2 font-mono">{t.tx_number}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{formatDateTime(t.created_at)}</td>
-                      <td className="px-4 py-2 capitalize">{t.direction}</td>
-                      <td className="px-4 py-2 capitalize">{t.channel}</td>
-                      <td className={`px-4 py-2 text-right font-mono ${t.direction === "deposit" ? "text-success" : "text-destructive"}`}>
-                        {t.direction === "deposit" ? "+" : "−"}{formatMinor(t.amount_minor, t.currency)}
-                      </td>
-                      <td className="px-4 py-2"><Badge variant={t.status === "posted" ? "secondary" : t.status === "pending" ? "outline" : "destructive"}>{t.status}</Badge></td>
-                      <td className="max-w-sm truncate px-4 py-2 text-muted-foreground">{t.comment}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabs defaultValue="USD" className="w-full">
+              <TabsList className="m-3">
+                {(["USD", "EUR", "LYD"] as const).map((c) => (
+                  <TabsTrigger key={c} value={c}>{c}</TabsTrigger>
+                ))}
+              </TabsList>
+              {(["USD", "EUR", "LYD"] as const).map((c) => (
+                <TabsContent key={c} value={c} className="m-0">
+                  <StatementLedger
+                    transactions={(tx ?? []).filter((t) => t.currency === c) as any}
+                    currency={c}
+                    emptyText={`No ${c} transactions yet.`}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
           </CardContent>
         </Card>
       </div>
