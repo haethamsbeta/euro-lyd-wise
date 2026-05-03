@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -17,7 +18,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { formatMinor, formatDateTime } from "@/lib/format";
-import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users, Settings2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, PlusCircle, CheckCircle2, AlertTriangle, Wallet, Landmark, Users, Settings2, UserCircle2, Plus, X, Search } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
@@ -32,6 +33,8 @@ type DashPrefs = {
   showBank: boolean;
   showCustomerTotal: boolean;
   showRecent: boolean;
+  showPinnedCustomers: boolean;
+  pinnedAccountIds: string[];
 };
 
 const DEFAULT_PREFS: DashPrefs = {
@@ -40,6 +43,8 @@ const DEFAULT_PREFS: DashPrefs = {
   showBank: true,
   showCustomerTotal: true,
   showRecent: true,
+  showPinnedCustomers: true,
+  pinnedAccountIds: [],
 };
 
 function usePrefs() {
@@ -217,6 +222,15 @@ function Dashboard() {
             })}
           </div>
         </section>
+
+        {prefs.showPinnedCustomers && prefs.pinnedAccountIds.length > 0 ? (
+          <PinnedCustomerAccounts
+            ids={prefs.pinnedAccountIds}
+            onUnpin={(id) =>
+              update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
+            }
+          />
+        ) : null}
 
         {prefs.showRecent ? (
         <section>
