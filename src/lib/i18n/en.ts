@@ -164,6 +164,11 @@ export const en = {
   "approvals.rejectPrompt": "Reject reason:",
   "approvals.approved": "Approved",
   "approvals.rejected": "Rejected",
+  "approvals.rejectTitle": "Reject this transaction?",
+  "approvals.rejectDescription": "Provide a reason for rejecting",
+  "approvals.rejectReason": "Reason",
+  "approvals.rejectPlaceholder": "Explain why this transaction is being rejected (min. 3 characters)…",
+  "approvals.confirmReject": "Reject transaction",
 
   // users page
   "users.title": "Users & roles",
