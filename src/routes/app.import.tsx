@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Upload, CheckCircle2, AlertTriangle } from "lucide-react";
-import { parseWorkbook, type ParsedRow } from "@/lib/account-import";
+import { parseWorkbook, parseLinkedAccountsWorkbook, type ParsedRow, type LinkedRow } from "@/lib/account-import";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/import")({ component: ImportPage });
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/app/import")({ component: ImportPage });
 function ImportPage() {
   return (
     <RoleGate allow={["admin"]}>
-      <PageHeader title="Account Import" description="Upload an Excel file (Code, Nature, NameA) and link accounts to DAHAB holders." />
+      <PageHeader title="Account Import" description="Upload the linked-accounts Excel file. Each row = one bank account under its DAHAB holder." />
       <Importer />
     </RoleGate>
   );
@@ -25,8 +25,10 @@ function ImportPage() {
 function Importer() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const [mode, setMode] = useState<"linked" | "raw">("linked");
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<ParsedRow[] | null>(null);
+  const [linked, setLinked] = useState<LinkedRow[] | null>(null);
   const [batchId, setBatchId] = useState<number | null>(null);
 
   const { data: history } = useQuery({
@@ -46,8 +48,13 @@ function Importer() {
     setFile(f);
     const buf = await f.arrayBuffer();
     try {
-      const rows = parseWorkbook(buf);
-      setParsed(rows);
+      if (mode === "linked") {
+        setLinked(parseLinkedAccountsWorkbook(buf));
+        setParsed(null);
+      } else {
+        setParsed(parseWorkbook(buf));
+        setLinked(null);
+      }
       setBatchId(null);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to parse file");
@@ -56,7 +63,47 @@ function Importer() {
 
   const stage = useMutation({
     mutationFn: async () => {
-      if (!parsed || !file) throw new Error("Parse a file first");
+      if (!file) throw new Error("Parse a file first");
+      if (mode === "linked") {
+        if (!linked) throw new Error("Parse a file first");
+        const review = linked.filter((r) => r.needs_review).length;
+        const failed = linked.filter((r) => r.error_message).length;
+        const { data: batch, error: e1 } = await supabase
+          .from("account_import_batches")
+          .insert({
+            file_name: file.name,
+            imported_by: user?.id,
+            total_rows: linked.length,
+            review_rows: review,
+            failed_rows: failed,
+            status: "PENDING",
+          })
+          .select("id")
+          .single();
+        if (e1) throw e1;
+        const rows = linked.map((r) => ({
+          import_batch_id: batch.id,
+          source_row_number: r.source_row_number,
+          dahab_account_number: r.dahab_account_number,
+          source_account_number: r.source_account_number,
+          extracted_currency_code: r.currency_code,
+          nature: r.nature,
+          raw_name: r.raw_name,
+          account_alias_name: r.account_alias_name,
+          is_primary_account: r.is_primary_account,
+          canonical_name_candidate: r.canonical_name,
+          base_name_candidate: r.base_name_candidate,
+          normalized_name_candidate: r.normalized_name_candidate,
+          review_status: r.error_message ? "REVIEW" : "PENDING",
+          error_message: r.error_message,
+        }));
+        for (let i = 0; i < rows.length; i += 200) {
+          const { error } = await supabase.from("account_import_staging").insert(rows.slice(i, i + 200));
+          if (error) throw error;
+        }
+        return batch.id as number;
+      }
+      if (!parsed) throw new Error("Parse a file first");
       const review = parsed.filter((r) => r.needs_review).length;
       const failed = parsed.filter((r) => r.error_message).length;
       const { data: batch, error: e1 } = await supabase
@@ -120,13 +167,15 @@ function Importer() {
   const approve = useMutation({
     mutationFn: async () => {
       if (!batchId) throw new Error("No batch");
-      const { data, error } = await supabase.rpc("approve_import_batch", { p_batch_id: batchId });
+      const rpcName = mode === "linked" ? "import_linked_accounts_batch" : "approve_import_batch";
+      const { data, error } = await supabase.rpc(rpcName as any, { p_batch_id: batchId });
       if (error) throw error;
       return data;
     },
     onSuccess: (res: any) => {
       toast.success(`Import approved: ${res.linked_accounts} accounts, ${res.created_holders} new holders.`);
       setParsed(null);
+      setLinked(null);
       setFile(null);
       setBatchId(null);
       qc.invalidateQueries({ queryKey: ["import.batches"] });
@@ -135,7 +184,14 @@ function Importer() {
     onError: (e: any) => toast.error(e.message ?? "Approval failed"),
   });
 
-  const totals = parsed
+  const totals = linked
+    ? {
+        total: linked.length,
+        valid: linked.filter((r) => !r.needs_review && !r.error_message).length,
+        review: linked.filter((r) => r.needs_review && !r.error_message).length,
+        failed: linked.filter((r) => r.error_message).length,
+      }
+    : parsed
     ? {
         total: parsed.length,
         valid: parsed.filter((r) => !r.needs_review && !r.error_message).length,
@@ -148,11 +204,19 @@ function Importer() {
     <div className="space-y-6 p-4 sm:p-6">
       <Card className="card-luxe">
         <CardContent className="p-6">
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button size="sm" variant={mode === "linked" ? "default" : "outline"} onClick={() => { setMode("linked"); setParsed(null); setLinked(null); setFile(null); setBatchId(null); }}>Linked accounts (pre-grouped)</Button>
+            <Button size="sm" variant={mode === "raw" ? "default" : "outline"} onClick={() => { setMode("raw"); setParsed(null); setLinked(null); setFile(null); setBatchId(null); }}>Raw bank export (auto-group)</Button>
+          </div>
           <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-[oklch(0.82_0.14_85/0.3)] p-10 hover:border-[oklch(0.82_0.14_85/0.6)]">
             <Upload className="h-8 w-8 text-gold" />
             <div className="text-center">
               <p className="font-medium">{file ? file.name : "Drop or select an .xlsx file"}</p>
-              <p className="text-xs text-muted-foreground">Columns: Code, Nature, NameA</p>
+              <p className="text-xs text-muted-foreground">
+                {mode === "linked"
+                  ? "Columns: dahab_account_number, account_number, currency_code, account_nature, account_display_name (alias / primary / canonical_name optional). Uses sheet 'Flat Import Table' if present."
+                  : "Columns: Code, Nature, NameA"}
+              </p>
             </div>
             <input
               type="file"
@@ -171,9 +235,9 @@ function Importer() {
             </div>
           )}
 
-          {parsed && !batchId && (
+          {(parsed || linked) && !batchId && (
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setParsed(null); setFile(null); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setParsed(null); setLinked(null); setFile(null); }}>Cancel</Button>
               <Button onClick={() => stage.mutate()} disabled={stage.isPending}>
                 {stage.isPending ? "Staging…" : "Stage import"}
               </Button>
@@ -189,6 +253,46 @@ function Importer() {
           )}
         </CardContent>
       </Card>
+
+      {linked && (
+        <Card className="card-luxe">
+          <CardContent className="p-0">
+            <div className="max-h-[60vh] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b border-[oklch(0.82_0.14_85/0.12)] text-left text-xs uppercase text-muted-foreground">
+                    <th className="p-2">Row</th>
+                    <th className="p-2">DAHAB #</th>
+                    <th className="p-2">Account #</th>
+                    <th className="p-2">Cur</th>
+                    <th className="p-2">Nature</th>
+                    <th className="p-2">Display name</th>
+                    <th className="p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linked.slice(0, 500).map((r) => (
+                    <tr key={r.source_row_number} className="border-b border-[oklch(0.82_0.14_85/0.08)]">
+                      <td className="p-2 text-xs text-muted-foreground">{r.source_row_number}</td>
+                      <td className="p-2 font-mono text-xs">{r.dahab_account_number}</td>
+                      <td className="p-2 font-mono text-xs">{r.source_account_number}</td>
+                      <td className="p-2"><Badge variant={r.currency_code === "UNK" ? "destructive" : "secondary"}>{r.currency_code}</Badge></td>
+                      <td className="p-2 text-xs">{r.nature}</td>
+                      <td className="p-2" dir="rtl">{r.raw_name}</td>
+                      <td className="p-2">
+                        {r.error_message ? <span className="text-destructive">{r.error_message}</span>
+                         : r.needs_review ? <span className="text-warning">review</span>
+                         : <CheckCircle2 className="h-4 w-4 text-success" />}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {linked.length > 500 && <div className="p-2 text-center text-xs text-muted-foreground">Showing first 500 of {linked.length} rows.</div>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {parsed && (
         <Card className="card-luxe">
