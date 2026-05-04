@@ -12,6 +12,12 @@ export function getRpInfo() {
   const bareHost = host.split(":")[0];
   const rpID = bareHost.replace(/^www\./i, "");
   const rpName = "Dahab";
-  const origin = `${proto}://${host}`;
+  // Accept both apex and www variants so a credential registered on one
+  // works on the other (Safari/iCloud Keychain syncs by rpID).
+  const origin = [
+    `${proto}://${bareHost}`,
+    `${proto}://${rpID}`,
+    `${proto}://www.${rpID}`,
+  ].filter((v, i, a) => a.indexOf(v) === i);
   return { rpID, rpName, origin };
 }
