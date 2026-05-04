@@ -21,15 +21,16 @@ type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
 type Currency = "USD" | "EUR" | "LYD";
 
-type CustomerHit = {
-  id: string;
-  name: string;
-  account_number: string | null;
-  phone: string | null;
-  national_id: string | null;
+// A holder card hit = one row in holder_accounts with its parent holder's DAHAB # & name.
+type HolderCardHit = {
+  holder_account_id: number;
+  account_number: string;
+  currency: Currency;
+  balance_minor: number;
+  account_holder_id: number;
+  dahab_account_number: string;
+  holder_name: string;
 };
-
-type Balance = { currency: Currency; balance_minor: number; debit_limit_minor: number };
 
 const COMMENT_MIN = 3;
 const COMMENT_MAX = 280;
@@ -62,9 +63,8 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [picked, setPicked] = useState<CustomerHit | null>(null);
+  const [picked, setPicked] = useState<HolderCardHit | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
-  const [currency, setCurrency] = useState<Currency>("USD");
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -99,46 +99,64 @@ export function EntryForm({ direction }: { direction: Direction }) {
   }, []);
 
   const { data: results, isFetching } = useQuery({
-    queryKey: ["accounts.search", debounced],
-    enabled: debounced.length === 0 || debounced.length >= 1,
+    queryKey: ["holder_cards.search", debounced],
     queryFn: async () => {
-      let q = supabase
-        .from("accounts")
-        .select("id, name, account_number, phone, national_id")
-        .eq("kind", "customer")
-        .eq("status", "active")
-        .order("name")
-        .limit(20);
-      if (debounced) {
-        q = q.or(
-          `name.ilike.%${debounced}%,account_number.ilike.%${debounced}%,phone.ilike.%${debounced}%,national_id.ilike.%${debounced}%`,
-        );
+      // Strategy: find matching holder ids by DAHAB # / name OR card account_number,
+      // then load all currency cards for those holders.
+      const term = debounced;
+      const holderIds = new Set<number>();
+
+      if (term) {
+        const [{ data: byHolder }, { data: byCard }] = await Promise.all([
+          supabase
+            .from("account_holders")
+            .select("id")
+            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%`)
+            .limit(20),
+          supabase
+            .from("holder_accounts")
+            .select("account_holder_id")
+            .ilike("account_number", `%${term}%`)
+            .limit(20),
+        ]);
+        (byHolder ?? []).forEach((r: any) => holderIds.add(r.id));
+        (byCard ?? []).forEach((r: any) => holderIds.add(r.account_holder_id));
+        if (holderIds.size === 0) return [] as HolderCardHit[];
       }
-      const { data, error } = await q;
+
+      let cardsQ = supabase
+        .from("holder_accounts")
+        .select("id, account_number, currency_code, current_balance, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name)")
+        .in("currency_code", ["USD", "EUR", "LYD"])
+        .order("account_holder_id")
+        .limit(60);
+      if (term) {
+        cardsQ = cardsQ.in("account_holder_id", Array.from(holderIds));
+      } else {
+        cardsQ = cardsQ.limit(30);
+      }
+      const { data, error } = await cardsQ;
       if (error) throw error;
-      return (data ?? []) as CustomerHit[];
+      return (data ?? []).map((r: any) => ({
+        holder_account_id: r.id,
+        account_number: r.account_number,
+        currency: r.currency_code as Currency,
+        balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+        account_holder_id: r.account_holder_id,
+        dahab_account_number: r.account_holders?.dahab_account_number ?? "",
+        holder_name: r.account_holders?.canonical_name ?? r.account_number,
+      })) as HolderCardHit[];
     },
   });
 
-  const { data: balances } = useQuery({
-    queryKey: ["account.balances", picked?.id],
-    enabled: !!picked,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_balances")
-        .select("currency, balance_minor, debit_limit_minor")
-        .eq("account_id", picked!.id);
-      if (error) throw error;
-      return (data ?? []) as Balance[];
-    },
-  });
+  const currency: Currency = picked?.currency ?? "USD";
 
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
   const trimmedComment = comment.trim();
   const commentValid = trimmedComment.length >= COMMENT_MIN && trimmedComment.length <= COMMENT_MAX;
 
-  const currentBalance = balances?.find((b) => b.currency === currency)?.balance_minor ?? 0;
-  const debitLimit = balances?.find((b) => b.currency === currency)?.debit_limit_minor ?? 0;
+  const currentBalance = picked?.balance_minor ?? 0;
+  const debitLimit = 0;
   const willOverdraft = !isDeposit && amountMinor !== null && currentBalance - amountMinor < 0;
   const overLimit = !isDeposit && amountMinor !== null && debitLimit > 0 && amountMinor > debitLimit;
   const willPend = willOverdraft || overLimit;
@@ -148,8 +166,14 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
   const post = useMutation({
     mutationFn: async () => {
+      // Bridge: ensure a legacy `accounts` row exists for this holder card.
+      const { data: bridgedId, error: bridgeErr } = await supabase.rpc(
+        "ensure_customer_account_for_holder_account",
+        { p_holder_account_id: picked!.holder_account_id },
+      );
+      if (bridgeErr) throw bridgeErr;
       const parsed = schema.parse({
-        customer_account_id: picked!.id,
+        customer_account_id: bridgedId as string,
         channel: channel!,
         currency,
         amount_minor: amountMinor!,
