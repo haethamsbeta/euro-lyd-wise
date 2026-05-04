@@ -4,7 +4,7 @@ import { useAuth, hasAnyRole, type AppRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, PlusCircle, ListOrdered, Users, Wallet,
+  LayoutDashboard, PlusCircle, ListOrdered, Wallet,
   ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info, Upload, IdCard,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
