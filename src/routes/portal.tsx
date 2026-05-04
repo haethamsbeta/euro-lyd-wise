@@ -15,11 +15,22 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { StatementLedger } from "@/components/app/statement-ledger";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { SessionTimeoutProvider } from "@/lib/session-timeout";
+import { IdleWarningDialog } from "@/components/app/idle-warning-dialog";
 
 export const Route = createFileRoute("/portal")({
-  component: Portal,
+  component: PortalRoute,
   head: () => ({ meta: [{ title: "Customer portal — Dahab" }] }),
 });
+
+function PortalRoute() {
+  return (
+    <SessionTimeoutProvider>
+      <Portal />
+      <IdleWarningDialog />
+    </SessionTimeoutProvider>
+  );
+}
 
 function Portal() {
   const { session, loading, rolesLoading, signOut, user, roles } = useAuth();
