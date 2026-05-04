@@ -27,14 +27,12 @@ import { Route as AppAboutRouteImport } from './routes/app.about'
 import { Route as AppVaultsIndexRouteImport } from './routes/app.vaults.index'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppHoldersIndexRouteImport } from './routes/app.holders.index'
-import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.index'
 import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppImportReviewRouteImport } from './routes/app.import.review'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
-import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
 import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
@@ -131,11 +129,6 @@ const AppHoldersIndexRoute = AppHoldersIndexRouteImport.update({
   path: '/holders/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccountsIndexRoute = AppAccountsIndexRouteImport.update({
-  id: '/accounts/',
-  path: '/accounts/',
-  getParentRoute: () => AppRoute,
-} as any)
 const PortalAccountIdCurrencyRoute = PortalAccountIdCurrencyRouteImport.update({
   id: '/$accountId/$currency',
   path: '/$accountId/$currency',
@@ -165,11 +158,6 @@ const AppImportReviewRoute = AppImportReviewRouteImport.update({
 const AppHoldersIdRoute = AppHoldersIdRouteImport.update({
   id: '/holders/$id',
   path: '/holders/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAccountsIdRoute = AppAccountsIdRouteImport.update({
-  id: '/accounts/$id',
-  path: '/accounts/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTransactionsNewIndexRoute = AppTransactionsNewIndexRouteImport.update({
@@ -217,14 +205,12 @@ export interface FileRoutesByFullPath {
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
-  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
-  '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/holders/': typeof AppHoldersIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/vaults/': typeof AppVaultsIndexRoute
@@ -247,14 +233,12 @@ export interface FileRoutesByTo {
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
   '/m': typeof MIndexRoute
-  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
-  '/app/accounts': typeof AppAccountsIndexRoute
   '/app/holders': typeof AppHoldersIndexRoute
   '/app/transactions': typeof AppTransactionsIndexRoute
   '/app/vaults': typeof AppVaultsIndexRoute
@@ -281,14 +265,12 @@ export interface FileRoutesById {
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
-  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
-  '/app/accounts/': typeof AppAccountsIndexRoute
   '/app/holders/': typeof AppHoldersIndexRoute
   '/app/transactions/': typeof AppTransactionsIndexRoute
   '/app/vaults/': typeof AppVaultsIndexRoute
@@ -316,14 +298,12 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app/'
     | '/m/'
-    | '/app/accounts/$id'
     | '/app/holders/$id'
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
-    | '/app/accounts/'
     | '/app/holders/'
     | '/app/transactions/'
     | '/app/vaults/'
@@ -346,14 +326,12 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app'
     | '/m'
-    | '/app/accounts/$id'
     | '/app/holders/$id'
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
-    | '/app/accounts'
     | '/app/holders'
     | '/app/transactions'
     | '/app/vaults'
@@ -379,14 +357,12 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app/'
     | '/m/'
-    | '/app/accounts/$id'
     | '/app/holders/$id'
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
-    | '/app/accounts/'
     | '/app/holders/'
     | '/app/transactions/'
     | '/app/vaults/'
@@ -535,13 +511,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHoldersIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/accounts/': {
-      id: '/app/accounts/'
-      path: '/accounts'
-      fullPath: '/app/accounts/'
-      preLoaderRoute: typeof AppAccountsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/portal/$accountId/$currency': {
       id: '/portal/$accountId/$currency'
       path: '/$accountId/$currency'
@@ -582,13 +551,6 @@ declare module '@tanstack/react-router' {
       path: '/holders/$id'
       fullPath: '/app/holders/$id'
       preLoaderRoute: typeof AppHoldersIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/accounts/$id': {
-      id: '/app/accounts/$id'
-      path: '/accounts/$id'
-      fullPath: '/app/accounts/$id'
-      preLoaderRoute: typeof AppAccountsIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/transactions/new/': {
@@ -663,11 +625,9 @@ interface AppRouteChildren {
   AppUsersRoute: typeof AppUsersRoute
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
-  AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
-  AppAccountsIndexRoute: typeof AppAccountsIndexRoute
   AppHoldersIndexRoute: typeof AppHoldersIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
   AppTransactionsNewDepositRoute: typeof AppTransactionsNewDepositRoute
@@ -683,11 +643,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppUsersRoute: AppUsersRoute,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
-  AppAccountsIdRoute: AppAccountsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
   AppMeActivityRoute: AppMeActivityRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
-  AppAccountsIndexRoute: AppAccountsIndexRoute,
   AppHoldersIndexRoute: AppHoldersIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
   AppTransactionsNewDepositRoute: AppTransactionsNewDepositRoute,
