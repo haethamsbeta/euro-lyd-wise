@@ -237,7 +237,7 @@ export const finishPasskeyAuthentication = createServerFn({ method: "POST" })
       type: "magiclink",
       email: row.email,
     });
-    if (linkErr || !link?.properties?.email_otp) {
+    if (linkErr || !link?.properties?.hashed_token) {
       throw new Error(linkErr?.message ?? "Could not start session");
     }
 
