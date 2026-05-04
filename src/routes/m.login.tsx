@@ -3,8 +3,11 @@ import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, User, Lock, Eye, EyeOff, Fingerprint } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, User, Lock, Eye, EyeOff, Fingerprint, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/m/login")({
   component: MobileLogin,
@@ -13,7 +16,31 @@ export const Route = createFileRoute("/m/login")({
 
 function MobileLogin() {
   const [show, setShow] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioOk, setBioOk] = useState(false);
   const navigate = useNavigate();
+  useEffect(() => { passkeysSupported().then(setBioOk); }, []);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    navigate({ to: "/m/dashboard" });
+  }
+  async function onPasskey() {
+    setBioBusy(true);
+    try {
+      await signInWithPasskey(email || undefined);
+      navigate({ to: "/m/dashboard" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Face ID sign-in failed");
+    } finally { setBioBusy(false); }
+  }
 
   return (
     <PhoneShell>
@@ -36,18 +63,25 @@ function MobileLogin() {
           <p className="mt-1 text-sm text-muted-foreground">Sign in to access your account</p>
         </div>
 
-        <form
-          className="mt-6 space-y-3"
-          onSubmit={(e) => { e.preventDefault(); navigate({ to: "/m/dashboard" }); }}
-        >
+        <form className="mt-6 space-y-3" onSubmit={onSubmit}>
           <div className="relative">
             <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-deep" />
-            <Input placeholder="Username or Email" className="h-14 rounded-2xl pl-11 bg-secondary/60 border-border" />
+            <Input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="h-14 rounded-2xl pl-11 bg-secondary/60 border-border"
+            />
           </div>
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-deep" />
             <Input
               type={show ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               placeholder="Password"
               className="h-14 rounded-2xl pl-11 pr-11 bg-secondary/60 border-border"
             />
@@ -64,8 +98,12 @@ function MobileLogin() {
             <button type="button" className="text-gold-deep font-medium">Forgot password?</button>
           </div>
 
-          <Button type="submit" className="w-full h-14 rounded-2xl bg-gradient-gold text-primary-foreground text-base shadow-gold hover:opacity-95 mt-2">
-            Sign In
+          <Button
+            type="submit"
+            disabled={busy}
+            className="w-full h-14 rounded-2xl bg-gradient-gold text-primary-foreground text-base shadow-gold hover:opacity-95 mt-2"
+          >
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
           </Button>
         </form>
 
@@ -75,9 +113,18 @@ function MobileLogin() {
           <div className="h-px flex-1 bg-border" />
         </div>
 
-        <Button variant="outline" className="w-full h-14 rounded-2xl border-gold text-gold-deep gap-2">
-          <Fingerprint className="h-5 w-5" /> Sign In with Biometrics
-        </Button>
+        {bioOk ? (
+          <Button
+            type="button"
+            onClick={onPasskey}
+            disabled={bioBusy}
+            variant="outline"
+            className="w-full h-14 rounded-2xl border-gold text-gold-deep gap-2"
+          >
+            {bioBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}
+            Sign In with Face ID
+          </Button>
+        ) : null}
 
         <div className="mt-auto pt-6 text-center text-sm text-muted-foreground">
           Don't have an account? <button className="font-semibold text-gold-deep">Register Now</button>

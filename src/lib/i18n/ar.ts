@@ -109,6 +109,7 @@ export const ar: Dict = {
   "nav.audit": "سجل التدقيق",
   "nav.users": "المستخدمون والأدوار",
   "nav.notifications": "الإشعارات",
+  "nav.security": "الأمان",
   "nav.about": "حول التطبيق",
   "nav.more": "المزيد",
   "nav.import": "استيراد الحسابات",
