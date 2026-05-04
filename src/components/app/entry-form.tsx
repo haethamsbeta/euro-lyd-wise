@@ -344,7 +344,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={searchRef}
-                placeholder="Search by name, account #, phone, or national ID…"
+                placeholder="Search by DAHAB #, name, or account #…"
                 className="pl-9"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPicked(null); }}
@@ -354,21 +354,17 @@ export function EntryForm({ direction }: { direction: Direction }) {
               <div className="rounded-md border bg-muted/30 p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">{picked.name}</div>
-                    <div className="text-xs text-muted-foreground">#{picked.account_number}</div>
+                    <div className="font-medium">{picked.holder_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      <span className="text-primary font-mono">{picked.dahab_account_number}</span>
+                      {" · "}#{picked.account_number} · {picked.currency}
+                    </div>
                   </div>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPicked(null)}>Change</Button>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                  {(["USD", "EUR", "LYD"] as const).map((c) => {
-                    const b = balances?.find((x) => x.currency === c)?.balance_minor ?? 0;
-                    return (
-                      <div key={c} className="rounded border bg-background p-2">
-                        <div className="text-muted-foreground">{c}</div>
-                        <div className="font-medium">{formatMinor(b, c)}</div>
-                      </div>
-                    );
-                  })}
+                <div className="mt-2 rounded border bg-background p-2 text-xs">
+                  <span className="text-muted-foreground">Current balance ({picked.currency}): </span>
+                  <span className="font-mono font-medium">{formatMinor(picked.balance_minor, picked.currency)}</span>
                 </div>
               </div>
             ) : (
@@ -378,21 +374,27 @@ export function EntryForm({ direction }: { direction: Direction }) {
                 ) : results && results.length > 0 ? (
                   <ul>
                     {results.map((r) => (
-                      <li key={r.id}>
+                      <li key={r.holder_account_id}>
                         <button
                           type="button"
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
                           onClick={() => setPicked(r)}
                         >
-                          <span className="font-medium">{r.name}</span>
-                          <span className="text-xs text-muted-foreground">#{r.account_number} · {r.phone ?? ""}</span>
+                          <span className="min-w-0 truncate">
+                            <span className="font-mono text-primary">{r.dahab_account_number}</span>
+                            <span className="mx-2">·</span>
+                            <span className="font-medium">{r.holder_name}</span>
+                          </span>
+                          <span className="ml-3 shrink-0 text-xs text-muted-foreground">
+                            {r.currency} #{r.account_number} · {formatMinor(r.balance_minor, r.currency)}
+                          </span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div className="p-3 text-sm text-muted-foreground">
-                    No customer accounts. Ask an admin to create one.
+                    No matching DAHAB accounts.
                   </div>
                 )}
               </div>
@@ -402,19 +404,14 @@ export function EntryForm({ direction }: { direction: Direction }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">3. Currency &amp; amount</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">3. Amount</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                  <SelectTrigger id="currency" className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(["USD", "EUR", "LYD"] as const).map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Currency</Label>
+                <div className="mt-1.5 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
+                  {picked ? picked.currency : "—"}
+                </div>
               </div>
               <div className="col-span-2">
                 <Label htmlFor="amount">Amount</Label>
