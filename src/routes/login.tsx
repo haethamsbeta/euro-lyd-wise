@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2, Users, UserCircle2, Fingerprint } from "lucide-react";
+import { Sparkles, Copy, Loader2, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
