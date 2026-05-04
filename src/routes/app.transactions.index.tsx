@@ -80,6 +80,7 @@ type Tx = {
   corrected_by_tx_id: string | null;
   customer_name: string | null;
   customer_account_number: string | null;
+  customer_dahab_number: string | null;
   attachment_count: number;
 };
 
@@ -150,6 +151,7 @@ function TxList() {
         corrected_by_tx_id: r.corrected_by_tx_id,
         customer_name: r.customer?.name ?? null,
         customer_account_number: r.customer?.account_number ?? null,
+        customer_dahab_number: null,
         attachment_count: Array.isArray(r.transaction_attachments)
           ? Number(r.transaction_attachments[0]?.count ?? 0)
           : 0,
@@ -157,6 +159,21 @@ function TxList() {
     },
   });
 
+
+  const { data: dahabMap } = useQuery({
+    queryKey: ["transactions.dahabmap"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("holder_accounts")
+        .select("account_number,dahab_account_number");
+      if (error) throw error;
+      const m = new Map<string, string>();
+      for (const r of data ?? []) {
+        if (r.account_number && r.dahab_account_number) m.set(r.account_number, r.dahab_account_number);
+      }
+      return m;
+    },
+  });
   // tx_number → tx for chain references
   const byNumber = useMemo(() => {
     const m = new Map<string, Tx>();
@@ -165,7 +182,10 @@ function TxList() {
   }, [data]);
 
   const filtered = useMemo(() => {
-    let rows = data ?? [];
+    let rows = (data ?? []).map((t) => ({
+      ...t,
+      customer_dahab_number: t.customer_account_number ? (dahabMap?.get(t.customer_account_number) ?? null) : null,
+    }));
     if (statusFilter !== "all") rows = rows.filter((t) => t.status === statusFilter);
     if (directionFilter !== "all") rows = rows.filter((t) => t.direction === directionFilter);
     if (filesOnly) rows = rows.filter((t) => t.attachment_count > 0);
@@ -177,6 +197,7 @@ function TxList() {
           t.tx_number.toLowerCase().includes(term) ||
           (t.customer_name ?? "").toLowerCase().includes(term) ||
           (t.customer_account_number ?? "").toLowerCase().includes(term) ||
+          (t.customer_dahab_number ?? "").toLowerCase().includes(term) ||
           (t.comment ?? "").toLowerCase().includes(term) ||
           amountStr.includes(term) ||
           t.currency.toLowerCase().includes(term)
@@ -202,7 +223,7 @@ function TxList() {
       });
     }
     return rows;
-  }, [data, statusFilter, directionFilter, filesOnly, debouncedQ, datePreset, customFrom, customTo]);
+  }, [data, dahabMap, statusFilter, directionFilter, filesOnly, debouncedQ, datePreset, customFrom, customTo]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
@@ -222,7 +243,7 @@ function TxList() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Search TX #, customer, amount…"
+                placeholder="Search TX #, DAHAB #, customer, amount…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
