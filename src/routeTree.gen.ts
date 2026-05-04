@@ -29,6 +29,7 @@ import { Route as AppTransactionsIndexRouteImport } from './routes/app.transacti
 import { Route as AppHoldersIndexRouteImport } from './routes/app.holders.index'
 import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
+import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppImportReviewRouteImport } from './routes/app.import.review'
@@ -139,6 +140,11 @@ const AppVaultsIdRoute = AppVaultsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppVaultsRoute,
 } as any)
+const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
+  id: '/settings/security',
+  path: '/settings/security',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsNotificationsRoute =
   AppSettingsNotificationsRouteImport.update({
     id: '/settings/notifications',
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/holders/': typeof AppHoldersIndexRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/holders': typeof AppHoldersIndexRoute
@@ -269,6 +277,7 @@ export interface FileRoutesById {
   '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/holders/': typeof AppHoldersIndexRoute
@@ -302,6 +311,7 @@ export interface FileRouteTypes {
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/settings/security'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/holders/'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/settings/security'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/holders'
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
+    | '/app/settings/security'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/holders/'
@@ -525,6 +537,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVaultsIdRouteImport
       parentRoute: typeof AppVaultsRoute
     }
+    '/app/settings/security': {
+      id: '/app/settings/security'
+      path: '/settings/security'
+      fullPath: '/app/settings/security'
+      preLoaderRoute: typeof AppSettingsSecurityRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings/notifications': {
       id: '/app/settings/notifications'
       path: '/settings/notifications'
@@ -628,6 +647,7 @@ interface AppRouteChildren {
   AppHoldersIdRoute: typeof AppHoldersIdRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
+  AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppHoldersIndexRoute: typeof AppHoldersIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
   AppTransactionsNewDepositRoute: typeof AppTransactionsNewDepositRoute
@@ -646,6 +666,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppHoldersIdRoute: AppHoldersIdRoute,
   AppMeActivityRoute: AppMeActivityRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
+  AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppHoldersIndexRoute: AppHoldersIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
   AppTransactionsNewDepositRoute: AppTransactionsNewDepositRoute,

@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2, Users, UserCircle2 } from "lucide-react";
+import { Sparkles, Copy, Loader2, Users, UserCircle2, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
+import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 
 type PortalKind = "staff" | "consumer";
 
@@ -158,6 +159,9 @@ function SignInForm({ portal }: { portal: PortalKind }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioOk, setBioOk] = useState(false);
+  useEffect(() => { passkeysSupported().then(setBioOk); }, []);
 
   useEffect(() => {
     __fillSignIn = (e, p) => { setEmail(e); setPassword(p); };
@@ -204,6 +208,19 @@ function SignInForm({ portal }: { portal: PortalKind }) {
     nav({ to: portal === "staff" ? "/app" : "/portal" });
   }
 
+  async function onPasskey() {
+    setBioBusy(true);
+    try {
+      await signInWithPasskey(email || undefined);
+      toast.success(t("login.welcomeToast"));
+      nav({ to: portal === "staff" ? "/app" : "/portal" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Face ID sign-in failed");
+    } finally {
+      setBioBusy(false);
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-1.5">
@@ -221,6 +238,18 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       >
         {busy ? t("login.signingIn") : t("common.signIn")}
       </Button>
+      {bioOk ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full gap-2 border-gold text-gold-deep"
+          disabled={bioBusy}
+          onClick={onPasskey}
+        >
+          {bioBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+          Sign in with Face ID
+        </Button>
+      ) : null}
     </form>
   );
 }
