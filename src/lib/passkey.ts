@@ -35,12 +35,11 @@ export async function signInWithPasskey(email?: string) {
     data: { email: email?.trim() || undefined },
   });
   const response = await startAuthentication({ optionsJSON: options as any });
-  const { email: resolvedEmail, token_hash } = await finishPasskeyAuthentication({
+  const { token_hash } = await finishPasskeyAuthentication({
     data: { response },
   });
   const { error } = await supabase.auth.verifyOtp({
     type: "magiclink",
-    email: resolvedEmail,
     token_hash,
   });
   if (error) throw error;
