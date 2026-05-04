@@ -108,6 +108,7 @@ export const en = {
   "nav.audit": "Audit log",
   "nav.users": "Users & roles",
   "nav.notifications": "Notifications",
+  "nav.security": "Security",
   "nav.about": "About",
   "nav.more": "More",
   "nav.import": "Account import",
