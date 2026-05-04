@@ -7,8 +7,17 @@ export function getRpInfo() {
     getRequestHeader("x-forwarded-proto") ??
     (host.startsWith("localhost") ? "http" : "https");
   // rpID must be a registrable domain (no port, no scheme).
-  const rpID = host.split(":")[0];
+  // Strip a leading "www." so credentials registered on either
+  // apex (example.com) or www subdomain are usable on both.
+  const bareHost = host.split(":")[0];
+  const rpID = bareHost.replace(/^www\./i, "");
   const rpName = "Dahab";
-  const origin = `${proto}://${host}`;
+  // Accept both apex and www variants so a credential registered on one
+  // works on the other (Safari/iCloud Keychain syncs by rpID).
+  const origin = [
+    `${proto}://${bareHost}`,
+    `${proto}://${rpID}`,
+    `${proto}://www.${rpID}`,
+  ].filter((v, i, a) => a.indexOf(v) === i);
   return { rpID, rpName, origin };
 }
