@@ -4,9 +4,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { LanguageProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
-import { SessionTimeoutProvider } from "@/lib/session-timeout";
-import { IdleWarningDialog } from "@/components/app/idle-warning-dialog";
-
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -100,11 +97,8 @@ function RootComponent() {
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
-            <SessionTimeoutProvider>
               <Outlet />
-              <IdleWarningDialog />
               <Toaster richColors position="top-right" />
-            </SessionTimeoutProvider>
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>
