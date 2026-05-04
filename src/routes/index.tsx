@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Scale, Eye, Sparkles, Users, UserCircle2 } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useT } from "@/lib/i18n";
@@ -17,11 +17,6 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const t = useT();
-  const pillars = [
-    { icon: Scale,        title: t("landing.pillar1.title"), body: t("landing.pillar1.body") },
-    { icon: ShieldCheck,  title: t("landing.pillar2.title"), body: t("landing.pillar2.body") },
-    { icon: Eye,          title: t("landing.pillar3.title"), body: t("landing.pillar3.body") },
-  ];
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Decorative gold glow */}
@@ -68,66 +63,8 @@ function Index() {
           <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
             {t("landing.subtitle")}
           </p>
-
-          {/* Two clear entry CTAs */}
-          <p className="mt-10 text-[11px] font-medium uppercase tracking-[0.32em] text-gold/80">
-            {t("landing.chooseEntry")}
-          </p>
-          <div className="mx-auto mt-4 grid max-w-2xl gap-3 sm:grid-cols-2">
-            <Link
-              to="/login"
-              search={{ portal: "staff", lock: 1 } as any}
-              className="group relative flex flex-col items-start gap-2 rounded-xl border border-[oklch(0.82_0.14_85/0.3)] bg-[oklch(0.82_0.14_85/0.06)] p-5 text-start transition hover:border-[oklch(0.82_0.14_85/0.55)] hover:bg-[oklch(0.82_0.14_85/0.1)]"
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-gold text-primary-foreground shadow-gold">
-                  <Users className="h-4 w-4" />
-                </span>
-                <ArrowRight className="h-4 w-4 text-gold transition group-hover:translate-x-1 rtl:rotate-180 rtl:group-hover:-translate-x-1" />
-              </div>
-              <div className="font-serif text-lg font-semibold text-foreground">{t("landing.dahabFamily")}</div>
-              <div className="text-xs leading-relaxed text-muted-foreground">{t("landing.dahabFamilyHint")}</div>
-            </Link>
-            <Link
-              to="/login"
-              search={{ portal: "consumer", lock: 1 } as any}
-              className="group relative flex flex-col items-start gap-2 rounded-xl border border-[oklch(0.82_0.14_85/0.18)] bg-card p-5 text-start transition hover:border-[oklch(0.82_0.14_85/0.45)] hover:bg-[oklch(0.82_0.14_85/0.06)]"
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[oklch(0.82_0.14_85/0.3)] bg-[oklch(0.82_0.14_85/0.08)] text-gold">
-                  <UserCircle2 className="h-4 w-4" />
-                </span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-gold rtl:rotate-180 rtl:group-hover:-translate-x-1" />
-              </div>
-              <div className="font-serif text-lg font-semibold text-foreground">{t("landing.customerPortal")}</div>
-              <div className="text-xs leading-relaxed text-muted-foreground">{t("landing.customerPortalHint")}</div>
-            </Link>
-          </div>
-
-          <div className="mx-auto mt-14 hr-gold max-w-xs" />
-
-          <p className="mt-4 font-serif italic text-sm text-muted-foreground">
-            {t("landing.arabicNote")}
-          </p>
-        </div>
-
-        {/* Pillars */}
-        <div className="mx-auto mt-16 grid max-w-5xl gap-px overflow-hidden rounded-2xl border border-[oklch(0.82_0.14_85/0.18)] bg-[oklch(0.82_0.14_85/0.18)] sm:mt-24 md:grid-cols-3">
-          {pillars.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="bg-card p-8">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[oklch(0.82_0.14_85/0.3)] bg-[oklch(0.82_0.14_85/0.08)] text-gold">
-                <Icon className="h-5 w-5" />
-              </div>
-              <h3 className="mt-4 font-serif text-lg font-semibold">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-            </div>
-          ))}
         </div>
       </main>
-
-      <footer className="relative z-10 border-t border-[oklch(0.82_0.14_85/0.12)] py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Dahab Financial · ذهب · {t("landing.footer")}
-      </footer>
     </div>
   );
 }
