@@ -34,7 +34,27 @@ export async function signInWithPasskey(email?: string) {
   const options = await beginPasskeyAuthentication({
     data: { email: email?.trim() || undefined },
   });
-  const response = await startAuthentication({ optionsJSON: options as any });
+  let response;
+  try {
+    response = await startAuthentication({ optionsJSON: options as any });
+  } catch (err: any) {
+    const name = err?.name ?? "";
+    if (name === "NotAllowedError") {
+      throw new Error(
+        "No Face ID passkey is available for this site on this device. " +
+          "Sign in with your password, then enable Face ID in Settings → Security.",
+      );
+    }
+    if (name === "SecurityError") {
+      throw new Error(
+        "Face ID is unavailable on this domain. Make sure you're on the same site where you registered the passkey.",
+      );
+    }
+    if (name === "InvalidStateError") {
+      throw new Error("This device's passkey is not recognized. Re-enable Face ID in Settings → Security.");
+    }
+    throw new Error(err?.message ?? "Face ID sign-in failed");
+  }
   const { token_hash } = await finishPasskeyAuthentication({
     data: { response },
   });

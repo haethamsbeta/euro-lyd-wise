@@ -19,5 +19,6 @@ export function getRpInfo() {
     `${proto}://${rpID}`,
     `${proto}://www.${rpID}`,
   ].filter((v, i, a) => a.indexOf(v) === i);
+  console.log("[passkey] rpInfo", { host, rpID, origin });
   return { rpID, rpName, origin };
 }
