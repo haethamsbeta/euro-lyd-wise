@@ -214,7 +214,7 @@ function Dashboard() {
                     {prefs.showCustomerTotal ? (
                     <div className="border-t border-[oklch(0.78_0.13_82/0.20)] pt-2">
                       <Link
-                        to="/app/accounts"
+                        to="/app/holders"
                         className="-mx-2 flex items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-[oklch(0.78_0.13_82/0.10)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.10)]"
                       >
                         <span className="flex items-center gap-2 text-muted-foreground">
@@ -246,13 +246,9 @@ function Dashboard() {
                   {data?.recentTx.map((tx) => (
                     <li key={tx.id}>
                       {tx.customer_account_id ? (
-                        <Link
-                          to="/app/accounts/$id"
-                          params={{ id: tx.customer_account_id }}
-                          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-[oklch(0.78_0.13_82/0.05)] focus:outline-none focus-visible:bg-[oklch(0.78_0.13_82/0.08)]"
-                        >
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
                           <RecentTransactionContent tx={tx} />
-                        </Link>
+                        </div>
                       ) : (
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
                           <RecentTransactionContent tx={tx} />
@@ -375,7 +371,7 @@ function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id:
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
-                <Link to="/app/accounts/$id" params={{ id: a.id }} className="block">
+                <div className="block">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <UserCircle2 className="h-4 w-4 text-gold" />
@@ -391,7 +387,7 @@ function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id:
                       </div>
                     ))}
                   </CardContent>
-                </Link>
+                </div>
               </Card>
             );
           })}
