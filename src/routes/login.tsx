@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2, Users, UserCircle2, Fingerprint } from "lucide-react";
+import { Sparkles, Copy, Loader2, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
@@ -69,35 +69,7 @@ function LoginPage() {
           </p>
         </div>
 
-        {/* Portal switcher (hidden when locked from landing) */}
-        {!lock ? (
-        <div className="grid grid-cols-2 gap-2 rounded-lg border border-[oklch(0.82_0.14_85/0.2)] bg-[oklch(0.82_0.14_85/0.04)] p-1">
-          <Link
-            to="/login"
-            search={{ portal: "staff" } as any}
-            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition ${
-              isStaff
-                ? "bg-gradient-gold text-primary-foreground shadow-gold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            {t("landing.dahabFamily")}
-          </Link>
-          <Link
-            to="/login"
-            search={{ portal: "consumer" } as any}
-            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition ${
-              !isStaff
-                ? "bg-gradient-gold text-primary-foreground shadow-gold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <UserCircle2 className="h-3.5 w-3.5" />
-            {t("landing.customerPortal")}
-          </Link>
-        </div>
-        ) : null}
+        {/* Portal switcher removed — portal is always selected on the landing page. */}
 
         <Card className="card-luxe rounded-xl">
           <CardHeader className="text-center">
@@ -142,7 +114,7 @@ function LoginPage() {
           </CardContent>
         </Card>
 
-        <DemoCredentials portal={portal} lock={!!lock} />
+        <DemoCredentials portal={portal} lock={true} />
 
         <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />
