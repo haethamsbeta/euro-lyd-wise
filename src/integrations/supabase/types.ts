@@ -969,6 +969,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_customer_account_for_holder_account: {
+        Args: { p_holder_account_id: number }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

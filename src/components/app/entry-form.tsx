@@ -21,15 +21,16 @@ type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
 type Currency = "USD" | "EUR" | "LYD";
 
-type CustomerHit = {
-  id: string;
-  name: string;
-  account_number: string | null;
-  phone: string | null;
-  national_id: string | null;
+// A holder card hit = one row in holder_accounts with its parent holder's DAHAB # & name.
+type HolderCardHit = {
+  holder_account_id: number;
+  account_number: string;
+  currency: Currency;
+  balance_minor: number;
+  account_holder_id: number;
+  dahab_account_number: string;
+  holder_name: string;
 };
-
-type Balance = { currency: Currency; balance_minor: number; debit_limit_minor: number };
 
 const COMMENT_MIN = 3;
 const COMMENT_MAX = 280;
@@ -62,9 +63,8 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [picked, setPicked] = useState<CustomerHit | null>(null);
+  const [picked, setPicked] = useState<HolderCardHit | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
-  const [currency, setCurrency] = useState<Currency>("USD");
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -99,46 +99,64 @@ export function EntryForm({ direction }: { direction: Direction }) {
   }, []);
 
   const { data: results, isFetching } = useQuery({
-    queryKey: ["accounts.search", debounced],
-    enabled: debounced.length === 0 || debounced.length >= 1,
+    queryKey: ["holder_cards.search", debounced],
     queryFn: async () => {
-      let q = supabase
-        .from("accounts")
-        .select("id, name, account_number, phone, national_id")
-        .eq("kind", "customer")
-        .eq("status", "active")
-        .order("name")
-        .limit(20);
-      if (debounced) {
-        q = q.or(
-          `name.ilike.%${debounced}%,account_number.ilike.%${debounced}%,phone.ilike.%${debounced}%,national_id.ilike.%${debounced}%`,
-        );
+      // Strategy: find matching holder ids by DAHAB # / name OR card account_number,
+      // then load all currency cards for those holders.
+      const term = debounced;
+      const holderIds = new Set<number>();
+
+      if (term) {
+        const [{ data: byHolder }, { data: byCard }] = await Promise.all([
+          supabase
+            .from("account_holders")
+            .select("id")
+            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%`)
+            .limit(20),
+          supabase
+            .from("holder_accounts")
+            .select("account_holder_id")
+            .ilike("account_number", `%${term}%`)
+            .limit(20),
+        ]);
+        (byHolder ?? []).forEach((r: any) => holderIds.add(r.id));
+        (byCard ?? []).forEach((r: any) => holderIds.add(r.account_holder_id));
+        if (holderIds.size === 0) return [] as HolderCardHit[];
       }
-      const { data, error } = await q;
+
+      let cardsQ = supabase
+        .from("holder_accounts")
+        .select("id, account_number, currency_code, current_balance, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name)")
+        .in("currency_code", ["USD", "EUR", "LYD"])
+        .order("account_holder_id")
+        .limit(60);
+      if (term) {
+        cardsQ = cardsQ.in("account_holder_id", Array.from(holderIds));
+      } else {
+        cardsQ = cardsQ.limit(30);
+      }
+      const { data, error } = await cardsQ;
       if (error) throw error;
-      return (data ?? []) as CustomerHit[];
+      return (data ?? []).map((r: any) => ({
+        holder_account_id: r.id,
+        account_number: r.account_number,
+        currency: r.currency_code as Currency,
+        balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+        account_holder_id: r.account_holder_id,
+        dahab_account_number: r.account_holders?.dahab_account_number ?? "",
+        holder_name: r.account_holders?.canonical_name ?? r.account_number,
+      })) as HolderCardHit[];
     },
   });
 
-  const { data: balances } = useQuery({
-    queryKey: ["account.balances", picked?.id],
-    enabled: !!picked,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_balances")
-        .select("currency, balance_minor, debit_limit_minor")
-        .eq("account_id", picked!.id);
-      if (error) throw error;
-      return (data ?? []) as Balance[];
-    },
-  });
+  const currency: Currency = picked?.currency ?? "USD";
 
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
   const trimmedComment = comment.trim();
   const commentValid = trimmedComment.length >= COMMENT_MIN && trimmedComment.length <= COMMENT_MAX;
 
-  const currentBalance = balances?.find((b) => b.currency === currency)?.balance_minor ?? 0;
-  const debitLimit = balances?.find((b) => b.currency === currency)?.debit_limit_minor ?? 0;
+  const currentBalance = picked?.balance_minor ?? 0;
+  const debitLimit = 0;
   const willOverdraft = !isDeposit && amountMinor !== null && currentBalance - amountMinor < 0;
   const overLimit = !isDeposit && amountMinor !== null && debitLimit > 0 && amountMinor > debitLimit;
   const willPend = willOverdraft || overLimit;
@@ -148,8 +166,14 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
   const post = useMutation({
     mutationFn: async () => {
+      // Bridge: ensure a legacy `accounts` row exists for this holder card.
+      const { data: bridgedId, error: bridgeErr } = await supabase.rpc(
+        "ensure_customer_account_for_holder_account",
+        { p_holder_account_id: picked!.holder_account_id },
+      );
+      if (bridgeErr) throw bridgeErr;
       const parsed = schema.parse({
-        customer_account_id: picked!.id,
+        customer_account_id: bridgedId as string,
         channel: channel!,
         currency,
         amount_minor: amountMinor!,
@@ -320,7 +344,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={searchRef}
-                placeholder="Search by name, account #, phone, or national ID…"
+                placeholder="Search by DAHAB #, name, or account #…"
                 className="pl-9"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPicked(null); }}
@@ -330,21 +354,17 @@ export function EntryForm({ direction }: { direction: Direction }) {
               <div className="rounded-md border bg-muted/30 p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">{picked.name}</div>
-                    <div className="text-xs text-muted-foreground">#{picked.account_number}</div>
+                    <div className="font-medium">{picked.holder_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      <span className="text-primary font-mono">{picked.dahab_account_number}</span>
+                      {" · "}#{picked.account_number} · {picked.currency}
+                    </div>
                   </div>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPicked(null)}>Change</Button>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                  {(["USD", "EUR", "LYD"] as const).map((c) => {
-                    const b = balances?.find((x) => x.currency === c)?.balance_minor ?? 0;
-                    return (
-                      <div key={c} className="rounded border bg-background p-2">
-                        <div className="text-muted-foreground">{c}</div>
-                        <div className="font-medium">{formatMinor(b, c)}</div>
-                      </div>
-                    );
-                  })}
+                <div className="mt-2 rounded border bg-background p-2 text-xs">
+                  <span className="text-muted-foreground">Current balance ({picked.currency}): </span>
+                  <span className="font-mono font-medium">{formatMinor(picked.balance_minor, picked.currency)}</span>
                 </div>
               </div>
             ) : (
@@ -354,21 +374,27 @@ export function EntryForm({ direction }: { direction: Direction }) {
                 ) : results && results.length > 0 ? (
                   <ul>
                     {results.map((r) => (
-                      <li key={r.id}>
+                      <li key={r.holder_account_id}>
                         <button
                           type="button"
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
                           onClick={() => setPicked(r)}
                         >
-                          <span className="font-medium">{r.name}</span>
-                          <span className="text-xs text-muted-foreground">#{r.account_number} · {r.phone ?? ""}</span>
+                          <span className="min-w-0 truncate">
+                            <span className="font-mono text-primary">{r.dahab_account_number}</span>
+                            <span className="mx-2">·</span>
+                            <span className="font-medium">{r.holder_name}</span>
+                          </span>
+                          <span className="ml-3 shrink-0 text-xs text-muted-foreground">
+                            {r.currency} #{r.account_number} · {formatMinor(r.balance_minor, r.currency)}
+                          </span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div className="p-3 text-sm text-muted-foreground">
-                    No customer accounts. Ask an admin to create one.
+                    No matching DAHAB accounts.
                   </div>
                 )}
               </div>
@@ -378,19 +404,14 @@ export function EntryForm({ direction }: { direction: Direction }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">3. Currency &amp; amount</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">3. Amount</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                  <SelectTrigger id="currency" className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(["USD", "EUR", "LYD"] as const).map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Currency</Label>
+                <div className="mt-1.5 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
+                  {picked ? picked.currency : "—"}
+                </div>
               </div>
               <div className="col-span-2">
                 <Label htmlFor="amount">Amount</Label>
@@ -523,7 +544,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
         <Card>
           <CardHeader><CardTitle className="text-base">Ledger preview</CardTitle></CardHeader>
           <CardContent>
-            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked?.name} />
+            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked ? `${picked.dahab_account_number} · ${picked.holder_name}` : undefined} />
           </CardContent>
         </Card>
 
