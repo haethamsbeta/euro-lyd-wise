@@ -125,6 +125,7 @@ export const beginPasskeyAuthentication = createServerFn({ method: "POST" })
   .inputValidator((d) => beginAuthSchema.parse(d))
   .handler(async ({ data }) => {
     const { rpID } = getRpInfo();
+    console.log("[passkey] beginAuth", { rpID, email: data.email ?? null });
 
     let allowCredentials: { id: string; transports?: AuthenticatorTransport[] }[] | undefined;
     let userId: string | null = null;
@@ -172,6 +173,7 @@ export const finishPasskeyAuthentication = createServerFn({ method: "POST" })
   .inputValidator((d) => finishAuthSchema.parse(d))
   .handler(async ({ data }) => {
     const { rpID, origin } = getRpInfo();
+    console.log("[passkey] finishAuth", { rpID, origin });
 
     const expectedChallenge = (() => {
       try {
