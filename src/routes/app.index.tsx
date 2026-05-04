@@ -330,25 +330,19 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
 
 function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
   const t = useT();
+  const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const { data, isLoading } = useQuery({
-    queryKey: ["dash.pinned", ids.slice().sort().join(",")],
-    enabled: ids.length > 0,
+    queryKey: ["dash.pinned.holders", ids.slice().sort().join(",")],
+    enabled: numericIds.length > 0,
     queryFn: async () => {
-      const [{ data: accs }, { data: bals }] = await Promise.all([
-        supabase.from("accounts").select("id, name, account_number, nature").in("id", ids),
-        supabase.from("account_balances").select("account_id, currency, balance_minor").in("account_id", ids),
-      ]);
-      return { accs: accs ?? [], bals: bals ?? [] };
+      const { data, error } = await supabase
+        .from("account_holders")
+        .select("id,dahab_account_number,canonical_name,status,holder_accounts(id,currency_code,account_number,current_balance)")
+        .in("id", numericIds);
+      if (error) throw error;
+      return data ?? [];
     },
   });
-  const balByAcc = useMemo(() => {
-    const m = new Map<string, Map<string, number>>();
-    (data?.bals ?? []).forEach((b: any) => {
-      if (!m.has(b.account_id)) m.set(b.account_id, new Map());
-      m.get(b.account_id)!.set(b.currency, b.balance_minor);
-    });
-    return m;
-  }, [data]);
 
   return (
     <section>
@@ -359,35 +353,42 @@ function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id:
         <Card className="card-luxe"><CardContent className="p-4 text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(data?.accs ?? []).map((a: any) => {
-            const bals = balByAcc.get(a.id) ?? new Map();
+          {(data ?? []).map((h: any) => {
+            const totals: Record<string, number> = {};
+            for (const a of h.holder_accounts ?? []) {
+              const c = a.currency_code as string;
+              totals[c] = (totals[c] ?? 0) + Number(a.current_balance ?? 0);
+            }
+            const currencies = Object.keys(totals).sort();
             return (
-              <Card key={a.id} className="card-luxe group relative overflow-hidden">
+              <Card key={h.id} className="card-luxe group relative overflow-hidden">
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); onUnpin(a.id); }}
+                  onClick={(e) => { e.preventDefault(); onUnpin(String(h.id)); }}
                   className="absolute end-2 top-2 z-10 rounded-md bg-background/80 p-1 text-muted-foreground backdrop-blur-sm transition hover:bg-muted hover:text-foreground"
                   aria-label="Unpin"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
-                <div className="block">
+                <Link to="/app/holders/$id" params={{ id: String(h.id) }} className="block">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <UserCircle2 className="h-4 w-4 text-gold" />
-                      <span className="truncate">{a.name}</span>
+                      <span className="truncate" dir="auto">{h.canonical_name}</span>
                     </CardTitle>
-                    <div className="font-mono text-[11px] text-muted-foreground">{a.account_number}</div>
+                    <div className="font-mono text-[11px] text-gold">{h.dahab_account_number}</div>
                   </CardHeader>
                   <CardContent className="space-y-1.5 text-sm">
-                    {(["USD", "EUR", "LYD"] as const).map((c) => (
+                    {currencies.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">No linked accounts</div>
+                    ) : currencies.map((c) => (
                       <div key={c} className="flex items-center justify-between">
                         <span className="text-muted-foreground">{c}</span>
-                        <span className="font-mono text-foreground/90">{formatMinor((bals.get(c) as number) ?? 0, c)}</span>
+                        <span className="font-mono text-foreground/90">{Number(totals[c]).toLocaleString()} {c}</span>
                       </div>
                     ))}
                   </CardContent>
-                </div>
+                </Link>
               </Card>
             );
           })}
@@ -399,21 +400,49 @@ function PinnedCustomerAccounts({ ids, onUnpin }: { ids: string[]; onUnpin: (id:
 
 function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
   const [q, setQ] = useState("");
+  const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const { data: results } = useQuery({
-    queryKey: ["dash.pin.search", q],
+    queryKey: ["dash.pin.holders.search", q],
     queryFn: async () => {
-      let qb = supabase.from("accounts").select("id, name, account_number").eq("kind", "customer").order("created_at", { ascending: false }).limit(15);
-      if (q.trim()) qb = qb.or(`name.ilike.%${q.trim()}%,account_number.ilike.%${q.trim()}%`);
-      const { data } = await qb;
-      return data ?? [];
+      const term = q.trim();
+      if (term) {
+        const [byHolder, byAccount] = await Promise.all([
+          supabase
+            .from("account_holders")
+            .select("id, dahab_account_number, canonical_name")
+            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%`)
+            .limit(15),
+          supabase
+            .from("holder_accounts")
+            .select("account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name)")
+            .ilike("account_number", `%${term}%`)
+            .limit(15),
+        ]);
+        const m = new Map<number, any>();
+        for (const h of byHolder.data ?? []) m.set(h.id, h);
+        for (const a of byAccount.data ?? []) {
+          const h: any = (a as any).account_holders;
+          if (h) m.set(h.id, h);
+        }
+        return Array.from(m.values()).map((h: any) => ({ id: String(h.id), name: h.canonical_name, account_number: h.dahab_account_number }));
+      }
+      const { data } = await supabase
+        .from("account_holders")
+        .select("id, dahab_account_number, canonical_name")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      return (data ?? []).map((h: any) => ({ id: String(h.id), name: h.canonical_name, account_number: h.dahab_account_number }));
     },
   });
   const { data: pinnedRows } = useQuery({
-    queryKey: ["dash.pin.list", pinned.slice().sort().join(",")],
-    enabled: pinned.length > 0,
+    queryKey: ["dash.pin.holders.list", pinned.slice().sort().join(",")],
+    enabled: numericPinned.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("accounts").select("id, name, account_number").in("id", pinned);
-      return data ?? [];
+      const { data } = await supabase
+        .from("account_holders")
+        .select("id, dahab_account_number, canonical_name")
+        .in("id", numericPinned);
+      return (data ?? []).map((h: any) => ({ id: String(h.id), name: h.canonical_name, account_number: h.dahab_account_number }));
     },
   });
   return (
@@ -435,7 +464,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
       ) : null}
       <div className="relative">
         <Search className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input className="h-8 ps-7 text-xs" placeholder="Search customer accounts…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input className="h-8 ps-7 text-xs" placeholder="Search by DAHAB #, name, or account #…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border p-1">
         {(results ?? []).filter((a: any) => !pinned.includes(a.id)).map((a: any) => (
