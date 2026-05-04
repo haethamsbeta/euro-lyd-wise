@@ -128,9 +128,7 @@ function VaultDetail() {
                         <td className="px-4 py-2 text-muted-foreground">{formatDateTime(t.created_at)}</td>
                         <td className="px-4 py-2">
                           {t.accounts ? (
-                            <Link to="/app/accounts/$id" params={{ id: t.customer_account_id }} className="hover:underline">
-                              {t.accounts.name} <span className="text-xs text-muted-foreground">#{t.accounts.account_number}</span>
-                            </Link>
+                            <span>{t.accounts.name} <span className="text-xs text-muted-foreground">#{t.accounts.account_number}</span></span>
                           ) : "—"}
                         </td>
                         <td className="px-4 py-2 capitalize">{t.direction}</td>
