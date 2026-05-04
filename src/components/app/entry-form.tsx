@@ -544,7 +544,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
         <Card>
           <CardHeader><CardTitle className="text-base">Ledger preview</CardTitle></CardHeader>
           <CardContent>
-            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked?.name} />
+            <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked ? `${picked.dahab_account_number} · ${picked.holder_name}` : undefined} />
           </CardContent>
         </Card>
 
