@@ -44,7 +44,8 @@ export const beginPasskeyRegistration = createServerFn({ method: "POST" })
       attestationType: "none",
       authenticatorSelection: {
         userVerification: "preferred",
-        residentKey: "preferred",
+        residentKey: "required",
+        requireResidentKey: true,
       },
       excludeCredentials: (existing ?? []).map((c) => ({
         id: c.credential_id,
