@@ -1,127 +1,120 @@
-# Plan: Holder Creation + Account Groups Viewing
 
-Two features, both admin-only, in the back-office (`/app/*`).
+# Align UI to existing DAHAB data model
 
----
+No tables will be renamed. We keep the current schema names
+(`account_holders`, `holder_accounts`, `holder_ledger_entries`) and treat
+them as the canonical feeders for everything you described. Only the
+**customer portal**, **back-office holder views**, and a couple of
+**search/profile fields** change.
 
-## Part 1 — Create new DAHAB holders & link accounts
+## Mapping (your spec → existing tables, unchanged)
 
-### Rules
+- DAHAB account → `account_holders`
+  (`dahab_account_number`, `canonical_name` = display, `normalized_name`,
+  `status`, + new `phone`, `email`)
+- Linked holder account → `holder_accounts`
+  (`account_number`, `account_display_name` = original name, `currency_code`,
+  `current_balance`, `status`)
+- Transactions → `holder_ledger_entries`
+  (`tx_number`, `posted_at`, `description`, `debit_amount`, `credit_amount`,
+  `balance_after`, keyed by `account_id` = holder_account_id)
 
-- A DAHAB holder **cannot be saved without at least one linked account**.
-- A DAHAB holder **can have multiple linked accounts in the same currency** (e.g. two USD accounts under one holder is allowed).
-- Each linked account's `account_number` must still be globally unique (DB-level).
+## 1. Tiny additive migration
 
-### UX flow
+- `account_holders`: add nullable `phone text`, `email text` + indexes.
+- Partial unique index enforcing **one active DAHAB per customer**:
+  `(owner_user_id) where owner_user_id is not null and status = 'ACTIVE'`.
+- Extend `create_holder_with_accounts` RPC to accept optional
+  `p_phone`, `p_email`.
+- New `get_holder_currency_totals(p_holder_id bigint) returns jsonb` —
+  sums `current_balance` per `currency_code` for that holder.
 
-On `/app/holders` add an admin-only **"New holder"** button → dialog:
+No table renames, no destructive changes.
 
-1. **Holder details**: canonical name (required), holder type (Individual/Business). DAHAB # is auto-generated on save (preview shown read-only).
-2. **Linked accounts** (must add ≥1):
-  - Add row form: `account_number` (required), `currency_code` (USD/EUR/LYD), `account_nature` (Debit/Credit), `account_display_name`, `account_alias_name` (optional), `is_primary_account` toggle.
-  - No client-side restriction on currency duplicates — multiple rows with the same currency are fine.
-  - Staged rows shown in a list with remove buttons.
-3. **Create** button disabled while staged-account count is 0. Submit inserts holder + all linked accounts atomically.
+## 2. Customer portal rewrite (`/portal`)
 
-On `/app/holders/$id` add **"+ Add account"** button → same single-row dialog to attach another linked account (any currency, including ones already used) to the existing holder.
+Replace the legacy `accounts` / `transactions` queries with the holder
+model. Top of page = profile card:
 
-### Backend (new migration)
+- DAHAB number, display holder name, status badge
+- Total balance summary grouped by currency (from
+  `get_holder_currency_totals`)
 
-Two SECURITY DEFINER RPCs (admin-only):
+Below = **dynamic** grid of all `holder_accounts` rows for that holder.
+Nothing hardcoded by currency — N USD / N LYD / etc. all render.
 
-- `create_holder_with_accounts(p_canonical_name text, p_holder_type text, p_accounts jsonb) returns jsonb`
-  - Raises if `jsonb_array_length(p_accounts) < 1`.
-  - Generates DAHAB # via `next_dahab_account_number()`.
-  - Inserts `account_holders`, then loops the array inserting `holder_accounts` (each row gets the same `dahab_account_number`).
-  - Wrapped in single transaction → partial creation impossible.
-  - Returns `{holder_id, dahab_account_number, accounts_created}`.
-- `add_account_to_holder(p_holder_id bigint, p_account jsonb) returns bigint`
-  - Inserts one `holder_accounts` row under the existing holder, reusing the holder's DAHAB #.
+Each card shows: original account name (`account_display_name`), original
+account number, currency, current balance, status.
 
-Duplicate `account_number` errors bubble up as toast messages.
+Clicking a card expands the ledger **inline directly under that card**
+(accordion). Ledger query:
+`holder_ledger_entries.eq('account_id', holder_account_id)` — never by
+DAHAB number, so accounts never bleed into each other.
 
----
+Ledger columns: date (`posted_at`), tx number, description, debit, credit,
+running balance (`balance_after`).
 
-## Part 2 — Account Groups (viewing-only)
+Delete `src/routes/portal.$accountId.$currency.tsx` (replaced by inline
+expansion).
 
-### Goal
+## 3. Back-office holder views
 
-Admins create named groups of accounts to monitor together. Groups are **viewing-only** — no financial linkage. Group cards show aggregated total credits and total debits across member accounts; clicking a member opens its transactions.
+`/app/holders` (list): one card per DAHAB with linked-account chips
+(already correct). Add `phone` / `email` to the search `or(...)`.
 
-### Schema (new migration)
+`/app/holders/$id` (detail):
+- Header gains the per-currency totals strip from
+  `get_holder_currency_totals`.
+- Holder-account cards already expand inline into a per-account ledger
+  keyed by `account_id` — keep, just promote `account_display_name` as
+  the prominent label and show `account_alias_name` underneath.
+- New admin-only **Account-link review** section listing this holder's
+  rows from `account_link_review_queue` (raw imported name, normalized
+  candidate, confidence) with Approve / Reject calling the existing
+  `resolve_review_row` RPC. Satisfies "inspect why accounts were linked".
 
-```sql
-create table public.account_groups (
-  id bigint generated by default as identity primary key,
-  name text not null,
-  description text,
-  created_by uuid references auth.users(id),
-  created_at timestamptz not null default now()
-);
+## 4. Search
 
-create table public.account_group_members (
-  group_id bigint not null references public.account_groups(id) on delete cascade,
-  holder_account_id bigint not null,
-  added_at timestamptz not null default now(),
-  primary key (group_id, holder_account_id)
-);
+- Holders: extend existing `or` with `phone.ilike`, `email.ilike`.
+- Holder accounts: search by `account_number`, `account_display_name`,
+  `currency_code`, balance range (numeric pair).
+- `/app/transactions`: filter form over `holder_ledger_entries` by
+  tx_number, joined account name/number, currency, amount min/max,
+  date range.
 
-alter table public.account_groups enable row level security;
-alter table public.account_group_members enable row level security;
+## 5. Routing / entry flows
 
--- Admin write, staff read (same pattern for both tables)
-create policy "groups admin write" on public.account_groups for all to authenticated
-  using (has_role(auth.uid(),'admin')) with check (has_role(auth.uid(),'admin'));
-create policy "groups staff read" on public.account_groups for select to authenticated
-  using (is_staff(auth.uid()));
-```
+`/` already splits Dahab Family (staff) vs Customer Portal (consumer)
+via `?portal=staff|consumer&lock=1`. Verify `login.tsx` honors `lock=1`
+and patch if it doesn't, so the two flows can never mix.
 
-### Aggregation RPC
+## Files
 
-`get_group_totals(p_group_id bigint) returns jsonb` — per-currency totals summing `holder_ledger_entries.debit_amount` and `credit_amount` for member accounts. Returns `[{currency, total_debits, total_credits, account_count}]`.
+**New**
+- `supabase/migrations/<ts>_holder_profile_fields.sql` — phone/email
+  columns, unique-active-DAHAB index, updated
+  `create_holder_with_accounts`, new `get_holder_currency_totals`.
+- `src/components/app/link-review-panel.tsx` — admin link-review queue UI.
 
-If `holder_ledger_entries` lacks data for a member, it falls back to `ledger_entries` joined to `accounts` matched by `account_number`.
+**Edited**
+- `src/routes/portal.tsx` — rewritten against `account_holders` /
+  `holder_accounts` / `holder_ledger_entries` with inline ledger.
+- `src/routes/portal.$accountId.$currency.tsx` — removed (or 1-line
+  redirect to `/portal`).
+- `src/routes/app.holders.index.tsx` — phone/email search, totals chip.
+- `src/routes/app.holders.$id.tsx` — totals header, link-review panel,
+  display-name promotion.
+- `src/routes/app.transactions.index.tsx` — advanced filters over the
+  holder ledger.
+- `src/components/app/new-holder-dialog.tsx` — phone/email inputs.
+- `src/lib/i18n/{en,ar}.ts` — new labels.
+- `src/routes/login.tsx` — verify/respect `lock=1` portal lock.
 
-### UI — new route `/app/groups`
+## Out of scope (intentionally)
 
-Add sidebar nav entry **"Groups"** (admin + auditor).
-
-`**/app/groups` (index)**:
-
-- "New group" button → dialog: name, description, searchable picker to add `holder_accounts` as members.
-- Card grid. Each card:
-  - Group name + member count
-  - Per-currency totals (e.g. `USD — Debits: 12,345.00 · Credits: 8,900.00`)
-  - Click → `/app/groups/$id`
-
-`**/app/groups/$id` (detail)**:
-
-- Header with name, description, edit/delete (admin), add/remove member controls.
-- Aggregated totals card (same per-currency breakdown).
-- Member table: DAHAB #, account #, currency, holder name, current balance. Each row links to that account's transactions.
-
-### Files to add
-
-- Migration: `supabase/migrations/<ts>_holders_and_groups.sql` — RPCs + groups tables + RLS.
-- `src/routes/app.groups.index.tsx`
-- `src/routes/app.groups.$id.tsx`
-- `src/components/app/new-holder-dialog.tsx`
-- `src/components/app/add-linked-account-dialog.tsx`
-- `src/components/app/new-group-dialog.tsx`
-- `src/components/app/group-member-picker.tsx`
-
-### Files to edit
-
-- `src/components/app/app-shell.tsx` — add Groups nav item.
-- `src/routes/app.holders.index.tsx` — mount "New holder" dialog.
-- `src/routes/app.holders.$id.tsx` — mount "+ Add account" dialog.
-- `src/lib/i18n/en.ts` & `ar.ts` — labels.
-
----
-
-## Notes
-
-- Group members are individual `holder_accounts` (currency-specific), so admins can put e.g. only the USD account of a holder in a watch group without pulling in their EUR account.
-- Totals are **lifetime sums from the ledger** (debits and credits separately), not net balances — matches your "total credited and debited" wording.also have the aption to show total balance or other options
-
-Approve and I'll execute.
+- Renaming tables to `dahab_accounts` / `transactions` — explicitly not
+  doing this per your instruction.
+- Removing legacy `accounts` / `transactions` / `account_balances`
+  tables. They still back the staff transaction-entry / approvals flow
+  (`post_transaction`, `approve_transaction`, vault accounting). They
+  remain as-is; the customer-facing UI just no longer reads from them.
