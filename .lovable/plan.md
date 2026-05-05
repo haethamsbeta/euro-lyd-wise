@@ -1,38 +1,31 @@
-## Verify build & app health after portal duplicate fix
+I confirmed the group is not actually empty: group 1 already has 7 member rows in the database. The screen stays empty because the page query is failing with a 400 error:
 
-The duplicate `src/routes/portal...tsx` was already deleted. On-disk `src/routeTree.gen.ts` now contains exactly one `PortalRoute` declaration at line 45, and the prior `"PortalRoute" has already been declared` error in the dev-server log is historical (logged before the file was removed).
+```text
+Could not find a relationship between 'account_group_members' and 'holder_accounts' in the schema cache
+```
 
-I want to actually run/exercise the build and key routes to confirm everything is healthy. This needs default mode (state-changing exec).
+The app is trying to render members using an embedded join from `account_group_members` to `holder_accounts`, but the database table is missing the foreign key that tells the API how those tables relate.
 
-### Steps
+Plan:
 
-1. **Confirm route tree is clean**
-   - `grep -n "const PortalRoute " src/routeTree.gen.ts` → expect a single match.
-   - `ls src/routes/portal*` → expect only `portal.tsx` and `portal.$accountId.$currency.tsx`.
+1. Add the missing database relationship
+   - Add a foreign key from:
+     - `account_group_members.holder_account_id`
+     - to `holder_accounts.id`
+   - Use `ON DELETE CASCADE` so if a holder account is removed, stale group membership rows are cleaned up automatically.
+   - Keep the existing primary key `(group_id, holder_account_id)` that prevents duplicate members.
 
-2. **Run a fresh build**
-   - `bun run build` (or `bun run build:dev`) and confirm exit 0 with no esbuild "already declared" errors.
+2. Keep / verify supporting indexes
+   - The existing index on `holder_account_id` is already present, but I will make the migration idempotent with `CREATE INDEX IF NOT EXISTS` so lookups stay fast.
 
-3. **Check the dev-server log for fresh errors**
-   - `tail -n 100 /tmp/dev-server-logs/dev-server.log` after a touch/restart trigger; look for any new vite/transform errors.
+3. Verify data integrity before applying
+   - I already checked there are no orphaned group member rows, so the foreign key can be added safely.
 
-4. **Smoke-test key routes via the in-sandbox HTTP server**
-   - GET `/`, `/login`, `/app`, `/portal`, `/portal/anything/USD` → expect 200 (or appropriate auth redirect), no 500s.
-   - Use `stack_modern--invoke-server-function` or a `curl` against the local dev port.
+4. Re-test the group page after the migration
+   - Reload `/app/groups/1`.
+   - Confirm the member query no longer returns 400.
+   - Confirm the existing 7 members display in the table.
+   - Add another member and confirm it appears immediately after the query refreshes.
 
-5. **Check linked-account behavior end-to-end (read-only DB checks)**
-   - `supabase--read_query` to confirm:
-     - `account_holders` has `phone`, `email` columns.
-     - The partial unique index `account_holders_one_active_per_user` exists.
-     - RPC `get_holder_currency_totals` exists and returns rows for a sample holder.
-   - Confirm `holder_accounts` rows are correctly linked to a single `account_holders` row (no orphans, currencies can repeat per holder, every holder has ≥1 linked account).
-
-6. **Run Supabase linter**
-   - `supabase--linter` to catch any RLS or function-search-path issues introduced by recent migrations.
-
-7. **Report back**
-   - Build status, any errors found, and a short health summary of routes + DB invariants.
-
-### Expected outcome
-
-No code edits unless step 2–6 surface a real issue. If a regression is found (e.g., a stale import to the deleted `portal...tsx`, a missing column, or a broken RPC), fix it minimally and re-verify.
+5. Add a small UI resilience improvement if needed
+   - If the embedded join still waits for schema cache refresh, update the page to fetch group member rows first, then fetch `holder_accounts` / `account_holders` by IDs as a fallback. This avoids the screen appearing empty if the backend relationship cache is temporarily stale.

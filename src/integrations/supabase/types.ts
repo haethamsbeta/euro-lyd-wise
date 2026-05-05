@@ -70,6 +70,13 @@ export type Database = {
             referencedRelation: "account_groups"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_group_members_holder_account_id_fkey"
+            columns: ["holder_account_id"]
+            isOneToOne: false
+            referencedRelation: "holder_accounts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       account_groups: {
