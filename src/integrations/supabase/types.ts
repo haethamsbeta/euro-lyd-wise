@@ -43,6 +43,62 @@ export type Database = {
           },
         ]
       }
+      account_group_members: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          group_id: number
+          holder_account_id: number
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          group_id: number
+          holder_account_id: number
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          group_id?: number
+          holder_account_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_holders: {
         Row: {
           canonical_name: string
@@ -971,6 +1027,10 @@ export type Database = {
         }
         Returns: string
       }
+      add_account_to_holder: {
+        Args: { p_account: Json; p_holder_id: number }
+        Returns: number
+      }
       approve_import_batch: { Args: { p_batch_id: number }; Returns: Json }
       approve_transaction: {
         Args: { p_tx_id: string }
@@ -1035,10 +1095,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_holder_with_accounts: {
+        Args: {
+          p_accounts: Json
+          p_canonical_name: string
+          p_holder_type: string
+        }
+        Returns: Json
+      }
       ensure_customer_account_for_holder_account: {
         Args: { p_holder_account_id: number }
         Returns: string
       }
+      get_group_totals: { Args: { p_group_id: number }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
