@@ -1,51 +1,127 @@
-## Goal
+# Plan: Holder Creation + Account Groups Viewing
 
-Produce a single SQL migration that recreates the entire Dahab backend from scratch — safe to run on an empty database — covering everything the app reads/writes.
+Two features, both admin-only, in the back-office (`/app/*`).
 
-## What the migration will create
+---
 
-**Enums**
-`app_role`, `account_kind`, `account_nature`, `vault_channel`, `currency_code` (USD/EUR/LYD), `tx_direction`, `tx_status`, `entry_side`, `notification_event`, `notification_severity`.
+## Part 1 — Create new DAHAB holders & link accounts
 
-**Sequences**
-`tx_number_seq`, `customer_account_seq`, `dahab_holder_seq`.
+### Rules
 
-**Tables (all with RLS enabled)**
-- Identity: `profiles`, `user_roles`
-- Ledger core: `accounts`, `account_balances`, `transactions`, `ledger_entries`, `transaction_attachments`, `audit_log`
-- Holders / import: `account_holders`, `holder_accounts`, `holder_ledger_entries`, `account_name_aliases`, `account_import_batches`, `account_import_staging`, `account_link_review_queue`
-- Lookup: `currencies` (seeded with USD/EUR/LYD)
-- Notifications: `notifications`, `notification_preferences`, `notification_reminders_state`, `push_subscriptions`
-- Passkeys: `webauthn_credentials`, `webauthn_challenges`
+- A DAHAB holder **cannot be saved without at least one linked account**.
+- A DAHAB holder **can have multiple linked accounts in the same currency** (e.g. two USD accounts under one holder is allowed).
+- Each linked account's `account_number` must still be globally unique (DB-level).
 
-**Functions** (matching the exact signatures the app calls)
-`has_role`, `is_staff`, `handle_new_user`, `set_account_number`,
-`post_transaction`, `approve_transaction`, `reject_transaction`, `correct_transaction`,
-`ensure_customer_account_for_holder_account`,
-`notifications_mark_read`, `notifications_mark_all_read`, `_notify_user`, `_notify_role`, `run_notification_reminders`,
-`approve_import_batch`, `import_linked_accounts_batch`, `resolve_review_row`, `next_dahab_account_number`,
-`seed_demo_ledger`, `_upsert_vault`, `_upsert_customer`, `_seed_post_tx`, `_seed_pending_tx`,
-`tg_accounts_notify`, `tg_transactions_notify`,
-`lookup_user_email_for_credential`.
+### UX flow
 
-**Triggers**
-- `auth.users` AFTER INSERT → `handle_new_user`
-- `accounts` BEFORE INSERT → `set_account_number`
-- `accounts` AFTER INSERT → `tg_accounts_notify`
-- `transactions` AFTER INSERT/UPDATE → `tg_transactions_notify`
+On `/app/holders` add an admin-only **"New holder"** button → dialog:
 
-**RLS policies** (mirroring current production rules)
-Staff-read / admin-write for ledger and holder tables; self-only for notifications, prefs, push subs, passkeys; consumer can read their own accounts/transactions via `owner_user_id`.
+1. **Holder details**: canonical name (required), holder type (Individual/Business). DAHAB # is auto-generated on save (preview shown read-only).
+2. **Linked accounts** (must add ≥1):
+  - Add row form: `account_number` (required), `currency_code` (USD/EUR/LYD), `account_nature` (Debit/Credit), `account_display_name`, `account_alias_name` (optional), `is_primary_account` toggle.
+  - No client-side restriction on currency duplicates — multiple rows with the same currency are fine.
+  - Staged rows shown in a list with remove buttons.
+3. **Create** button disabled while staged-account count is 0. Submit inserts holder + all linked accounts atomically.
 
-**Storage**
-Private bucket `tx-attachments` plus storage.objects policies so staff can read/write and the uploader can read their own.
+On `/app/holders/$id` add **"+ Add account"** button → same single-row dialog to attach another linked account (any currency, including ones already used) to the existing holder.
 
-## How it will be delivered
+### Backend (new migration)
 
-One `supabase--migration` call containing the full SQL. After approval, the Supabase types file regenerates automatically and the existing app code (which already targets these exact names) will work unchanged.
+Two SECURITY DEFINER RPCs (admin-only):
+
+- `create_holder_with_accounts(p_canonical_name text, p_holder_type text, p_accounts jsonb) returns jsonb`
+  - Raises if `jsonb_array_length(p_accounts) < 1`.
+  - Generates DAHAB # via `next_dahab_account_number()`.
+  - Inserts `account_holders`, then loops the array inserting `holder_accounts` (each row gets the same `dahab_account_number`).
+  - Wrapped in single transaction → partial creation impossible.
+  - Returns `{holder_id, dahab_account_number, accounts_created}`.
+- `add_account_to_holder(p_holder_id bigint, p_account jsonb) returns bigint`
+  - Inserts one `holder_accounts` row under the existing holder, reusing the holder's DAHAB #.
+
+Duplicate `account_number` errors bubble up as toast messages.
+
+---
+
+## Part 2 — Account Groups (viewing-only)
+
+### Goal
+
+Admins create named groups of accounts to monitor together. Groups are **viewing-only** — no financial linkage. Group cards show aggregated total credits and total debits across member accounts; clicking a member opens its transactions.
+
+### Schema (new migration)
+
+```sql
+create table public.account_groups (
+  id bigint generated by default as identity primary key,
+  name text not null,
+  description text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table public.account_group_members (
+  group_id bigint not null references public.account_groups(id) on delete cascade,
+  holder_account_id bigint not null,
+  added_at timestamptz not null default now(),
+  primary key (group_id, holder_account_id)
+);
+
+alter table public.account_groups enable row level security;
+alter table public.account_group_members enable row level security;
+
+-- Admin write, staff read (same pattern for both tables)
+create policy "groups admin write" on public.account_groups for all to authenticated
+  using (has_role(auth.uid(),'admin')) with check (has_role(auth.uid(),'admin'));
+create policy "groups staff read" on public.account_groups for select to authenticated
+  using (is_staff(auth.uid()));
+```
+
+### Aggregation RPC
+
+`get_group_totals(p_group_id bigint) returns jsonb` — per-currency totals summing `holder_ledger_entries.debit_amount` and `credit_amount` for member accounts. Returns `[{currency, total_debits, total_credits, account_count}]`.
+
+If `holder_ledger_entries` lacks data for a member, it falls back to `ledger_entries` joined to `accounts` matched by `account_number`.
+
+### UI — new route `/app/groups`
+
+Add sidebar nav entry **"Groups"** (admin + auditor).
+
+`**/app/groups` (index)**:
+
+- "New group" button → dialog: name, description, searchable picker to add `holder_accounts` as members.
+- Card grid. Each card:
+  - Group name + member count
+  - Per-currency totals (e.g. `USD — Debits: 12,345.00 · Credits: 8,900.00`)
+  - Click → `/app/groups/$id`
+
+`**/app/groups/$id` (detail)**:
+
+- Header with name, description, edit/delete (admin), add/remove member controls.
+- Aggregated totals card (same per-currency breakdown).
+- Member table: DAHAB #, account #, currency, holder name, current balance. Each row links to that account's transactions.
+
+### Files to add
+
+- Migration: `supabase/migrations/<ts>_holders_and_groups.sql` — RPCs + groups tables + RLS.
+- `src/routes/app.groups.index.tsx`
+- `src/routes/app.groups.$id.tsx`
+- `src/components/app/new-holder-dialog.tsx`
+- `src/components/app/add-linked-account-dialog.tsx`
+- `src/components/app/new-group-dialog.tsx`
+- `src/components/app/group-member-picker.tsx`
+
+### Files to edit
+
+- `src/components/app/app-shell.tsx` — add Groups nav item.
+- `src/routes/app.holders.index.tsx` — mount "New holder" dialog.
+- `src/routes/app.holders.$id.tsx` — mount "+ Add account" dialog.
+- `src/lib/i18n/en.ts` & `ar.ts` — labels.
+
+---
 
 ## Notes
 
-- Safe on a fresh DB. If tables already exist, the migration will fail rather than silently overwrite — that's intentional, since this is a rebuild script.
-- No data is inserted except the 3 currency rows. To populate demo users/vaults/customers, hit `POST /api/public/admin/seed-demo` afterwards.
-- After the migration runs, I'll run the Supabase linter and fix any flagged issues.
+- Group members are individual `holder_accounts` (currency-specific), so admins can put e.g. only the USD account of a holder in a watch group without pulling in their EUR account.
+- Totals are **lifetime sums from the ledger** (debits and credits separately), not net balances — matches your "total credited and debited" wording.also have the aption to show total balance or other options
+
+Approve and I'll execute.
