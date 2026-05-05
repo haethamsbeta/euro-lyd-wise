@@ -34,12 +34,14 @@ export function NewHolderDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [holderType, setHolderType] = useState("INDIVIDUAL");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [staged, setStaged] = useState<Staged[]>([]);
   const [draft, setDraft] = useState<Staged>(empty());
   const qc = useQueryClient();
 
   const reset = () => {
-    setName(""); setHolderType("INDIVIDUAL"); setStaged([]); setDraft(empty());
+    setName(""); setHolderType("INDIVIDUAL"); setPhone(""); setEmail(""); setStaged([]); setDraft(empty());
   };
 
   const addRow = () => {
@@ -57,6 +59,8 @@ export function NewHolderDialog() {
         p_canonical_name: name.trim(),
         p_holder_type: holderType,
         p_accounts: staged as any,
+        p_phone: phone.trim() || null,
+        p_email: email.trim() || null,
       });
       if (error) throw error;
       return data as any;
@@ -97,6 +101,14 @@ export function NewHolderDialog() {
                   <SelectItem value="BUSINESS">Business</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Phone (optional)</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+218 …" />
+            </div>
+            <div>
+              <Label>Email (optional)</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="customer@example.com" />
             </div>
           </div>
 

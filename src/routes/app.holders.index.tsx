@@ -42,12 +42,12 @@ function HoldersList() {
         const [byHolder, byAccount] = await Promise.all([
           supabase
             .from("account_holders")
-            .select("id,dahab_account_number,canonical_name,normalized_name,status,holder_accounts(id,currency_code,account_number,account_display_name)")
-            .or(`canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%,dahab_account_number.ilike.%${term}%`)
+            .select("id,dahab_account_number,canonical_name,normalized_name,status,phone,email,holder_accounts(id,currency_code,account_number,account_display_name)")
+            .or(`canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%,dahab_account_number.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`)
             .limit(100),
           supabase
             .from("holder_accounts")
-            .select("account_holder_id, account_holders!inner(id,dahab_account_number,canonical_name,normalized_name,status,holder_accounts(id,currency_code,account_number,account_display_name))")
+            .select("account_holder_id, account_holders!inner(id,dahab_account_number,canonical_name,normalized_name,status,phone,email,holder_accounts(id,currency_code,account_number,account_display_name))")
             .or(`account_number.ilike.%${term}%,account_display_name.ilike.%${term}%`)
             .limit(100),
         ]);
@@ -63,7 +63,7 @@ function HoldersList() {
       }
       let qb = supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,normalized_name,status,holder_accounts(id,currency_code,account_number,account_display_name)")
+        .select("id,dahab_account_number,canonical_name,normalized_name,status,phone,email,holder_accounts(id,currency_code,account_number,account_display_name)")
         .order("created_at", { ascending: false })
         .limit(200);
       const { data, error } = await qb;
@@ -112,7 +112,7 @@ function HoldersList() {
         )}
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by DAHAB # (e.g. DAHAB-000001), name, or account #" className="ps-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by DAHAB #, name, account #, phone, or email" className="ps-9" />
         </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -128,6 +128,11 @@ function HoldersList() {
                       <div className="min-w-0">
                         <div className="font-mono text-xs text-gold">{h.dahab_account_number}</div>
                         <div className="mt-1 truncate font-serif text-lg" dir="auto">{h.canonical_name}</div>
+                        {(h.phone || h.email) ? (
+                          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            {[h.phone, h.email].filter(Boolean).join(" · ")}
+                          </div>
+                        ) : null}
                       </div>
                       <Badge variant="secondary">{h.status}</Badge>
                     </div>

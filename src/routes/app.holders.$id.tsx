@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { LinkReviewPanel } from "@/components/app/link-review-panel";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
@@ -24,11 +25,21 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: totals } = useQuery({
+    queryKey: ["holder-totals", holderId],
+    enabled: !!holderId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_holder_currency_totals", { p_holder_id: holderId });
+      if (error) throw error;
+      return (data ?? []) as Array<{ currency: string; total_balance: number; account_count: number; total_debits: number; total_credits: number }>;
     },
   });
 
@@ -59,9 +70,26 @@ function HolderDetail() {
                 <div className="font-serif text-xl" dir="auto">{holder.canonical_name}</div>
                 <Badge variant="secondary">{holder.status}</Badge>
                 <Badge variant="outline">{holder.holder_type}</Badge>
+                {holder.phone ? <span className="text-xs text-muted-foreground">· {holder.phone}</span> : null}
+                {holder.email ? <span className="text-xs text-muted-foreground">· {holder.email}</span> : null}
                 <span className="ms-auto text-xs text-muted-foreground">{(holder.holder_accounts ?? []).length} linked account(s)</span>
               </CardContent>
+              {totals && totals.length > 0 ? (
+                <div className="grid gap-3 border-t border-[oklch(0.82_0.14_85/0.15)] p-4 sm:grid-cols-2 md:grid-cols-3">
+                  {totals.map((t) => (
+                    <div key={t.currency} className="rounded-md border border-[oklch(0.82_0.14_85/0.18)] bg-card/40 p-3">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Total {t.currency}</div>
+                      <div className="font-mono text-lg font-semibold">{Number(t.total_balance ?? 0).toLocaleString()} {t.currency}</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {t.account_count} acct · D {Number(t.total_debits ?? 0).toLocaleString()} · C {Number(t.total_credits ?? 0).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </Card>
+
+            {isAdmin ? <LinkReviewPanel holderId={holder.id} /> : null}
 
             <div className="grid gap-3 md:grid-cols-2">
               {(holder.holder_accounts ?? []).map((a: any) => {
