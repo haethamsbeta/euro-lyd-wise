@@ -104,10 +104,12 @@ export type Database = {
           canonical_name: string
           created_at: string
           dahab_account_number: string
+          email: string | null
           holder_type: string
           id: number
           normalized_name: string
           owner_user_id: string | null
+          phone: string | null
           status: string
           updated_at: string
         }
@@ -115,10 +117,12 @@ export type Database = {
           canonical_name: string
           created_at?: string
           dahab_account_number: string
+          email?: string | null
           holder_type?: string
           id?: number
           normalized_name: string
           owner_user_id?: string | null
+          phone?: string | null
           status?: string
           updated_at?: string
         }
@@ -126,10 +130,12 @@ export type Database = {
           canonical_name?: string
           created_at?: string
           dahab_account_number?: string
+          email?: string | null
           holder_type?: string
           id?: number
           normalized_name?: string
           owner_user_id?: string | null
+          phone?: string | null
           status?: string
           updated_at?: string
         }
@@ -1095,19 +1101,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      create_holder_with_accounts: {
-        Args: {
-          p_accounts: Json
-          p_canonical_name: string
-          p_holder_type: string
-        }
-        Returns: Json
-      }
+      create_holder_with_accounts:
+        | {
+            Args: {
+              p_accounts: Json
+              p_canonical_name: string
+              p_holder_type: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_accounts: Json
+              p_canonical_name: string
+              p_email?: string
+              p_holder_type: string
+              p_phone?: string
+            }
+            Returns: Json
+          }
       ensure_customer_account_for_holder_account: {
         Args: { p_holder_account_id: number }
         Returns: string
       }
       get_group_totals: { Args: { p_group_id: number }; Returns: Json }
+      get_holder_currency_totals: {
+        Args: { p_holder_id: number }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
