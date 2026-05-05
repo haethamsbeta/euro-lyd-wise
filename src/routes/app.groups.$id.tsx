@@ -22,11 +22,12 @@ type Totals = { currency: string; total_debits: number; total_credits: number; t
 function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Set<number> }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [addedIds, setAddedIds] = useState<Set<number>>(() => new Set());
   const dq = useDebounced(q, 250);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["group.member-search", groupId, dq, existing.size],
+    queryKey: ["group.member-search", groupId, dq, existing.size, addedIds.size],
     queryFn: async () => {
       const term = dq.trim();
       let qb = supabase
@@ -34,7 +35,7 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
         .select("id,account_number,currency_code,account_display_name,dahab_account_number,account_holders!inner(canonical_name,dahab_account_number)")
         .limit(50);
       if (term) qb = qb.or(`account_number.ilike.%${term}%,account_display_name.ilike.%${term}%,dahab_account_number.ilike.%${term}%`);
-      const excluded = Array.from(existing);
+      const excluded = Array.from(new Set([...existing, ...addedIds]));
       if (excluded.length) qb = qb.not("id", "in", `(${excluded.join(",")})`);
       const { data, error } = await qb;
       if (error) throw error;
@@ -46,14 +47,18 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
   const m = useMutation({
     mutationFn: async (holderAccountId: number) => {
       const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase.from("account_group_members").insert({
-        group_id: groupId,
-        holder_account_id: holderAccountId,
-        added_by: u.user?.id ?? null,
-      });
+      const { error } = await supabase
+        .from("account_group_members")
+        .upsert({
+          group_id: groupId,
+          holder_account_id: holderAccountId,
+          added_by: u.user?.id ?? null,
+        }, { onConflict: "group_id,holder_account_id", ignoreDuplicates: true });
       if (error) throw error;
+      return holderAccountId;
     },
-    onSuccess: () => {
+    onSuccess: (holderAccountId) => {
+      setAddedIds((prev) => new Set(prev).add(holderAccountId));
       toast.success("Member added");
       qc.invalidateQueries({ queryKey: ["group", groupId, "members"] });
       qc.invalidateQueries({ queryKey: ["group", groupId] });
@@ -77,7 +82,7 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
         <div className="max-h-96 space-y-1 overflow-y-auto">
           {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> :
             (data ?? []).map((a: any) => {
-              const already = existing.has(a.id);
+              const already = existing.has(a.id) || addedIds.has(a.id);
               return (
                 <div key={a.id} className="flex items-center justify-between gap-2 rounded border border-[oklch(0.82_0.14_85/0.12)] px-3 py-2 text-sm">
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
