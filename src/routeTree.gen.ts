@@ -24,7 +24,6 @@ import { Route as AppImportRouteImport } from './routes/app.import'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppAboutRouteImport } from './routes/app.about'
-import { Route as PortalRouteImport } from './routes/portal..'
 import { Route as AppVaultsIndexRouteImport } from './routes/app.vaults.index'
 import { Route as AppTransactionsIndexRouteImport } from './routes/app.transactions.index'
 import { Route as AppHoldersIndexRouteImport } from './routes/app.holders.index'
@@ -117,11 +116,6 @@ const AppAboutRoute = AppAboutRouteImport.update({
   id: '/about',
   path: '/about',
   getParentRoute: () => AppRoute,
-} as any)
-const PortalRoute = PortalRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PortalRoute,
 } as any)
 const AppVaultsIndexRoute = AppVaultsIndexRouteImport.update({
   id: '/',
@@ -219,7 +213,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
-  '/portal/': typeof PortalRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -251,7 +244,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -286,7 +279,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
-  '/portal/': typeof PortalRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -323,7 +315,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/m'
     | '/portal'
-    | '/portal/'
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
@@ -389,7 +380,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/m'
     | '/portal'
-    | '/portal/'
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
@@ -535,13 +525,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/about'
       preLoaderRoute: typeof AppAboutRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/portal/': {
-      id: '/portal/'
-      path: '/'
-      fullPath: '/portal/'
-      preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof PortalRoute
     }
     '/app/vaults/': {
       id: '/app/vaults/'
@@ -750,12 +733,10 @@ const MRouteChildren: MRouteChildren = {
 const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
 
 interface PortalRouteChildren {
-  PortalRoute: typeof PortalRoute
   PortalAccountIdCurrencyRoute: typeof PortalAccountIdCurrencyRoute
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
-  PortalRoute: PortalRoute,
   PortalAccountIdCurrencyRoute: PortalAccountIdCurrencyRoute,
 }
 
