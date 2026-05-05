@@ -26,7 +26,7 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["group.member-search", dq],
+    queryKey: ["group.member-search", groupId, dq, existing.size],
     queryFn: async () => {
       const term = dq.trim();
       let qb = supabase
@@ -34,6 +34,8 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
         .select("id,account_number,currency_code,account_display_name,dahab_account_number,account_holders!inner(canonical_name,dahab_account_number)")
         .limit(50);
       if (term) qb = qb.or(`account_number.ilike.%${term}%,account_display_name.ilike.%${term}%,dahab_account_number.ilike.%${term}%`);
+      const excluded = Array.from(existing);
+      if (excluded.length) qb = qb.not("id", "in", `(${excluded.join(",")})`);
       const { data, error } = await qb;
       if (error) throw error;
       return data ?? [];
@@ -56,6 +58,7 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
       qc.invalidateQueries({ queryKey: ["group", groupId, "members"] });
       qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["group-totals", groupId] });
+      qc.invalidateQueries({ queryKey: ["group.member-search", groupId] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
