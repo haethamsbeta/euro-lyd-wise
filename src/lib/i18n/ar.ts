@@ -115,6 +115,7 @@ export const ar: Dict = {
   "nav.import": "استيراد الحسابات",
   "nav.holders": "أصحاب حسابات دهب",
   "nav.importReview": "مراجعة الاستيراد",
+  "nav.groups": "المجموعات",
 
   // app shell
   "shell.noStaffTitle": "لا يوجد وصول للموظفين",

@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
+import { useAuth, hasAnyRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
@@ -14,6 +16,8 @@ function HolderDetail() {
   const { id } = Route.useParams();
   const holderId = Number(id);
   const [openAcc, setOpenAcc] = useState<number | null>(null);
+  const { roles } = useAuth();
+  const isAdmin = hasAnyRole(roles, ["admin"]);
 
   const { data: holder, isLoading } = useQuery({
     queryKey: ["holder", holderId],
@@ -34,9 +38,12 @@ function HolderDetail() {
         title={holder?.canonical_name ?? "Holder"}
         description={holder?.dahab_account_number}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/app/holders"><ArrowLeft className="h-4 w-4 me-1" /> Back</Link>
-          </Button>
+          <>
+            {isAdmin && holder ? <AddLinkedAccountDialog holderId={holder.id} /> : null}
+            <Button asChild variant="outline" size="sm">
+              <Link to="/app/holders"><ArrowLeft className="h-4 w-4 me-1" /> Back</Link>
+            </Button>
+          </>
         }
       />
       <div className="space-y-4 p-4 sm:p-6">

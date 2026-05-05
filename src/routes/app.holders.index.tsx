@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { useDebounced } from "@/hooks/use-debounced";
+import { NewHolderDialog } from "@/components/app/new-holder-dialog";
+import { useAuth, hasAnyRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
 
@@ -15,6 +17,8 @@ function HoldersList() {
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 250);
   const [curFilter, setCurFilter] = useState<string | null>(null);
+  const { roles } = useAuth();
+  const isAdmin = hasAnyRole(roles, ["admin"]);
 
   const { data: summary } = useQuery({
     queryKey: ["holders.summary"],
@@ -74,7 +78,11 @@ function HoldersList() {
 
   return (
     <div>
-      <PageHeader title="DAHAB Holders" description="Customer profiles and their linked currency accounts." />
+      <PageHeader
+        title="DAHAB Holders"
+        description="Customer profiles and their linked currency accounts."
+        actions={isAdmin ? <NewHolderDialog /> : undefined}
+      />
       <div className="space-y-4 p-4 sm:p-6">
         {summary && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
