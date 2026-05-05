@@ -53,6 +53,7 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
     },
     onSuccess: () => {
       toast.success("Member added");
+      qc.invalidateQueries({ queryKey: ["group", groupId, "members"] });
       qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["group-totals", groupId] });
     },
