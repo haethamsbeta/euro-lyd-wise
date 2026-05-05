@@ -26,7 +26,9 @@ export function LinkReviewPanel({ holderId }: { holderId: number }) {
     mutationFn: async ({ id, approve }: { id: number; approve: boolean }) => {
       const { error } = await supabase.rpc("resolve_review_row", {
         p_row_id: id,
-        p_decision: { action: approve ? "approve" : "reject", account_holder_id: holderId } as any,
+        p_decision: (approve
+          ? { action: "assign", holder_id: holderId }
+          : { action: "reject" }) as any,
       });
       if (error) throw error;
     },
