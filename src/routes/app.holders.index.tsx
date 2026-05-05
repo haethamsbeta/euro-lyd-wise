@@ -112,7 +112,7 @@ function HoldersList() {
         )}
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by DAHAB # (e.g. DAHAB-000001), name, or account #" className="ps-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by DAHAB #, name, account #, phone, or email" className="ps-9" />
         </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
