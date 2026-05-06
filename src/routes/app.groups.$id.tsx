@@ -14,6 +14,7 @@ import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useDebounced } from "@/hooks/use-debounced";
 import { toast } from "sonner";
+import { CurrencyTotalsStrip } from "@/components/app/currency-totals-strip";
 
 export const Route = createFileRoute("/app/groups/$id")({ component: GroupDetail });
 
@@ -193,6 +194,18 @@ function GroupDetail() {
         }
       />
       <div className="space-y-4 p-4 sm:p-6">
+        <Card className="card-luxe border-[oklch(0.82_0.14_85/0.4)]">
+          <CardContent className="p-4">
+            <div className="mb-2 flex items-baseline justify-between">
+              <h2 className="font-serif text-lg text-gold">Group balance totals</h2>
+              <span className="text-xs text-muted-foreground">
+                across {(totals ?? []).reduce((s, t) => s + Number(t.account_count ?? 0), 0)} account(s)
+              </span>
+            </div>
+            <CurrencyTotalsStrip totals={totals} label="Total balances by currency" size="lg" />
+          </CardContent>
+        </Card>
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(totals ?? []).map((t) => (
             <Card key={t.currency} className="card-luxe">
