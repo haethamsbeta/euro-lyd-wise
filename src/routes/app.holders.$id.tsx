@@ -25,7 +25,7 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
@@ -72,7 +72,12 @@ function HolderDetail() {
                 <Badge variant="outline">{holder.holder_type}</Badge>
                 {holder.phone ? <span className="text-xs text-muted-foreground">· {holder.phone}</span> : null}
                 {holder.email ? <span className="text-xs text-muted-foreground">· {holder.email}</span> : null}
-                <span className="ms-auto text-xs text-muted-foreground">{(holder.holder_accounts ?? []).length} linked account(s)</span>
+                <span className="ms-auto flex flex-col items-end text-xs text-muted-foreground">
+                  <span>{(holder.holder_accounts ?? []).length} linked account(s)</span>
+                  {holder.created_at && (
+                    <span className="text-[10px]">Created {new Date(holder.created_at).toLocaleString()}</span>
+                  )}
+                </span>
               </CardContent>
               {totals && totals.length > 0 ? (
                 <div className="grid gap-3 border-t border-[oklch(0.82_0.14_85/0.15)] p-4 sm:grid-cols-2 md:grid-cols-3">
