@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { FolderPlus, Layers } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { toast } from "sonner";
+import { CurrencyTotalsStrip } from "@/components/app/currency-totals-strip";
 
 export const Route = createFileRoute("/app/groups/")({ component: GroupsList });
 
@@ -52,23 +53,8 @@ function GroupCard({ id, name, description }: { id: number; name: string; descri
             </div>
             <Badge variant="secondary">{memberCount} member{memberCount === 1 ? "" : "s"}</Badge>
           </div>
-          <div className="mt-3 space-y-1.5">
-            {(totals ?? []).length === 0 ? (
-              <div className="text-xs text-muted-foreground">No member accounts yet.</div>
-            ) : (
-              (totals ?? []).map((t) => (
-                <div key={t.currency} className="rounded border border-[oklch(0.82_0.14_85/0.12)] px-2.5 py-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <Badge>{t.currency}</Badge>
-                    <span className="font-mono text-gold">Bal: {Number(t.total_balance).toLocaleString()}</span>
-                  </div>
-                  <div className="mt-1 grid grid-cols-2 gap-2 text-muted-foreground">
-                    <div>Debits: <span className="text-foreground">{Number(t.total_debits).toLocaleString()}</span></div>
-                    <div>Credits: <span className="text-foreground">{Number(t.total_credits).toLocaleString()}</span></div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="mt-3">
+            <CurrencyTotalsStrip totals={totals} emptyText="No member accounts yet." size="md" />
           </div>
         </CardContent>
       </Card>
