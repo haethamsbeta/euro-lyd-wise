@@ -9,11 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, UserPlus } from "lucide-react";
+import { Plus, Trash2, UserPlus, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 type Staged = {
-  account_number: string;
   currency_code: string;
   account_nature: string;
   account_display_name: string;
@@ -22,7 +21,6 @@ type Staged = {
 };
 
 const empty = (): Staged => ({
-  account_number: "",
   currency_code: "USD",
   account_nature: "Debit",
   account_display_name: "",
@@ -45,7 +43,6 @@ export function NewHolderDialog() {
   };
 
   const addRow = () => {
-    if (!draft.account_number.trim()) return toast.error("Account number is required");
     if (!draft.currency_code.trim()) return toast.error("Currency is required");
     setStaged((s) => [...s, draft]);
     setDraft(empty());
@@ -112,49 +109,84 @@ export function NewHolderDialog() {
             </div>
           </div>
 
-          <div className="rounded-md border border-[oklch(0.82_0.14_85/0.18)] p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-medium">Linked accounts <span className="text-xs text-muted-foreground">(at least one required — same currency may repeat)</span></div>
-              <Badge variant="secondary">{staged.length} staged</Badge>
+          <div className="rounded-lg border border-[oklch(0.82_0.14_85/0.3)] bg-[linear-gradient(135deg,oklch(0.82_0.14_85/0.06),transparent)] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-gold" />
+                  <h3 className="font-serif text-base">Linked currency accounts</h3>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add at least one account. Account numbers are generated automatically (e.g. <span className="font-mono text-gold">DAHAB-000409-USD-001</span>).
+                </p>
+              </div>
+              <Badge variant={staged.length > 0 ? "default" : "secondary"} className={staged.length > 0 ? "bg-gradient-gold text-primary-foreground" : ""}>
+                {staged.length} staged
+              </Badge>
             </div>
+
             <div className="grid gap-2 sm:grid-cols-6">
-              <Input className="sm:col-span-2" placeholder="Account #" value={draft.account_number} onChange={(e) => setDraft({ ...draft, account_number: e.target.value })} />
-              <Select value={draft.currency_code} onValueChange={(v) => setDraft({ ...draft, currency_code: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="LYD">LYD</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={draft.account_nature} onValueChange={(v) => setDraft({ ...draft, account_nature: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Debit">Debit</SelectItem>
-                  <SelectItem value="Credit">Credit</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input className="sm:col-span-2" placeholder="Display name (optional)" value={draft.account_display_name} onChange={(e) => setDraft({ ...draft, account_display_name: e.target.value })} />
-              <Input className="sm:col-span-5" placeholder="Alias (optional)" value={draft.account_alias_name} onChange={(e) => setDraft({ ...draft, account_alias_name: e.target.value })} />
-              <Button type="button" variant="outline" onClick={addRow}><Plus className="h-4 w-4 me-1" /> Add</Button>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Currency</Label>
+                <Select value={draft.currency_code} onValueChange={(v) => setDraft({ ...draft, currency_code: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD — US Dollar</SelectItem>
+                    <SelectItem value="EUR">EUR — Euro</SelectItem>
+                    <SelectItem value="LYD">LYD — Libyan Dinar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Nature</Label>
+                <Select value={draft.account_nature} onValueChange={(v) => setDraft({ ...draft, account_nature: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Debit">Debit</SelectItem>
+                    <SelectItem value="Credit">Credit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Display name (optional)</Label>
+                <Input placeholder="e.g. Main USD wallet" value={draft.account_display_name} onChange={(e) => setDraft({ ...draft, account_display_name: e.target.value })} />
+              </div>
+              <div className="sm:col-span-5">
+                <Label className="text-xs">Alias (optional)</Label>
+                <Input placeholder="Internal nickname" value={draft.account_alias_name} onChange={(e) => setDraft({ ...draft, account_alias_name: e.target.value })} />
+              </div>
+              <div className="flex items-end">
+                <Button type="button" variant="outline" className="w-full border-[oklch(0.82_0.14_85/0.5)] text-gold hover:bg-[oklch(0.82_0.14_85/0.1)]" onClick={addRow}>
+                  <Plus className="h-4 w-4 me-1" /> Add
+                </Button>
+              </div>
             </div>
 
             {staged.length > 0 && (
-              <ul className="mt-3 space-y-1.5">
-                {staged.map((s, i) => (
-                  <li key={i} className="flex items-center justify-between gap-2 rounded border border-[oklch(0.82_0.14_85/0.12)] px-3 py-1.5 text-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge>{s.currency_code}</Badge>
-                      <span className="font-mono text-xs">{s.account_number}</span>
-                      <Badge variant="outline" className="text-xs">{s.account_nature}</Badge>
-                      {s.account_display_name && <span className="text-xs text-muted-foreground">· {s.account_display_name}</span>}
-                    </div>
-                    <button type="button" onClick={() => setStaged((arr) => arr.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className="mt-3 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>
+                    {staged.length} linked account{staged.length === 1 ? "" : "s"} ready — add more or create the holder.
+                  </span>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {staged.map((s, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 rounded-md border border-[oklch(0.82_0.14_85/0.2)] bg-card/60 px-3 py-2 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-gold" />
+                        <Badge>{s.currency_code}</Badge>
+                        <Badge variant="outline" className="text-xs">{s.account_nature}</Badge>
+                        {s.account_display_name && <span className="text-xs text-muted-foreground">· {s.account_display_name}</span>}
+                        <span className="text-[10px] text-muted-foreground">(account # auto-generated)</span>
+                      </div>
+                      <button type="button" onClick={() => setStaged((arr) => arr.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </div>
