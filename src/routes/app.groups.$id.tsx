@@ -64,6 +64,8 @@ function AddMembersDialog({ groupId, existing }: { groupId: number; existing: Se
       qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["group-totals", groupId] });
       qc.invalidateQueries({ queryKey: ["group.member-search", groupId] });
+      qc.invalidateQueries({ queryKey: ["group-members-count", groupId] });
+      qc.invalidateQueries({ queryKey: ["groups.list"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
@@ -155,6 +157,7 @@ function GroupDetail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["group", groupId, "members"] });
       qc.invalidateQueries({ queryKey: ["group-totals", groupId] });
+      qc.invalidateQueries({ queryKey: ["group-members-count", groupId] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
