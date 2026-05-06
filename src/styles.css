@@ -63,8 +63,8 @@
   --color-gold-soft: var(--gold-soft);
   --color-gold-deep: var(--gold-deep);
 
-  --font-serif: "Playfair Display", "Cormorant Garamond", ui-serif, Georgia, serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-arabic: "Cairo", "Amiri", "Segoe UI", Tahoma, sans-serif;
 }
@@ -330,7 +330,9 @@ html.theme-night .surface-cream {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "ss01", "cv11", "salt";
+    font-feature-settings: "ss01", "ss02", "cv11", "cv02", "salt", "tnum";
+    font-size: 15px;
+    letter-spacing: -0.005em;
   }
 
   /* Subtle warm vignette across every dark page */
@@ -344,6 +346,9 @@ html.theme-night .surface-cream {
   }
 
   h1, h2, .font-serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
+  h1 { font-weight: 600; letter-spacing: -0.025em; }
+  h2 { font-weight: 550; letter-spacing: -0.02em; }
+  h3, h4 { font-weight: 600; letter-spacing: -0.015em; }
 
   /* Arabic typography: use Cairo for body, Amiri for serif headings.
      Triggered by <html lang="ar"> set by the LanguageProvider. */
@@ -419,5 +424,137 @@ html.theme-night .surface-cream {
     background-image:
       radial-gradient(ellipse 1000px 400px at 50% 100%,
         oklch(0.74 0.135 82 / 0.07) 0%, transparent 70%);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   DAHAB · modern futuristic utility layer.
+   Use these classes on cards, lists and chips for a unified, elevated
+   surface treatment across every page and theme.
+   ────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
+    letter-spacing: -0.01em;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg,
+      var(--gold) 0%,
+      transparent 100%);
+    opacity: 0.45;
+    min-width: 24px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid oklch(from var(--gold) l c h / 0.28);
+    background: linear-gradient(135deg,
+      oklch(from var(--gold) l c h / 0.10),
+      oklch(from var(--gold) l c h / 0.02));
+    color: var(--foreground);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .chip-gold {
+    color: var(--gold);
+    border-color: oklch(from var(--gold) l c h / 0.45);
+  }
+
+  .card-futur {
+    position: relative;
+    border-radius: var(--radius-lg);
+    background:
+      linear-gradient(180deg,
+        oklch(from var(--card) l c h / 0.98),
+        oklch(from var(--card) l c h / 0.92));
+    border: 1px solid oklch(from var(--gold) l c h / 0.18);
+    box-shadow:
+      0 1px 0 0 oklch(1 0 0 / 0.5) inset,
+      0 18px 48px -28px oklch(0 0 0 / 0.25),
+      0 0 0 1px oklch(from var(--gold) l c h / 0.05);
+    transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .card-futur::before {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+      oklch(from var(--gold) l c h / 0.45),
+      transparent 35%,
+      transparent 65%,
+      oklch(from var(--gold) l c h / 0.20));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  .card-futur:hover {
+    border-color: oklch(from var(--gold) l c h / 0.45);
+    box-shadow:
+      0 1px 0 0 oklch(1 0 0 / 0.6) inset,
+      0 24px 60px -28px oklch(from var(--gold) l c h / 0.35),
+      0 0 0 1px oklch(from var(--gold) l c h / 0.18);
+  }
+
+  html.theme-night .card-futur {
+    background:
+      linear-gradient(180deg,
+        oklch(0.22 0.016 60) 0%,
+        oklch(0.17 0.014 60) 100%);
+  }
+
+  .row-luxe {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    background: oklch(from var(--card) l c h / 0.85);
+    border: 1px solid oklch(from var(--border) l c h / 0.9);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+  .row-luxe:hover {
+    transform: translateY(-1px);
+    border-color: oklch(from var(--gold) l c h / 0.45);
+    box-shadow:
+      0 8px 22px -14px oklch(from var(--gold) l c h / 0.45),
+      0 0 0 1px oklch(from var(--gold) l c h / 0.10);
+    background: oklch(from var(--card) l c h / 1);
+  }
+  .row-luxe:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px oklch(from var(--gold) l c h / 0.55);
+  }
+
+  .list-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }
