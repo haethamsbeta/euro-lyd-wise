@@ -1,0 +1,27 @@
+erDiagram
+    auth_users ||--o| profiles : "1:1 on signup"
+    auth_users ||--o{ user_roles : "role assignments"
+    auth_users ||--o{ webauthn_credentials : "passkeys"
+
+    account_holders ||--o{ holder_accounts : "has currency accounts"
+    account_holders ||--o{ account_name_aliases : "alt names"
+    holder_accounts ||--o{ holder_ledger_entries : "ledger"
+    holder_accounts ||--o{ account_group_members : "membership"
+    account_groups  ||--o{ account_group_members : "members"
+
+    account_import_batches ||--o{ account_import_staging : "rows"
+    account_import_batches ||--o{ account_link_review_queue : "ambiguous rows"
+    account_import_staging ||--o| account_link_review_queue : "promoted to review"
+
+    accounts ||--o{ account_balances : "per currency"
+    accounts ||--o{ ledger_entries   : "double-entry side"
+    accounts ||--o{ transactions     : "customer or vault side"
+    transactions ||--o{ ledger_entries : "two entries per tx"
+    transactions ||--o{ transaction_attachments : "files"
+
+    holder_accounts ||..|| accounts : "bridge via ensure_customer_account_for_holder_account"
+
+    auth_users ||--o{ notifications : "inbox"
+    auth_users ||--o| notification_preferences : "settings"
+    auth_users ||--o{ push_subscriptions : "web push"
+    auth_users ||--o{ audit_log : "actor"

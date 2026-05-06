@@ -1,70 +1,95 @@
 ## Goal
-Refresh the DAHAB app with a cleaner, more modern, slightly futuristic feel — sharper typography, well-defined list rows, and elevated card styling — while keeping the gold/cream/onyx brand palette intact.
 
-## 1. Typography refresh (`src/styles.css`)
+Produce a single, self-contained source document at `docs/ARCHITECTURE.md` (and a copy at `/mnt/documents/DAHAB_ARCHITECTURE.md` for download) that a database developer can read end-to-end to understand the app and structure data accordingly. No code/UX changes — purely documentation.
 
-- Swap body sans from **Inter** to **Inter Tight** (tighter tracking, more modern silhouette) with Inter as fallback.
-- Swap serif from **Playfair Display** to **Fraunces** (variable, softer/more contemporary, supports `opsz` + soft style) for headings, balances + gold tones.
-- Keep **JetBrains Mono** for numbers (account numbers, balances).
-- Keep **Cairo / Amiri** for Arabic (`html[lang="ar"]`).
-- Add Google Fonts `<link>` preconnect + stylesheet in `src/routes/__root.tsx` head.
-- Adjust base styles:
-  - body `font-feature-settings: "ss01","ss02","cv11","tnum"` (tabular numbers, stylistic alternates).
-  - tighten heading tracking (`-0.02em`), increase weight scale (h1 600, h2 550 via Fraunces variable).
-  - Default `font-size` lifted from 14 → 15px on desktop for clearer reading; mobile unchanged.
-  - Add `.num` utility: `font-variant-numeric: tabular-nums; font-family: var(--font-mono);` for amounts.
+## What the document will contain
 
-## 2. New "futuristic" surface utilities (`src/styles.css`)
+### 1. System overview
+- Product purpose: DAHAB multi-currency holder accounts, vault operations, ledger-based transactions, account groups for monitoring, import pipeline from Excel.
+- Stack: TanStack Start v1 (React 19, Vite 7), Tailwind v4, Supabase (Postgres + Auth + Storage + Edge Functions), deployed to Cloudflare Workers.
+- Two parallel data models present today:
+  - **Holder model** (primary, in active UI): `account_holders`, `holder_accounts`, `holder_ledger_entries`, `account_groups`, import staging.
+  - **Legacy / vault model**: `accounts`, `account_balances`, `transactions`, `ledger_entries`, `transaction_attachments` (used for vaults, approvals, deposits/withdrawals).
+- Mapping bridge: `ensure_customer_account_for_holder_account` links a `holder_accounts` row to an `accounts` row so vault transactions can post against holders.
 
-Add reusable classes used everywhere instead of editing each component:
+### 2. Authentication & authorization
+- Supabase Auth (email/password + Google), no anonymous sign-ins.
+- Role enum `app_role`: `admin | teller | auditor | consumer`. Roles stored ONLY in `user_roles`.
+- Security-definer helpers: `has_role(uid, role)`, `is_staff(uid)`.
+- `handle_new_user` trigger creates a `profiles` row on signup.
+- WebAuthn passkeys: `webauthn_credentials`, `webauthn_challenges`.
+- Session/idle handling on the client (`session-timeout`, `idle-warning-dialog`).
 
-- `.card-futur` — card with subtle gold inner-stroke, glassy gradient, soft drop shadow + 1px gold rim on hover.
-- `.row-luxe` — list row: rounded-lg, 1px border, hover lift (translateY -1px) + gold glow, focus ring.
-- `.list-stack` — applies `display:flex; flex-direction:column; gap:0.5rem` so all lists become spaced boxes (not flat dividers).
-- `.chip` — refined pill (used for currency, status) with backdrop blur and soft border.
-- `.kbd-num` — tabular-mono number style for balances/IDs.
-- `.section-title` — uppercase 11px tracked label with gold underline accent.
+### 3. Database schema reference
+For every table list: purpose, columns (type, null, default), PK/unique constraints, indexes worth knowing, and the RLS policies. Tables to document (grouped):
 
-These build on existing tokens (`--gold`, `--shadow-elegant`, `--shadow-rim`, `--gradient-gold`) so dark / cream / night themes all work automatically.
+- **Identity & access**: `profiles`, `user_roles`, `webauthn_credentials`, `webauthn_challenges`.
+- **Holders & accounts (primary)**: `account_holders`, `holder_accounts`, `account_name_aliases`, `holder_ledger_entries`.
+- **Groups**: `account_groups`, `account_group_members`.
+- **Import pipeline**: `account_import_batches`, `account_import_staging`, `account_link_review_queue`.
+- **Legacy vault/transactions**: `accounts`, `account_balances`, `transactions`, `ledger_entries`, `transaction_attachments`.
+- **Reference data**: `currencies`.
+- **Notifications**: `notifications`, `notification_preferences`, `notification_reminders_state`, `push_subscriptions`.
+- **Audit**: `audit_log`.
 
-## 3. Apply across the app
+Each section will note: which UI route(s) read/write it, and whether it is part of the primary or legacy model.
 
-Replace flat list/card markup with the new utilities — no behavior changes, only className updates.
+### 4. Enumerated types & conventions
+- `app_role`, `account_kind`, `account_nature` (Debit/Credit), `vault_channel`, `notification_event_type`, `notification_severity`, `tx_status`, `tx_direction`, `tx_channel`, `currency`.
+- Currency codes used in UI: `LYD, USD, EUR, GBP`.
+- Money representation: legacy uses `*_minor` bigint (integer minor units); holder model uses `numeric` (`current_balance`, `debit_amount`, `credit_amount`, `balance_after`). Document this discrepancy and recommended convergence.
+- Naming: `dahab_account_number` (holder-level identifier), `account_number` (per-currency holder account), `tx_number` (transaction reference). Auto-generated by `next_dahab_account_number` and `next_holder_account_number`.
 
-| File | Change |
-|---|---|
-| `src/components/app/app-shell.tsx` | Sidebar items → `row-luxe` style; top header gets thinner gold hairline. |
-| `src/routes/app.index.tsx` (dashboard) | KPI tiles → `card-futur`; numbers → `.num`. |
-| `src/routes/app.holders.index.tsx` | Holder rows → `row-luxe` inside `list-stack`; created_at uses `.num`. |
-| `src/routes/app.holders.$id.tsx` | Header card → `card-futur`; linked-accounts list → `list-stack` of `row-luxe`. |
-| `src/routes/app.groups.index.tsx` | Group cards → `card-futur`; member count + `CurrencyTotalsStrip` aligned in a clearer header band. |
-| `src/routes/app.groups.$id.tsx` | Member list → `list-stack` / `row-luxe`; totals strip elevated. |
-| `src/routes/app.transactions.index.tsx` | Transaction rows → `row-luxe`; amounts `.num`; status chips → `.chip`. |
-| `src/routes/app.vaults.index.tsx`, `app.vaults.$id.tsx` | Vault tiles → `card-futur`. |
-| `src/routes/app.approvals.tsx`, `app.audit.tsx`, `app.users.tsx` | Tables/lists wrapped with `list-stack` + `row-luxe`. |
-| `src/components/app/currency-totals-strip.tsx` | Pill style upgraded to `.chip` + `.num`. |
-| `src/components/app/statement-ledger.tsx` | Numbers → `.num`; row hover → `row-luxe`. |
-| `src/components/ui/card.tsx` | Default `Card` gets `card-futur` base class so anywhere using `<Card>` benefits without rewrites. |
-| `src/components/ui/badge.tsx` | Slight refinement (border + backdrop) for chip-like feel. |
+### 5. Key SQL functions / RPCs (with signatures and what they do)
+- `has_role`, `is_staff`
+- `next_dahab_account_number`, `next_holder_account_number`, `set_account_number`
+- `create_holder_with_accounts` (two overloads — note overload conflict risk)
+- `add_account_to_holder`
+- `ensure_customer_account_for_holder_account`
+- `import_linked_accounts_batch`, `approve_import_batch`, `resolve_review_row`
+- `post_transaction`, `approve_transaction`, `reject_transaction`, `correct_transaction`
+- `get_group_totals(p_group_id)`, `get_holder_currency_totals(p_holder_id)`
+- `notifications_mark_read`, `notifications_mark_all_read`, `run_notification_reminders`
+- `seed_demo_ledger`, `_seed_pending_tx`, `_seed_post_tx`, `_upsert_customer`, `_upsert_vault`
+- Triggers: `tg_accounts_notify`, `tg_transactions_notify`, `handle_new_user`.
 
-## 4. Group card member-count fix (carry-over)
+### 6. Core data flows (with sequence-style descriptions)
+1. **Create holder** → `NewHolderDialog` → `create_holder_with_accounts` → inserts `account_holders` + N `holder_accounts` (auto numbers) → triggers backfill of `accounts` via `ensure_customer_account_for_holder_account`.
+2. **Add linked currency account** → `add_account_to_holder` RPC.
+3. **Excel import** → upload parsed in `src/lib/account-import.ts` → rows land in `account_import_staging` → ambiguous matches fan out to `account_link_review_queue` → admin reviews in `app.import.review` → `approve_import_batch` finalizes into `account_holders` / `holder_accounts`.
+4. **Deposit / withdraw** → `app.transactions.new.*` → inserts pending `transactions` → approver in `app.approvals` → `approve_transaction` writes paired `ledger_entries` and updates `account_balances` (and writes `holder_ledger_entries` for the holder side).
+5. **Group monitoring** → admin creates `account_groups` and adds `holder_accounts` as `account_group_members` → `get_group_totals` aggregates per-currency.
+6. **Notifications** → DB triggers + `run_notification_reminders` cron via `/api/public/hooks/notifications-tick` → rows in `notifications` → realtime delivered to bell UI; web push via `push_subscriptions`.
+7. **Audit** → staff-readable append-only `audit_log` written by sensitive RPCs.
 
-`app.groups.index.tsx` group cards still don't show member count before clicking. Add `members_count` (or count from already-fetched members array) into the header next to the group name as a `.chip` (`{n} members`).
+### 7. RLS policy summary table
+A compact matrix: table × {SELECT, INSERT, UPDATE, DELETE} × who can do it (admin / staff / owner / self / nobody). Built directly from current policies in `<supabase-tables>`.
 
-## 5. QA
+### 8. Route → data map
+Table mapping each `src/routes/*.tsx` to the tables/RPCs it touches and the role gate. Covers: dashboard, holders list/detail, groups list/detail, transactions index/new/approvals, import + review, vaults, audit, users, notifications/security settings, mobile (`m.*`), public portal, public API hooks.
 
-- Verify all three themes: cream `.dark`, light `:root`, night `html.theme-night` — all use the same tokens so utilities work automatically.
-- Verify Arabic (`html[lang="ar"]`) keeps Cairo/Amiri (typography rule already scoped).
-- Quick visual pass on holders / groups / transactions / dashboard.
+### 9. Storage & edge surfaces
+- Supabase Storage usage (`transaction_attachments.storage_path`).
+- Public API routes under `src/routes/api/public/*` (notifications tick, demo seed) — auth bypass + signature/secret expectations.
+- Server functions location convention (`src/server/*.functions.ts`, `*.server.ts`) with WebAuthn example.
 
-## Out of scope
+### 10. Recommendations for the DB developer
+- Pick one money representation (recommend `numeric(20,4)` everywhere or minor-unit `bigint` everywhere) and migrate the other model.
+- Resolve `create_holder_with_accounts` overload (drop one signature).
+- Add FK constraints — currently many tables (`holder_accounts`, `holder_ledger_entries`, `account_group_members`, etc.) have no declared FKs in the schema dump; add them with `ON DELETE` policies.
+- Add per-currency unique constraints on `holder_accounts(account_holder_id, currency_code)` if business rule is one account per currency per holder.
+- Index hotspots: `holder_ledger_entries(account_id, posted_at desc)`, `transactions(status, posted_at)`, `notifications(user_id, created_at desc)`.
+- Long-term: collapse legacy `accounts/transactions/ledger_entries` into the holder model, or formalize the bridge view.
 
-- No backend / API wiring changes (still in pre-connect prep mode).
-- No data model changes.
-- No route additions.
+### 11. Appendices
+- A: Full ER diagram (Mermaid, embedded as `docs/architecture.mmd` and referenced inline).
+- B: Migration timeline (list of 26 migration filenames in order with one-line summaries derived from filename + content scan).
+- C: Glossary (DAHAB, holder, vault, ledger entry, channel, nature, etc.).
 
-## Files touched (summary)
+## Deliverables
+- `docs/ARCHITECTURE.md` (committed in repo)
+- `docs/architecture.mmd` (Mermaid ER diagram)
+- `/mnt/documents/DAHAB_ARCHITECTURE.md` (downloadable copy)
+- `<lov-artifact>` link so the user can download the markdown directly.
 
-Edited: `src/styles.css`, `src/routes/__root.tsx`, `src/components/ui/card.tsx`, `src/components/ui/badge.tsx`, `src/components/app/currency-totals-strip.tsx`, `src/components/app/statement-ledger.tsx`, `src/components/app/app-shell.tsx`, and the route files listed above.
-
-No new files, no new dependencies (Google Fonts via `<link>`).
+No application code, schema, or UI is modified by this task.
