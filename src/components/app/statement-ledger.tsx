@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -79,24 +78,25 @@ export function StatementLedger({
                     <div className="truncate text-xs text-muted-foreground">{t.comment}</div>
                   ) : null}
                 </td>
-                <td className="px-3 py-2 text-end font-mono text-destructive">
+                <td className="px-3 py-2 text-end num text-destructive">
                   {!isDeposit ? formatMinor(t.amount_minor, t.currency) : ""}
                 </td>
-                <td className="px-3 py-2 text-end font-mono text-success">
+                <td className="px-3 py-2 text-end num text-success">
                   {isDeposit ? formatMinor(t.amount_minor, t.currency) : ""}
                 </td>
                 <td className="px-3 py-2">
-                  <Badge
-                    variant={
-                      t.status === "posted" ? "secondary" :
-                      t.status === "pending" ? "outline" :
-                      "destructive"
-                    }
+                  <span
+                    className={cn(
+                      "chip",
+                      t.status === "posted" && "chip-gold",
+                      t.status === "rejected" && "!border-destructive/40 !text-destructive",
+                      t.status === "reversed" && "!border-warning/40 !text-warning",
+                    )}
                   >
                     {t.status}
-                  </Badge>
+                  </span>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-end font-mono font-semibold">
+                <td className="whitespace-nowrap px-3 py-2 text-end num font-semibold">
                   {t.counted ? formatMinor(t.balance_after, currency) : "—"}
                 </td>
               </tr>
