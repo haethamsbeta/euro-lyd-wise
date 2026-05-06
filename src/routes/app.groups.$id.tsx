@@ -194,11 +194,11 @@ function GroupDetail() {
         }
       />
       <div className="space-y-4 p-4 sm:p-6">
-        <Card className="card-luxe border-[oklch(0.82_0.14_85/0.4)]">
+        <Card className="border-[oklch(0.82_0.14_85/0.4)]">
           <CardContent className="p-4">
             <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="font-serif text-lg text-gold">Group balance totals</h2>
-              <span className="text-xs text-muted-foreground">
+              <h2 className="section-title">Group balance totals</h2>
+              <span className="chip">
                 across {(totals ?? []).reduce((s, t) => s + Number(t.account_count ?? 0), 0)} account(s)
               </span>
             </div>
@@ -208,22 +208,22 @@ function GroupDetail() {
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(totals ?? []).map((t) => (
-            <Card key={t.currency} className="card-luxe">
+            <Card key={t.currency}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <Badge>{t.currency}</Badge>
-                  <span className="text-xs text-muted-foreground">{t.account_count} acct</span>
+                  <span className="chip chip-gold">{t.currency}</span>
+                  <span className="chip">{t.account_count} acct</span>
                 </div>
-                <div className="mt-3 font-serif text-2xl text-gold">{Number(t.total_balance).toLocaleString()}</div>
+                <div className="mt-3 num text-2xl text-gold">{Number(t.total_balance).toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">total balance</div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded border border-[oklch(0.82_0.14_85/0.12)] p-2">
+                  <div className="rounded-md border border-[oklch(0.82_0.14_85/0.18)] bg-card/40 p-2">
                     <div className="text-muted-foreground">Total debits</div>
-                    <div className="font-mono">{Number(t.total_debits).toLocaleString()}</div>
+                    <div className="num">{Number(t.total_debits).toLocaleString()}</div>
                   </div>
-                  <div className="rounded border border-[oklch(0.82_0.14_85/0.12)] p-2">
+                  <div className="rounded-md border border-[oklch(0.82_0.14_85/0.18)] bg-card/40 p-2">
                     <div className="text-muted-foreground">Total credits</div>
-                    <div className="font-mono">{Number(t.total_credits).toLocaleString()}</div>
+                    <div className="num">{Number(t.total_credits).toLocaleString()}</div>
                   </div>
                 </div>
               </CardContent>
@@ -234,57 +234,49 @@ function GroupDetail() {
           )}
         </div>
 
-        <Card className="card-luxe">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase text-muted-foreground">
-                    <th className="p-3">DAHAB #</th>
-                    <th className="p-3">Holder</th>
-                    <th className="p-3">Account #</th>
-                    <th className="p-3">Currency</th>
-                    <th className="p-3 text-right">Balance</th>
-                    <th className="p-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(members ?? []).length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No members.</td></tr>
-                  ) : (members ?? []).map((m: any) => {
-                    const a = m.holder_accounts;
-                    const h = a?.account_holders;
-                    return (
-                      <tr key={m.holder_account_id} className="border-t border-[oklch(0.82_0.14_85/0.08)]">
-                        <td className="p-3 font-mono text-xs text-gold">{h?.dahab_account_number}</td>
-                        <td className="p-3">
-                          <Link to="/app/holders/$id" params={{ id: String(h?.id) }} className="hover:text-gold">
-                            {h?.canonical_name}
-                          </Link>
-                        </td>
-                        <td className="p-3 font-mono text-xs">{a?.account_number}</td>
-                        <td className="p-3"><Badge variant="outline">{a?.currency_code}</Badge></td>
-                        <td className="p-3 text-right font-mono">{Number(a?.current_balance ?? 0).toLocaleString()}</td>
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button asChild size="sm" variant="outline">
-                              <Link to="/app/holders/$id" params={{ id: String(h?.id) }}>View</Link>
-                            </Button>
-                            {isAdmin && (
-                              <Button size="sm" variant="ghost" onClick={() => removeMember.mutate(m.holder_account_id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="section-title">Members</h3>
+            <span className="chip">{(members ?? []).length} account(s)</span>
+          </div>
+          {(members ?? []).length === 0 ? (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No members.</CardContent></Card>
+          ) : (
+            <div className="list-stack">
+              {(members ?? []).map((m: any) => {
+                const a = m.holder_accounts;
+                const h = a?.account_holders;
+                return (
+                  <div key={m.holder_account_id} className="row-luxe flex-wrap">
+                    <span className="chip chip-gold font-mono">{h?.dahab_account_number}</span>
+                    <Link
+                      to="/app/holders/$id"
+                      params={{ id: String(h?.id) }}
+                      className="min-w-0 flex-1 truncate font-medium hover:text-gold"
+                    >
+                      {h?.canonical_name}
+                    </Link>
+                    <span className="font-mono text-xs text-muted-foreground">{a?.account_number}</span>
+                    <span className="chip">{a?.currency_code}</span>
+                    <span className="num text-right font-semibold text-gold">
+                      {Number(a?.current_balance ?? 0).toLocaleString()}
+                    </span>
+                    <div className="flex gap-1">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/app/holders/$id" params={{ id: String(h?.id) }}>View</Link>
+                      </Button>
+                      {isAdmin && (
+                        <Button size="sm" variant="ghost" onClick={() => removeMember.mutate(m.holder_account_id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
     </div>
   );

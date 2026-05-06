@@ -597,10 +597,10 @@ function TxRow({
       <td className="px-3 py-2.5 align-top">
         <span
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            "chip",
             isDeposit
-              ? "bg-success/10 text-success"
-              : "bg-destructive/10 text-destructive",
+              ? "!border-success/40 !text-success"
+              : "!border-destructive/40 !text-destructive",
           )}
         >
           {isDeposit ? (
@@ -612,7 +612,7 @@ function TxRow({
         </span>
       </td>
       <td className="px-3 py-2.5 align-top capitalize text-muted-foreground">{tx.channel}</td>
-      <td className="px-3 py-2.5 align-top text-right font-mono tabular-nums">
+      <td className="px-3 py-2.5 align-top text-right num">
         <span className="text-base font-semibold">{formatMinor(tx.amount_minor, tx.currency)}</span>{" "}
         <span className="text-[11px] text-muted-foreground">{tx.currency}</span>
       </td>
@@ -865,14 +865,14 @@ function TxDetailsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void })
         {tx ? (
           <div className="mt-4 space-y-5">
             {/* Headline amount */}
-            <div className="rounded-lg border bg-card p-4">
+            <div className="card-futur rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    "chip",
                     tx.direction === "deposit"
-                      ? "bg-success/10 text-success"
-                      : "bg-destructive/10 text-destructive",
+                      ? "!border-success/40 !text-success"
+                      : "!border-destructive/40 !text-destructive",
                   )}
                 >
                   {tx.direction === "deposit" ? (
@@ -882,7 +882,7 @@ function TxDetailsSheet({ tx, onClose }: { tx: Tx | null; onClose: () => void })
                   )}
                   {tx.direction === "deposit" ? "Deposit" : "Withdrawal"} · {tx.channel}
                 </span>
-                <div className="text-right font-mono tabular-nums">
+                <div className="text-right num">
                   <div className="text-xl font-semibold">
                     {formatMinor(tx.amount_minor, tx.currency)}
                   </div>
