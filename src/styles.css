@@ -330,7 +330,9 @@ html.theme-night .surface-cream {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "ss01", "cv11", "salt";
+    font-feature-settings: "ss01", "ss02", "cv11", "cv02", "salt", "tnum";
+    font-size: 15px;
+    letter-spacing: -0.005em;
   }
 
   /* Subtle warm vignette across every dark page */
@@ -344,6 +346,9 @@ html.theme-night .surface-cream {
   }
 
   h1, h2, .font-serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
+  h1 { font-weight: 600; letter-spacing: -0.025em; }
+  h2 { font-weight: 550; letter-spacing: -0.02em; }
+  h3, h4 { font-weight: 600; letter-spacing: -0.015em; }
 
   /* Arabic typography: use Cairo for body, Amiri for serif headings.
      Triggered by <html lang="ar"> set by the LanguageProvider. */
