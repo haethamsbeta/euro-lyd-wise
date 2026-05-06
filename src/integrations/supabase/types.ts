@@ -1156,6 +1156,10 @@ export type Database = {
         }[]
       }
       next_dahab_account_number: { Args: never; Returns: string }
+      next_holder_account_number: {
+        Args: { p_currency: string; p_dahab: string }
+        Returns: string
+      }
       notifications_mark_all_read: { Args: never; Returns: number }
       notifications_mark_read: { Args: { p_ids: string[] }; Returns: number }
       post_transaction: {

@@ -8,12 +8,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
   const [open, setOpen] = useState(false);
-  const [accountNumber, setAccountNumber] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [nature, setNature] = useState("Debit");
   const [displayName, setDisplayName] = useState("");
@@ -25,7 +24,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
       const { error } = await supabase.rpc("add_account_to_holder", {
         p_holder_id: holderId,
         p_account: {
-          account_number: accountNumber.trim(),
           currency_code: currency,
           account_nature: nature,
           account_display_name: displayName.trim() || undefined,
@@ -38,7 +36,7 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
     onSuccess: () => {
       toast.success("Linked account added");
       qc.invalidateQueries({ queryKey: ["holder", holderId] });
-      setAccountNumber(""); setDisplayName(""); setAlias("");
+      setDisplayName(""); setAlias("");
       setOpen(false);
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to add account"),
@@ -52,9 +50,11 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
       <DialogContent>
         <DialogHeader><DialogTitle>Add linked account</DialogTitle></DialogHeader>
         <div className="grid gap-3">
-          <div>
-            <Label>Account number</Label>
-            <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+          <div className="flex items-start gap-2 rounded-md border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.05)] p-3 text-xs">
+            <Sparkles className="h-4 w-4 shrink-0 text-gold" />
+            <span>
+              Account number is generated automatically (e.g. <span className="font-mono text-gold">DAHAB-000409-USD-001</span>).
+            </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -90,7 +90,7 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={m.isPending || !accountNumber.trim()} onClick={() => m.mutate()} className="bg-gradient-gold text-primary-foreground">
+          <Button disabled={m.isPending} onClick={() => m.mutate()} className="bg-gradient-gold text-primary-foreground">
             {m.isPending ? "Adding…" : "Add account"}
           </Button>
         </DialogFooter>

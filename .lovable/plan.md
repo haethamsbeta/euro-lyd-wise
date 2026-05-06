@@ -1,95 +1,74 @@
-## Goals
+# Holder Creation Fix + Auto-Generated Account Numbers + Group Balance Totals
 
-1. **Fix member count** on the Groups list cards. Today the card shows the number of *currencies returned by the totals RPC*, not the actual member count. Empty groups always show "0 acct" even after adding members because `get_group_totals` only returns currency rows that have accounts — and the count is being misread anyway.
-2. **Scaffold the AWS backend client** (`VITE_API_BASE_URL`, `src/lib/dahabApi.ts`, typed response envelope, page/empty/error/loading helpers) so pages are ready to switch over later. No live endpoint wiring in this pass — Supabase keeps powering all pages exactly as it does today.
+## 1. Root cause of the duplicate-key error
 
-Out of scope for this turn: replacing Supabase calls in Holders / Transactions / Vaults / Groups, auth changes, removing mock/demo data, deleting Supabase. Those happen after you confirm the AWS endpoints are live.
+`account_holders` has 408 rows ending at `DAHAB-000408`, but the underlying `dahab_holder_seq` sequence is only at value **2** (rows were imported via Excel, bypassing `nextval`). The next call to `next_dahab_account_number()` returns `DAHAB-000003`, which already exists, hence:
 
----
+> duplicate key value violates unique constraint "account_holders_dahab_account_number_key"
 
-## Part 1 — Group member count fix
+A new sequence is also needed to back auto-generated linked-account numbers.
 
-File: `src/routes/app.groups.index.tsx`
+## 2. Database migration
 
-- In `GroupCard`, add a second lightweight query that counts members directly:
-  ```ts
-  supabase
-    .from("account_group_members")
-    .select("holder_account_id", { count: "exact", head: true })
-    .eq("group_id", id)
-  ```
-- Render the badge as `{count} member{count===1?"":"s"}` instead of summing `account_count` from the totals RPC.
-- Keep the per-currency totals block below as-is (it stays driven by `get_group_totals`).
-- Invalidate `["group-members-count", id]` from the existing add/remove member mutations in `app.groups.$id.tsx` so the list card updates immediately when you come back.
+1. **Realign the holder sequence** to current max:
+   `setval('dahab_holder_seq', GREATEST(<max parsed from existing DAHAB-XXXXXX>, last_value))`.
+2. **Harden `next_dahab_account_number()`** so it loops until it returns a value not already present in `account_holders` (defense against future drift / concurrent imports).
+3. **Create `holder_account_number_seq`** plus helper `next_holder_account_number(p_dahab text, p_currency text)` returning e.g. `DAHAB-000409-USD-001`, also collision-checked.
+4. **Update `create_holder_with_accounts(...)` and `add_account_to_holder(...)`**:
+   - Stop requiring `account_number` from the client.
+   - When `account_number` is omitted/blank, auto-generate via the new helper.
+   - Continue to accept an explicit number (preserves Excel import flow).
 
-Result: every group card shows the true member count before you click in, including groups with 0 currencies of activity.
+No table schema changes — only sequences + functions.
 
----
+## 3. Frontend: holder dialogs (clearer + auto-gen)
 
-## Part 2 — AWS API client scaffold
+### `src/components/app/new-holder-dialog.tsx`
+- Remove the **Account number** input. Add inline note: "Account number is generated automatically (e.g. DAHAB-000409-USD-001)."
+- Restyle the "Linked accounts" section: gold-accented sub-header, helper line, larger Add button labeled "Add linked account".
+- Each staged row gets a check icon and clearer chips (currency, nature, display name).
+- When ≥1 account is staged, show a green confirmation banner: "1 linked account ready — add more or create the holder."
+- Drop `account_number` from the staged payload (server generates it).
 
-Goal: get the plumbing in place so a future turn just swaps `useQuery` bodies. **No page behavior changes.**
+### `src/components/app/add-linked-account-dialog.tsx`
+- Same: remove the account-number input, add the auto-gen note, keep currency / nature / display / alias.
 
-### 2a. Env
+## 4. Holder created-at timestamp
 
-Add to `.env` (local) and document for prod:
-```
-VITE_API_BASE_URL=https://u2j81refrf.execute-api.eu-north-1.amazonaws.com
-```
+- `src/routes/app.holders.$id.tsx`: show `holder.created_at` formatted as full date + time (locale-aware) in the holder header card.
+- `src/routes/app.holders.index.tsx`: include the created timestamp in the holder card subtitle.
 
-### 2b. New file `src/lib/dahabApi.ts`
+## 5. Group balance totals — more visible and elegant
 
-A thin typed fetch wrapper:
+### Group card (`src/routes/app.groups.index.tsx`)
+Replace the small per-currency rows with an elegant **totals strip**:
+- Prominent gold "Total balances" label.
+- One pill per currency stacked horizontally (wraps): currency code badge + large gold-toned amount + tiny "X acct" caption.
+- Subtle gold gradient background and divider above the strip.
+- Member count badge stays in header.
+- Empty state: muted "No balances yet."
 
-- Reads `import.meta.env.VITE_API_BASE_URL`.
-- Standard envelope type:
-  ```ts
-  type ApiEnvelope<T> = { success: boolean; data: T; message: string; timestamp: string };
-  ```
-- `apiFetch<T>(path, init?)`: prepends base URL, sets `Content-Type: application/json`, parses envelope, throws `ApiError(message, status)` when `success === false` or HTTP not OK, returns `data`.
-- Auth hook stub: an `authTokenProvider` setter (e.g. `setAuthTokenProvider(() => Promise<string|null>)`). The wrapper calls it and adds `Authorization: Bearer <token>` if present. Default provider returns `null`. This lets us plug in whatever token scheme the backend ends up using (your "user login separate from DB credentials" answer) without touching call sites.
-- Typed endpoint helpers, all matching the spec but **not yet called by any page**:
-  - `holders.list()`, `holders.get(id)`, `holders.create(body)`, `holders.accounts(id)`
-  - `holderAccounts.ledger(holderAccountId, { from?, to? })`, `holderAccounts.create(holderId, body)`
-  - `transactions.list(params)`
-  - `internalAccounts.list()` (a.k.a. `vaults.list()`)
-- Shared TS types matching the DahabDB tables you described: `Holder`, `HolderAccount`, `LedgerEntry`, `Transaction`, `InternalAccount`, plus enums for `Currency = "LYD"|"USD"|"EUR"|"GBP"` and `AccountNature = "Debit"|"Credit"`.
+### Group detail page (`src/routes/app.groups.$id.tsx`)
+Add a **summary banner** above the existing per-currency cards:
+- Full-width card with gold gradient border.
+- Heading "Group balance totals" + "across N accounts".
+- Inline horizontal list of currency pills (same component used on the card) with the largest balance highlighted.
+- Existing detailed per-currency cards (debits/credits breakdown) remain underneath, slightly smaller, as the deep-dive view.
 
-### 2c. New file `src/lib/dahabQueryKeys.ts`
+Implementation: extract a shared `<CurrencyTotalsStrip totals={...} />` component in `src/components/app/currency-totals-strip.tsx` so both pages render identical pills.
 
-Centralized query key factory for the future migration (e.g. `dahabKeys.holders.list()`, `dahabKeys.holderAccounts.ledger(id, range)`). Not consumed yet; just defined so future PRs are mechanical.
+## 6. Files touched
 
-### 2d. New file `src/components/app/data-states.tsx`
+- New migration in `supabase/migrations/` (sequence reset + new helper + 2 RPC updates).
+- `src/components/app/new-holder-dialog.tsx`
+- `src/components/app/add-linked-account-dialog.tsx`
+- `src/routes/app.holders.$id.tsx`
+- `src/routes/app.holders.index.tsx`
+- `src/routes/app.groups.index.tsx`
+- `src/routes/app.groups.$id.tsx`
+- New: `src/components/app/currency-totals-strip.tsx`
 
-Three tiny presentational components used by future AWS-wired pages:
-- `<Loading label="Loading…" />` (spinner + text)
-- `<EmptyState title description action? />`
-- `<ErrorState error onRetry? />`
+## Out of scope
 
-Drop-in so each migrated page gets consistent loading / empty / error UX as required.
-
-### 2e. Safety rails
-
-- Do NOT import `dahabApi` from any existing page in this turn.
-- Do NOT remove any Supabase imports, mock data, or RLS code.
-- README/comment at the top of `dahabApi.ts` makes clear it is unused until endpoints are confirmed.
-
----
-
-## Files
-
-Created:
-- `src/lib/dahabApi.ts`
-- `src/lib/dahabQueryKeys.ts`
-- `src/components/app/data-states.tsx`
-
-Edited:
-- `src/routes/app.groups.index.tsx` (member count)
-- `src/routes/app.groups.$id.tsx` (invalidate count key on add/remove)
-- `.env` (add `VITE_API_BASE_URL`)
-
----
-
-## What happens next (not this turn)
-
-When you say "wire it up", we will, page by page: replace each `useQuery` body with a `dahabApi.*` call, swap loading/empty/error to the new components, delete the corresponding Supabase calls, and finally remove the Supabase client + types once every page is migrated and verified against the live AWS endpoints.
+- AWS backend wiring (still scaffolding-only per earlier decision).
+- Schema changes to `account_holders` / `holder_accounts` (only sequences + functions).
