@@ -27,7 +27,17 @@ function GroupCard({ id, name, description }: { id: number; name: string; descri
       return (data ?? []) as unknown as Totals[];
     },
   });
-  const memberCount = (totals ?? []).reduce((s, t) => s + Number(t.account_count ?? 0), 0);
+  const { data: memberCount = 0 } = useQuery({
+    queryKey: ["group-members-count", id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("account_group_members")
+        .select("holder_account_id", { count: "exact", head: true })
+        .eq("group_id", id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
   return (
     <Link to="/app/groups/$id" params={{ id: String(id) }}>
       <Card className="card-luxe transition hover:border-[oklch(0.82_0.14_85/0.5)]">
@@ -40,7 +50,7 @@ function GroupCard({ id, name, description }: { id: number; name: string; descri
               </div>
               {description && <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{description}</div>}
             </div>
-            <Badge variant="secondary">{memberCount} acct</Badge>
+            <Badge variant="secondary">{memberCount} member{memberCount === 1 ? "" : "s"}</Badge>
           </div>
           <div className="mt-3 space-y-1.5">
             {(totals ?? []).length === 0 ? (
