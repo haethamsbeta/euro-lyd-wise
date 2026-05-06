@@ -41,7 +41,7 @@ function GroupCard({ id, name, description }: { id: number; name: string; descri
   });
   return (
     <Link to="/app/groups/$id" params={{ id: String(id) }}>
-      <Card className="card-luxe transition hover:border-[oklch(0.82_0.14_85/0.5)]">
+      <Card className="transition">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -51,7 +51,10 @@ function GroupCard({ id, name, description }: { id: number; name: string; descri
               </div>
               {description && <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{description}</div>}
             </div>
-            <Badge variant="secondary">{memberCount} member{memberCount === 1 ? "" : "s"}</Badge>
+            <span className="chip chip-gold whitespace-nowrap">
+              <Layers className="h-3 w-3" />
+              {memberCount} member{memberCount === 1 ? "" : "s"}
+            </span>
           </div>
           <div className="mt-3">
             <CurrencyTotalsStrip totals={totals} emptyText="No member accounts yet." size="md" />
