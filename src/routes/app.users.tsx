@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { adminResetPassword } from "@/server/auth.functions";
+import { useAuth } from "@/lib/auth";
+import { KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/app/users")({
   component: () => <RoleGate allow={["admin"]}><UsersPage /></RoleGate>,
@@ -20,7 +24,10 @@ const ROLES = ["admin", "teller", "auditor", "consumer"] as const;
 function UsersPage() {
   const t = useT();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const resetFn = useServerFn(adminResetPassword);
   const [search, setSearch] = useState("");
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const { data } = useQuery({
     queryKey: ["users.profiles"],
@@ -53,6 +60,19 @@ function UsersPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  async function onResetPassword(targetId: string, name: string) {
+    if (!confirm(`Reset password for ${name}? They will be signed out and emailed a reset link.`)) return;
+    setResettingId(targetId);
+    try {
+      await resetFn({ data: { userId: targetId } });
+      toast.success("Reset link sent. The user must set a new password before signing in.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Reset failed");
+    } finally {
+      setResettingId(null);
+    }
+  }
+
   const profiles = (data?.profiles ?? []).filter((p) =>
     !search || p.full_name.toLowerCase().includes(search.toLowerCase()) || p.id.includes(search),
   );
@@ -71,6 +91,7 @@ function UsersPage() {
                   <th className="px-4 py-2 text-start">{t("users.col.user")}</th>
                   <th className="px-4 py-2 text-start">{t("users.col.roles")}</th>
                   <th className="px-4 py-2 text-start">{t("users.col.grant")}</th>
+                  <th className="px-4 py-2 text-start">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -95,6 +116,25 @@ function UsersPage() {
                       </td>
                       <td className="px-4 py-2">
                         <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
+                      </td>
+                      <td className="px-4 py-2">
+                        {(() => {
+                          const isStaff = userRoles.some((r) => ["admin","teller","auditor"].includes(r.role));
+                          const isSelf = user?.id === p.id;
+                          if (!isStaff || isSelf) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              disabled={resettingId === p.id}
+                              onClick={() => onResetPassword(p.id, p.full_name || "this user")}
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              {resettingId === p.id ? "Sending…" : "Reset password"}
+                            </Button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
