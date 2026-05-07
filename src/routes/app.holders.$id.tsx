@@ -1,14 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
@@ -24,7 +26,7 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
