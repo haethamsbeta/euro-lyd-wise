@@ -26,7 +26,7 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit,withdraw_limit_enabled,withdraw_limit_amount)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
@@ -131,6 +131,7 @@ function HolderDetail() {
                     {isOpen && (
                       <>
                         {isAdmin && <LimitsEditor account={a} />}
+                        {isAdmin && <WithdrawLimitEditor account={a} />}
                         <LedgerPanel accountId={a.id} currency={a.currency_code} />
                       </>
                     )}
@@ -177,6 +178,62 @@ function LimitsEditor({ account }: { account: any }) {
         <Pencil className="h-3.5 w-3.5 me-1" /> Save limits
       </Button>
       <p className="basis-full text-[11px] text-muted-foreground">Use 0 to leave a limit unset.</p>
+    </div>
+  );
+}
+
+function WithdrawLimitEditor({ account }: { account: any }) {
+  const qc = useQueryClient();
+  const [enabled, setEnabled] = useState<boolean>(!!account.withdraw_limit_enabled);
+  const [amount, setAmount] = useState<string>(String(account.withdraw_limit_amount ?? 0));
+  const [note, setNote] = useState("");
+  const available =
+    Number(account.current_balance ?? 0) +
+    (enabled ? Number(amount) || 0 : 0);
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("sp_set_holder_withdraw_limit", {
+        p_holder_account_id: account.id,
+        p_enabled: enabled,
+        p_amount: Number(amount) || 0,
+        p_note: note || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Withdrawal limit updated");
+      qc.invalidateQueries({ queryKey: ["holder"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+  return (
+    <div className="space-y-3 border-t border-[oklch(0.82_0.14_85/0.15)] p-4">
+      <div className="text-sm font-medium">Withdrawal limit ({account.currency_code})</div>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          Enabled
+        </label>
+        <div>
+          <label className="block text-xs text-muted-foreground">Amount ({account.currency_code})</label>
+          <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-40" disabled={!enabled} />
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs text-muted-foreground">Note (optional)</label>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+      </div>
+      <div className="rounded-md border bg-muted/30 p-2 text-xs">
+        Available to withdraw:{" "}
+        <span className="font-mono font-medium">
+          {available.toLocaleString()} {account.currency_code}
+        </span>
+        <span className="ms-2 text-muted-foreground">
+          (balance {Number(account.current_balance ?? 0).toLocaleString()} +{" "}
+          {enabled ? `limit ${Number(amount) || 0}` : "no limit"})
+        </span>
+      </div>
     </div>
   );
 }
