@@ -509,3 +509,28 @@ See `docs/architecture.mmd` (Mermaid). Render with any Mermaid viewer.
 ---
 
 _End of document._
+---
+
+## Backend swap plan (AWS Lambda)
+
+The frontend talks to backend auth via the `AuthService` interface in
+`src/lib/authService.ts`. Switch implementations with the build-time env
+var `VITE_AUTH_BACKEND` (`supabase` default, `lambda` when ready).
+
+### REST contract the Lambda backend must implement
+
+| Method | Path | Body | Response |
+| --- | --- | --- | --- |
+| POST | `/auth/sign-in` | `{ email, password }` | `{ userId, email, mustChangePassword, token }` |
+| POST | `/auth/forgot-password` | `{ email }` | `204` (always — no enumeration) |
+| POST | `/auth/reset-password` | `{ token, newPassword }` | `204` |
+| POST | `/auth/me/clear-must-change-password` | _none_ | `204` |
+| POST | `/auth/sign-out` | _none_ | `204` |
+| GET  | `/users/{userId}/must-change-password` | _none_ | `{ mustChangePassword: boolean }` |
+| POST | `/admin/users/{userId}/reset-password` | _none_ | `{ ok, email }` (admin only — revokes sessions + emails reset link) |
+
+`mustChangePassword` is part of the user profile/JWT claim. When `true`,
+the frontend redirects to `/change-password` immediately after sign-in.
+
+Base URL is read from `VITE_LAMBDA_API_BASE_URL`. The stub in
+`src/lib/authService.lambda.ts` documents the exact call shape per method.
