@@ -196,7 +196,7 @@ function WithdrawLimitEditor({ account }: { account: any }) {
         p_holder_account_id: account.id,
         p_enabled: enabled,
         p_amount: Number(amount) || 0,
-        p_note: note || null,
+        p_note: note || undefined,
       });
       if (error) throw error;
     },
