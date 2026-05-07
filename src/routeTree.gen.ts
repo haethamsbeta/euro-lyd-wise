@@ -32,6 +32,7 @@ import { Route as AppHoldersIndexRouteImport } from './routes/app.holders.index'
 import { Route as AppGroupsIndexRouteImport } from './routes/app.groups.index'
 import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
+import { Route as AppUsersNewConsumerRouteImport } from './routes/app.users.new-consumer'
 import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
@@ -158,6 +159,11 @@ const AppVaultsIdRoute = AppVaultsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppVaultsRoute,
 } as any)
+const AppUsersNewConsumerRoute = AppUsersNewConsumerRouteImport.update({
+  id: '/new-consumer',
+  path: '/new-consumer',
+  getParentRoute: () => AppUsersRoute,
+} as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/settings/security',
   path: '/settings/security',
@@ -225,7 +231,7 @@ export interface FileRoutesByFullPath {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/users': typeof AppUsersRoute
+  '/app/users': typeof AppUsersRouteWithChildren
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
@@ -236,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/groups/': typeof AppGroupsIndexRoute
@@ -258,7 +265,7 @@ export interface FileRoutesByTo {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/users': typeof AppUsersRoute
+  '/app/users': typeof AppUsersRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
@@ -268,6 +275,7 @@ export interface FileRoutesByTo {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/groups': typeof AppGroupsIndexRoute
@@ -293,7 +301,7 @@ export interface FileRoutesById {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/users': typeof AppUsersRoute
+  '/app/users': typeof AppUsersRouteWithChildren
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
@@ -304,6 +312,7 @@ export interface FileRoutesById {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
   '/app/groups/': typeof AppGroupsIndexRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/groups/'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/groups'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
     | '/app/groups/'
@@ -597,6 +609,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVaultsIdRouteImport
       parentRoute: typeof AppVaultsRoute
     }
+    '/app/users/new-consumer': {
+      id: '/app/users/new-consumer'
+      path: '/new-consumer'
+      fullPath: '/app/users/new-consumer'
+      preLoaderRoute: typeof AppUsersNewConsumerRouteImport
+      parentRoute: typeof AppUsersRoute
+    }
     '/app/settings/security': {
       id: '/app/settings/security'
       path: '/settings/security'
@@ -670,6 +689,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppUsersRouteChildren {
+  AppUsersNewConsumerRoute: typeof AppUsersNewConsumerRoute
+}
+
+const AppUsersRouteChildren: AppUsersRouteChildren = {
+  AppUsersNewConsumerRoute: AppUsersNewConsumerRoute,
+}
+
+const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
+  AppUsersRouteChildren,
+)
+
 interface AppVaultsRouteChildren {
   AppVaultsIdRoute: typeof AppVaultsIdRoute
   AppVaultsIndexRoute: typeof AppVaultsIndexRoute
@@ -688,7 +719,7 @@ interface AppRouteChildren {
   AppAboutRoute: typeof AppAboutRoute
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
-  AppUsersRoute: typeof AppUsersRoute
+  AppUsersRoute: typeof AppUsersRouteWithChildren
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
@@ -708,7 +739,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAboutRoute: AppAboutRoute,
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
-  AppUsersRoute: AppUsersRoute,
+  AppUsersRoute: AppUsersRouteWithChildren,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
