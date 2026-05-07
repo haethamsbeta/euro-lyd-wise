@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
-import { adminResetPassword } from "@/server/auth.functions";
 import { useAuth } from "@/lib/auth";
 import { KeyRound } from "lucide-react";
 
@@ -25,7 +23,6 @@ function UsersPage() {
   const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const resetFn = useServerFn(adminResetPassword);
   const [search, setSearch] = useState("");
   const [resettingId, setResettingId] = useState<string | null>(null);
 
@@ -64,7 +61,15 @@ function UsersPage() {
     if (!confirm(`Reset password for ${name}? They will be signed out and emailed a reset link.`)) return;
     setResettingId(targetId);
     try {
-      await resetFn({ data: { userId: targetId } });
+      const { data: rpc, error } = await supabase.rpc("admin_reset_password", {
+        p_target_user: targetId,
+      });
+      if (error) throw error;
+      const email = (rpc as any)?.email as string | undefined;
+      if (!email) throw new Error("Could not resolve user email");
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error: mailErr } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (mailErr) throw mailErr;
       toast.success("Reset link sent. The user must set a new password before signing in.");
     } catch (e: any) {
       toast.error(e?.message ?? "Reset failed");
