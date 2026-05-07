@@ -712,16 +712,19 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          must_change_password: boolean
         }
         Insert: {
           created_at?: string
           full_name?: string
           id: string
+          must_change_password?: boolean
         }
         Update: {
           created_at?: string
           full_name?: string
           id?: string
+          must_change_password?: boolean
         }
         Relationships: []
       }
@@ -1044,6 +1047,7 @@ export type Database = {
         Args: { p_account: Json; p_holder_id: number }
         Returns: number
       }
+      admin_reset_password: { Args: { p_target_user: string }; Returns: Json }
       approve_import_batch: { Args: { p_batch_id: number }; Returns: Json }
       approve_transaction: {
         Args: { p_tx_id: string }
@@ -1074,6 +1078,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      clear_must_change_password: { Args: never; Returns: undefined }
       correct_transaction: {
         Args: {
           p_correction_reason: string
