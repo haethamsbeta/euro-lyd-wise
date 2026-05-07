@@ -454,9 +454,11 @@ export type Database = {
           account_nature: string
           account_number: string
           created_at: string
+          credit_limit: number
           currency_code: string
           current_balance: number
           dahab_account_number: string | null
+          debit_limit: number
           id: number
           is_primary_account: boolean
           status: string
@@ -469,9 +471,11 @@ export type Database = {
           account_nature: string
           account_number: string
           created_at?: string
+          credit_limit?: number
           currency_code: string
           current_balance?: number
           dahab_account_number?: string | null
+          debit_limit?: number
           id?: number
           is_primary_account?: boolean
           status?: string
@@ -484,9 +488,11 @@ export type Database = {
           account_nature?: string
           account_number?: string
           created_at?: string
+          credit_limit?: number
           currency_code?: string
           current_balance?: number
           dahab_account_number?: string | null
+          debit_limit?: number
           id?: number
           is_primary_account?: boolean
           status?: string
