@@ -16,6 +16,35 @@ type AuthState = {
 
 const AuthCtx = createContext<AuthState | null>(null);
 
+// Inject the current Supabase access token into every server-function fetch
+// so middlewares using `requireSupabaseAuth` see a Bearer token.
+if (typeof window !== "undefined" && !(window as any).__dahabFetchPatched) {
+  (window as any).__dahabFetchPatched = true;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    try {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : (input as Request).url;
+      if (url && url.includes("/_serverFn/")) {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (token) {
+          const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+          if (!headers.has("authorization")) headers.set("authorization", `Bearer ${token}`);
+          return origFetch(input, { ...(init ?? {}), headers });
+        }
+      }
+    } catch {
+      // fall through to original fetch
+    }
+    return origFetch(input, init);
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
