@@ -145,10 +145,6 @@ function HolderDetail() {
   );
 }
 
-function LedgerPanel({ accountId, currency }: { accountId: number; currency: string }) {
-  return _LedgerPanel({ accountId, currency });
-}
-
 function LimitsEditor({ account }: { account: any }) {
   const qc = useQueryClient();
   const [credit, setCredit] = useState(String(account.credit_limit ?? 0));
@@ -185,7 +181,7 @@ function LimitsEditor({ account }: { account: any }) {
   );
 }
 
-function _LedgerPanel({ accountId, currency }: { accountId: number; currency: string }) {
+function LedgerPanel({ accountId, currency }: { accountId: number; currency: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const { data, isLoading } = useQuery({
