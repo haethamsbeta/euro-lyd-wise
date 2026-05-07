@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
-import { LinkReviewPanel } from "@/components/app/link-review-panel";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
@@ -93,8 +92,6 @@ function HolderDetail() {
                 </div>
               ) : null}
             </Card>
-
-            {isAdmin ? <LinkReviewPanel holderId={holder.id} /> : null}
 
             <div className="grid gap-3 md:grid-cols-2">
               {(holder.holder_accounts ?? []).map((a: any) => {
