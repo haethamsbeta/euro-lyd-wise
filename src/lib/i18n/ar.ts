@@ -112,9 +112,7 @@ export const ar: Dict = {
   "nav.security": "الأمان",
   "nav.about": "حول التطبيق",
   "nav.more": "المزيد",
-  "nav.import": "استيراد الحسابات",
   "nav.holders": "أصحاب حسابات دهب",
-  "nav.importReview": "مراجعة الاستيراد",
   "nav.groups": "المجموعات",
 
   // app shell
