@@ -111,10 +111,8 @@ export const en = {
   "nav.security": "Security",
   "nav.about": "About",
   "nav.more": "More",
-  "nav.import": "Account import",
   "nav.holders": "DAHAB holders",
   "nav.groups": "Groups",
-  "nav.importReview": "Import review",
 
   // app shell
   "shell.noStaffTitle": "No staff access",

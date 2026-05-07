@@ -1,15 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
-import { LinkReviewPanel } from "@/components/app/link-review-panel";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
@@ -25,7 +26,7 @@ function HolderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status)")
+        .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit)")
         .eq("id", holderId)
         .single();
       if (error) throw error;
@@ -94,8 +95,6 @@ function HolderDetail() {
               ) : null}
             </Card>
 
-            {isAdmin ? <LinkReviewPanel holderId={holder.id} /> : null}
-
             <div className="grid gap-3 md:grid-cols-2">
               {(holder.holder_accounts ?? []).map((a: any) => {
                 const isOpen = openAcc === a.id;
@@ -117,6 +116,10 @@ function HolderDetail() {
                         </div>
                         <div className="mt-2 truncate text-base" dir="rtl">{a.account_display_name}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{a.account_alias_name}</div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                          <span>Credit limit: <span className="font-mono">{Number(a.credit_limit ?? 0).toLocaleString()}</span></span>
+                          <span>Debit limit: <span className="font-mono">{Number(a.debit_limit ?? 0).toLocaleString()}</span></span>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="font-serif text-lg text-gold">
@@ -125,7 +128,12 @@ function HolderDetail() {
                         {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </div>
                     </button>
-                    {isOpen && <LedgerPanel accountId={a.id} currency={a.currency_code} />}
+                    {isOpen && (
+                      <>
+                        {isAdmin && <LimitsEditor account={a} />}
+                        <LedgerPanel accountId={a.id} currency={a.currency_code} />
+                      </>
+                    )}
                   </Card>
                 );
               })}
@@ -133,6 +141,42 @@ function HolderDetail() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function LimitsEditor({ account }: { account: any }) {
+  const qc = useQueryClient();
+  const [credit, setCredit] = useState(String(account.credit_limit ?? 0));
+  const [debit, setDebit] = useState(String(account.debit_limit ?? 0));
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("holder_accounts")
+        .update({ credit_limit: Number(credit) || 0, debit_limit: Number(debit) || 0 })
+        .eq("id", account.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Limits updated");
+      qc.invalidateQueries({ queryKey: ["holder"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-t border-[oklch(0.82_0.14_85/0.15)] p-4">
+      <div>
+        <label className="block text-xs text-muted-foreground">Credit limit ({account.currency_code})</label>
+        <Input type="number" min="0" step="0.01" value={credit} onChange={(e) => setCredit(e.target.value)} className="w-40" />
+      </div>
+      <div>
+        <label className="block text-xs text-muted-foreground">Debit limit ({account.currency_code})</label>
+        <Input type="number" min="0" step="0.01" value={debit} onChange={(e) => setDebit(e.target.value)} className="w-40" />
+      </div>
+      <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+        <Pencil className="h-3.5 w-3.5 me-1" /> Save limits
+      </Button>
+      <p className="basis-full text-[11px] text-muted-foreground">Use 0 to leave a limit unset.</p>
     </div>
   );
 }

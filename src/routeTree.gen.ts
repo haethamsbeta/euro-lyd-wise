@@ -23,7 +23,6 @@ import { Route as MLoginRouteImport } from './routes/m.login'
 import { Route as MDashboardRouteImport } from './routes/m.dashboard'
 import { Route as AppVaultsRouteImport } from './routes/app.vaults'
 import { Route as AppUsersRouteImport } from './routes/app.users'
-import { Route as AppImportRouteImport } from './routes/app.import'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppAboutRouteImport } from './routes/app.about'
@@ -36,7 +35,6 @@ import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
-import { Route as AppImportReviewRouteImport } from './routes/app.import.review'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
@@ -115,11 +113,6 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
-const AppImportRoute = AppImportRouteImport.update({
-  id: '/import',
-  path: '/import',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -181,11 +174,6 @@ const AppMeActivityRoute = AppMeActivityRouteImport.update({
   path: '/me/activity',
   getParentRoute: () => AppRoute,
 } as any)
-const AppImportReviewRoute = AppImportReviewRouteImport.update({
-  id: '/review',
-  path: '/review',
-  getParentRoute: () => AppImportRoute,
-} as any)
 const AppHoldersIdRoute = AppHoldersIdRouteImport.update({
   id: '/holders/$id',
   path: '/holders/$id',
@@ -237,7 +225,6 @@ export interface FileRoutesByFullPath {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -246,7 +233,6 @@ export interface FileRoutesByFullPath {
   '/m/': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
-  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -272,7 +258,6 @@ export interface FileRoutesByTo {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
@@ -280,7 +265,6 @@ export interface FileRoutesByTo {
   '/m': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
-  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -309,7 +293,6 @@ export interface FileRoutesById {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
-  '/app/import': typeof AppImportRouteWithChildren
   '/app/users': typeof AppUsersRoute
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -318,7 +301,6 @@ export interface FileRoutesById {
   '/m/': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
-  '/app/import/review': typeof AppImportReviewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -348,7 +330,6 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
-    | '/app/import'
     | '/app/users'
     | '/app/vaults'
     | '/m/dashboard'
@@ -357,7 +338,6 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/groups/$id'
     | '/app/holders/$id'
-    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -383,7 +363,6 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
-    | '/app/import'
     | '/app/users'
     | '/m/dashboard'
     | '/m/login'
@@ -391,7 +370,6 @@ export interface FileRouteTypes {
     | '/m'
     | '/app/groups/$id'
     | '/app/holders/$id'
-    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -419,7 +397,6 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
-    | '/app/import'
     | '/app/users'
     | '/app/vaults'
     | '/m/dashboard'
@@ -428,7 +405,6 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/groups/$id'
     | '/app/holders/$id'
-    | '/app/import/review'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -558,13 +534,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/import': {
-      id: '/app/import'
-      path: '/import'
-      fullPath: '/app/import'
-      preLoaderRoute: typeof AppImportRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/audit': {
       id: '/app/audit'
       path: '/audit'
@@ -649,13 +618,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeActivityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/import/review': {
-      id: '/app/import/review'
-      path: '/review'
-      fullPath: '/app/import/review'
-      preLoaderRoute: typeof AppImportReviewRouteImport
-      parentRoute: typeof AppImportRoute
-    }
     '/app/holders/$id': {
       id: '/app/holders/$id'
       path: '/holders/$id'
@@ -708,18 +670,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AppImportRouteChildren {
-  AppImportReviewRoute: typeof AppImportReviewRoute
-}
-
-const AppImportRouteChildren: AppImportRouteChildren = {
-  AppImportReviewRoute: AppImportReviewRoute,
-}
-
-const AppImportRouteWithChildren = AppImportRoute._addFileChildren(
-  AppImportRouteChildren,
-)
-
 interface AppVaultsRouteChildren {
   AppVaultsIdRoute: typeof AppVaultsIdRoute
   AppVaultsIndexRoute: typeof AppVaultsIndexRoute
@@ -738,7 +688,6 @@ interface AppRouteChildren {
   AppAboutRoute: typeof AppAboutRoute
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
-  AppImportRoute: typeof AppImportRouteWithChildren
   AppUsersRoute: typeof AppUsersRoute
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
@@ -759,7 +708,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppAboutRoute: AppAboutRoute,
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
-  AppImportRoute: AppImportRouteWithChildren,
   AppUsersRoute: AppUsersRoute,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
