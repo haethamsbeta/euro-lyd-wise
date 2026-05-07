@@ -15,6 +15,7 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
 import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
+import { authService } from "@/lib/authService";
 
 type PortalKind = "staff" | "consumer";
 
@@ -175,6 +176,18 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       toast.error(t("login.wrongPortalConsumer"));
       return;
     }
+    // Forced password change check (staff only).
+    if (portal === "staff" && uid) {
+      try {
+        const must = await authService.getMustChangePassword(uid);
+        if (must) {
+          setBusy(false);
+          toast.message("Please set a new password to continue.");
+          nav({ to: "/change-password" });
+          return;
+        }
+      } catch { /* non-blocking */ }
+    }
     setBusy(false);
     toast.success(t("login.welcomeToast"));
     nav({ to: portal === "staff" ? "/app" : "/portal" });
@@ -210,6 +223,16 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       >
         {busy ? t("login.signingIn") : t("common.signIn")}
       </Button>
+      {portal === "staff" ? (
+        <div className="text-center">
+          <Link
+            to="/forgot-password"
+            className="text-xs text-muted-foreground hover:text-gold hover:underline underline-offset-4"
+          >
+            Forgot password?
+          </Link>
+        </div>
+      ) : null}
       {bioOk ? (
         <Button
           type="button"
