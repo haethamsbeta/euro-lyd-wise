@@ -77,6 +77,13 @@ export type Database = {
             referencedRelation: "holder_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_group_members_holder_account_id_fkey"
+            columns: ["holder_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_holder_account_withdraw_limits"
+            referencedColumns: ["holder_account_id"]
+          },
         ]
       }
       account_groups: {
@@ -357,6 +364,13 @@ export type Database = {
             referencedRelation: "holder_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_name_aliases_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_holder_account_withdraw_limits"
+            referencedColumns: ["holder_account_id"]
+          },
         ]
       }
       accounts: {
@@ -446,6 +460,42 @@ export type Database = {
         }
         Relationships: []
       }
+      holder_account_limit_events: {
+        Row: {
+          actor_user_id: string | null
+          changed_at: string
+          holder_account_id: number
+          id: number
+          new_amount: number
+          new_enabled: boolean
+          note: string | null
+          prev_amount: number
+          prev_enabled: boolean
+        }
+        Insert: {
+          actor_user_id?: string | null
+          changed_at?: string
+          holder_account_id: number
+          id?: number
+          new_amount: number
+          new_enabled: boolean
+          note?: string | null
+          prev_amount: number
+          prev_enabled: boolean
+        }
+        Update: {
+          actor_user_id?: string | null
+          changed_at?: string
+          holder_account_id?: number
+          id?: number
+          new_amount?: number
+          new_enabled?: boolean
+          note?: string | null
+          prev_amount?: number
+          prev_enabled?: boolean
+        }
+        Relationships: []
+      }
       holder_accounts: {
         Row: {
           account_alias_name: string | null
@@ -463,6 +513,8 @@ export type Database = {
           is_primary_account: boolean
           status: string
           updated_at: string
+          withdraw_limit_amount: number
+          withdraw_limit_enabled: boolean
         }
         Insert: {
           account_alias_name?: string | null
@@ -480,6 +532,8 @@ export type Database = {
           is_primary_account?: boolean
           status?: string
           updated_at?: string
+          withdraw_limit_amount?: number
+          withdraw_limit_enabled?: boolean
         }
         Update: {
           account_alias_name?: string | null
@@ -497,6 +551,8 @@ export type Database = {
           is_primary_account?: boolean
           status?: string
           updated_at?: string
+          withdraw_limit_amount?: number
+          withdraw_limit_enabled?: boolean
         }
         Relationships: [
           {
@@ -559,6 +615,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "holder_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holder_ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_holder_account_withdraw_limits"
+            referencedColumns: ["holder_account_id"]
           },
           {
             foreignKeyName: "holder_ledger_entries_currency_code_fkey"
@@ -816,9 +879,12 @@ export type Database = {
           customer_account_id: string
           direction: Database["public"]["Enums"]["tx_direction"]
           id: string
+          partial_approved: boolean
           posted_at: string | null
           reject_reason: string | null
+          requested_amount_minor: number | null
           reverses_tx_id: string | null
+          review_reason: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -836,9 +902,12 @@ export type Database = {
           customer_account_id: string
           direction: Database["public"]["Enums"]["tx_direction"]
           id?: string
+          partial_approved?: boolean
           posted_at?: string | null
           reject_reason?: string | null
+          requested_amount_minor?: number | null
           reverses_tx_id?: string | null
+          review_reason?: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id?: string | null
@@ -856,9 +925,12 @@ export type Database = {
           customer_account_id?: string
           direction?: Database["public"]["Enums"]["tx_direction"]
           id?: string
+          partial_approved?: boolean
           posted_at?: string | null
           reject_reason?: string | null
+          requested_amount_minor?: number | null
           reverses_tx_id?: string | null
+          review_reason?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           tx_number?: string
           vault_account_id?: string | null
@@ -983,7 +1055,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_holder_account_withdraw_limits: {
+        Row: {
+          account_number: string | null
+          available_to_withdraw: number | null
+          currency_code: string | null
+          current_balance: number | null
+          holder_account_id: number | null
+          withdraw_limit_amount: number | null
+          withdraw_limit_enabled: boolean | null
+        }
+        Insert: {
+          account_number?: string | null
+          available_to_withdraw?: never
+          currency_code?: string | null
+          current_balance?: number | null
+          holder_account_id?: number | null
+          withdraw_limit_amount?: number | null
+          withdraw_limit_enabled?: boolean | null
+        }
+        Update: {
+          account_number?: string | null
+          available_to_withdraw?: never
+          currency_code?: string | null
+          current_balance?: number | null
+          holder_account_id?: number | null
+          withdraw_limit_amount?: number | null
+          withdraw_limit_enabled?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holder_accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["currency_code"]
+          },
+        ]
+      }
     }
     Functions: {
       _notify_role: {
@@ -1053,37 +1162,81 @@ export type Database = {
         Args: { p_account: Json; p_holder_id: number }
         Returns: number
       }
-      admin_reset_password: { Args: { p_target_user: string }; Returns: Json }
-      approve_import_batch: { Args: { p_batch_id: number }; Returns: Json }
-      approve_transaction: {
-        Args: { p_tx_id: string }
-        Returns: {
-          amount_minor: number
-          approved_by_user_id: string | null
-          channel: Database["public"]["Enums"]["vault_channel"]
-          comment: string
-          corrected_by_tx_id: string | null
-          correction_reason: string | null
-          created_at: string
-          created_by_user_id: string
-          currency: Database["public"]["Enums"]["currency_code"]
-          customer_account_id: string
-          direction: Database["public"]["Enums"]["tx_direction"]
-          id: string
-          posted_at: string | null
-          reject_reason: string | null
-          reverses_tx_id: string | null
-          status: Database["public"]["Enums"]["tx_status"]
-          tx_number: string
-          vault_account_id: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "transactions"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+      admin_change_user_email: {
+        Args: { p_new_email: string; p_target_user: string }
+        Returns: undefined
       }
+      admin_reset_password: { Args: { p_target_user: string }; Returns: Json }
+      admin_set_holder_owner: {
+        Args: { p_holder_id: number; p_owner: string }
+        Returns: undefined
+      }
+      approve_import_batch: { Args: { p_batch_id: number }; Returns: Json }
+      approve_transaction:
+        | {
+            Args: { p_tx_id: string }
+            Returns: {
+              amount_minor: number
+              approved_by_user_id: string | null
+              channel: Database["public"]["Enums"]["vault_channel"]
+              comment: string
+              corrected_by_tx_id: string | null
+              correction_reason: string | null
+              created_at: string
+              created_by_user_id: string
+              currency: Database["public"]["Enums"]["currency_code"]
+              customer_account_id: string
+              direction: Database["public"]["Enums"]["tx_direction"]
+              id: string
+              partial_approved: boolean
+              posted_at: string | null
+              reject_reason: string | null
+              requested_amount_minor: number | null
+              reverses_tx_id: string | null
+              review_reason: string | null
+              status: Database["public"]["Enums"]["tx_status"]
+              tx_number: string
+              vault_account_id: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "transactions"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { p_approved_amount_minor?: number; p_tx_id: string }
+            Returns: {
+              amount_minor: number
+              approved_by_user_id: string | null
+              channel: Database["public"]["Enums"]["vault_channel"]
+              comment: string
+              corrected_by_tx_id: string | null
+              correction_reason: string | null
+              created_at: string
+              created_by_user_id: string
+              currency: Database["public"]["Enums"]["currency_code"]
+              customer_account_id: string
+              direction: Database["public"]["Enums"]["tx_direction"]
+              id: string
+              partial_approved: boolean
+              posted_at: string | null
+              reject_reason: string | null
+              requested_amount_minor: number | null
+              reverses_tx_id: string | null
+              review_reason: string | null
+              status: Database["public"]["Enums"]["tx_status"]
+              tx_number: string
+              vault_account_id: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "transactions"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       clear_must_change_password: { Args: never; Returns: undefined }
       correct_transaction: {
         Args: {
@@ -1105,9 +1258,12 @@ export type Database = {
           customer_account_id: string
           direction: Database["public"]["Enums"]["tx_direction"]
           id: string
+          partial_approved: boolean
           posted_at: string | null
           reject_reason: string | null
+          requested_amount_minor: number | null
           reverses_tx_id: string | null
+          review_reason: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -1195,9 +1351,12 @@ export type Database = {
           customer_account_id: string
           direction: Database["public"]["Enums"]["tx_direction"]
           id: string
+          partial_approved: boolean
           posted_at: string | null
           reject_reason: string | null
+          requested_amount_minor: number | null
           reverses_tx_id: string | null
+          review_reason: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -1224,9 +1383,12 @@ export type Database = {
           customer_account_id: string
           direction: Database["public"]["Enums"]["tx_direction"]
           id: string
+          partial_approved: boolean
           posted_at: string | null
           reject_reason: string | null
+          requested_amount_minor: number | null
           reverses_tx_id: string | null
+          review_reason: string | null
           status: Database["public"]["Enums"]["tx_status"]
           tx_number: string
           vault_account_id: string | null
@@ -1246,6 +1408,15 @@ export type Database = {
       seed_demo_ledger: {
         Args: { p_admin_id: string; p_consumer_id: string; p_teller_id: string }
         Returns: Json
+      }
+      sp_set_holder_withdraw_limit: {
+        Args: {
+          p_amount: number
+          p_enabled: boolean
+          p_holder_account_id: number
+          p_note?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
