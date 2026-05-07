@@ -1,0 +1,1 @@
+ALTER VIEW public.v_holder_account_withdraw_limits SET (security_invoker = on);
