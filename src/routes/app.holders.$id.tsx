@@ -146,6 +146,46 @@ function HolderDetail() {
 }
 
 function LedgerPanel({ accountId, currency }: { accountId: number; currency: string }) {
+  return _LedgerPanel({ accountId, currency });
+}
+
+function LimitsEditor({ account }: { account: any }) {
+  const qc = useQueryClient();
+  const [credit, setCredit] = useState(String(account.credit_limit ?? 0));
+  const [debit, setDebit] = useState(String(account.debit_limit ?? 0));
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("holder_accounts")
+        .update({ credit_limit: Number(credit) || 0, debit_limit: Number(debit) || 0 })
+        .eq("id", account.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Limits updated");
+      qc.invalidateQueries({ queryKey: ["holder"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-t border-[oklch(0.82_0.14_85/0.15)] p-4">
+      <div>
+        <label className="block text-xs text-muted-foreground">Credit limit ({account.currency_code})</label>
+        <Input type="number" min="0" step="0.01" value={credit} onChange={(e) => setCredit(e.target.value)} className="w-40" />
+      </div>
+      <div>
+        <label className="block text-xs text-muted-foreground">Debit limit ({account.currency_code})</label>
+        <Input type="number" min="0" step="0.01" value={debit} onChange={(e) => setDebit(e.target.value)} className="w-40" />
+      </div>
+      <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+        <Pencil className="h-3.5 w-3.5 me-1" /> Save limits
+      </Button>
+      <p className="basis-full text-[11px] text-muted-foreground">Use 0 to leave a limit unset.</p>
+    </div>
+  );
+}
+
+function _LedgerPanel({ accountId, currency }: { accountId: number; currency: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const { data, isLoading } = useQuery({
