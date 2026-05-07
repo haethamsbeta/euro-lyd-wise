@@ -35,6 +35,8 @@ function Approvals() {
   const [rejectTarget, setRejectTarget] = useState<{ id: string; tx_number: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [partialTarget, setPartialTarget] = useState<any | null>(null);
+  const [partialAmount, setPartialAmount] = useState("");
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["approvals"] });
@@ -47,20 +49,23 @@ function Approvals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
-        .select("id, tx_number, direction, channel, currency, amount_minor, comment, created_at, customer_account_id")
+        .select("id, tx_number, direction, channel, currency, amount_minor, requested_amount_minor, review_reason, comment, created_at, customer_account_id")
         .eq("status", "pending").order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
   const approve = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("approve_transaction", { p_tx_id: id });
+    mutationFn: async ({ id, amount }: { id: string; amount?: number }) => {
+      const { error } = await supabase.rpc("approve_transaction", {
+        p_tx_id: id,
+        ...(amount != null ? { p_approved_amount_minor: amount } : {}),
+      } as any);
       if (error) throw error;
     },
-    onMutate: (id) => setBusyId(id),
+    onMutate: ({ id }) => setBusyId(id),
     onSettled: () => setBusyId(null),
-    onSuccess: () => { toast.success(t("approvals.approved")); invalidate(); },
+    onSuccess: () => { toast.success(t("approvals.approved")); invalidate(); setPartialTarget(null); setPartialAmount(""); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to approve"),
   });
   const reject = useMutation({
@@ -97,6 +102,17 @@ function Approvals() {
                           <span className="font-mono text-sm">{row.tx_number}</span>
                           <Badge variant="outline">{t(`tx.direction.${row.direction}`)}</Badge>
                           <Badge variant="outline">{t(`tx.channel.${row.channel}`)}</Badge>
+                          {row.review_reason ? (
+                            <Badge
+                              variant={row.review_reason === "over_limit_with_buffer" ? "secondary" : "destructive"}
+                            >
+                              {row.review_reason === "insufficient_balance"
+                                ? "Insufficient balance"
+                                : row.review_reason === "exceeds_withdraw_limit"
+                                ? "Over withdrawal limit"
+                                : "Within buffer — review"}
+                            </Badge>
+                          ) : null}
                         </div>
                         <div className="font-mono text-sm">{formatMinor(row.amount_minor, row.currency)}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(row.created_at)}</div>
@@ -110,9 +126,15 @@ function Approvals() {
                           onClick={() => { setRejectReason(""); setRejectTarget({ id: row.id, tx_number: row.tx_number }); }}
                         >{t("approvals.reject")}</Button>
                         <Button
+                          variant="outline"
                           className="flex-1 sm:flex-none"
                           disabled={busyId === row.id}
-                          onClick={() => approve.mutate(row.id)}
+                          onClick={() => { setPartialTarget(row); setPartialAmount(String((row.amount_minor / 100).toFixed(2))); }}
+                        >Partial…</Button>
+                        <Button
+                          className="flex-1 sm:flex-none"
+                          disabled={busyId === row.id}
+                          onClick={() => approve.mutate({ id: row.id })}
                         >
                           {busyId === row.id && approve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                           {t("approvals.approve")}
@@ -158,6 +180,45 @@ function Approvals() {
               {reject.isPending ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : null}
               {t("approvals.confirmReject")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!partialTarget} onOpenChange={(o) => { if (!o) { setPartialTarget(null); setPartialAmount(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Partial approval</DialogTitle>
+            <DialogDescription>
+              Approve a smaller amount than requested for{" "}
+              <span className="font-mono">{partialTarget?.tx_number}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">
+              Requested: <span className="font-mono">{partialTarget ? formatMinor(partialTarget.amount_minor, partialTarget.currency) : ""}</span>
+            </div>
+            <Label htmlFor="partial-amt">Amount to approve ({partialTarget?.currency})</Label>
+            <input
+              id="partial-amt"
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={partialAmount}
+              onChange={(e) => setPartialAmount(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setPartialTarget(null); setPartialAmount(""); }}>Cancel</Button>
+            <Button
+              disabled={!partialTarget || !(Number(partialAmount) > 0) || approve.isPending}
+              onClick={() => {
+                if (!partialTarget) return;
+                const minor = Math.round(Number(partialAmount) * 100);
+                approve.mutate({ id: partialTarget.id, amount: minor });
+              }}
+            >Approve partial</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
