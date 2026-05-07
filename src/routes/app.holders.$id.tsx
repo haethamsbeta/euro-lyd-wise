@@ -116,6 +116,10 @@ function HolderDetail() {
                         </div>
                         <div className="mt-2 truncate text-base" dir="rtl">{a.account_display_name}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{a.account_alias_name}</div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                          <span>Credit limit: <span className="font-mono">{Number(a.credit_limit ?? 0).toLocaleString()}</span></span>
+                          <span>Debit limit: <span className="font-mono">{Number(a.debit_limit ?? 0).toLocaleString()}</span></span>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="font-serif text-lg text-gold">
@@ -124,7 +128,12 @@ function HolderDetail() {
                         {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </div>
                     </button>
-                    {isOpen && <LedgerPanel accountId={a.id} currency={a.currency_code} />}
+                    {isOpen && (
+                      <>
+                        {isAdmin && <LimitsEditor account={a} />}
+                        <LedgerPanel accountId={a.id} currency={a.currency_code} />
+                      </>
+                    )}
                   </Card>
                 );
               })}
