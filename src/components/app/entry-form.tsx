@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Banknote, Building2, CheckCircle2, Search, AlertTriangle, Upload, FileText, Image as ImageIcon, Trash2, Eye, Loader2, X, Phone, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Banknote, Landmark, CheckCircle2, Search, AlertTriangle, Upload, FileText, Image as ImageIcon, Trash2, Eye, Loader2, X, Phone, ShieldCheck, Wallet, Sparkles, Check, Clock } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -327,36 +327,75 @@ export function EntryForm({ direction }: { direction: Direction }) {
     setPreviewUrl(data.signedUrl);
   }
 
-  const banner = isDeposit ? "DEPOSIT" : "WITHDRAWAL";
-  const bannerCls = isDeposit
-    ? "bg-success text-success-foreground"
-    : "bg-destructive text-destructive-foreground";
-  const Icon = isDeposit ? ArrowDownCircle : ArrowUpCircle;
+  const TypeIcon = isDeposit ? ArrowDownRight : ArrowUpRight;
 
   return (
     <div>
-      <div className={cn("flex items-center gap-3 px-6 py-4", bannerCls)}>
-        <Button asChild variant="ghost" size="sm" className="text-current hover:bg-black/10">
-          <Link to="/app/transactions/new"><ArrowLeft className="h-4 w-4" /> Back</Link>
-        </Button>
-        <Icon className="h-6 w-6" />
-        <div className="text-lg font-semibold tracking-wide">{banner}</div>
+      {/* Premium dark header with breadcrumb + eyebrow + Playfair title */}
+      <div className="mx-auto max-w-3xl px-4 pt-8 md:px-6">
+        <div className="mb-5 flex items-center gap-2 text-sm">
+          <Link to="/app" className="text-muted-foreground transition-colors hover:text-foreground">Dashboard</Link>
+          <span className="text-muted-foreground">/</span>
+          <Link to="/app/transactions" className="text-muted-foreground transition-colors hover:text-foreground">Transactions</Link>
+          <span className="text-muted-foreground">/</span>
+          <Link to="/app/transactions/new" className="text-muted-foreground transition-colors hover:text-foreground">New</Link>
+          <span className="text-muted-foreground">/</span>
+          <span className="font-medium text-foreground">{isDeposit ? "Deposit" : "Withdraw"}</span>
+        </div>
+        <div className="mb-7 flex items-start justify-between gap-4">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-gold" />
+              <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-gold">
+                {isDeposit ? "New Deposit" : "New Withdrawal"}
+              </span>
+            </div>
+            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">
+              {isDeposit ? "Process a Deposit" : "Process a Withdrawal"}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Select the channel, customer account, then confirm the entry.
+            </p>
+          </div>
+          <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-gold/5 text-gold sm:flex">
+            <TypeIcon className="h-7 w-7" />
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6 p-6">
+      <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6 px-4 pb-32 md:px-6">
         <Card>
-          <CardHeader><CardTitle className="text-base">1. Channel</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="font-playfair text-base">1. Vault side</CardTitle>
+            <p className="text-xs text-muted-foreground">Where the funds physically move from or to.</p>
+          </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <ChannelButton active={channel === "cash"} onClick={() => setChannel("cash")} icon={<Banknote className="h-5 w-5" />} label="Cash" hint="Press C" />
-              <ChannelButton active={channel === "bank"} onClick={() => setChannel("bank")} icon={<Building2 className="h-5 w-5" />} label="Bank" hint="Press B" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <VaultCard
+                active={channel === "cash"}
+                onClick={() => setChannel("cash")}
+                icon={<Wallet className="h-6 w-6" />}
+                title="Cash Vault"
+                desc="Physical cash handled at branch"
+                hint="Walk-in deposits, teller-counted withdrawals"
+                shortcut="C"
+              />
+              <VaultCard
+                active={channel === "bank"}
+                onClick={() => setChannel("bank")}
+                icon={<Landmark className="h-6 w-6" />}
+                title="Bank Vault"
+                desc="Wire / digital transfer through bank"
+                hint="SWIFT wires, ACH, internal bank movements"
+                shortcut="B"
+              />
             </div>
             {submitted && !channel ? <p className="mt-2 text-xs text-destructive">Select a channel.</p> : null}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">2. Customer account</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-playfair text-base">2. Customer account</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
@@ -435,7 +474,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">3. Amount</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-playfair text-base">3. Amount</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-3">
               <div>
@@ -460,7 +499,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
         <Card className={cn("border-2", commentValid ? "border-border" : "border-warning/40 bg-warning/5")}>
           <CardHeader>
-            <CardTitle className="text-base">
+            <CardTitle className="font-playfair text-base">
               4. Comment <span className="text-destructive">*</span>
             </CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -490,21 +529,25 @@ export function EntryForm({ direction }: { direction: Direction }) {
         </Card>
 
         {willPend ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Requires admin approval</AlertTitle>
-            <AlertDescription>
-              {willOverdraft
-                ? "This withdrawal exceeds the available balance."
-                : "This withdrawal exceeds the per-account debit limit."}{" "}
-              Submitting will queue it for an admin to approve.
-            </AlertDescription>
-          </Alert>
+          <div className="flex gap-3 rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
+            <div>
+              <div className="font-medium text-foreground">Requires admin approval</div>
+              <p className="mt-0.5 text-muted-foreground">
+                {willOverdraft
+                  ? "This withdrawal exceeds the available balance."
+                  : canViewBalances
+                    ? "This withdrawal exceeds the per-account withdrawal limit."
+                    : "This transaction requires admin review."}{" "}
+                Submitting will queue it for an admin to approve.
+              </p>
+            </div>
+          </div>
         ) : null}
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
+            <CardTitle className="font-playfair text-base">
               Attachments <span className="text-xs font-normal text-muted-foreground">(optional)</span>
             </CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -573,7 +616,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Ledger preview</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-playfair text-base">Ledger preview</CardTitle></CardHeader>
           <CardContent>
             <LedgerPreview direction={direction} channel={channel} currency={currency} amountMinor={amountMinor} customerName={picked ? `${picked.dahab_account_number} · ${picked.holder_name}` : undefined} />
           </CardContent>
@@ -592,13 +635,39 @@ export function EntryForm({ direction }: { direction: Direction }) {
           </DialogContent>
         </Dialog>
 
-        <div className="flex items-center justify-end gap-2">
-          <Button asChild type="button" variant="outline"><Link to="/app/transactions/new">Cancel</Link></Button>
-          <Button type="submit" disabled={!ready || post.isPending} className={isDeposit ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}>
-            {post.isPending ? "Posting…" : willPend ? "Submit for approval" : isDeposit ? "Post deposit" : "Post withdrawal"}
+      </form>
+
+      {/* Sticky bottom action bar — mockup style */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gold/15 bg-card/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 md:px-6">
+          <Button asChild type="button" variant="outline" className="border-gold/20">
+            <Link to="/app/transactions/new">Cancel</Link>
+          </Button>
+          <Button
+            type="submit"
+            form="" /* native submit by parent form via Enter; rely on click handler below */
+            onClick={(e) => {
+              const formEl = (e.currentTarget.closest("body")?.querySelector("form") as HTMLFormElement | null);
+              formEl?.requestSubmit();
+            }}
+            disabled={!ready || post.isPending}
+            variant="gold"
+            className="min-w-[180px]"
+          >
+            {post.isPending ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+              </span>
+            ) : willPend ? (
+              "Submit for approval"
+            ) : isDeposit ? (
+              "Submit Deposit"
+            ) : (
+              "Submit Withdrawal"
+            )}
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -714,20 +783,65 @@ function SelectedAccountCard({ hit, canViewBalances }: { hit: HolderCardHit; can
   );
 }
 
-function ChannelButton({ active, onClick, icon, label, hint }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; hint: string }) {
+function VaultCard({
+  active,
+  onClick,
+  icon,
+  title,
+  desc,
+  hint,
+  shortcut,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  hint: string;
+  shortcut: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-1 rounded-md border-2 px-4 py-4 text-sm transition-colors",
-        active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+        "group relative overflow-hidden rounded-xl border-2 p-5 text-left transition-all",
+        active
+          ? "border-gold bg-gold/10 shadow-gold"
+          : "border-border bg-card/60 hover:border-gold/40 hover:bg-card",
       )}
     >
-      {icon}
-      <span className="font-medium">{label}</span>
-      <span className="text-xs text-muted-foreground">{hint}</span>
-      {active ? <CheckCircle2 className="h-4 w-4 text-primary" /> : null}
+      {active ? (
+        <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-gold">
+          <Check className="h-3 w-3 text-[var(--surface)]" />
+        </div>
+      ) : (
+        <kbd className="absolute right-3 top-3 rounded border border-gold/20 bg-card/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {shortcut}
+        </kbd>
+      )}
+      <div
+        className={cn(
+          "mb-3 flex h-12 w-12 items-center justify-center rounded-xl transition-colors",
+          active
+            ? "bg-gradient-gold text-[var(--surface)]"
+            : "bg-surface-2 text-muted-foreground group-hover:text-gold",
+        )}
+      >
+        {icon}
+      </div>
+      <h3
+        className={cn(
+          "mb-1 font-playfair text-base font-semibold",
+          active ? "text-gold" : "text-foreground",
+        )}
+      >
+        {title}
+      </h3>
+      <p className="text-xs text-muted-foreground">{desc}</p>
+      <p className="mt-2.5 border-t border-gold/10 pt-2.5 text-[11px] italic text-muted-foreground/80">
+        {hint}
+      </p>
     </button>
   );
 }
