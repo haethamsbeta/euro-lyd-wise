@@ -544,8 +544,43 @@ html.theme-night .surface-cream {
   html.theme-night .card-futur {
     background:
       linear-gradient(180deg,
-        oklch(0.22 0.016 60) 0%,
-        oklch(0.17 0.014 60) 100%);
+        #1F2530 0%,
+        #161B22 100%);
+    border: 1px solid rgba(212,168,87,0.18);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.04) inset,
+      0 18px 48px -22px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(212,168,87,0.06);
+  }
+  html.theme-night .card-futur::before {
+    background: linear-gradient(135deg,
+      rgba(212,168,87,0.40),
+      transparent 35%,
+      transparent 65%,
+      rgba(212,168,87,0.22));
+    opacity: 0.85;
+  }
+  html.theme-night .card-futur:hover {
+    border-color: rgba(212,168,87,0.45);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.06) inset,
+      0 28px 60px -22px rgba(0,0,0,0.8),
+      0 0 0 1px rgba(212,168,87,0.22),
+      0 0 32px rgba(212,168,87,0.12);
+  }
+
+  /* Rows in night mode become deep glass with gold hover. */
+  html.theme-night .row-luxe {
+    background: rgba(22,27,34,0.85);
+    border-color: rgba(212,168,87,0.12);
+  }
+  html.theme-night .row-luxe:hover {
+    background: linear-gradient(135deg, rgba(31,37,48,0.95), rgba(22,27,34,0.95));
+    border-color: rgba(212,168,87,0.45);
+    box-shadow:
+      0 12px 28px -16px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(212,168,87,0.18),
+      0 0 20px rgba(212,168,87,0.10);
   }
 
   .row-luxe {
@@ -702,5 +737,195 @@ html.theme-night .surface-cream {
   html.theme-night h1, html.theme-night h2, html.theme-night h3 {
     font-family: var(--font-serif);
     letter-spacing: -0.01em;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   DAHAB · Night-mode overrides for shadcn primitives.
+   These class hooks apply automatically because every shadcn component
+   ships with utility classes like `bg-card`, `border`, `bg-background`,
+   `bg-input`, etc. We restyle those directly so the entire app picks
+   up the dark mockup look without per-route edits.
+   ────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Inputs / textareas / selects: dark surface, cream text, gold focus. */
+  html.theme-night input,
+  html.theme-night textarea,
+  html.theme-night select,
+  html.theme-night [role="combobox"],
+  html.theme-night [data-slot="select-trigger"] {
+    background-color: #1F2530 !important;
+    border-color: rgba(212,168,87,0.18) !important;
+    color: #F5F1E8;
+  }
+  html.theme-night input::placeholder,
+  html.theme-night textarea::placeholder {
+    color: #5C5B57;
+  }
+  html.theme-night input:focus-visible,
+  html.theme-night textarea:focus-visible,
+  html.theme-night [role="combobox"]:focus-visible,
+  html.theme-night [data-slot="select-trigger"]:focus-visible {
+    border-color: rgba(212,168,87,0.55) !important;
+    box-shadow: 0 0 0 3px rgba(212,168,87,0.15) !important;
+    outline: none !important;
+  }
+
+  /* Popover / dropdown / select content surfaces. */
+  html.theme-night [data-radix-popper-content-wrapper] > * ,
+  html.theme-night [data-slot="popover-content"],
+  html.theme-night [data-slot="dropdown-menu-content"],
+  html.theme-night [data-slot="select-content"],
+  html.theme-night [data-slot="command"] {
+    background-color: #161B22 !important;
+    border: 1px solid rgba(212,168,87,0.20) !important;
+    box-shadow:
+      0 16px 48px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(212,168,87,0.08) !important;
+  }
+
+  /* Tables: dark heads, hairline rows, hover tint. */
+  html.theme-night table thead tr,
+  html.theme-night [data-slot="table-header"] tr {
+    background-color: #1F2530;
+    border-bottom: 1px solid rgba(212,168,87,0.20);
+  }
+  html.theme-night table thead th,
+  html.theme-night [data-slot="table-header"] th {
+    color: var(--gold);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+  }
+  html.theme-night table tbody tr,
+  html.theme-night [data-slot="table-body"] tr {
+    border-bottom: 1px solid rgba(212,168,87,0.06);
+    transition: background-color 160ms ease;
+  }
+  html.theme-night table tbody tr:hover {
+    background-color: rgba(212,168,87,0.04);
+  }
+
+  /* Tabs list: dark pill bar with gold active. */
+  html.theme-night [data-slot="tabs-list"] {
+    background-color: #1F2530 !important;
+    border: 1px solid rgba(212,168,87,0.15);
+  }
+  html.theme-night [data-slot="tabs-trigger"] {
+    color: #8B8A85;
+  }
+  html.theme-night [data-slot="tabs-trigger"][data-state="active"] {
+    background-image: linear-gradient(to bottom, #E8C570 0%, #D4A857 50%, #A8842F 100%) !important;
+    color: #14181F !important;
+    box-shadow: 0 4px 16px rgba(212,168,87,0.30), inset 0 1px 0 rgba(255,255,255,0.30);
+  }
+
+  /* Buttons: ghost hover gets a gold tint, default outline becomes gold-rimmed. */
+  html.theme-night [data-slot="button"][data-variant="outline"],
+  html.theme-night button.btn-outline-gold {
+    border-color: rgba(212,168,87,0.35);
+    color: var(--gold);
+    background-color: transparent;
+  }
+  html.theme-night [data-slot="button"][data-variant="outline"]:hover {
+    background-color: rgba(212,168,87,0.08);
+    border-color: rgba(212,168,87,0.55);
+  }
+
+  /* Sheet/Dialog overlays */
+  html.theme-night [data-slot="sheet-content"],
+  html.theme-night [data-slot="dialog-content"] {
+    background-color: #0F1217 !important;
+    border-color: rgba(212,168,87,0.20) !important;
+  }
+
+  /* Badge default = gold-tinted chip */
+  html.theme-night [data-slot="badge"] {
+    background-color: rgba(212,168,87,0.10);
+    color: var(--gold-soft);
+    border-color: rgba(212,168,87,0.25);
+  }
+
+  /* Sidebar rail */
+  html.theme-night aside,
+  html.theme-night [data-slot="sidebar"] {
+    background-color: #0B0E13;
+    border-right: 1px solid rgba(212,168,87,0.12);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   DAHAB · Premium utility classes used by pages.
+   ────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .premium-surface {
+    position: relative;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #161B22 0%, #1F2530 100%);
+    border: 1px solid rgba(212,168,87,0.18);
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.40),
+      0 0 0 1px rgba(212,168,87,0.06);
+  }
+  .premium-surface::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,168,87,0.5), transparent);
+    pointer-events: none;
+  }
+  .premium-surface-hover { transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease; }
+  .premium-surface-hover:hover {
+    border-color: rgba(212,168,87,0.40);
+    box-shadow:
+      0 14px 40px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(212,168,87,0.18),
+      0 0 32px rgba(212,168,87,0.12);
+    transform: translateY(-2px);
+  }
+
+  .metric-value {
+    font-family: var(--font-serif);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+    color: #F5F1E8;
+  }
+  .metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #8B8A85;
+    font-weight: 500;
+  }
+
+  /* Currency chips */
+  .chip-currency {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em;
+    border: 1px solid currentColor;
+  }
+  .chip-currency.usd { color: #34D399; background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.35); }
+  .chip-currency.eur { color: #60A5FA; background: rgba(96,165,250,0.10); border-color: rgba(96,165,250,0.35); }
+  .chip-currency.lyd { color: #D4A857; background: rgba(212,168,87,0.12); border-color: rgba(212,168,87,0.40); }
+
+  /* Tone classes for status / audit */
+  .tone-info    { background: rgba(96,165,250,0.10); color: #93C5FD; border: 1px solid rgba(96,165,250,0.25); }
+  .tone-warn    { background: rgba(245,158,11,0.10); color: #FCD34D; border: 1px solid rgba(245,158,11,0.30); }
+  .tone-success { background: rgba(52,211,153,0.10); color: #6EE7B7; border: 1px solid rgba(52,211,153,0.30); }
+  .tone-danger  { background: rgba(239,68,68,0.10);  color: #FCA5A5; border: 1px solid rgba(239,68,68,0.30); }
+  .tone-gold    { background: rgba(212,168,87,0.10); color: var(--gold-soft); border: 1px solid rgba(212,168,87,0.30); }
+
+  /* Auth + landing ambient mesh */
+  .auth-mesh {
+    background-color: #0B0E13;
+    background-image:
+      radial-gradient(circle at 18% 20%, rgba(212,168,87,0.15), transparent 45%),
+      radial-gradient(circle at 82% 80%, rgba(212,168,87,0.08), transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(168,132,47,0.06), transparent 60%);
   }
 }
