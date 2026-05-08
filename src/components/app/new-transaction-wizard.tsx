@@ -970,72 +970,210 @@ function ResultScreen({
   const isDeposit = type === "deposit";
   const tx: any = (result as any).tx ?? null;
   const txNumber = tx?.tx_number ?? tx?.id ?? "—";
-  const status = result.kind === "success" ? "Posted" : result.kind === "pending" ? "Pending Review" : "Failed";
 
+  const sign = isDeposit ? "+" : "−";
   const tone =
     result.kind === "success"
-      ? { ring: "border-emerald-500/40 bg-emerald-500/10", icon: <Check className="h-9 w-9 text-emerald-400" />, title: "Transaction Complete", sub: `Your ${isDeposit ? "deposit" : "withdrawal"} has been posted.` }
+      ? {
+          title: "Transaction Complete",
+          sub: "The transaction has been posted successfully.",
+          accent: "emerald",
+          orbGlow: "from-emerald-500/40 via-emerald-500/10",
+          orbBorder: "border-emerald-500/50",
+          orbInner: "bg-emerald-500/10 text-emerald-400",
+          icon: <Check className="h-10 w-10" />,
+          chip: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
+          amountColor: "text-emerald-400",
+          steps: ["Created", "Validated", "Posted"],
+        }
       : result.kind === "pending"
-      ? { ring: "border-amber-500/40 bg-amber-500/10", icon: <Clock className="h-9 w-9 text-amber-400" />, title: "Awaiting Approval", sub: "This transaction has been queued for admin review." }
-      : { ring: "border-destructive/40 bg-destructive/10", icon: <ShieldAlert className="h-9 w-9 text-destructive" />, title: "Transaction Failed", sub: result.kind === "failed" ? result.error : "" };
+      ? {
+          title: "Awaiting Approval",
+          sub: "This transaction has been queued for admin review.",
+          accent: "amber",
+          orbGlow: "from-amber-500/40 via-amber-500/10",
+          orbBorder: "border-amber-500/50",
+          orbInner: "bg-amber-500/10 text-amber-400",
+          icon: <Clock className="h-10 w-10" />,
+          chip: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+          amountColor: "text-gold",
+          steps: ["Created", "Policy Check", "Awaiting Admin Approval"],
+        }
+      : {
+          title: "Transaction Failed",
+          sub: result.kind === "failed" ? result.error : "",
+          accent: "red",
+          orbGlow: "from-red-500/40 via-red-500/10",
+          orbBorder: "border-red-500/50",
+          orbInner: "bg-red-500/10 text-red-400",
+          icon: <ShieldAlert className="h-10 w-10" />,
+          chip: "border-red-500/40 bg-red-500/10 text-red-400",
+          amountColor: "text-red-400",
+          steps: ["Created", "Validation Failed"],
+        };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 md:px-8">
-      <div className="text-center animate-fade-in">
-        <div className={cn("mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2", tone.ring)}>
-          {tone.icon}
-        </div>
-        <h1 className="mt-5 font-playfair text-3xl font-semibold text-foreground md:text-4xl">{tone.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{tone.sub}</p>
-      </div>
+    <div className="relative min-h-[calc(100vh-7rem)] overflow-hidden">
+      {/* Cinematic background glow */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-x-0 -top-32 mx-auto h-[420px] max-w-2xl rounded-full opacity-60 blur-3xl",
+          "bg-gradient-radial",
+        )}
+        style={{
+          background:
+            "radial-gradient(closest-side, oklch(from var(--gold) l c h / 0.18), transparent 70%)",
+        }}
+      />
 
-      {result.kind !== "failed" && (
-        <div className="mt-8 overflow-hidden rounded-2xl border border-gold/20 bg-card/70 shadow-gold">
-          <div className="flex items-center justify-between border-b border-gold/10 bg-surface-2/60 px-5 py-3">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-gold" />
-              <span className="text-sm font-medium text-foreground">Receipt</span>
+      <div className="relative mx-auto max-w-3xl px-4 py-10 md:px-8 md:py-14">
+        {/* Status hero */}
+        <div className="text-center animate-fade-in">
+          <div className="relative mx-auto h-28 w-28">
+            <div className={cn("absolute inset-0 rounded-full bg-gradient-to-b blur-2xl", tone.orbGlow, "to-transparent")} />
+            <div className={cn("relative mx-auto flex h-28 w-28 items-center justify-center rounded-full border-2 backdrop-blur-md animate-scale-in", tone.orbBorder, tone.orbInner)}>
+              {tone.icon}
             </div>
-            <span className={cn(
-              "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-              result.kind === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" : "border-amber-500/40 bg-amber-500/10 text-amber-400",
-            )}>{status}</span>
           </div>
-          <ReviewRow label="Transaction" value={String(txNumber)} mono />
-          <ReviewRow label="Type" value={isDeposit ? "Deposit" : "Withdrawal"} />
-          <ReviewRow label="Customer" value={`${picked.holder_name} · ${picked.dahab_account_number || "—"}`} />
-          <ReviewRow label="Account" value={`#${picked.account_number} (${picked.currency})`} />
-          <ReviewRow label="Vault" value={channel === "cash" ? "Cash Vault" : "Bank Vault"} />
-          <ReviewRow label="Amount" value={`${formatMinor(amountMinor, currency)} ${currency}`} mono />
-          <ReviewRow label="Comment" value={comment} />
-          {canViewBalances && (
-            <ReviewRow label="Balance after" value={formatMinor(isDeposit ? picked.balance_minor + amountMinor : picked.balance_minor - amountMinor, currency)} mono last />
+          <div className={cn("mt-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em]", tone.chip)}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {result.kind === "success" ? "Posted" : result.kind === "pending" ? "Pending Review" : "Failed"}
+          </div>
+          <h1 className="mt-3 font-playfair text-3xl font-semibold text-foreground md:text-4xl">{tone.title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{tone.sub}</p>
+        </div>
+
+        {/* Amount display */}
+        {result.kind !== "failed" && (
+          <div className="mt-8 text-center animate-fade-in">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">
+              {isDeposit ? "Deposit total" : "Withdrawal total"}
+            </div>
+            <div className={cn("mt-2 font-playfair text-5xl font-semibold tabular-nums md:text-6xl", tone.amountColor)}>
+              {sign}{formatMinor(amountMinor, currency)}
+            </div>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <CurrencyBadge currency={currency} />
+              <span className="text-[11px] text-muted-foreground">Value date · today</span>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline */}
+        <Timeline steps={tone.steps} accent={tone.accent} />
+
+        {/* Receipt card */}
+        {result.kind !== "failed" && (
+          <div className="mt-8 overflow-hidden rounded-2xl border border-gold/25 bg-card/60 backdrop-blur-md shadow-[0_24px_60px_-30px_var(--gold)] animate-fade-in">
+            <div className="flex items-center justify-between border-b border-gold/15 bg-surface-2/50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-gold" />
+                <span className="text-sm font-medium text-foreground">Receipt</span>
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">{String(txNumber)}</span>
+            </div>
+            <ReceiptRow label="Transaction ID" value={String(txNumber)} mono />
+            <ReceiptRow label="Date / time" value={new Date().toLocaleString()} />
+            <ReceiptRow label="Type" value={isDeposit ? "Deposit" : "Withdrawal"} />
+            <ReceiptRow label="Customer" value={`${picked.holder_name} · ${picked.dahab_account_number || "—"}`} />
+            <ReceiptRow label="Account" value={`#${picked.account_number} (${picked.currency})`} />
+            <ReceiptRow label="Vault" value={channel === "cash" ? "Cash Vault" : "Bank Vault"} />
+            <ReceiptRow label="Amount" value={`${formatMinor(amountMinor, currency)} ${currency}`} mono />
+            <ReceiptRow label="Comment" value={comment} />
+            {canViewBalances && (
+              <ReceiptRow
+                label="Balance after"
+                value={formatMinor(isDeposit ? picked.balance_minor + amountMinor : picked.balance_minor - amountMinor, currency)}
+                mono
+                last
+              />
+            )}
+          </div>
+        )}
+
+        {!canViewBalances && result.kind === "pending" && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            This transaction requires admin review before settlement.
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          {result.kind === "failed" ? (
+            <>
+              <Button variant="outline" className="border-gold/20" onClick={onTryAgain}>
+                <ArrowLeft className="h-4 w-4" /> Try again
+              </Button>
+              <Button variant="gold" asChild>
+                <Link to="/app/transactions">Back to Transactions</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="border-gold/20" asChild>
+                <Link to="/app">Back to Dashboard</Link>
+              </Button>
+              <Button variant="outline" className="border-gold/20" asChild>
+                <Link to="/app/transactions">View Transactions</Link>
+              </Button>
+              <Button variant="gold" onClick={onNew}>New Transaction</Button>
+            </>
           )}
         </div>
-      )}
-
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        {result.kind === "failed" ? (
-          <>
-            <Button variant="outline" className="border-gold/20" onClick={onTryAgain}>
-              <ArrowLeft className="h-4 w-4" /> Try again
-            </Button>
-            <Button variant="gold" asChild>
-              <Link to="/app/transactions">Back to Transactions</Link>
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="outline" className="border-gold/20" asChild>
-              <Link to="/app">Back to Dashboard</Link>
-            </Button>
-            <Button variant="outline" className="border-gold/20" asChild>
-              <Link to="/app/transactions">View Transactions</Link>
-            </Button>
-            <Button variant="gold" onClick={onNew}>New Transaction</Button>
-          </>
-        )}
       </div>
+    </div>
+  );
+}
+
+function Timeline({ steps, accent }: { steps: string[]; accent: string }) {
+  const activeIdx = steps.length - 1;
+  const accentClasses =
+    accent === "emerald"
+      ? { line: "from-emerald-500/70 to-emerald-500/20", dot: "bg-emerald-500/20 border-emerald-500 text-emerald-400", active: "bg-emerald-500 text-[var(--surface)]" }
+      : accent === "amber"
+      ? { line: "from-amber-500/70 to-amber-500/20", dot: "bg-amber-500/15 border-amber-500 text-amber-400", active: "bg-amber-500 text-[var(--surface)]" }
+      : { line: "from-red-500/70 to-red-500/20", dot: "bg-red-500/15 border-red-500 text-red-400", active: "bg-red-500 text-white" };
+
+  return (
+    <div className="mt-8 rounded-2xl border border-gold/15 bg-card/40 px-4 py-5 backdrop-blur-sm animate-fade-in">
+      <ol className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:gap-0">
+        {steps.map((label, i) => {
+          const done = i < activeIdx;
+          const active = i === activeIdx;
+          return (
+            <li key={label} className="flex items-center gap-3 md:flex-1 md:flex-col md:items-center md:gap-2">
+              <div className="flex items-center gap-3 md:flex-col md:gap-2">
+                <span
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold transition-all",
+                    done && cn(accentClasses.active, "border-transparent"),
+                    active && cn(accentClasses.dot, "ring-4 ring-offset-0", accent === "emerald" ? "ring-emerald-500/15" : accent === "amber" ? "ring-amber-500/15" : "ring-red-500/15"),
+                    !done && !active && "border-border bg-surface-2 text-muted-foreground",
+                  )}
+                >
+                  {done ? <Check className="h-4 w-4" /> : i + 1}
+                </span>
+                <span className={cn("text-[11px] font-medium tracking-wide", active ? "text-foreground" : "text-muted-foreground")}>
+                  {label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <span className={cn("hidden h-px flex-1 bg-gradient-to-r md:block", accentClasses.line)} />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function ReceiptRow({ label, value, mono, last }: { label: string; value: string; mono?: boolean; last?: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-3 px-5 py-3", !last && "border-b border-gold/10")}>
+      <div className="w-32 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("min-w-0 flex-1 truncate text-sm text-foreground", mono && "font-mono tabular-nums")}>{value || "—"}</div>
     </div>
   );
 }
