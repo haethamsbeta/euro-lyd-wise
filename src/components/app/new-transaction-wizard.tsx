@@ -132,7 +132,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         if (holderIds.size === 0) return [] as HolderCardHit[];
       }
       let q = supabase.from("holder_accounts")
-        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone)")
+        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone, holder_type)")
         .in("currency_code", ["USD", "EUR", "LYD"]).order("account_holder_id").limit(60);
       if (term) q = q.in("account_holder_id", Array.from(holderIds));
       else q = q.limit(30);
@@ -152,6 +152,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         alias: r.account_alias_name ?? null,
         withdraw_limit_minor: Math.round(Number(r.withdraw_limit_amount ?? 0) * 100),
         withdraw_limit_enabled: !!r.withdraw_limit_enabled,
+        holder_type: (r.account_holders?.holder_type ?? "INDIVIDUAL") as string,
       })) as HolderCardHit[];
     },
   });
