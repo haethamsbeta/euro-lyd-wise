@@ -37,6 +37,7 @@ function UsersPage() {
 
   const { data } = useQuery({
     queryKey: ["users.profiles"],
+    enabled: !!user,
     queryFn: async () => {
       const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails] = await Promise.all([
         supabase.from("profiles").select("id, full_name, created_at"),

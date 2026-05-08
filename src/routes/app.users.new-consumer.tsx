@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { adminCreateConsumer, adminListHolders } from "@/server/admin.functions";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/users/new-consumer")({
   component: () => (
@@ -32,6 +33,7 @@ function genPassword() {
 
 function NewConsumerPage() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(() => genPassword());
@@ -43,7 +45,8 @@ function NewConsumerPage() {
 
   const { data: holders } = useQuery({
     queryKey: ["admin.holders"],
-    queryFn: () => listHolders(),
+    enabled: !!user,
+    queryFn: () => listHolders().catch(() => [] as Array<{ id: number; canonical_name: string; dahab_account_number: string | null; owner_user_id: string | null }>),
   });
 
   const filtered = useMemo(() => {
