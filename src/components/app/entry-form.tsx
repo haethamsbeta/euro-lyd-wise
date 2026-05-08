@@ -11,11 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Banknote, Building2, CheckCircle2, Search, AlertTriangle, Upload, FileText, Image as ImageIcon, Trash2, Eye, Loader2 } from "lucide-react";
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Banknote, Building2, CheckCircle2, Search, AlertTriangle, Upload, FileText, Image as ImageIcon, Trash2, Eye, Loader2, X, Phone, ShieldCheck, Wallet } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CurrencyBadge } from "@/components/ui/currency-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { useAuth, hasAnyRole } from "@/lib/auth";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
@@ -30,6 +33,12 @@ type HolderCardHit = {
   account_holder_id: number;
   dahab_account_number: string;
   holder_name: string;
+  phone: string | null;
+  status: string;
+  account_nature: string | null;
+  alias: string | null;
+  withdraw_limit_minor: number;
+  withdraw_limit_enabled: boolean;
 };
 
 const COMMENT_MIN = 3;
@@ -60,6 +69,8 @@ export function EntryForm({ direction }: { direction: Direction }) {
   const isDeposit = direction === "deposit";
   const nav = useNavigate();
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canViewBalances = hasAnyRole(roles, ["admin"]);
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -98,7 +109,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const { data: results, isFetching } = useQuery({
+  const { data: results, isFetching, isError } = useQuery({
     queryKey: ["holder_cards.search", debounced],
     queryFn: async () => {
       // Strategy: find matching holder ids by DAHAB # / name OR card account_number,
@@ -111,12 +122,12 @@ export function EntryForm({ direction }: { direction: Direction }) {
           supabase
             .from("account_holders")
             .select("id")
-            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%`)
+            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%,phone.ilike.%${term}%`)
             .limit(20),
           supabase
             .from("holder_accounts")
             .select("account_holder_id")
-            .ilike("account_number", `%${term}%`)
+            .or(`account_number.ilike.%${term}%,dahab_account_number.ilike.%${term}%,account_alias_name.ilike.%${term}%,currency_code.ilike.%${term}%`)
             .limit(20),
         ]);
         (byHolder ?? []).forEach((r: any) => holderIds.add(r.id));
@@ -126,7 +137,7 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
       let cardsQ = supabase
         .from("holder_accounts")
-        .select("id, account_number, currency_code, current_balance, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name)")
+        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone)")
         .in("currency_code", ["USD", "EUR", "LYD"])
         .order("account_holder_id")
         .limit(60);
@@ -145,6 +156,12 @@ export function EntryForm({ direction }: { direction: Direction }) {
         account_holder_id: r.account_holder_id,
         dahab_account_number: r.account_holders?.dahab_account_number ?? "",
         holder_name: r.account_holders?.canonical_name ?? r.account_number,
+        phone: r.account_holders?.phone ?? null,
+        status: r.status ?? "ACTIVE",
+        account_nature: r.account_nature ?? null,
+        alias: r.account_alias_name ?? null,
+        withdraw_limit_minor: Math.round(Number(r.withdraw_limit_amount ?? 0) * 100),
+        withdraw_limit_enabled: !!r.withdraw_limit_enabled,
       })) as HolderCardHit[];
     },
   });
@@ -156,9 +173,10 @@ export function EntryForm({ direction }: { direction: Direction }) {
   const commentValid = trimmedComment.length >= COMMENT_MIN && trimmedComment.length <= COMMENT_MAX;
 
   const currentBalance = picked?.balance_minor ?? 0;
-  const debitLimit = 0;
-  const willOverdraft = !isDeposit && amountMinor !== null && currentBalance - amountMinor < 0;
-  const overLimit = !isDeposit && amountMinor !== null && debitLimit > 0 && amountMinor > debitLimit;
+  const withdrawLimitMinor = picked?.withdraw_limit_enabled ? (picked?.withdraw_limit_minor ?? 0) : 0;
+  // Balance-based overdraft detection only when caller can see balances.
+  const willOverdraft = canViewBalances && !isDeposit && amountMinor !== null && currentBalance - amountMinor < 0;
+  const overLimit = !isDeposit && amountMinor !== null && withdrawLimitMinor > 0 && amountMinor > withdrawLimitMinor;
   const willPend = willOverdraft || overLimit;
 
   const ready =
@@ -339,62 +357,75 @@ export function EntryForm({ direction }: { direction: Direction }) {
 
         <Card>
           <CardHeader><CardTitle className="text-base">2. Customer account</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={searchRef}
-                placeholder="Search by DAHAB #, name, or account #…"
-                className="pl-9"
+                placeholder="Search by account name, DAHAB #, account #, phone, or currency…"
+                className="h-12 rounded-xl border-gold/20 bg-card/60 pl-11 pr-11 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPicked(null); }}
+                aria-label="Search accounts"
               />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(""); searchRef.current?.focus(); }}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-gold/10 hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : isFetching ? (
+                <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              ) : null}
             </div>
+
             {picked ? (
-              <div className="rounded-md border bg-muted/30 p-3">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{picked.holder_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-mono">{picked.dahab_account_number}</span>
-                      {" · "}#{picked.account_number} · {picked.currency}
-                    </div>
-                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Selected account</span>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPicked(null)}>Change</Button>
                 </div>
-                <div className="mt-2 rounded border bg-background p-2 text-xs">
-                  <span className="text-muted-foreground">Current balance ({picked.currency}): </span>
-                  <span className="font-mono font-medium">{formatMinor(picked.balance_minor, picked.currency)}</span>
-                </div>
+                <SelectedAccountCard hit={picked} canViewBalances={canViewBalances} />
+                <p className="text-xs text-muted-foreground">
+                  This {isDeposit ? "deposit" : "withdrawal"} will be applied to <span className="font-medium text-foreground">{picked.holder_name}</span> ({picked.currency}).
+                </p>
               </div>
             ) : (
-              <div className="max-h-64 overflow-auto rounded-md border">
-                {isFetching ? (
-                  <div className="p-3 text-sm text-muted-foreground">Searching…</div>
+              <div>
+                {isError ? (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                    Unable to search accounts. Please try again.
+                  </div>
+                ) : isFetching ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-gold/15 bg-card/40 p-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Searching accounts…
+                  </div>
                 ) : results && results.length > 0 ? (
-                  <ul>
-                    {results.map((r) => (
-                      <li key={r.holder_account_id}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
-                          onClick={() => setPicked(r)}
-                        >
-                          <span className="min-w-0 truncate">
-                            <span className="font-mono text-primary">{r.dahab_account_number}</span>
-                            <span className="mx-2">·</span>
-                            <span className="font-medium">{r.holder_name}</span>
-                          </span>
-                          <span className="ml-3 shrink-0 text-xs text-muted-foreground">
-                            {r.currency} #{r.account_number} · {formatMinor(r.balance_minor, r.currency)}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                      {results.map((r) => (
+                        <ResultCard
+                          key={r.holder_account_id}
+                          hit={r}
+                          canViewBalances={canViewBalances}
+                          onPick={() => setPicked(r)}
+                        />
+                      ))}
+                    </div>
+                    {results.length >= 30 ? (
+                      <p className="mt-2 text-center text-xs text-muted-foreground">
+                        Showing best matches. Refine your search for more accurate results.
+                      </p>
+                    ) : null}
+                  </>
                 ) : (
-                  <div className="p-3 text-sm text-muted-foreground">
-                    No matching DAHAB accounts.
+                  <div className="rounded-xl border border-dashed border-gold/20 bg-card/30 p-6 text-center text-sm text-muted-foreground">
+                    {debounced
+                      ? "No account found. Try searching by account name, account number, phone, or currency."
+                      : "Start typing to search accounts."}
                   </div>
                 )}
               </div>
@@ -568,6 +599,117 @@ export function EntryForm({ direction }: { direction: Direction }) {
           </Button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function statusTone(status: string): "ACTIVE" | "FROZEN" | "RESTRICTED" | "CLOSED" | string {
+  return (status || "").toUpperCase();
+}
+
+function ResultCard({ hit, canViewBalances, onPick }: { hit: HolderCardHit; canViewBalances: boolean; onPick: () => void }) {
+  const status = statusTone(hit.status);
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={cn(
+        "group relative flex w-full flex-col gap-3 rounded-xl border border-gold/15 bg-card/70 p-3.5 text-left transition-all",
+        "hover:border-gold/45 hover:bg-card hover:shadow-[0_8px_28px_-18px_var(--gold)]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-foreground">{hit.holder_name}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
+            <span aria-hidden>·</span>
+            <span className="font-mono">#{hit.account_number}</span>
+          </div>
+        </div>
+        <CurrencyBadge currency={hit.currency} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={status} />
+        {hit.account_nature ? (
+          <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {hit.account_nature}
+          </span>
+        ) : null}
+        {hit.alias ? (
+          <span className="inline-flex max-w-[12rem] items-center truncate rounded-md border border-gold/15 bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+            {hit.alias}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t border-gold/10 pt-2.5 text-[11px]">
+        {hit.phone ? (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Phone className="h-3.5 w-3.5 text-gold/70" />
+            <span className="truncate font-mono">{hit.phone}</span>
+          </div>
+        ) : <span />}
+        {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 ? (
+          <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-gold/70" />
+            <span>Limit <span className="font-mono text-foreground">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</span></span>
+          </div>
+        ) : <span />}
+      </div>
+
+      {canViewBalances ? (
+        <div className="flex items-center justify-between rounded-lg bg-gold/5 px-2.5 py-1.5 text-[11px]">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Wallet className="h-3.5 w-3.5 text-gold/80" /> Balance
+          </span>
+          <span className="font-mono font-medium text-foreground">{formatMinor(hit.balance_minor, hit.currency)}</span>
+        </div>
+      ) : null}
+    </button>
+  );
+}
+
+function SelectedAccountCard({ hit, canViewBalances }: { hit: HolderCardHit; canViewBalances: boolean }) {
+  return (
+    <div className="rounded-xl border-2 border-gold/50 bg-card p-4 shadow-[0_0_0_4px_oklch(from_var(--gold)_l_c_h/0.08),0_18px_40px_-24px_var(--gold)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-base font-semibold text-foreground">{hit.holder_name}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
+            <span aria-hidden>·</span>
+            <span className="font-mono">#{hit.account_number}</span>
+            {hit.phone ? (<><span aria-hidden>·</span><span className="font-mono">{hit.phone}</span></>) : null}
+          </div>
+        </div>
+        <CurrencyBadge currency={hit.currency} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={statusTone(hit.status)} />
+        {hit.account_nature ? (
+          <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {hit.account_nature}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 ? (
+          <div className="rounded-lg border border-gold/15 bg-card/60 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Withdrawal limit</div>
+            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</div>
+          </div>
+        ) : null}
+        {canViewBalances ? (
+          <div className="rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-gold/90">Current balance</div>
+            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.balance_minor, hit.currency)}</div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
