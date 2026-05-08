@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
@@ -18,6 +18,7 @@ function HolderDetail() {
   const { id } = Route.useParams();
   const holderId = Number(id);
   const [openAcc, setOpenAcc] = useState<number | null>(null);
+  const [highlightAcc, setHighlightAcc] = useState<number | null>(null);
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
 
@@ -43,6 +44,24 @@ function HolderDetail() {
       return (data ?? []) as Array<{ currency: string; total_balance: number; account_count: number; total_debits: number; total_credits: number }>;
     },
   });
+
+  // Deep-link: open + scroll + highlight the targeted account from #account-N
+  useEffect(() => {
+    if (!holder) return;
+    if (typeof window === "undefined") return;
+    const m = window.location.hash.match(/^#account-(\d+)$/);
+    if (!m) return;
+    const targetId = Number(m[1]);
+    if (!Number.isFinite(targetId)) return;
+    setOpenAcc(targetId);
+    setHighlightAcc(targetId);
+    const t = setTimeout(() => {
+      const el = document.getElementById(`account-${targetId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    const clear = setTimeout(() => setHighlightAcc(null), 2600);
+    return () => { clearTimeout(t); clearTimeout(clear); };
+  }, [holder]);
 
   return (
     <div>
@@ -98,8 +117,13 @@ function HolderDetail() {
             <div className="grid gap-3 md:grid-cols-2">
               {(holder.holder_accounts ?? []).map((a: any) => {
                 const isOpen = openAcc === a.id;
+                const isHighlight = highlightAcc === a.id;
                 return (
-                  <Card key={a.id} className={`card-luxe transition ${isOpen ? "md:col-span-2 border-[oklch(0.82_0.14_85/0.5)]" : ""}`}>
+                  <Card
+                    key={a.id}
+                    id={`account-${a.id}`}
+                    className={`card-luxe transition scroll-mt-24 ${isOpen ? "md:col-span-2 border-[oklch(0.82_0.14_85/0.5)]" : ""} ${isHighlight ? "ring-2 ring-gold shadow-[0_0_0_4px_oklch(from_var(--gold)_l_c_h/0.18),0_24px_56px_-24px_var(--gold)]" : ""}`}
+                  >
                     <button
                       type="button"
                       onClick={() => setOpenAcc(isOpen ? null : a.id)}
