@@ -26,7 +26,7 @@ function applyTheme(resolved: "sand" | "night") {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // SSR-safe defaults so the server and first client render match.
   // We hydrate the real values from localStorage / matchMedia after mount.
-  const [theme, setThemeState] = useState<ThemeChoice>("sand");
+  const [theme, setThemeState] = useState<ThemeChoice>("night");
   const [systemDark, setSystemDark] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
 
