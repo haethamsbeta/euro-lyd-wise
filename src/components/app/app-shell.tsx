@@ -264,7 +264,7 @@ export function AppShell() {
 
               {/* Center nav — desktop only; tablet collapses into the More sheet */}
               <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex xl:gap-2">
-                {moreSheet}
+                <MoreButton />
                 <span className="mx-2 h-7 w-px bg-gold/15" aria-hidden />
                 {leftNav.map((item) => (
                   <Tile key={item.to} item={item} />
@@ -296,7 +296,7 @@ export function AppShell() {
 
               {/* Tablet-only compact center — More + raised + bell handled separately */}
               <div className="hidden flex-1 items-center justify-center gap-2 sm:flex lg:hidden">
-                {moreSheet}
+                <MoreButton />
                 {raisedNav ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -333,10 +333,11 @@ export function AppShell() {
                   <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
                 </Tooltip>
                 {/* Mobile-only More trigger (kept on right per phone pattern) */}
-                <span className="sm:hidden">{moreSheet}</span>
+                <span className="sm:hidden"><MoreButton /></span>
               </div>
             </div>
           </header>
+          {moreSheet}
 
           <main className="overflow-x-hidden pt-4 sm:pt-6">
             <Outlet />
