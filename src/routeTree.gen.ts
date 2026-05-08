@@ -36,6 +36,7 @@ import { Route as AppUsersNewConsumerRouteImport } from './routes/app.users.new-
 import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
+import { Route as AppHoldersNewRouteImport } from './routes/app.holders.new'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
@@ -180,6 +181,11 @@ const AppMeActivityRoute = AppMeActivityRouteImport.update({
   path: '/me/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHoldersNewRoute = AppHoldersNewRouteImport.update({
+  id: '/holders/new',
+  path: '/holders/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHoldersIdRoute = AppHoldersIdRouteImport.update({
   id: '/holders/$id',
   path: '/holders/$id',
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/m/': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/holders/new': typeof AppHoldersNewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/m': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/holders/new': typeof AppHoldersNewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/m/': typeof MIndexRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
+  '/app/holders/new': typeof AppHoldersNewRoute
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/groups/$id'
     | '/app/holders/$id'
+    | '/app/holders/new'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -380,6 +390,7 @@ export interface FileRouteTypes {
     | '/m'
     | '/app/groups/$id'
     | '/app/holders/$id'
+    | '/app/holders/new'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/m/'
     | '/app/groups/$id'
     | '/app/holders/$id'
+    | '/app/holders/new'
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
@@ -637,6 +649,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMeActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/holders/new': {
+      id: '/app/holders/new'
+      path: '/holders/new'
+      fullPath: '/app/holders/new'
+      preLoaderRoute: typeof AppHoldersNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/holders/$id': {
       id: '/app/holders/$id'
       path: '/holders/$id'
@@ -724,6 +743,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
+  AppHoldersNewRoute: typeof AppHoldersNewRoute
   AppMeActivityRoute: typeof AppMeActivityRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
@@ -744,6 +764,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
+  AppHoldersNewRoute: AppHoldersNewRoute,
   AppMeActivityRoute: AppMeActivityRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
