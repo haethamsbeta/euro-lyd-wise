@@ -37,6 +37,7 @@ type HolderCardHit = {
   alias: string | null;
   withdraw_limit_minor: number;
   withdraw_limit_enabled: boolean;
+  holder_type: string;
 };
 
 const COMMENT_MIN = 3;
