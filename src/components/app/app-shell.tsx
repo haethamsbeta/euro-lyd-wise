@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, PlusCircle, ListOrdered, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info, IdCard, Fingerprint, Layers, BarChart3,
+  ClipboardCheck, ScrollText, UserCog, ShieldAlert, Activity, Bell, Info, IdCard, Fingerprint, Layers, BarChart3, MoreHorizontal, Users as UsersIcon,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 type NavItem = {
@@ -40,9 +42,20 @@ const NAV: NavItem[] = [
   { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
   { to: "/app/reports", labelKey: "nav.reports", icon: BarChart3, roles: ["admin", "auditor"] },
   { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
+  { to: "/app/portal-accounts", labelKey: "nav.portalAccounts", icon: UsersIcon, roles: ["admin"] },
   { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
   { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
+];
+
+// Pages pinned to the floating toolbar (the rest go under the 3-dots menu).
+const PRIMARY_TOOLBAR_PATHS = [
+  "/app",
+  "/app/transactions/new",
+  "/app/transactions",
+  "/app/holders",
+  "/app/approvals",
+  "/app/vaults",
 ];
 
 export function AppShell() {
@@ -93,7 +106,6 @@ export function AppShell() {
   const visibleNav = NAV.filter((i) => hasAnyRole(roles, i.roles));
 
   // Active match: pick the longest nav prefix that matches the current path.
-  // Prevents `/app/transactions` from looking active when on `/app/transactions/new`.
   const activeTo = (() => {
     const matches = visibleNav.filter((i) =>
       location.pathname === i.to || (i.to !== "/app" && location.pathname.startsWith(i.to + "/")) || (i.to === "/app" && location.pathname === "/app")
@@ -102,135 +114,122 @@ export function AppShell() {
     return matches.reduce((a, b) => (b.to.length > a.to.length ? b : a)).to;
   })();
 
+  // Build primary chips (max 5 visible to user) and overflow set for the 3-dots menu.
+  const primaryNav = PRIMARY_TOOLBAR_PATHS
+    .map((p) => visibleNav.find((i) => i.to === p))
+    .filter(Boolean)
+    .slice(0, 5) as NavItem[];
+  const primarySet = new Set(primaryNav.map((i) => i.to));
+  const overflowNav = visibleNav.filter((i) => !primarySet.has(i.to));
+  const isActive = (to: string) => to === activeTo;
+
   return (
     <NotificationsProvider>
-      <div className="flex min-h-screen bg-background">
-        {/* Sidebar */}
-        <aside className="hidden w-64 flex-col border-r border-[oklch(0.82_0.14_85/0.12)] bg-sidebar text-sidebar-foreground md:flex">
-          <Link to="/app" className="flex h-20 items-center gap-3 border-b border-[oklch(0.82_0.14_85/0.12)] px-5">
-            <DahabCoin />
-            <DahabMark size="sm" showArabic={false} />
-          </Link>
-          <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-            {visibleNav.map((item) => {
-              const active = item.to === activeTo;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
-                    active
-                      ? "bg-[oklch(0.82_0.14_85/0.10)] text-foreground font-medium"
-                      : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground",
-                  )}
-                >
-                  {active && (
-                    <span className="absolute start-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-e bg-gradient-gold shadow-gold" aria-hidden />
-                  )}
-                  <Icon className={cn("h-4 w-4", active ? "text-gold" : "")} />
-                  <span>{t(item.labelKey)}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="border-t border-[oklch(0.82_0.14_85/0.12)] p-4">
-            <AccountMenu variant="full" />
-            <div className="mt-3 flex items-center justify-center gap-2">
-              <LanguageToggle />
-              <ThemeToggle />
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex-1 overflow-x-hidden">
-          {/* Desktop top bar */}
-          <div className="hidden items-center justify-end gap-2 border-b border-[oklch(0.82_0.14_85/0.12)] bg-background/60 px-6 py-2.5 backdrop-blur md:flex">
-            <LanguageToggle />
-            <ThemeToggle />
-            <NotificationBell />
-            <AccountMenu />
-          </div>
-          {/* Mobile top bar */}
-          <div className="border-b border-[oklch(0.82_0.14_85/0.12)] bg-background px-4 py-3 md:hidden">
-            <div className="flex items-center justify-between">
-              <Link to="/app" className="flex items-center gap-2">
-                <DahabCoin />
+      <div className="min-h-screen bg-background">
+        {/* Floating top toolbar */}
+        <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
+          <div
+            className={cn(
+              "mx-auto flex max-w-6xl items-center gap-2 rounded-full border border-[oklch(0.82_0.14_85/0.25)]",
+              "bg-background/70 px-2 py-1.5 shadow-[0_10px_30px_-12px_oklch(0.82_0.14_85/0.35)] backdrop-blur-xl sm:gap-3 sm:px-3 sm:py-2",
+            )}
+          >
+            {/* Brand */}
+            <Link to="/app" className="flex shrink-0 items-center gap-2 ps-1.5 pe-2">
+              <DahabCoin />
+              <span className="hidden sm:inline">
                 <DahabMark size="sm" showArabic={false} />
-              </Link>
-              <div className="flex items-center gap-1">
+              </span>
+            </Link>
+
+            <span className="hidden h-6 w-px shrink-0 bg-[oklch(0.82_0.14_85/0.2)] sm:block" />
+
+            {/* Primary chips (desktop) */}
+            <nav className="hidden flex-1 items-center gap-1 overflow-x-auto md:flex">
+              {primaryNav.map((i) => {
+                const active = isActive(i.to);
+                const Icon = i.icon;
+                return (
+                  <Link
+                    key={i.to}
+                    to={i.to}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      active
+                        ? "border-[oklch(0.82_0.14_85/0.45)] bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-gold"
+                        : "border-transparent text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.25)] hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {t(i.labelKey)}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="flex flex-1 md:flex-initial" />
+
+            {/* Right cluster */}
+            <div className="flex shrink-0 items-center gap-1">
+              <NotificationBell />
+              <span className="hidden sm:flex items-center gap-1">
                 <LanguageToggle />
                 <ThemeToggle />
-                <NotificationBell />
-                <AccountMenu />
-              </div>
-            </div>
-            <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
-              {(() => {
-                const primaryNav = visibleNav.slice(0, 3);
-                const moreNav = visibleNav.slice(3);
-                const isActive = (to: string) => to === activeTo;
-                const moreActive = moreNav.some((i) => isActive(i.to));
-                return (
-                  <>
+              </span>
+              <AccountMenu />
+              {/* 3-dots menu — full nav lives here */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={t("nav.more")}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.05)] text-foreground transition-colors hover:bg-[oklch(0.82_0.14_85/0.1)]"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-64">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {t("nav.more")}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {/* Mobile: show primary entries too */}
+                  <div className="md:hidden">
                     {primaryNav.map((i) => {
                       const active = isActive(i.to);
+                      const Icon = i.icon;
                       return (
-                        <Link
-                          key={i.to}
-                          to={i.to}
-                          className={cn(
-                            "whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
-                            active
-                              ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
-                              : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
-                          )}
-                        >
-                          {t(i.labelKey)}
-                        </Link>
+                        <DropdownMenuItem key={i.to} asChild>
+                          <Link to={i.to} className={cn("flex w-full items-center gap-2 text-sm", active && "text-gold")}>
+                            <Icon className="h-4 w-4" />
+                            {t(i.labelKey)}
+                          </Link>
+                        </DropdownMenuItem>
                       );
                     })}
-                    {moreNav.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className={cn(
-                            "inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs transition-colors",
-                            moreActive
-                              ? "border-[oklch(0.82_0.14_85/0.4)] bg-[oklch(0.82_0.14_85/0.1)] text-gold"
-                              : "border-[oklch(0.82_0.14_85/0.12)] text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.3)] hover:text-foreground",
-                          )}
-                        >
-                          {t("nav.more")} <ChevronDown className="h-3 w-3" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-48">
-                          {moreNav.map((i) => {
-                            const active = isActive(i.to);
-                            const Icon = i.icon;
-                            return (
-                              <DropdownMenuItem key={i.to} asChild>
-                                <Link
-                                  to={i.to}
-                                  className={cn(
-                                    "flex w-full items-center gap-2 text-sm",
-                                    active && "text-gold",
-                                  )}
-                                >
-                                  <Icon className="h-4 w-4" />
-                                  {t(i.labelKey)}
-                                </Link>
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </>
-                );
-              })()}
+                    {primaryNav.length > 0 && overflowNav.length > 0 && <DropdownMenuSeparator />}
+                  </div>
+                  {overflowNav.map((i) => {
+                    const active = isActive(i.to);
+                    const Icon = i.icon;
+                    return (
+                      <DropdownMenuItem key={i.to} asChild>
+                        <Link to={i.to} className={cn("flex w-full items-center gap-2 text-sm", active && "text-gold")}>
+                          <Icon className="h-4 w-4" />
+                          {t(i.labelKey)}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator className="sm:hidden" />
+                  <div className="flex items-center justify-center gap-2 px-2 py-1.5 sm:hidden">
+                    <LanguageToggle />
+                    <ThemeToggle />
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+        </header>
+
+        <main className="overflow-x-hidden pt-3 sm:pt-4">
           <Outlet />
         </main>
       </div>
