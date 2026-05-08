@@ -1,96 +1,83 @@
-# New Transaction Wizard — MagicPatterns Parity
+## Goal
 
-Rebuild `/app/transactions/new` as a single-page step wizard that visually and structurally matches the MagicPatterns mockup (Section 18 of `DESIGN_SPEC.md` + `pages/NewTransaction.tsx`), while keeping every backend call, role check, and approval rule from the current Lovable app intact.
+Add the MagicPatterns Section 19 **floating bottom dock** to the DAHAB back-office. The dock becomes the primary navigation surface; the topbar is simplified accordingly. No backend, route, role, or transaction-flow changes.
 
-## Scope
+## What changes
 
-**In scope (UI / flow only):**
-- Replace the current two-route entry (`/app/transactions/new/deposit` and `/app/transactions/new/withdraw` rendering `EntryForm`) with one wizard at `/app/transactions/new` driven by `?type=` and an internal step machine.
-- Recreate stepper, animated step transitions, sticky bottom action bar, type cards, customer/account search, vault cards, details, review, and full-page result screens.
-- Enforce admin-only balance visibility throughout.
+1. New component `src/components/app/bottom-dock.tsx` — floating pill + raised gold FAB + role-aware items + animated active dot.
+2. Edit `src/components/app/app-shell.tsx` — remove the center raised "+" tile and the inline tablet/desktop tile rows from the topbar; render `<BottomDock />` once below `<Outlet />`; add bottom padding compensation; auto-hide on the wizard.
+3. No route/file changes elsewhere. Existing routes are reused.
 
-**Out of scope (do not touch):**
-- Supabase schema, RLS, auth, role tables.
-- Existing `holder_cards` search query, post-transaction RPC, approval thresholds, audit triggers.
-- Notifications, vault listing, holders pages.
-- Internal Transfer (confirmed not supported — only Deposit + Withdraw).
+## Bottom dock spec (Section 19)
 
-## Routes
+**Container**
+- `fixed bottom-0 inset-x-0 z-20 pointer-events-none` outer wrapper.
+- Ambient glow: `absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl`.
+- Inner pill: `pointer-events-auto max-w-2xl mx-4 mb-3 h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20`, shadow `0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold)/0.08)`. Add `pb-[env(safe-area-inset-bottom)]` wrapper for iOS safe area.
+- Top hairline: `absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent`.
+- Mount animation via framer-motion (already available): `y:100→0`, `opacity:0→1`, spring `bounce:0.15 duration:0.5 delay:0.1`.
 
-- `/app/transactions/new` — the wizard (replaces current chooser).
-  - `?type=deposit` → preselect Deposit, jump to Customer step.
-  - `?type=withdraw` → preselect Withdraw, jump to Customer step.
-  - Invalid/missing → start at Type step.
-- `/app/transactions/new/deposit` and `/.../withdraw` → kept as thin redirects to `/app/transactions/new?type=deposit|withdraw` so existing buttons/links keep working.
-- All existing entry points (dashboard "New transaction", deposit/withdraw shortcuts) continue to work without edits to those callers.
+**Three regions** inside pill: `flex items-center justify-around px-2`. Left `flex-1 justify-around` (2 items), center FAB (or `w-2` filler), right `flex-1 justify-around` (2 items).
 
-## Step machine
+**Center FAB** — links to `/app/transactions/new`
+- `w-14 h-14 rounded-full -mt-7 mx-2 border-2 border-background`.
+- Background = existing `bg-gradient-gold` token, shadow `0 8px 24px oklch(var(--gold)/0.5), inset 0 1px 0 rgba(255,255,255,0.3)`; hover bumps to `0 8px 32px oklch(var(--gold)/0.7)`.
+- Inner `<span className="absolute inset-0 rounded-full bg-gold/30 opacity-30 animate-ping" />`.
+- `<Plus strokeWidth={2.5} className="w-7 h-7 text-primary-foreground group-hover:rotate-90 transition-transform duration-300" />`.
+- `aria-label="New Transaction"`. Visible only when role permits (see config). Hidden via filler `<div className="w-2" />` otherwise.
 
-Single component `NewTransactionWizard` with state:
+**DockItem** — vertical stack
+- `<Link>` with `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl`.
+- Inactive `text-muted-foreground hover:text-foreground hover:bg-gold/10`. Active `text-gold`.
+- Icon `w-5 h-5`, label `text-[10px] font-medium tracking-wide`, with `aria-current="page"` when active.
+- Animated active dot: `<motion.div layoutId="dock-active-dot" className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold" style={{ boxShadow: "0 0 8px oklch(var(--gold)/0.8)" }} />`.
+- Optional badge: `absolute -top-1.5 -right-2 bg-destructive text-destructive-foreground rounded-full text-[9px] font-bold min-w-[14px] h-[14px] px-1 flex items-center justify-center`.
 
+**Role-aware config** (using existing `AppRole` from `src/lib/auth.tsx`)
 ```
-{ stepIdx, type, selectedAccount, vaultSide, amount, comment, valueDate,
-  attachments, isSubmitting, result, txnId }
+admin:    left=[Dashboard,Transactions]  fab=true   right=[Holders,Approvals]
+teller:   left=[Dashboard,Transactions]  fab=true   right=[Holders,Vaults]
+auditor:  left=[Dashboard,Transactions]  fab=false  right=[Holders,Audit]
+consumer: left=[Dashboard]                fab=false  right=[]
 ```
+Items reuse the existing `NAV` definitions and routes already declared in `app-shell.tsx`. No new routes.
 
-Steps (keys): `type` → `customer` → `vault` → `details` → `review`.
+**Approvals badge** — real data only. Reuse the existing `["approvals"]` query (count of `transactions.status='pending'`). For Admin role only; hide badge when count=0 or query is loading. Implement with a small `useQuery(["approvals.count"])` in the dock that selects only `id, count` to avoid pulling full rows; reuses existing RLS so non-admins won't see it anyway.
 
-Cascade resets:
-- type change → clears account, vault, amount, comment, attachments, result.
-- account change → clears vault, amount, comment, result.
-- vault change → clears amount/comment/result downstream only if needed.
+**Auto-hide** — `const hideDock = location.pathname.startsWith('/app/transactions/new')`. When hidden, also skip the bottom padding.
 
-`canContinue()`, `next()`, `back()`, `goToStep()` (backward-only) implemented per spec. Review's primary button becomes "Confirm & Submit".
+**Page padding** — apply on `<main>` only when dock visible: `pb-28 md:pb-24`. Wizard route keeps its own sticky action bar (no overlap).
 
-## Step UIs
+## Topbar changes (`app-shell.tsx`)
 
-1. **Type** — two premium selectable cards (Deposit `ArrowDownRight`, Withdraw `ArrowUpRight`) with gold border + glow when active, check badge top-right.
-2. **Customer / Account** — reuses the existing `holder_cards` search query already in `entry-form.tsx`; result list rebuilt as stacked dark cards (name, DAHAB#, account#, currency badge, status, withdrawal limit, phone). Selected account confirmed via gold-glow card with "Change" button. Mobile-first single column, responsive grid on lg.
-3. **Vault** — two cards: Cash Vault (`Wallet`), Bank Vault (`Landmark`); active state gold border + glow. Wired to existing internal vault selection logic from current entry form.
-4. **Details** — large Playfair amount input with currency suffix + quick chips, comment textarea, optional value date. Admin-only balance preview (current + after). Non-admin sees withdrawal limit only and a generic "requires admin review" notice when overdrawn or > 25k. Approval-required amber callout uses existing `willPend` logic.
-5. **Review** — hero amount card with signed amount (emerald `+` for deposit, red `−` for withdraw), amber approval callout if `willPend`, detail rows with inline Edit icons that `goToStep()` back, compliance footnote. No balances for non-admins.
-
-## Stepper + transitions
-
-- Horizontal stepper (5 nodes): completed = gold filled + check, active = gold ring/text, future = muted. Connector lines animate to gold on completion.
-- Step body wrapped in `framer-motion` `AnimatePresence mode="wait"` with `initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}}` (~0.25s). `framer-motion` is already installed.
-- Mobile: compact stepper (numbered dots + active label only) — no overflow.
-
-## Sticky action bar
-
-Fixed bottom, `bg-card/95 backdrop-blur-md border-t border-gold/15 z-20`. Inner `max-w-4xl mx-auto px-4 md:px-8 py-4`. Page wrapper gets `pb-32`. Left = Cancel (step 1) / Back. Right = Continue / "Confirm & Submit" (review). Disabled + spinner during submit.
-
-## Submit + result screens
-
-- Submit calls the **existing** transaction posting code path used today by `EntryForm` (no backend change). Returns success or pending based on existing approval logic.
-- After submit, replace toast with full-page result screen rendered inside the wizard (terminal state):
-  - **Success** — emerald check, "Transaction Complete", receipt card (txn id, type, amount, customer, account, vault, value date, comment, status). Actions: Back to Dashboard / View Transactions / New Transaction (resets state, no reload).
-  - **Pending Approval** — amber clock, "Awaiting Approval", same receipt + Pending Review status badge.
-  - **Failed** — red icon if backend throws; shows safe error message + Try Again / Back to Transactions.
-- Submit button guarded against duplicate submission.
-
-## Balance privacy
-
-Reuse existing `canViewBalances = hasAnyRole(roles, ["admin"])`. Apply gate everywhere balance text could render in the new wizard (search results, selected card, details preview, review hero, receipt). Withdrawal limit + status remain visible to all.
+- Remove the raised center "+" tile and the desktop/tablet center nav rows (left/right tiles + raised). Center area becomes a flexible spacer (or future search slot).
+- Keep: hamburger (More) → drawer with full nav, DAHAB logo on left, NotificationBell on right, plus existing language/theme/account already inside the More drawer.
+- Add a 1px gold gradient hairline at the very bottom of the header: `absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent pointer-events-none`.
+- Topbar keeps z-30, dock z-20, drawer z-50 — already correct.
+- Global search bar: NOT adding now (no global search backend exists today; would require new feature). Leave a placeholder-free clean topbar; we can add later if you want.
 
 ## Files
 
-**Replace / heavily edit:**
-- `src/components/app/entry-form.tsx` → renamed conceptually into `src/components/app/new-transaction-wizard.tsx` (new file). Keeps the existing query and submit hooks copied from current entry form.
-- `src/routes/app.transactions.new.index.tsx` → renders `<NewTransactionWizard />` with zod-validated `?type` search param.
-- `src/routes/app.transactions.new.deposit.tsx` and `.withdraw.tsx` → redirect to `/app/transactions/new?type=…` (preserves existing deep links).
+- **Create** `src/components/app/bottom-dock.tsx` — exports `BottomDock`. Encapsulates pill, FAB, items, dot, badge, and role config. Imports lucide icons (`LayoutDashboard, ArrowRightLeft, Users as UsersIcon, Wallet, ClipboardCheck, ScrollText, Plus`), uses `useAuth` for roles, `useLocation` for active route, `framer-motion` for entrance + `layoutId` dot.
+- **Edit** `src/components/app/app-shell.tsx`:
+  - Strip center nav blocks (desktop, tablet, mobile raised).
+  - Add hairline div at bottom of `<header>`.
+  - Compute `hideDock`, wrap `<main>` className conditionally with `pb-28 md:pb-24`.
+  - Render `<BottomDock />` after `<Outlet />` when not hidden.
+  - Keep `MoreButton`, drawer, NotificationBell, AccountMenu, language/theme intact.
 
-**Add:**
-- `src/components/app/wizard/Stepper.tsx`
-- `src/components/app/wizard/StickyActionBar.tsx`
-- `src/components/app/wizard/steps/TypeStep.tsx`, `CustomerStep.tsx`, `VaultStep.tsx`, `DetailsStep.tsx`, `ReviewStep.tsx`, `ResultStep.tsx`
+## Privacy / no-regression guardrails
 
-**Delete:**
-- Old `src/components/app/entry-form.tsx` after the new wizard is wired up (its query/submit logic is migrated, not duplicated).
+- Dock items are filtered through existing `hasAnyRole` logic; non-admins never get Approvals badge data (RLS already blocks it).
+- No balances are exposed in the dock (icons/labels only).
+- Existing `/app/transactions/new` wizard keeps its sticky action bar; dock is hidden on that route.
+- No changes to routes, `routeTree.gen.ts`, auth, RPC, or the wizard component.
 
-## Risks / guardrails
+## Verification
 
-- All Supabase calls and approval thresholds are copy-moved from `entry-form.tsx`, not rewritten — same RPC, same payload shape.
-- Roles read via existing `useAuth()` + `hasAnyRole`.
-- Build is strict: every new file lands with its imports, and `framer-motion` import already present in project.
-- No changes to `routeTree.gen.ts`; new component files under `src/components/app/wizard/` won't affect routing.
+- TypeScript build passes (existing automatic check).
+- Manually verify: dock visible on `/app`, `/app/transactions`, `/app/holders`, `/app/vaults`, `/app/approvals`, `/app/audit`; hidden on `/app/transactions/new` (and `?type=...`).
+- Active dot slides smoothly between items.
+- FAB hidden for auditor; visible for admin/teller.
+- Approvals badge shows live pending count for admin only.
+- Mobile (current viewport 768): pill fits within `mx-4`, FAB centered, no overflow.

@@ -14,6 +14,7 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AccountMenu } from "@/components/app/account-menu";
 import { useT } from "@/lib/i18n";
+import { BottomDock } from "@/components/app/bottom-dock";
 import {
   Sheet,
   SheetContent,
@@ -106,60 +107,13 @@ export function AppShell() {
 
   const visibleNav = NAV.filter((i) => hasAnyRole(roles, i.roles));
 
-  // Active match: pick the longest nav prefix that matches the current path.
-  const activeTo = (() => {
-    const matches = visibleNav.filter((i) =>
-      location.pathname === i.to || (i.to !== "/app" && location.pathname.startsWith(i.to + "/")) || (i.to === "/app" && location.pathname === "/app")
-    );
-    if (matches.length === 0) return null;
-    return matches.reduce((a, b) => (b.to.length > a.to.length ? b : a)).to;
-  })();
-
-  const isActive = (to: string) => to === activeTo;
-  const findNav = (p: string) => visibleNav.find((i) => i.to === p);
-  const leftNav = PRIMARY_LEFT_PATHS.map(findNav).filter(Boolean) as NavItem[];
-  const rightNav = PRIMARY_RIGHT_PATHS.map(findNav).filter(Boolean).slice(0, 2) as NavItem[];
-  const raisedNav = findNav(RAISED_PATH);
-  const primarySet = new Set<string>([
-    ...leftNav.map((i) => i.to),
-    ...rightNav.map((i) => i.to),
-    ...(raisedNav ? [raisedNav.to] : []),
-  ]);
-  const overflowNav = visibleNav.filter((i) => !primarySet.has(i.to));
-
-  // Renders one icon-over-label tile (mockup bottom-nav rhythm)
-  const Tile = ({ item }: { item: NavItem }) => {
-    const active = isActive(item.to);
-    const Icon = item.icon;
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Link
-            to={item.to}
-            aria-label={t(item.labelKey)}
-            className={cn(
-              "group relative inline-flex h-14 w-14 items-center justify-center rounded-2xl transition-all",
-              active
-                ? "bg-gradient-gold text-primary-foreground shadow-gold ring-1 ring-gold/40"
-                : "text-muted-foreground hover:bg-gold/10 hover:text-foreground",
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-2xl transition-all",
-                active
-                  ? "bg-primary-foreground/15 text-primary-foreground"
-                  : "bg-gold/5 ring-1 ring-inset ring-gold/15 group-hover:ring-gold/35 group-hover:[filter:drop-shadow(0_0_6px_var(--gold))]",
-              )}
-            >
-              <Icon className="h-6 w-6" strokeWidth={1.5} />
-            </span>
-          </Link>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t(item.labelKey)}</TooltipContent>
-      </Tooltip>
-    );
-  };
+  // Full nav list lives in the More drawer. Bottom dock owns primary navigation.
+  const overflowNav = visibleNav;
+  const hideDock = location.pathname.startsWith("/app/transactions/new");
+  const isActive = (to: string) =>
+    to === "/app"
+      ? location.pathname === "/app"
+      : location.pathname === to || location.pathname.startsWith(to + "/");
 
   const MoreButton = () => (
     <Tooltip>
@@ -240,7 +194,7 @@ export function AppShell() {
       <TooltipProvider delayDuration={150}>
         <div className="min-h-screen bg-background">
           {/* Full-width sticky toolbar — fixed-width brand on the left, nav after, actions on the right */}
-          <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl">
+          <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl relative">
             <div className="flex h-16 w-full items-center gap-2 px-3 sm:h-[68px] sm:gap-3 sm:px-5 lg:h-[72px] lg:px-8">
               {/* Left cluster: hamburger (More) → logo. Stationary on every breakpoint. */}
               <div className="flex h-full shrink-0 items-center gap-2 sm:gap-3">
@@ -262,81 +216,8 @@ export function AppShell() {
                 </Tooltip>
               </div>
 
-              {/* Center nav — evenly spread tiles with raised + in the middle. Desktop. */}
-              <nav className="hidden flex-1 items-center justify-evenly gap-2 lg:flex xl:gap-4">
-                {leftNav.map((item) => (
-                  <Tile key={item.to} item={item} />
-                ))}
-                {raisedNav ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={raisedNav.to}
-                        aria-label={t(raisedNav.labelKey)}
-                        className={cn(
-                          "relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground",
-                          "ring-2 ring-gold/50 shadow-gold transition-transform hover:scale-[1.06]",
-                          isActive(raisedNav.to) && "scale-[1.06]",
-                        )}
-                      >
-                        <PlusCircle className="h-7 w-7" strokeWidth={1.75} />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-                {rightNav.map((item) => (
-                  <Tile key={item.to} item={item} />
-                ))}
-              </nav>
-
-              {/* Tablet center — fewer tiles, evenly spread, raised + in the middle */}
-              <nav className="hidden flex-1 items-center justify-evenly gap-2 sm:flex lg:hidden">
-                {leftNav.slice(0, 1).map((item) => (
-                  <Tile key={item.to} item={item} />
-                ))}
-                {raisedNav ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={raisedNav.to}
-                        aria-label={t(raisedNav.labelKey)}
-                        className={cn(
-                          "relative inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground ring-2 ring-gold/50 shadow-gold transition-transform hover:scale-[1.06]",
-                          isActive(raisedNav.to) && "scale-[1.06]",
-                        )}
-                      >
-                        <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-                {rightNav.slice(0, 1).map((item) => (
-                  <Tile key={item.to} item={item} />
-                ))}
-              </nav>
-
-              {/* Mobile center — only the raised + sits centered between left cluster and bell */}
-              <div className="flex flex-1 items-center justify-center sm:hidden">
-                {raisedNav ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={raisedNav.to}
-                        aria-label={t(raisedNav.labelKey)}
-                        className={cn(
-                          "relative inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground ring-2 ring-gold/50 shadow-gold",
-                          isActive(raisedNav.to) && "scale-[1.05]",
-                        )}
-                      >
-                        <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </div>
+              {/* Center spacer — primary navigation is the floating bottom dock */}
+              <div className="flex-1" />
 
               {/* Right action cluster */}
               <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2">
@@ -350,12 +231,15 @@ export function AppShell() {
                 </Tooltip>
               </div>
             </div>
+            {/* Gold gradient hairline mirroring the dock's top hairline */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent pointer-events-none" />
           </header>
           {moreSheet}
 
-          <main className="overflow-x-hidden pt-4 sm:pt-6">
+          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-28 md:pb-24")}>
             <Outlet />
           </main>
+          {!hideDock && <BottomDock />}
         </div>
       </TooltipProvider>
     </NotificationsProvider>
