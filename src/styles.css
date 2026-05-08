@@ -225,93 +225,99 @@
    Palette: deep onyx background, ivory text, muted champagne accents.
    ────────────────────────────────────────────────────────────────────── */
 html.theme-night {
-  --background:        oklch(0.16  0.014 60);   /* deep warm onyx */
-  --foreground:        oklch(0.96  0.012 85);   /* ivory text */
-  --card:              oklch(0.20  0.014 60);   /* card surface, slightly lifted */
-  --card-foreground:   oklch(0.96  0.012 85);
-  --popover:           oklch(0.20  0.014 60);
-  --popover-foreground:oklch(0.96  0.012 85);
+  /* DAHAB · Night — mockup-exact tokens (dark charcoal + metallic gold).
+     Hex values translated from the uploaded mockup index.css so the entire
+     app picks up the premium private-banking look via semantic utilities. */
+  --background:        #0B0E13;   /* deep charcoal app background */
+  --foreground:        #F5F1E8;   /* cream off-white */
+  --card:              #161B22;   /* primary card surface */
+  --card-foreground:   #F5F1E8;
+  --popover:           #161B22;
+  --popover-foreground:#F5F1E8;
 
-  --primary:           oklch(0.78  0.13  82);   /* champagne gold */
-  --primary-foreground:oklch(0.14  0.02  60);
+  --primary:           #D4A857;   /* metallic gold */
+  --primary-foreground:#14181F;
 
-  --secondary:         oklch(0.24  0.014 60);
-  --secondary-foreground: oklch(0.94 0.01 85);
-  --muted:             oklch(0.22  0.014 60);
-  --muted-foreground:  oklch(0.74  0.012 85);   /* readable on onyx */
-  --accent:            oklch(0.30  0.04  78);
-  --accent-foreground: oklch(0.96  0.012 85);
+  --secondary:         #1F2530;
+  --secondary-foreground: #F5F1E8;
+  --muted:             #1F2530;
+  --muted-foreground:  #8B8A85;
+  --accent:            #2A3140;
+  --accent-foreground: #F5F1E8;
 
-  --destructive:       oklch(0.62  0.22  25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success:           oklch(0.66  0.13 150);
-  --success-foreground:oklch(0.10  0.02 60);
-  --warning:           oklch(0.78  0.13 82);
-  --warning-foreground:oklch(0.14  0.02 60);
+  --destructive:       #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success:           #34D399;
+  --success-foreground:#0B0E13;
+  --warning:           #F59E0B;
+  --warning-foreground:#14181F;
 
-  --border:            oklch(0.30  0.018 60 / 0.7);
-  --input:             oklch(0.24  0.014 60);
-  --ring:              oklch(0.78  0.13 82 / 0.55);
+  --border:            #2A2D35;
+  --input:             #1F2530;
+  --ring:              rgba(212,168,87,0.45);
 
-  --gold:              oklch(0.82  0.13 84);
-  --gold-soft:         oklch(0.88  0.10 86);
-  --gold-deep:         oklch(0.62  0.115 72);
+  --gold:              #D4A857;
+  --gold-soft:         #E8C570;
+  --gold-deep:         #A8842F;
+  --gold-glow:         rgba(212,168,87,0.15);
 
-  --chart-1: oklch(0.82 0.13 84);
-  --chart-2: oklch(0.66 0.13 78);
-  --chart-3: oklch(0.88 0.10 86);
-  --chart-4: oklch(0.66 0.13 150);
-  --chart-5: oklch(0.80 0.012 85);
+  /* Extra surface aliases used by some components */
+  --bg-elevated:       #14181F;
+  --surface:           #161B22;
+  --surface-2:         #1F2530;
+  --surface-3:         #2A3140;
+  --text-primary:      #F5F1E8;
+  --text-secondary:    #8B8A85;
+  --text-tertiary:     #5C5B57;
+  --border-gold:       rgba(212,168,87,0.25);
 
-  --sidebar:                    oklch(0.13  0.014 60);
-  --sidebar-foreground:         oklch(0.94  0.012 85);
-  --sidebar-primary:            oklch(0.82  0.13 84);
-  --sidebar-primary-foreground: oklch(0.14  0.02 60);
-  --sidebar-accent:             oklch(0.22  0.018 60);
-  --sidebar-accent-foreground:  oklch(0.94  0.012 85);
-  --sidebar-border:             oklch(0.28  0.018 60);
-  --sidebar-ring:               oklch(0.82  0.13 84 / 0.45);
+  --chart-1: #D4A857;
+  --chart-2: #E8C570;
+  --chart-3: #A8842F;
+  --chart-4: #F0D080;
+  --chart-5: #34D399;
+
+  --sidebar:                    #0B0E13;
+  --sidebar-foreground:         #F5F1E8;
+  --sidebar-primary:            #D4A857;
+  --sidebar-primary-foreground: #14181F;
+  --sidebar-accent:             #1F2530;
+  --sidebar-accent-foreground:  #F5F1E8;
+  --sidebar-border:             #2A2D35;
+  --sidebar-ring:               rgba(212,168,87,0.45);
 
   --gradient-gold: linear-gradient(135deg,
-      oklch(0.92 0.09  88) 0%,
-      oklch(0.86 0.11  86) 25%,
-      oklch(0.78 0.13  82) 60%,
-      oklch(0.60 0.12  72) 100%);
+      #E8C570 0%, #D4A857 50%, #A8842F 100%);
   --gradient-gold-text: linear-gradient(180deg,
-      oklch(0.92 0.09  88) 0%,
-      oklch(0.82 0.13  84) 50%,
-      oklch(0.66 0.12  76) 100%);
+      #F0D080 0%, #D4A857 50%, #A8842F 100%);
   --gradient-vault: radial-gradient(ellipse 80% 60% at 50% 0%,
-      oklch(0.78 0.13 82 / 0.18) 0%,
-      transparent 70%);
-  --shadow-gold:    0 18px 50px -16px oklch(0.78 0.13 82 / 0.45);
-  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.04) inset,
-                    0 24px 60px -28px oklch(0 0 0 / 0.55),
-                    0 0 0 1px oklch(0.30 0.018 60 / 0.7);
-  --shadow-rim:     0 0 0 1px oklch(0.78 0.13 82 / 0.30),
-                    0 0 0 4px oklch(0.78 0.13 82 / 0.08);
+      rgba(212,168,87,0.18) 0%, transparent 70%);
+  --shadow-gold:    0 4px 16px rgba(212,168,87,0.3),
+                    inset 0 1px 0 rgba(255,255,255,0.3);
+  --shadow-elegant: 0 8px 32px rgba(0,0,0,0.4),
+                    0 0 0 1px rgba(212,168,87,0.08),
+                    inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-rim:     0 0 0 1px rgba(212,168,87,0.25),
+                    0 0 0 4px rgba(212,168,87,0.05);
 }
 
 /* Night-mode body wash overrides the sand vignette */
 html.theme-night body {
   background-image:
-    radial-gradient(ellipse 1200px 600px at 50% -10%,
-      oklch(0.78 0.13 82 / 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 800px 600px at 100% 100%,
-      oklch(0.62 0.115 72 / 0.16) 0%, transparent 60%);
+    radial-gradient(circle at 15% 10%, rgba(212,168,87,0.06), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgba(212,168,87,0.04), transparent 45%);
   background-attachment: fixed;
 }
 
 /* Card-luxe needs a dark-friendly version under night theme */
 html.theme-night .card-luxe {
   background: linear-gradient(180deg,
-    oklch(0.22 0.016 60) 0%,
-    oklch(0.17 0.014 60) 100%);
-  border-color: oklch(0.78 0.13 82 / 0.28);
+    #1F2530 0%, #161B22 100%);
+  border-color: rgba(212,168,87,0.25);
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 0.04) inset,
-    0 24px 60px -28px oklch(0 0 0 / 0.7),
-    0 0 0 1px oklch(0.78 0.13 82 / 0.18);
+    0 1px 0 0 rgba(255,255,255,0.04) inset,
+    0 24px 60px -28px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(212,168,87,0.18);
 }
 
 html.theme-night .surface-cream {
