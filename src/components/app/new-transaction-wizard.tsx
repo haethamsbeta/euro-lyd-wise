@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import {
   ArrowDownRight, ArrowUpRight, Landmark, Search, AlertTriangle, Loader2, X,
   Phone, ShieldCheck, Wallet, Sparkles, Check, ChevronLeft, ChevronRight, Pencil,
-  Clock, ShieldAlert, Receipt, ArrowLeft,
+  Clock, ShieldAlert, Receipt, ArrowLeft, Building2, User, ArrowRight, Hash,
 } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
