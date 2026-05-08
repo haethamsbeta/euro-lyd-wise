@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import {
   ArrowDownRight, ArrowUpRight, Landmark, Search, AlertTriangle, Loader2, X,
   Phone, ShieldCheck, Wallet, Sparkles, Check, ChevronLeft, ChevronRight, Pencil,
-  Clock, ShieldAlert, Receipt, ArrowLeft,
+  Clock, ShieldAlert, Receipt, ArrowLeft, Building2, User, ArrowRight, Hash,
 } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ type HolderCardHit = {
   alias: string | null;
   withdraw_limit_minor: number;
   withdraw_limit_enabled: boolean;
+  holder_type: string;
 };
 
 const COMMENT_MIN = 3;
@@ -131,7 +132,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         if (holderIds.size === 0) return [] as HolderCardHit[];
       }
       let q = supabase.from("holder_accounts")
-        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone)")
+        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone, holder_type)")
         .in("currency_code", ["USD", "EUR", "LYD"]).order("account_holder_id").limit(60);
       if (term) q = q.in("account_holder_id", Array.from(holderIds));
       else q = q.limit(30);
@@ -151,6 +152,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         alias: r.account_alias_name ?? null,
         withdraw_limit_minor: Math.round(Number(r.withdraw_limit_amount ?? 0) * 100),
         withdraw_limit_enabled: !!r.withdraw_limit_enabled,
+        holder_type: (r.account_holders?.holder_type ?? "INDIVIDUAL") as string,
       })) as HolderCardHit[];
     },
   });
@@ -495,154 +497,304 @@ function CustomerStep({
   picked: HolderCardHit | null; onPick: (h: HolderCardHit) => void; onClear: () => void;
   canViewBalances: boolean; isDeposit: boolean;
 }) {
+  // Auto-focus when entering the step
+  useEffect(() => {
+    if (!picked) searchRef.current?.focus();
+  }, [picked, searchRef]);
+
+  // Keep an internal "selected customer" derived from `picked` so the
+  // SelectedCustomerCard + AccountTile grid persist after picking an account.
+  const [browseHolderId, setBrowseHolderId] = useState<number | null>(null);
+  const selectedHolderId = picked?.account_holder_id ?? browseHolderId;
+
+  // When picking, mirror the holder id locally so the customer card stays.
+  useEffect(() => {
+    if (picked) setBrowseHolderId(picked.account_holder_id);
+  }, [picked]);
+
+  // Group results by customer
+  const customers = useMemo(() => {
+    if (!results) return [];
+    const map = new Map<number, { holder: HolderCardHit; accountCount: number }>();
+    for (const r of results) {
+      const ex = map.get(r.account_holder_id);
+      if (ex) ex.accountCount += 1;
+      else map.set(r.account_holder_id, { holder: r, accountCount: 1 });
+    }
+    return Array.from(map.values());
+  }, [results]);
+
+  const selectedHolder = useMemo(() => {
+    if (!selectedHolderId || !results) return null;
+    return results.find((r) => r.account_holder_id === selectedHolderId) ?? picked ?? null;
+  }, [selectedHolderId, results, picked]);
+
+  const accountsForSelected = useMemo(() => {
+    if (!selectedHolderId || !results) return [];
+    return results.filter((r) => r.account_holder_id === selectedHolderId);
+  }, [selectedHolderId, results]);
+
+  function handleChangeCustomer() {
+    setBrowseHolderId(null);
+    onClear();
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }
+
+  const showSearchMode = !selectedHolder;
+  const showHint = showSearchMode && debounced.length < 2;
+  const showNoResults = showSearchMode && !showHint && !isFetching && customers.length === 0;
+
   return (
     <div className="space-y-5">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          ref={searchRef}
-          placeholder="Search by customer name, DAHAB number, account number, phone, or currency…"
-          className="h-14 rounded-2xl border-gold/20 bg-card/60 pl-12 pr-12 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search ? (
-          <button type="button" onClick={() => { setSearch(""); searchRef.current?.focus(); }}
-            className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-gold/10 hover:text-foreground"
-            aria-label="Clear">
-            <X className="h-4 w-4" />
-          </button>
-        ) : isFetching ? (
-          <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-        ) : null}
-      </div>
+      {showSearchMode && (
+        <div className="relative animate-fade-in">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            placeholder="Search by customer name or DAHAB number…"
+            className="h-14 rounded-2xl border-gold/20 bg-card/60 pl-12 pr-12 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40 focus-visible:border-gold/60 transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          {search ? (
+            <button type="button" onClick={() => { setSearch(""); searchRef.current?.focus(); }}
+              className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-gold/10 hover:text-foreground"
+              aria-label="Clear">
+              <X className="h-4 w-4" />
+            </button>
+          ) : isFetching ? (
+            <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
+      )}
 
-      {picked ? (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">Selected account</span>
-            <Button type="button" variant="ghost" size="sm" onClick={onClear}>Change</Button>
+      {selectedHolder ? (
+        <div className="space-y-5 animate-fade-in">
+          <SelectedCustomerCard
+            holder={selectedHolder}
+            accountCount={accountsForSelected.length || 1}
+            onChange={handleChangeCustomer}
+          />
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">
+                Select account · {isDeposit ? "deposit into" : "withdraw from"}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {accountsForSelected.length} account{accountsForSelected.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {accountsForSelected.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gold/20 bg-card/30 p-8 text-center text-sm text-muted-foreground">
+                This customer has no accounts available.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {accountsForSelected.map((acc, i) => (
+                  <AccountTile
+                    key={acc.holder_account_id}
+                    hit={acc}
+                    selected={picked?.holder_account_id === acc.holder_account_id}
+                    canViewBalances={canViewBalances}
+                    onPick={() => onPick(acc)}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          <SelectedAccountCard hit={picked} canViewBalances={canViewBalances} />
-          <p className="text-xs text-muted-foreground">
-            This {isDeposit ? "deposit" : "withdrawal"} will be applied to{" "}
-            <span className="font-medium text-foreground">{picked.holder_name}</span> ({picked.currency}).
-          </p>
         </div>
       ) : isError ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-          Unable to search accounts. Please try again.
+          Unable to search customers. Please try again.
+        </div>
+      ) : showHint ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gold/20 bg-card/30 px-6 py-12 text-center animate-fade-in">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/20 bg-gold/5 text-gold">
+            <Search className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-foreground">Find a customer</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Start typing a customer name or DAHAB number to search.
+            </p>
+          </div>
         </div>
       ) : isFetching ? (
         <div className="flex items-center gap-2 rounded-2xl border border-gold/15 bg-card/40 p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Searching accounts…
+          <Loader2 className="h-4 w-4 animate-spin" /> Searching customers…
         </div>
-      ) : results && results.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {results.map((r) => (
-            <ResultCard key={r.holder_account_id} hit={r} canViewBalances={canViewBalances} onPick={() => onPick(r)} />
-          ))}
+      ) : showNoResults ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-gold/20 bg-card/30 px-6 py-10 text-center animate-fade-in">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/15 bg-surface-2 text-muted-foreground">
+            <X className="h-5 w-5" />
+          </div>
+          <div className="text-sm font-medium text-foreground">No customers found</div>
+          <p className="text-xs text-muted-foreground">Try searching by customer name or DAHAB number.</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-gold/20 bg-card/30 p-8 text-center text-sm text-muted-foreground">
-          {debounced
-            ? "No account found. Try searching by customer name, DAHAB number, account number, phone, or currency."
-            : "Start typing to search accounts."}
+        <div className="grid grid-cols-1 gap-3">
+          {customers.map(({ holder, accountCount }, i) => (
+            <CustomerResultRow
+              key={holder.account_holder_id}
+              holder={holder}
+              accountCount={accountCount}
+              canViewBalances={canViewBalances}
+              onPick={() => setBrowseHolderId(holder.account_holder_id)}
+              index={i}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function ResultCard({ hit, canViewBalances, onPick }: {
-  hit: HolderCardHit; canViewBalances: boolean; onPick: () => void;
+function holderTypeMeta(type: string) {
+  const t = (type || "").toUpperCase();
+  if (t === "CORPORATE" || t === "CORPORATION" || t === "COMPANY") {
+    return { label: "Corporate", Icon: Building2, classes: "bg-gold/10 text-gold border-gold/30" };
+  }
+  if (t === "TRUST") {
+    return { label: "Trust", Icon: User, classes: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
+  }
+  return { label: "Individual", Icon: User, classes: "bg-surface-2 text-muted-foreground border-border" };
+}
+
+function CustomerResultRow({
+  holder, accountCount, canViewBalances, onPick, index,
+}: {
+  holder: HolderCardHit; accountCount: number; canViewBalances: boolean;
+  onPick: () => void; index: number;
 }) {
+  const meta = holderTypeMeta(holder.holder_type);
   return (
-    <button type="button" onClick={onPick}
-      className="group relative flex w-full flex-col gap-3 rounded-2xl border border-gold/15 bg-card/70 p-4 text-left transition-all hover:border-gold/45 hover:bg-card hover:shadow-[0_8px_28px_-18px_var(--gold)]">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-foreground">{hit.holder_name}</div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
-            <span aria-hidden>·</span>
-            <span className="font-mono">#{hit.account_number}</span>
-          </div>
-        </div>
-        <CurrencyBadge currency={hit.currency} />
+    <button
+      type="button"
+      onClick={onPick}
+      style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
+      className="group relative flex w-full items-center gap-4 rounded-2xl border border-gold/15 bg-card/70 p-4 text-left transition-all hover:border-gold/50 hover:bg-card hover:shadow-[0_10px_30px_-18px_var(--gold)] animate-fade-in"
+    >
+      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", meta.classes)}>
+        <meta.Icon className="h-5 w-5" />
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <StatusBadge status={(hit.status || "").toUpperCase()} />
-        {hit.account_nature && (
-          <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-            {hit.account_nature}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-foreground">{holder.holder_name}</div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 font-mono text-gold">
+            <Hash className="h-3 w-3" />
+            {holder.dahab_account_number || "—"}
           </span>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-gold/10 pt-2.5 text-[11px]">
-        {hit.phone ? (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Phone className="h-3.5 w-3.5 text-gold/70" />
-            <span className="truncate font-mono">{hit.phone}</span>
-          </div>
-        ) : <span />}
-        {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 ? (
-          <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-gold/70" />
-            <span>Limit <span className="font-mono text-foreground">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</span></span>
-          </div>
-        ) : <span />}
-      </div>
-      {canViewBalances && (
-        <div className="flex items-center justify-between rounded-lg bg-gold/5 px-2.5 py-1.5 text-[11px]">
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Wallet className="h-3.5 w-3.5 text-gold/80" /> Balance
-          </span>
-          <span className="font-mono font-medium text-foreground">{formatMinor(hit.balance_minor, hit.currency)}</span>
+          <span aria-hidden>·</span>
+          <span>{meta.label}</span>
+          <span aria-hidden>·</span>
+          <span>{accountCount} account{accountCount === 1 ? "" : "s"}</span>
+          {canViewBalances && holder.phone && (<><span aria-hidden>·</span><span className="font-mono">{holder.phone}</span></>)}
         </div>
-      )}
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
     </button>
   );
 }
 
-function SelectedAccountCard({ hit, canViewBalances }: { hit: HolderCardHit; canViewBalances: boolean }) {
+function SelectedCustomerCard({
+  holder, accountCount, onChange,
+}: {
+  holder: HolderCardHit; accountCount: number; onChange: () => void;
+}) {
+  const meta = holderTypeMeta(holder.holder_type);
   return (
-    <div className="rounded-2xl border-2 border-gold/50 bg-card p-5 shadow-[0_0_0_4px_oklch(from_var(--gold)_l_c_h/0.08),0_18px_40px_-24px_var(--gold)]">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-2xl border border-gold/30 bg-gradient-to-br from-card via-card to-gold/5 p-5 shadow-[0_0_0_3px_oklch(from_var(--gold)_l_c_h/0.06),0_18px_40px_-24px_var(--gold)] animate-scale-in">
+      <div className="flex items-start gap-4">
+        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border", meta.classes)}>
+          <meta.Icon className="h-6 w-6" />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-semibold text-foreground">{hit.holder_name}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">Selected customer</div>
+          <div className="mt-1 truncate text-lg font-semibold text-foreground">{holder.holder_name}</div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 font-mono text-gold">
+              <Hash className="h-3 w-3" />
+              {holder.dahab_account_number || "—"}
+            </span>
             <span aria-hidden>·</span>
-            <span className="font-mono">#{hit.account_number}</span>
-            {hit.phone && (<><span aria-hidden>·</span><span className="font-mono">{hit.phone}</span></>)}
+            <span>{meta.label}</span>
+            <span aria-hidden>·</span>
+            <span>{accountCount} account{accountCount === 1 ? "" : "s"}</span>
+            {holder.status && (<><span aria-hidden>·</span><StatusBadge status={(holder.status || "").toUpperCase()} className="!py-0.5 !px-2" /></>)}
           </div>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onChange} className="shrink-0 text-muted-foreground hover:text-gold">
+          <Pencil className="h-3.5 w-3.5" /> Change
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AccountTile({
+  hit, selected, canViewBalances, onPick, index,
+}: {
+  hit: HolderCardHit; selected: boolean; canViewBalances: boolean; onPick: () => void; index: number;
+}) {
+  const status = (hit.status || "").toUpperCase();
+  const disabled = /SUSPEND|FROZEN|CLOSED|INACTIVE/.test(status);
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onPick}
+      disabled={disabled}
+      style={{ animationDelay: `${Math.min(index * 50, 240)}ms` }}
+      className={cn(
+        "group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all animate-fade-in",
+        selected
+          ? "border-gold/70 bg-card shadow-[0_0_0_3px_oklch(from_var(--gold)_l_c_h/0.10),0_14px_36px_-20px_var(--gold)]"
+          : "border-gold/15 bg-card/70 hover:border-gold/45 hover:bg-card hover:shadow-[0_8px_24px_-18px_var(--gold)]",
+        disabled && "cursor-not-allowed opacity-60 hover:border-gold/15 hover:shadow-none",
+      )}
+    >
+      {selected && (
+        <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-gold shadow-gold animate-scale-in">
+          <Check className="h-3.5 w-3.5 text-[var(--surface)]" />
+        </span>
+      )}
+      <div className="flex items-start justify-between gap-2 pr-7">
+        <div className="min-w-0 flex-1">
+          <div className={cn("truncate text-sm font-semibold transition-colors", selected ? "text-gold" : "text-foreground")}>
+            {hit.alias || `${hit.currency} account`}
+          </div>
+          <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">#{hit.account_number}</div>
         </div>
         <CurrencyBadge currency={hit.currency} />
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <StatusBadge status={(hit.status || "").toUpperCase()} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={status} />
         {hit.account_nature && (
           <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
             {hit.account_nature}
           </span>
         )}
       </div>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="border-t border-gold/10 pt-2.5 text-[11px] space-y-1.5">
         {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 && (
-          <div className="rounded-lg border border-gold/15 bg-card/60 px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Withdrawal limit</div>
-            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</div>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-gold/70" /> Withdrawal limit</span>
+            <span className="font-mono text-foreground">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</span>
           </div>
         )}
         {canViewBalances && (
-          <div className="rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wider text-gold/90">Current balance</div>
-            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.balance_minor, hit.currency)}</div>
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-muted-foreground"><Wallet className="h-3.5 w-3.5 text-gold/80" /> Balance</span>
+            <span className="font-mono font-medium text-foreground">{formatMinor(hit.balance_minor, hit.currency)}</span>
           </div>
         )}
+        {disabled && (
+          <div className="text-[10px] uppercase tracking-wider text-destructive/80">Not available for transactions</div>
+        )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -818,72 +970,210 @@ function ResultScreen({
   const isDeposit = type === "deposit";
   const tx: any = (result as any).tx ?? null;
   const txNumber = tx?.tx_number ?? tx?.id ?? "—";
-  const status = result.kind === "success" ? "Posted" : result.kind === "pending" ? "Pending Review" : "Failed";
 
+  const sign = isDeposit ? "+" : "−";
   const tone =
     result.kind === "success"
-      ? { ring: "border-emerald-500/40 bg-emerald-500/10", icon: <Check className="h-9 w-9 text-emerald-400" />, title: "Transaction Complete", sub: `Your ${isDeposit ? "deposit" : "withdrawal"} has been posted.` }
+      ? {
+          title: "Transaction Complete",
+          sub: "The transaction has been posted successfully.",
+          accent: "emerald",
+          orbGlow: "from-emerald-500/40 via-emerald-500/10",
+          orbBorder: "border-emerald-500/50",
+          orbInner: "bg-emerald-500/10 text-emerald-400",
+          icon: <Check className="h-10 w-10" />,
+          chip: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
+          amountColor: "text-emerald-400",
+          steps: ["Created", "Validated", "Posted"],
+        }
       : result.kind === "pending"
-      ? { ring: "border-amber-500/40 bg-amber-500/10", icon: <Clock className="h-9 w-9 text-amber-400" />, title: "Awaiting Approval", sub: "This transaction has been queued for admin review." }
-      : { ring: "border-destructive/40 bg-destructive/10", icon: <ShieldAlert className="h-9 w-9 text-destructive" />, title: "Transaction Failed", sub: result.kind === "failed" ? result.error : "" };
+      ? {
+          title: "Awaiting Approval",
+          sub: "This transaction has been queued for admin review.",
+          accent: "amber",
+          orbGlow: "from-amber-500/40 via-amber-500/10",
+          orbBorder: "border-amber-500/50",
+          orbInner: "bg-amber-500/10 text-amber-400",
+          icon: <Clock className="h-10 w-10" />,
+          chip: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+          amountColor: "text-gold",
+          steps: ["Created", "Policy Check", "Awaiting Admin Approval"],
+        }
+      : {
+          title: "Transaction Failed",
+          sub: result.kind === "failed" ? result.error : "",
+          accent: "red",
+          orbGlow: "from-red-500/40 via-red-500/10",
+          orbBorder: "border-red-500/50",
+          orbInner: "bg-red-500/10 text-red-400",
+          icon: <ShieldAlert className="h-10 w-10" />,
+          chip: "border-red-500/40 bg-red-500/10 text-red-400",
+          amountColor: "text-red-400",
+          steps: ["Created", "Validation Failed"],
+        };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 md:px-8">
-      <div className="text-center animate-fade-in">
-        <div className={cn("mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2", tone.ring)}>
-          {tone.icon}
-        </div>
-        <h1 className="mt-5 font-playfair text-3xl font-semibold text-foreground md:text-4xl">{tone.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{tone.sub}</p>
-      </div>
+    <div className="relative min-h-[calc(100vh-7rem)] overflow-hidden">
+      {/* Cinematic background glow */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-x-0 -top-32 mx-auto h-[420px] max-w-2xl rounded-full opacity-60 blur-3xl",
+          "bg-gradient-radial",
+        )}
+        style={{
+          background:
+            "radial-gradient(closest-side, oklch(from var(--gold) l c h / 0.18), transparent 70%)",
+        }}
+      />
 
-      {result.kind !== "failed" && (
-        <div className="mt-8 overflow-hidden rounded-2xl border border-gold/20 bg-card/70 shadow-gold">
-          <div className="flex items-center justify-between border-b border-gold/10 bg-surface-2/60 px-5 py-3">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-gold" />
-              <span className="text-sm font-medium text-foreground">Receipt</span>
+      <div className="relative mx-auto max-w-3xl px-4 py-10 md:px-8 md:py-14">
+        {/* Status hero */}
+        <div className="text-center animate-fade-in">
+          <div className="relative mx-auto h-28 w-28">
+            <div className={cn("absolute inset-0 rounded-full bg-gradient-to-b blur-2xl", tone.orbGlow, "to-transparent")} />
+            <div className={cn("relative mx-auto flex h-28 w-28 items-center justify-center rounded-full border-2 backdrop-blur-md animate-scale-in", tone.orbBorder, tone.orbInner)}>
+              {tone.icon}
             </div>
-            <span className={cn(
-              "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-              result.kind === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" : "border-amber-500/40 bg-amber-500/10 text-amber-400",
-            )}>{status}</span>
           </div>
-          <ReviewRow label="Transaction" value={String(txNumber)} mono />
-          <ReviewRow label="Type" value={isDeposit ? "Deposit" : "Withdrawal"} />
-          <ReviewRow label="Customer" value={`${picked.holder_name} · ${picked.dahab_account_number || "—"}`} />
-          <ReviewRow label="Account" value={`#${picked.account_number} (${picked.currency})`} />
-          <ReviewRow label="Vault" value={channel === "cash" ? "Cash Vault" : "Bank Vault"} />
-          <ReviewRow label="Amount" value={`${formatMinor(amountMinor, currency)} ${currency}`} mono />
-          <ReviewRow label="Comment" value={comment} />
-          {canViewBalances && (
-            <ReviewRow label="Balance after" value={formatMinor(isDeposit ? picked.balance_minor + amountMinor : picked.balance_minor - amountMinor, currency)} mono last />
+          <div className={cn("mt-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em]", tone.chip)}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {result.kind === "success" ? "Posted" : result.kind === "pending" ? "Pending Review" : "Failed"}
+          </div>
+          <h1 className="mt-3 font-playfair text-3xl font-semibold text-foreground md:text-4xl">{tone.title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{tone.sub}</p>
+        </div>
+
+        {/* Amount display */}
+        {result.kind !== "failed" && (
+          <div className="mt-8 text-center animate-fade-in">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">
+              {isDeposit ? "Deposit total" : "Withdrawal total"}
+            </div>
+            <div className={cn("mt-2 font-playfair text-5xl font-semibold tabular-nums md:text-6xl", tone.amountColor)}>
+              {sign}{formatMinor(amountMinor, currency)}
+            </div>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <CurrencyBadge currency={currency} />
+              <span className="text-[11px] text-muted-foreground">Value date · today</span>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline */}
+        <Timeline steps={tone.steps} accent={tone.accent} />
+
+        {/* Receipt card */}
+        {result.kind !== "failed" && (
+          <div className="mt-8 overflow-hidden rounded-2xl border border-gold/25 bg-card/60 backdrop-blur-md shadow-[0_24px_60px_-30px_var(--gold)] animate-fade-in">
+            <div className="flex items-center justify-between border-b border-gold/15 bg-surface-2/50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-gold" />
+                <span className="text-sm font-medium text-foreground">Receipt</span>
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">{String(txNumber)}</span>
+            </div>
+            <ReceiptRow label="Transaction ID" value={String(txNumber)} mono />
+            <ReceiptRow label="Date / time" value={new Date().toLocaleString()} />
+            <ReceiptRow label="Type" value={isDeposit ? "Deposit" : "Withdrawal"} />
+            <ReceiptRow label="Customer" value={`${picked.holder_name} · ${picked.dahab_account_number || "—"}`} />
+            <ReceiptRow label="Account" value={`#${picked.account_number} (${picked.currency})`} />
+            <ReceiptRow label="Vault" value={channel === "cash" ? "Cash Vault" : "Bank Vault"} />
+            <ReceiptRow label="Amount" value={`${formatMinor(amountMinor, currency)} ${currency}`} mono />
+            <ReceiptRow label="Comment" value={comment} />
+            {canViewBalances && (
+              <ReceiptRow
+                label="Balance after"
+                value={formatMinor(isDeposit ? picked.balance_minor + amountMinor : picked.balance_minor - amountMinor, currency)}
+                mono
+                last
+              />
+            )}
+          </div>
+        )}
+
+        {!canViewBalances && result.kind === "pending" && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            This transaction requires admin review before settlement.
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          {result.kind === "failed" ? (
+            <>
+              <Button variant="outline" className="border-gold/20" onClick={onTryAgain}>
+                <ArrowLeft className="h-4 w-4" /> Try again
+              </Button>
+              <Button variant="gold" asChild>
+                <Link to="/app/transactions">Back to Transactions</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="border-gold/20" asChild>
+                <Link to="/app">Back to Dashboard</Link>
+              </Button>
+              <Button variant="outline" className="border-gold/20" asChild>
+                <Link to="/app/transactions">View Transactions</Link>
+              </Button>
+              <Button variant="gold" onClick={onNew}>New Transaction</Button>
+            </>
           )}
         </div>
-      )}
-
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        {result.kind === "failed" ? (
-          <>
-            <Button variant="outline" className="border-gold/20" onClick={onTryAgain}>
-              <ArrowLeft className="h-4 w-4" /> Try again
-            </Button>
-            <Button variant="gold" asChild>
-              <Link to="/app/transactions">Back to Transactions</Link>
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="outline" className="border-gold/20" asChild>
-              <Link to="/app">Back to Dashboard</Link>
-            </Button>
-            <Button variant="outline" className="border-gold/20" asChild>
-              <Link to="/app/transactions">View Transactions</Link>
-            </Button>
-            <Button variant="gold" onClick={onNew}>New Transaction</Button>
-          </>
-        )}
       </div>
+    </div>
+  );
+}
+
+function Timeline({ steps, accent }: { steps: string[]; accent: string }) {
+  const activeIdx = steps.length - 1;
+  const accentClasses =
+    accent === "emerald"
+      ? { line: "from-emerald-500/70 to-emerald-500/20", dot: "bg-emerald-500/20 border-emerald-500 text-emerald-400", active: "bg-emerald-500 text-[var(--surface)]" }
+      : accent === "amber"
+      ? { line: "from-amber-500/70 to-amber-500/20", dot: "bg-amber-500/15 border-amber-500 text-amber-400", active: "bg-amber-500 text-[var(--surface)]" }
+      : { line: "from-red-500/70 to-red-500/20", dot: "bg-red-500/15 border-red-500 text-red-400", active: "bg-red-500 text-white" };
+
+  return (
+    <div className="mt-8 rounded-2xl border border-gold/15 bg-card/40 px-4 py-5 backdrop-blur-sm animate-fade-in">
+      <ol className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:gap-0">
+        {steps.map((label, i) => {
+          const done = i < activeIdx;
+          const active = i === activeIdx;
+          return (
+            <li key={label} className="flex items-center gap-3 md:flex-1 md:flex-col md:items-center md:gap-2">
+              <div className="flex items-center gap-3 md:flex-col md:gap-2">
+                <span
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold transition-all",
+                    done && cn(accentClasses.active, "border-transparent"),
+                    active && cn(accentClasses.dot, "ring-4 ring-offset-0", accent === "emerald" ? "ring-emerald-500/15" : accent === "amber" ? "ring-amber-500/15" : "ring-red-500/15"),
+                    !done && !active && "border-border bg-surface-2 text-muted-foreground",
+                  )}
+                >
+                  {done ? <Check className="h-4 w-4" /> : i + 1}
+                </span>
+                <span className={cn("text-[11px] font-medium tracking-wide", active ? "text-foreground" : "text-muted-foreground")}>
+                  {label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <span className={cn("hidden h-px flex-1 bg-gradient-to-r md:block", accentClasses.line)} />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function ReceiptRow({ label, value, mono, last }: { label: string; value: string; mono?: boolean; last?: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-3 px-5 py-3", !last && "border-b border-gold/10")}>
+      <div className="w-32 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("min-w-0 flex-1 truncate text-sm text-foreground", mono && "font-mono tabular-nums")}>{value || "—"}</div>
     </div>
   );
 }
