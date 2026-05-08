@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, PlusCircle, ListOrdered, Wallet,
-  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info, IdCard, Fingerprint, Layers,
+  ClipboardCheck, ScrollText, UserCog, LogOut, ShieldAlert, Activity, Bell, ChevronDown, Info, IdCard, Fingerprint, Layers, BarChart3,
 } from "lucide-react";
 import { NotificationsProvider } from "@/lib/notifications";
 import { NotificationBell } from "@/components/app/notification-bell";
@@ -38,6 +38,7 @@ const NAV: NavItem[] = [
   { to: "/app/approvals", labelKey: "nav.approvals", icon: ClipboardCheck, roles: ["admin"] },
   { to: "/app/me/activity", labelKey: "nav.myActivity", icon: Activity, roles: ["admin", "teller"] },
   { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
+  { to: "/app/reports", labelKey: "nav.reports", icon: BarChart3, roles: ["admin", "auditor"] },
   { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
   { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
