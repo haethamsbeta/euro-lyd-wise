@@ -26,7 +26,7 @@ import {
 type NavItem = {
   to: string;
   labelKey: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   roles: AppRole[];
 };
 
