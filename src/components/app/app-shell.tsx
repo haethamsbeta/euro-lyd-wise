@@ -48,15 +48,11 @@ const NAV: NavItem[] = [
   { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
 ];
 
-// Pages pinned to the floating toolbar (the rest go under the 3-dots menu).
-const PRIMARY_TOOLBAR_PATHS = [
-  "/app",
-  "/app/transactions/new",
-  "/app/transactions",
-  "/app/holders",
-  "/app/approvals",
-  "/app/vaults",
-];
+// Pages pinned to the floating toolbar (raised center action is /app/transactions/new).
+// Order: Dashboard, Transactions, [raised center], Holders, Approvals (or Vaults fallback).
+const PRIMARY_LEFT_PATHS = ["/app", "/app/transactions"];
+const PRIMARY_RIGHT_PATHS = ["/app/holders", "/app/approvals", "/app/vaults"];
+const RAISED_PATH = "/app/transactions/new";
 
 export function AppShell() {
   const { session, roles, loading, rolesLoading, signOut, user } = useAuth();
@@ -114,98 +110,113 @@ export function AppShell() {
     return matches.reduce((a, b) => (b.to.length > a.to.length ? b : a)).to;
   })();
 
-  // Build primary chips (max 5 visible to user) and overflow set for the 3-dots menu.
-  const primaryNav = PRIMARY_TOOLBAR_PATHS
-    .map((p) => visibleNav.find((i) => i.to === p))
-    .filter(Boolean)
-    .slice(0, 5) as NavItem[];
-  const primarySet = new Set(primaryNav.map((i) => i.to));
-  const overflowNav = visibleNav.filter((i) => !primarySet.has(i.to));
   const isActive = (to: string) => to === activeTo;
+  const findNav = (p: string) => visibleNav.find((i) => i.to === p);
+  const leftNav = PRIMARY_LEFT_PATHS.map(findNav).filter(Boolean) as NavItem[];
+  const rightNav = PRIMARY_RIGHT_PATHS.map(findNav).filter(Boolean).slice(0, 2) as NavItem[];
+  const raisedNav = findNav(RAISED_PATH);
+  const primarySet = new Set<string>([
+    ...leftNav.map((i) => i.to),
+    ...rightNav.map((i) => i.to),
+    ...(raisedNav ? [raisedNav.to] : []),
+  ]);
+  const overflowNav = visibleNav.filter((i) => !primarySet.has(i.to));
+
+  // Renders one icon-over-label tile (mockup bottom-nav rhythm)
+  const Tile = ({ item }: { item: NavItem }) => {
+    const active = isActive(item.to);
+    const Icon = item.icon;
+    return (
+      <Link
+        to={item.to}
+        className={cn(
+          "group relative flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-medium leading-none transition-all sm:w-16",
+          active
+            ? "bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-[0_8px_20px_-8px_oklch(0.82_0.14_85/0.6)] ring-1 ring-[oklch(0.82_0.14_85/0.45)]"
+            : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.08)] hover:text-foreground",
+        )}
+      >
+        <Icon className={cn("h-4 w-4", active ? "text-[oklch(0.18_0.03_60)]" : "")} />
+        <span className="truncate px-1">{t(item.labelKey)}</span>
+      </Link>
+    );
+  };
 
   return (
     <NotificationsProvider>
       <div className="min-h-screen bg-background">
-        {/* Floating top toolbar */}
+        {/* Floating mockup-style top toolbar */}
         <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
           <div
             className={cn(
-              "mx-auto flex max-w-6xl items-center gap-2 rounded-full border border-[oklch(0.82_0.14_85/0.25)]",
-              "bg-background/70 px-2 py-1.5 shadow-[0_10px_30px_-12px_oklch(0.82_0.14_85/0.35)] backdrop-blur-xl sm:gap-3 sm:px-3 sm:py-2",
+              "relative mx-auto flex max-w-3xl items-center gap-2 rounded-3xl border border-[oklch(0.82_0.14_85/0.3)]",
+              "bg-[oklch(0.18_0.03_60/0.85)] px-3 py-2 backdrop-blur-xl",
+              "shadow-[0_18px_40px_-18px_oklch(0.82_0.14_85/0.45)] sm:px-4",
             )}
           >
             {/* Brand */}
-            <Link to="/app" className="flex shrink-0 items-center gap-2 ps-1.5 pe-2">
+            <Link to="/app" className="flex shrink-0 items-center gap-2 pe-1">
               <DahabCoin />
-              <span className="hidden sm:inline">
+              <span className="hidden lg:inline">
                 <DahabMark size="sm" showArabic={false} />
               </span>
             </Link>
 
-            <span className="hidden h-6 w-px shrink-0 bg-[oklch(0.82_0.14_85/0.2)] sm:block" />
+            {/* Primary tiles + raised center */}
+            <nav className="flex flex-1 items-end justify-center gap-1 sm:gap-2">
+              {leftNav.map((item) => (
+                <Tile key={item.to} item={item} />
+              ))}
 
-            {/* Primary chips (desktop) */}
-            <nav className="hidden flex-1 items-center gap-1 overflow-x-auto md:flex">
-              {primaryNav.map((i) => {
-                const active = isActive(i.to);
-                const Icon = i.icon;
-                return (
+              {raisedNav ? (
+                <div className="flex w-16 flex-col items-center sm:w-20">
                   <Link
-                    key={i.to}
-                    to={i.to}
+                    to={raisedNav.to}
+                    aria-label={t(raisedNav.labelKey)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      active
-                        ? "border-[oklch(0.82_0.14_85/0.45)] bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-gold"
-                        : "border-transparent text-muted-foreground hover:border-[oklch(0.82_0.14_85/0.25)] hover:bg-[oklch(0.82_0.14_85/0.06)] hover:text-foreground",
+                      "-mt-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-gold text-[oklch(0.18_0.03_60)]",
+                      "ring-4 ring-[oklch(0.18_0.03_60/0.85)] shadow-[0_10px_24px_-6px_oklch(0.82_0.14_85/0.7)] transition-transform hover:scale-105",
+                      isActive(raisedNav.to) && "scale-105",
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    {t(i.labelKey)}
+                    <PlusCircle className="h-6 w-6" strokeWidth={2.25} />
                   </Link>
-                );
-              })}
-            </nav>
+                  <span
+                    className={cn(
+                      "mt-1 text-[10px] font-medium leading-none",
+                      isActive(raisedNav.to) ? "text-gold" : "text-muted-foreground",
+                    )}
+                  >
+                    {t("newtx.deposit").length > 0 ? "New" : "New"}
+                  </span>
+                </div>
+              ) : null}
 
-            <div className="flex flex-1 md:flex-initial" />
-
-            {/* Right cluster */}
-            <div className="flex shrink-0 items-center gap-1">
-              <NotificationBell />
-              <span className="hidden sm:flex items-center gap-1">
-                <LanguageToggle />
-                <ThemeToggle />
+              {rightNav.slice(0, 1).map((item) => (
+                <Tile key={item.to} item={item} />
+              ))}
+              <span className="hidden sm:inline">
+                {rightNav.slice(1, 2).map((item) => (
+                  <Tile key={item.to} item={item} />
+                ))}
               </span>
-              <AccountMenu />
-              {/* 3-dots menu — full nav lives here */}
+
+              {/* More tile (icon-over-label, same shape as the rest) */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={t("nav.more")}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.05)] text-foreground transition-colors hover:bg-[oklch(0.82_0.14_85/0.1)]"
+                  className={cn(
+                    "group relative flex h-12 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-medium leading-none text-muted-foreground transition-all hover:bg-[oklch(0.82_0.14_85/0.08)] hover:text-foreground sm:w-16",
+                  )}
                 >
                   <MoreHorizontal className="h-4 w-4" />
+                  <span>{t("nav.more")}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-64">
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     {t("nav.more")}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {/* Mobile: show primary entries too */}
-                  <div className="md:hidden">
-                    {primaryNav.map((i) => {
-                      const active = isActive(i.to);
-                      const Icon = i.icon;
-                      return (
-                        <DropdownMenuItem key={i.to} asChild>
-                          <Link to={i.to} className={cn("flex w-full items-center gap-2 text-sm", active && "text-gold")}>
-                            <Icon className="h-4 w-4" />
-                            {t(i.labelKey)}
-                          </Link>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                    {primaryNav.length > 0 && overflowNav.length > 0 && <DropdownMenuSeparator />}
-                  </div>
                   {overflowNav.map((i) => {
                     const active = isActive(i.to);
                     const Icon = i.icon;
@@ -218,18 +229,24 @@ export function AppShell() {
                       </DropdownMenuItem>
                     );
                   })}
-                  <DropdownMenuSeparator className="sm:hidden" />
-                  <div className="flex items-center justify-center gap-2 px-2 py-1.5 sm:hidden">
+                  <DropdownMenuSeparator />
+                  <div className="flex items-center justify-center gap-2 px-2 py-1.5">
                     <LanguageToggle />
                     <ThemeToggle />
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </nav>
+
+            {/* Right cluster */}
+            <div className="flex shrink-0 items-center gap-1 ps-1">
+              <NotificationBell />
+              <AccountMenu />
             </div>
           </div>
         </header>
 
-        <main className="overflow-x-hidden pt-3 sm:pt-4">
+        <main className="overflow-x-hidden pt-6 sm:pt-8">
           <Outlet />
         </main>
       </div>
