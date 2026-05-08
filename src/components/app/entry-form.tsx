@@ -603,6 +603,117 @@ export function EntryForm({ direction }: { direction: Direction }) {
   );
 }
 
+function statusTone(status: string): "ACTIVE" | "FROZEN" | "RESTRICTED" | "CLOSED" | string {
+  return (status || "").toUpperCase();
+}
+
+function ResultCard({ hit, canViewBalances, onPick }: { hit: HolderCardHit; canViewBalances: boolean; onPick: () => void }) {
+  const status = statusTone(hit.status);
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={cn(
+        "group relative flex w-full flex-col gap-3 rounded-xl border border-gold/15 bg-card/70 p-3.5 text-left transition-all",
+        "hover:border-gold/45 hover:bg-card hover:shadow-[0_8px_28px_-18px_var(--gold)]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-foreground">{hit.holder_name}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
+            <span aria-hidden>·</span>
+            <span className="font-mono">#{hit.account_number}</span>
+          </div>
+        </div>
+        <CurrencyBadge currency={hit.currency} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={status} />
+        {hit.account_nature ? (
+          <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {hit.account_nature}
+          </span>
+        ) : null}
+        {hit.alias ? (
+          <span className="inline-flex max-w-[12rem] items-center truncate rounded-md border border-gold/15 bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+            {hit.alias}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t border-gold/10 pt-2.5 text-[11px]">
+        {hit.phone ? (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Phone className="h-3.5 w-3.5 text-gold/70" />
+            <span className="truncate font-mono">{hit.phone}</span>
+          </div>
+        ) : <span />}
+        {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 ? (
+          <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-gold/70" />
+            <span>Limit <span className="font-mono text-foreground">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</span></span>
+          </div>
+        ) : <span />}
+      </div>
+
+      {canViewBalances ? (
+        <div className="flex items-center justify-between rounded-lg bg-gold/5 px-2.5 py-1.5 text-[11px]">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Wallet className="h-3.5 w-3.5 text-gold/80" /> Balance
+          </span>
+          <span className="font-mono font-medium text-foreground">{formatMinor(hit.balance_minor, hit.currency)}</span>
+        </div>
+      ) : null}
+    </button>
+  );
+}
+
+function SelectedAccountCard({ hit, canViewBalances }: { hit: HolderCardHit; canViewBalances: boolean }) {
+  return (
+    <div className="rounded-xl border-2 border-gold/50 bg-card p-4 shadow-[0_0_0_4px_oklch(from_var(--gold)_l_c_h/0.08),0_18px_40px_-24px_var(--gold)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-base font-semibold text-foreground">{hit.holder_name}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            <span className="font-mono text-gold">{hit.dahab_account_number || "—"}</span>
+            <span aria-hidden>·</span>
+            <span className="font-mono">#{hit.account_number}</span>
+            {hit.phone ? (<><span aria-hidden>·</span><span className="font-mono">{hit.phone}</span></>) : null}
+          </div>
+        </div>
+        <CurrencyBadge currency={hit.currency} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={statusTone(hit.status)} />
+        {hit.account_nature ? (
+          <span className="inline-flex items-center rounded-md border border-gold/15 bg-gold/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {hit.account_nature}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {hit.withdraw_limit_enabled && hit.withdraw_limit_minor > 0 ? (
+          <div className="rounded-lg border border-gold/15 bg-card/60 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Withdrawal limit</div>
+            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.withdraw_limit_minor, hit.currency)}</div>
+          </div>
+        ) : null}
+        {canViewBalances ? (
+          <div className="rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-gold/90">Current balance</div>
+            <div className="mt-0.5 font-mono text-sm">{formatMinor(hit.balance_minor, hit.currency)}</div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ChannelButton({ active, onClick, icon, label, hint }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; hint: string }) {
   return (
     <button
