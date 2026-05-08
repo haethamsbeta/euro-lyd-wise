@@ -64,6 +64,7 @@ export function AppShell() {
   const nav = useNavigate();
   const location = useLocation();
   const t = useT();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
