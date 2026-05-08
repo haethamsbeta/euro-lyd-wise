@@ -885,6 +885,164 @@ function AddMemberAutocomplete({
 // Edit modal
 // ────────────────────────────────────────────────────────────────────────────
 
+function AddMembersDialog({
+  groupId, existing, onClose, onAdded,
+}: {
+  groupId: number;
+  existing: Set<number>;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const dq = useDebounced(q, 200);
+  const [picked, setPicked] = useState<Map<number, any>>(new Map());
+
+  const search = useQuery({
+    queryKey: ["group.add-dialog.search", groupId, dq],
+    queryFn: async () => {
+      const term = dq.trim();
+      let qb = supabase
+        .from("holder_accounts")
+        .select("id,account_number,currency_code,current_balance,dahab_account_number,account_holders!inner(canonical_name,dahab_account_number)")
+        .order("id", { ascending: false })
+        .limit(40);
+      if (term) {
+        qb = qb.or(`account_number.ilike.%${term}%,dahab_account_number.ilike.%${term}%,account_display_name.ilike.%${term}%`);
+      }
+      const { data, error } = await qb;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async () => {
+      if (picked.size === 0) return 0;
+      const { data: u } = await supabase.auth.getUser();
+      const rows = Array.from(picked.keys()).map((holder_account_id) => ({
+        group_id: groupId,
+        holder_account_id,
+        added_by: u.user?.id ?? null,
+      }));
+      const { error } = await supabase
+        .from("account_group_members")
+        .upsert(rows, { onConflict: "group_id,holder_account_id", ignoreDuplicates: true });
+      if (error) throw error;
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} member${n === 1 ? "" : "s"} added`);
+      onAdded();
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const results = ((search.data ?? []) as any[]).filter((r) => !existing.has(r.id));
+
+  function toggle(r: any) {
+    setPicked((prev) => {
+      const next = new Map(prev);
+      if (next.has(r.id)) next.delete(r.id);
+      else next.set(r.id, r);
+      return next;
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl border-gold/20">
+        <DialogHeader>
+          <DialogTitle className="font-playfair text-2xl">Add Members</DialogTitle>
+          <DialogDescription>Search by name, account #, or DAHAB #. Select one or more accounts to add to this group.</DialogDescription>
+        </DialogHeader>
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            autoFocus
+            placeholder="Search accounts…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-10 rounded-xl border-gold/20 bg-card/60 pl-10 focus-visible:ring-gold/40"
+          />
+        </div>
+
+        {picked.size > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from(picked.values()).map((r: any) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => toggle(r)}
+                className="inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[11px] text-gold hover:bg-gold/20"
+              >
+                {r.account_holders?.canonical_name ?? r.account_number}
+                <X className="h-3 w-3" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="max-h-80 overflow-y-auto rounded-xl border border-gold/15 bg-card/40">
+          {search.isFetching ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">Searching…</div>
+          ) : results.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              {dq ? "No matching accounts." : "Type to search, or browse below."}
+            </div>
+          ) : (
+            <ul>
+              {results.map((r: any) => {
+                const sel = picked.has(r.id);
+                return (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(r)}
+                      className={cn(
+                        "flex w-full items-center gap-3 border-b border-gold/5 px-3 py-2.5 text-left text-sm transition-colors last:border-0",
+                        sel ? "bg-gold/10 hover:bg-gold/15" : "hover:bg-gold/5",
+                      )}
+                    >
+                      <span className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
+                        sel ? "border-gold bg-gold text-background" : "border-gold/30",
+                      )}>
+                        {sel && <Check className="h-3.5 w-3.5" />}
+                      </span>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold/30 to-gold/10 text-[10px] font-semibold text-gold">
+                        {initials(r.account_holders?.canonical_name ?? "?")}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-foreground">{r.account_holders?.canonical_name}</span>
+                        <span className="block font-mono text-[11px] text-muted-foreground">
+                          {r.account_holders?.dahab_account_number ?? r.dahab_account_number ?? "—"} · #{r.account_number} · {r.currency_code}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" className="border-gold/20" onClick={onClose}>Cancel</Button>
+          <Button variant="gold" disabled={picked.size === 0 || add.isPending} onClick={() => add.mutate()}>
+            {add.isPending ? "Adding…" : `Add ${picked.size || ""} Member${picked.size === 1 ? "" : "s"}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Edit modal
+// ────────────────────────────────────────────────────────────────────────────
+
 function EditModal({ group, onClose }: { group: GroupRow; onClose: () => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState(group.name);
