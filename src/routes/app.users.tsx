@@ -232,7 +232,7 @@ function UsersPage() {
   );
 }
 
-function GrantRole({ userId, existing, onGrant }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void }) {
+function GrantRole({ existing, onGrant }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void }) {
   const t = useT();
   const [val, setVal] = useState<string>("");
   const available = ROLES.filter((r) => !existing.includes(r));
