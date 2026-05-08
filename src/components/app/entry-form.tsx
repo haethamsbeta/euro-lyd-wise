@@ -635,39 +635,33 @@ export function EntryForm({ direction }: { direction: Direction }) {
           </DialogContent>
         </Dialog>
 
-      </form>
-
-      {/* Sticky bottom action bar — mockup style */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gold/15 bg-card/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 md:px-6">
-          <Button asChild type="button" variant="outline" className="border-gold/20">
-            <Link to="/app/transactions/new">Cancel</Link>
-          </Button>
-          <Button
-            type="submit"
-            form="" /* native submit by parent form via Enter; rely on click handler below */
-            onClick={(e) => {
-              const formEl = (e.currentTarget.closest("body")?.querySelector("form") as HTMLFormElement | null);
-              formEl?.requestSubmit();
-            }}
-            disabled={!ready || post.isPending}
-            variant="gold"
-            className="min-w-[180px]"
-          >
-            {post.isPending ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Processing…
-              </span>
-            ) : willPend ? (
-              "Submit for approval"
-            ) : isDeposit ? (
-              "Submit Deposit"
-            ) : (
-              "Submit Withdrawal"
-            )}
-          </Button>
+        {/* Sticky bottom action bar — mockup style */}
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gold/15 bg-card/95 backdrop-blur-md">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 md:px-6">
+            <Button asChild type="button" variant="outline" className="border-gold/20">
+              <Link to="/app/transactions/new">Cancel</Link>
+            </Button>
+            <Button
+              type="submit"
+              disabled={!ready || post.isPending}
+              variant="gold"
+              className="min-w-[180px]"
+            >
+              {post.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                </span>
+              ) : willPend ? (
+                "Submit for approval"
+              ) : isDeposit ? (
+                "Submit Deposit"
+              ) : (
+                "Submit Withdrawal"
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
