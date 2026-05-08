@@ -544,8 +544,43 @@ html.theme-night .surface-cream {
   html.theme-night .card-futur {
     background:
       linear-gradient(180deg,
-        oklch(0.22 0.016 60) 0%,
-        oklch(0.17 0.014 60) 100%);
+        #1F2530 0%,
+        #161B22 100%);
+    border: 1px solid rgba(212,168,87,0.18);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.04) inset,
+      0 18px 48px -22px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(212,168,87,0.06);
+  }
+  html.theme-night .card-futur::before {
+    background: linear-gradient(135deg,
+      rgba(212,168,87,0.40),
+      transparent 35%,
+      transparent 65%,
+      rgba(212,168,87,0.22));
+    opacity: 0.85;
+  }
+  html.theme-night .card-futur:hover {
+    border-color: rgba(212,168,87,0.45);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.06) inset,
+      0 28px 60px -22px rgba(0,0,0,0.8),
+      0 0 0 1px rgba(212,168,87,0.22),
+      0 0 32px rgba(212,168,87,0.12);
+  }
+
+  /* Rows in night mode become deep glass with gold hover. */
+  html.theme-night .row-luxe {
+    background: rgba(22,27,34,0.85);
+    border-color: rgba(212,168,87,0.12);
+  }
+  html.theme-night .row-luxe:hover {
+    background: linear-gradient(135deg, rgba(31,37,48,0.95), rgba(22,27,34,0.95));
+    border-color: rgba(212,168,87,0.45);
+    box-shadow:
+      0 12px 28px -16px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(212,168,87,0.18),
+      0 0 20px rgba(212,168,87,0.10);
   }
 
   .row-luxe {
