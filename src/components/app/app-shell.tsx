@@ -162,23 +162,27 @@ export function AppShell() {
     );
   };
 
+  const MoreButton = () => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-label={t("nav.more")}
+          className={cn(
+            "group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all",
+            "bg-gold/10 ring-1 ring-inset ring-gold/25 text-foreground hover:bg-gold/20 hover:ring-gold/45",
+          )}
+        >
+          <Menu className="h-5 w-5" strokeWidth={1.5} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
+    </Tooltip>
+  );
+
   const moreSheet = (
     <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <SheetTrigger
-            aria-label={t("nav.more")}
-            className={cn(
-              "group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all",
-              "bg-gold/10 ring-1 ring-inset ring-gold/25 text-foreground hover:bg-gold/20 hover:ring-gold/45",
-            )}
-          >
-            <Menu className="h-5 w-5" strokeWidth={1.5} />
-          </SheetTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
-      </Tooltip>
-
       <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-card border-r-gold/25">
         <SheetHeader>
           <SheetTitle className="font-serif text-xl">{t("nav.more")}</SheetTitle>
