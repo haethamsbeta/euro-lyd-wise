@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -54,8 +55,10 @@ function UsersPage() {
   const changeEmailMut = useMutation({
     mutationFn: ({ user_id, new_email }: { user_id: string; new_email: string }) =>
       changeEmail({ data: { user_id, new_email } }),
-    onSuccess: () => {
-      toast.success("Email updated");
+    onSuccess: (_res, vars) => {
+      toast.success("Email updated successfully", {
+        description: `Confirmation sent to ${vars.new_email}.`,
+      });
       setEmailEdit(null);
       setNewEmail("");
       qc.invalidateQueries({ queryKey: ["users.profiles"] });
@@ -139,19 +142,26 @@ function UsersPage() {
                     <tr key={p.id}>
                       <td className="px-4 py-2">
                         <div className="font-medium">{p.full_name || t("users.noName")}</div>
-                        <div className="font-mono text-xs text-muted-foreground">{p.id}</div>
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs">{email ?? <span className="text-muted-foreground">—</span>}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2"
-                            onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
-                          >
-                            <Mail className="h-3.5 w-3.5" />
-                          </Button>
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2"
+                                  aria-label="Change email"
+                                  onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
+                                >
+                                  <Mail className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Change email</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </td>
                       <td className="px-4 py-2">
@@ -236,7 +246,6 @@ function GrantRole({ userId, existing, onGrant }: { userId: string; existing: st
         </SelectContent>
       </Select>
       <Button size="sm" disabled={!val} onClick={() => { onGrant(val as any); setVal(""); }}>{t("users.grant")}</Button>
-      <span className="hidden text-xs text-muted-foreground md:inline">{userId.slice(0, 8)}…</span>
     </div>
   );
 }
