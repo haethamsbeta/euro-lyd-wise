@@ -91,8 +91,8 @@ function ReportsPage() {
                 <span className="w-2 h-2 rounded-full bg-gold" /> Volume
               </span>
             </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minHeight={220}>
                 <AreaChart data={dailyVolume}>
                   <defs>
                     <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
