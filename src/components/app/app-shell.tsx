@@ -162,163 +162,182 @@ export function AppShell() {
     );
   };
 
+  const moreSheet = (
+    <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SheetTrigger
+            aria-label={t("nav.more")}
+            className={cn(
+              "group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all",
+              "bg-gold/10 ring-1 ring-inset ring-gold/25 text-foreground hover:bg-gold/20 hover:ring-gold/45",
+            )}
+          >
+            <Menu className="h-5 w-5" strokeWidth={1.5} />
+          </SheetTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
+      </Tooltip>
+
+      <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-card border-r-gold/25">
+        <SheetHeader>
+          <SheetTitle className="font-serif text-xl">{t("nav.more")}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-4 flex flex-col gap-1">
+          <div className="px-1 pb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            Navigation
+          </div>
+          {overflowNav.map((i) => {
+            const active = isActive(i.to);
+            const Icon = i.icon;
+            return (
+              <Link
+                key={i.to}
+                to={i.to}
+                onClick={() => setSheetOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                  active
+                    ? "bg-gold/15 text-gold ring-1 ring-gold/35"
+                    : "text-foreground hover:bg-gold/10",
+                )}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 ring-1 ring-inset ring-gold/20">
+                  <Icon className="h-4 w-4" strokeWidth={1.5} />
+                </span>
+                {t(i.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 border-t border-gold/20 pt-4">
+          <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            Preferences
+          </div>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-gold/20 pt-4">
+          <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            {t("account.signedInAs")}
+          </div>
+          <AccountMenu variant="full" />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <NotificationsProvider>
       <TooltipProvider delayDuration={150}>
-      <div className="min-h-screen bg-background">
-        {/* Floating mockup-style top toolbar */}
-        <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
-          <div
-            className={cn(
-              "relative mx-auto grid max-w-6xl grid-cols-[auto_auto_1fr_auto] items-center gap-4 rounded-3xl border border-gold/25 sm:gap-6",
-              "bg-card/85 px-5 py-3 backdrop-blur-xl shadow-[var(--shadow-gold)] sm:px-8",
-            )}
-          >
-            {/* Brand inside the toolbar */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  to="/app"
-                  aria-label="Dahab — Home"
-                  className="flex items-center gap-2 rounded-2xl px-2 py-1 transition-colors hover:bg-gold/5"
-                >
-                  <DahabCoin />
-                  <span className="hidden md:inline">
-                    <DahabMark size="sm" showArabic={false} />
-                  </span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Dahab — Home</TooltipContent>
-            </Tooltip>
-
-            {/* More tile → side Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SheetTrigger
-                    aria-label={t("nav.more")}
-                    className={cn(
-                      "group relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all",
-                      "bg-gold/10 ring-1 ring-gold/30 hover:bg-gold/20",
-                    )}
-                  >
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gold/15 ring-1 ring-inset ring-gold/35 text-foreground">
-                      <Menu className="h-6 w-6" strokeWidth={1.5} />
-                    </span>
-                  </SheetTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
-              </Tooltip>
-
-              <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-card border-r-gold/25">
-                <SheetHeader>
-                  <SheetTitle className="font-serif text-xl">{t("nav.more")}</SheetTitle>
-                </SheetHeader>
-
-                {/* Navigation */}
-                <div className="mt-4 flex flex-col gap-1">
-                  <div className="px-1 pb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {t("nav.dashboard").length ? "Navigation" : "Navigation"}
-                  </div>
-                  {overflowNav.map((i) => {
-                    const active = isActive(i.to);
-                    const Icon = i.icon;
-                    return (
-                      <Link
-                        key={i.to}
-                        to={i.to}
-                        onClick={() => setSheetOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
-                          active
-                            ? "bg-gold/15 text-gold ring-1 ring-gold/35"
-                            : "text-foreground hover:bg-gold/10",
-                        )}
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 ring-1 ring-inset ring-gold/20">
-                          <Icon className="h-4 w-4" strokeWidth={1.5} />
-                        </span>
-                        {t(i.labelKey)}
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {/* Preferences */}
-                <div className="mt-6 border-t border-gold/20 pt-4">
-                  <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Preferences
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <LanguageToggle />
-                    <ThemeToggle />
-                  </div>
-                </div>
-
-                {/* Account */}
-                <div className="mt-6 border-t border-gold/20 pt-4">
-                  <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {t("account.signedInAs")}
-                  </div>
-                  <AccountMenu variant="full" />
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Primary tiles + raised center */}
-            <nav className="flex items-center justify-self-center gap-5 sm:gap-7">
-              {leftNav.map((item) => (
-                <Tile key={item.to} item={item} />
-              ))}
-
-              {raisedNav ? (
+        <div className="min-h-screen bg-background">
+          {/* Full-width sticky toolbar — fixed-width brand on the left, nav after, actions on the right */}
+          <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl">
+            <div className="flex h-16 w-full items-center pl-4 pr-3 sm:h-[68px] sm:pl-6 sm:pr-5 lg:h-[72px] lg:pr-8">
+              {/* Brand block — fixed width on tablet/desktop, stationary top-left */}
+              <div className="flex h-full shrink-0 items-center sm:w-48 md:w-56 lg:w-64 lg:border-r lg:border-gold/15 lg:pr-6">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
-                      to={raisedNav.to}
-                      aria-label={t(raisedNav.labelKey)}
-                      className={cn(
-                        "relative -mt-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground",
-                        "ring-4 ring-card shadow-gold transition-transform hover:scale-105",
-                        "before:absolute before:-inset-1 before:rounded-full before:bg-gold/20 before:blur-md before:-z-10",
-                        isActive(raisedNav.to) && "scale-105",
-                      )}
+                      to="/app"
+                      aria-label="Dahab — Home"
+                      className="inline-flex items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-gold/5"
                     >
-                      <PlusCircle className="h-8 w-8" strokeWidth={1.75} />
+                      <DahabCoin className="h-9 w-9" />
+                      <span className="hidden sm:inline">
+                        <DahabMark size="sm" showArabic={false} />
+                      </span>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
+                  <TooltipContent side="bottom">Dahab — Home</TooltipContent>
                 </Tooltip>
-              ) : null}
+              </div>
 
-              {rightNav.slice(0, 1).map((item) => (
-                <Tile key={item.to} item={item} />
-              ))}
-              <span className="hidden sm:inline">
-                {rightNav.slice(1, 2).map((item) => (
+              {/* Center nav — desktop only; tablet collapses into the More sheet */}
+              <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex xl:gap-2">
+                {moreSheet}
+                <span className="mx-2 h-7 w-px bg-gold/15" aria-hidden />
+                {leftNav.map((item) => (
                   <Tile key={item.to} item={item} />
                 ))}
-              </span>
-            </nav>
 
-            {/* Right cluster */}
-            <div className="flex shrink-0 items-center gap-1 justify-self-end">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex">
-                    <NotificationBell />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
-              </Tooltip>
+                {raisedNav ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to={raisedNav.to}
+                        aria-label={t(raisedNav.labelKey)}
+                        className={cn(
+                          "relative mx-1 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground",
+                          "ring-1 ring-gold/45 shadow-gold transition-transform hover:scale-[1.04]",
+                          isActive(raisedNav.to) && "scale-[1.04]",
+                        )}
+                      >
+                        <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
+                  </Tooltip>
+                ) : null}
+
+                {rightNav.map((item) => (
+                  <Tile key={item.to} item={item} />
+                ))}
+              </nav>
+
+              {/* Tablet-only compact center — More + raised + bell handled separately */}
+              <div className="hidden flex-1 items-center justify-center gap-2 sm:flex lg:hidden">
+                {moreSheet}
+                {raisedNav ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to={raisedNav.to}
+                        aria-label={t(raisedNav.labelKey)}
+                        className={cn(
+                          "relative inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-primary-foreground ring-1 ring-gold/45 shadow-gold transition-transform hover:scale-[1.04]",
+                          isActive(raisedNav.to) && "scale-[1.04]",
+                        )}
+                      >
+                        <PlusCircle className="h-5 w-5" strokeWidth={1.75} />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
+                  </Tooltip>
+                ) : null}
+                {leftNav.slice(0, 2).map((item) => (
+                  <Tile key={item.to} item={item} />
+                ))}
+              </div>
+
+              {/* Mobile spacer — pushes actions to the right */}
+              <div className="flex-1 sm:hidden" />
+
+              {/* Right action cluster — consistent on all breakpoints */}
+              <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2 lg:border-l lg:border-gold/15 lg:pl-4">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <NotificationBell />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
+                </Tooltip>
+                {/* Mobile-only More trigger (kept on right per phone pattern) */}
+                <span className="sm:hidden">{moreSheet}</span>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <main className="overflow-x-hidden pt-6 sm:pt-8">
-          <Outlet />
-        </main>
-      </div>
+          <main className="overflow-x-hidden pt-4 sm:pt-6">
+            <Outlet />
+          </main>
+        </div>
       </TooltipProvider>
     </NotificationsProvider>
   );
