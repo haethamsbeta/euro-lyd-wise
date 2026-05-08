@@ -1,49 +1,39 @@
-## Plan
+## Replicate the mockup toolbar look on the top bar
 
-### 1. Floating top toolbar (replaces sidebar)
+Reference: `src/assets/daham-mockup.png` (bottom nav of the mobile mockup).
+Visual language to port to the back-office floating top toolbar:
 
-**File:** `src/components/app/app-shell.tsx`
+- Soft ivory/cream pill on a thin gold hairline, deep soft drop shadow
+- Each entry = **icon above label** in a rounded-square hit-area
+- Active item lifts with a gold-gradient pill + gold ring + glow
+- A single **raised gold circular action** floats above the bar centerline (in the mockup it's "Scan / Pay" — for the back-office it becomes **"+ New Transaction"** since that's the most-used staff action)
+- 3-dots/"More" entry on the far right with the same icon-over-label treatment
 
-- Remove the desktop `<aside>` sidebar entirely.
-- Replace top bar with a sticky **floating toolbar** centered near the top:
-  - Premium glass pill (`premium-surface`, gold-rimmed, rounded-full, shadow, slight backdrop blur).
-  - Left: DAHAB coin + wordmark.
-  - Center: 5 most-important nav links shown as chips with gold active state:
-    1. Dashboard (`/app`)
-    2. New Transaction (`/app/transactions/new`)
-    3. Transactions (`/app/transactions`)
-    4. Holders (`/app/holders`)
-    5. Approvals (`/app/approvals`) — admin only; falls back to Vaults otherwise
-  - Right: Notification bell, Language, Theme, Account avatar, and a **3-dots (`MoreHorizontal`) menu** containing every remaining nav item (Vaults, Groups, My Activity, Audit, Reports, Users, **Customer Portal Accounts**, Notifications settings, Security, About).
-- Mobile: same floating bar but only logo + 3-dots menu (full nav inside the menu).
-- The `<main>` is no longer flex-side-by-side — it's a single column with top padding to clear the floating bar.
+### Files
 
-### 2. Customer Portal Accounts page
+**Edit `src/components/app/app-shell.tsx`**
 
-**New file:** `src/routes/app.portal-accounts.tsx`
+Rebuild the floating header pill:
 
-- Route: `/app/portal-accounts`, admin-gated via `RoleGate`.
-- PageHeader title: "Customer Portal Accounts", subtitle: "Create consumer logins and link holder accounts to them."
-- Lists existing **consumer** users (filter `user_roles.role = 'consumer'`) with:
-  - Full name, email, linked holders count, "Manage links" button.
-- Top-right primary action: **"Add consumer account"** → links to existing `/app/users/new-consumer` (already implements creation + linking flow).
-- "Manage links" opens a dialog reusing the same holder picker logic (search + checkboxes against `account_holders`) and calls existing `add_account_to_holder` / updates `owner_user_id` to relink.
-- Add nav entry in the toolbar's 3-dots menu: **Customer Portal Accounts** (`Users` icon).
+- Container: `rounded-3xl` (not full-pill), `border border-[oklch(0.82_0.14_85/0.3)]`, `bg-[oklch(0.18_0.03_60/0.85)] backdrop-blur-xl`, `shadow-[0_18px_40px_-18px_oklch(0.82_0.14_85/0.45)]`, max-w-3xl, centered.
+- Brand on the far start (DahabCoin only on mobile, coin + wordmark on ≥sm).
+- Center cluster = primary nav rendered as **icon-over-label tiles** (~56×52, `rounded-2xl`):
+  - Inactive: muted icon, 11px label, hover gold tint.
+  - Active: gold-gradient background, dark text, soft inner highlight + outer gold glow.
+  - Items (admin shown):
+    1. Dashboard
+    2. Transactions
+    3. **(raised center)** New Transaction — gold circular button (`h-12 w-12`), gold gradient, white `+` (PlusCircle), `-translate-y-3`, sits visually above the bar, `shadow-gold` ring. Label "New" beneath, outside the lifted circle.
+    4. Holders
+    5. Approvals (admin) / Vaults (fallback)
+- Right cluster: NotificationBell, Account avatar, and a "More" tile (MoreHorizontal icon + "More" label) opening the existing dropdown with all overflow nav + Language/Theme toggles inline at the bottom.
+- Mobile (<md): keep brand + 3 highest-priority tiles (Dashboard, raised New, More); rest live in More menu.
+- Sticky `top-3`, page content gets `pt-4 sm:pt-6` to clear the bar.
 
-### 3. Users / Roles page cleanup
+No nav entries or routes change. No business logic touched. Only `app-shell.tsx` is edited.
 
-**File:** `src/routes/app.users.tsx`
+### Why these choices
 
-- Remove the long UUID line under each user (`<div className="font-mono text-xs ...">{p.id}</div>`). Keep only `full_name`.
-- Remove the trailing `userId.slice(0,8)…` hint inside `GrantRole`.
-- Email pencil/icon button: add an `aria-label="Change email"` and a tooltip saying **"Change email"** (wrap in `Tooltip` from `@/components/ui/tooltip`).
-- After successful email change, `toast.success("Email updated successfully")` is already present — enhance with description: `Confirmation has been sent to <new_email>.`
-
-### 4. Files touched
-
-- Edit `src/components/app/app-shell.tsx`
-- Add `src/routes/app.portal-accounts.tsx`
-- Edit `src/routes/app.users.tsx`
-- Add i18n key `nav.portalAccounts` to `src/lib/i18n/en.ts` and `ar.ts`
-
-No backend, RLS, or schema changes. No business logic touched.
+- Icon-over-label + raised gold center directly mirrors the mockup's bottom nav rhythm.
+- Keeping the dark glass shell preserves the established "dark luxury" theme while still echoing the mockup's gold-on-cream chip energy via the active state.
+- "+ New Transaction" as the raised action matches the mockup intent (most-used quick action) without inventing new routes — it links to existing `/app/transactions/new`.
