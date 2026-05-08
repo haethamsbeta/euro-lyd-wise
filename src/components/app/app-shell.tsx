@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth, hasAnyRole, type AppRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,13 +15,18 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AccountMenu } from "@/components/app/account-menu";
 import { useT } from "@/lib/i18n";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type NavItem = {
   to: string;
@@ -127,32 +132,38 @@ export function AppShell() {
     const active = isActive(item.to);
     const Icon = item.icon;
     return (
-      <Link
-        to={item.to}
-        className={cn(
-          "group relative flex h-13 w-14 flex-col items-center justify-center gap-1 rounded-2xl text-[9px] font-medium uppercase leading-none tracking-[0.08em] transition-all sm:w-16",
-          active
-            ? "bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-[0_8px_20px_-8px_oklch(0.82_0.14_85/0.6)] ring-1 ring-[oklch(0.82_0.14_85/0.45)]"
-            : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.08)] hover:text-foreground",
-        )}
-      >
-        <span
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-lg transition-all",
-            active
-              ? "bg-[oklch(0.18_0.03_60/0.18)] text-[oklch(0.18_0.03_60)]"
-              : "bg-[oklch(0.82_0.14_85/0.06)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.18)] group-hover:ring-[oklch(0.82_0.14_85/0.4)] group-hover:[filter:drop-shadow(0_0_6px_oklch(0.82_0.14_85/0.45))]",
-          )}
-        >
-          <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-        </span>
-        <span className="truncate px-1">{t(item.labelKey)}</span>
-      </Link>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            to={item.to}
+            aria-label={t(item.labelKey)}
+            className={cn(
+              "group relative inline-flex h-12 w-12 items-center justify-center rounded-2xl transition-all sm:h-14 sm:w-14",
+              active
+                ? "bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-[0_8px_20px_-8px_oklch(0.82_0.14_85/0.6)] ring-1 ring-[oklch(0.82_0.14_85/0.45)]"
+                : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.08)] hover:text-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                active
+                  ? "bg-[oklch(0.18_0.03_60/0.18)] text-[oklch(0.18_0.03_60)]"
+                  : "bg-[oklch(0.82_0.14_85/0.06)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.18)] group-hover:ring-[oklch(0.82_0.14_85/0.4)] group-hover:[filter:drop-shadow(0_0_6px_oklch(0.82_0.14_85/0.45))]",
+              )}
+            >
+              <Icon className="h-[20px] w-[20px]" strokeWidth={1.5} />
+            </span>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{t(item.labelKey)}</TooltipContent>
+      </Tooltip>
     );
   };
 
   return (
     <NotificationsProvider>
+      <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background">
         {/* Stationary brand mark — does not move with the toolbar */}
         <Link
@@ -170,80 +181,110 @@ export function AppShell() {
         <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
           <div
             className={cn(
-              "relative mx-auto flex max-w-3xl items-center gap-2 rounded-3xl border border-[oklch(0.82_0.14_85/0.4)]",
+              "relative mx-auto flex max-w-3xl items-center justify-between gap-2 rounded-3xl border border-[oklch(0.82_0.14_85/0.4)]",
               "bg-gradient-to-b from-[oklch(0.22_0.04_60/0.9)] to-[oklch(0.16_0.03_60/0.85)] px-3 py-2 backdrop-blur-xl",
               "shadow-[0_18px_40px_-18px_oklch(0.82_0.14_85/0.45)] sm:px-4",
             )}
           >
-            {/* More tile (opposite side, larger) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label={t("nav.more")}
-                className={cn(
-                  "group relative flex h-14 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-foreground transition-all sm:w-24",
-                  "bg-[oklch(0.82_0.14_85/0.12)] ring-1 ring-[oklch(0.82_0.14_85/0.35)]",
-                  "shadow-[0_8px_20px_-10px_oklch(0.82_0.14_85/0.5)] hover:bg-[oklch(0.82_0.14_85/0.2)]",
-                )}
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[oklch(0.82_0.14_85/0.18)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.4)]">
-                  <Menu className="h-5 w-5" strokeWidth={1.5} />
-                </span>
-                <span>{t("nav.more")}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-64">
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {t("nav.more")}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {overflowNav.map((i) => {
-                  const active = isActive(i.to);
-                  const Icon = i.icon;
-                  return (
-                    <DropdownMenuItem key={i.to} asChild>
-                      <Link to={i.to} className={cn("flex w-full items-center gap-2 text-sm", active && "text-gold")}>
-                        <Icon className="h-4 w-4" strokeWidth={1.5} />
+            {/* More tile → side Sheet */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SheetTrigger
+                    aria-label={t("nav.more")}
+                    className={cn(
+                      "group relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all",
+                      "bg-[oklch(0.82_0.14_85/0.14)] ring-1 ring-[oklch(0.82_0.14_85/0.4)]",
+                      "shadow-[0_8px_20px_-10px_oklch(0.82_0.14_85/0.55)] hover:bg-[oklch(0.82_0.14_85/0.22)]",
+                    )}
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[oklch(0.82_0.14_85/0.2)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.45)] text-foreground">
+                      <Menu className="h-5 w-5" strokeWidth={1.5} />
+                    </span>
+                  </SheetTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
+              </Tooltip>
+
+              <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-gradient-to-b from-[oklch(0.22_0.04_60/0.98)] to-[oklch(0.16_0.03_60/0.98)] border-r-[oklch(0.82_0.14_85/0.3)]">
+                <SheetHeader>
+                  <SheetTitle className="font-serif text-xl">{t("nav.more")}</SheetTitle>
+                </SheetHeader>
+
+                {/* Navigation */}
+                <div className="mt-4 flex flex-col gap-1">
+                  <div className="px-1 pb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {t("nav.dashboard").length ? "Navigation" : "Navigation"}
+                  </div>
+                  {overflowNav.map((i) => {
+                    const active = isActive(i.to);
+                    const Icon = i.icon;
+                    return (
+                      <Link
+                        key={i.to}
+                        to={i.to}
+                        onClick={() => setSheetOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                          active
+                            ? "bg-[oklch(0.82_0.14_85/0.14)] text-gold ring-1 ring-[oklch(0.82_0.14_85/0.35)]"
+                            : "text-foreground hover:bg-[oklch(0.82_0.14_85/0.08)]",
+                        )}
+                      >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[oklch(0.82_0.14_85/0.08)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.2)]">
+                          <Icon className="h-4 w-4" strokeWidth={1.5} />
+                        </span>
                         {t(i.labelKey)}
                       </Link>
-                    </DropdownMenuItem>
-                  );
-                })}
-                <DropdownMenuSeparator />
-                <div className="flex items-center justify-center gap-2 px-2 py-1.5">
-                  <LanguageToggle />
-                  <ThemeToggle />
+                    );
+                  })}
                 </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
+                {/* Preferences */}
+                <div className="mt-6 border-t border-[oklch(0.82_0.14_85/0.18)] pt-4">
+                  <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Preferences
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <LanguageToggle />
+                    <ThemeToggle />
+                  </div>
+                </div>
+
+                {/* Account */}
+                <div className="mt-6 border-t border-[oklch(0.82_0.14_85/0.18)] pt-4">
+                  <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {t("account.signedInAs")}
+                  </div>
+                  <AccountMenu variant="full" />
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {/* Primary tiles + raised center */}
-            <nav className="flex flex-1 items-end justify-center gap-1 sm:gap-2">
+            <nav className="flex flex-1 items-center justify-center gap-1 sm:gap-2">
               {leftNav.map((item) => (
                 <Tile key={item.to} item={item} />
               ))}
 
               {raisedNav ? (
-                <div className="flex w-16 flex-col items-center sm:w-20">
-                  <Link
-                    to={raisedNav.to}
-                    aria-label={t(raisedNav.labelKey)}
-                    className={cn(
-                      "relative -mt-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-gold text-[oklch(0.18_0.03_60)]",
-                      "ring-4 ring-[oklch(0.18_0.03_60/0.85)] shadow-[0_10px_24px_-6px_oklch(0.82_0.14_85/0.7)] transition-transform hover:scale-105",
-                      "before:absolute before:-inset-1 before:rounded-full before:bg-[oklch(0.82_0.14_85/0.18)] before:blur-md before:-z-10",
-                      isActive(raisedNav.to) && "scale-105",
-                    )}
-                  >
-                    <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
-                  </Link>
-                  <span
-                    className={cn(
-                      "mt-1 text-[10px] font-medium leading-none",
-                      isActive(raisedNav.to) ? "text-gold" : "text-muted-foreground",
-                    )}
-                  >
-                    {t("newtx.deposit").length > 0 ? "New" : "New"}
-                  </span>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to={raisedNav.to}
+                      aria-label={t(raisedNav.labelKey)}
+                      className={cn(
+                        "relative -mt-4 mx-1 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-gold text-[oklch(0.18_0.03_60)]",
+                        "ring-4 ring-[oklch(0.18_0.03_60/0.85)] shadow-[0_10px_24px_-6px_oklch(0.82_0.14_85/0.7)] transition-transform hover:scale-105",
+                        "before:absolute before:-inset-1 before:rounded-full before:bg-[oklch(0.82_0.14_85/0.18)] before:blur-md before:-z-10",
+                        isActive(raisedNav.to) && "scale-105",
+                      )}
+                    >
+                      <PlusCircle className="h-7 w-7" strokeWidth={1.75} />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
+                </Tooltip>
               ) : null}
 
               {rightNav.slice(0, 1).map((item) => (
@@ -259,7 +300,6 @@ export function AppShell() {
             {/* Right cluster */}
             <div className="flex shrink-0 items-center gap-1 ps-1">
               <NotificationBell />
-              <AccountMenu />
             </div>
           </div>
         </header>
@@ -268,6 +308,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      </TooltipProvider>
     </NotificationsProvider>
   );
 }
