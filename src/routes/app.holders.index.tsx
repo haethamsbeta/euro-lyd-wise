@@ -6,9 +6,9 @@ import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 import { useDebounced } from "@/hooks/use-debounced";
-import { NewHolderDialog } from "@/components/app/new-holder-dialog";
+import { Button } from "@/components/ui/button";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
@@ -81,7 +81,15 @@ function HoldersList() {
       <PageHeader
         title="DAHAB Holders"
         description="Customer profiles and their linked currency accounts."
-        actions={isAdmin ? <NewHolderDialog /> : undefined}
+        actions={
+          isAdmin ? (
+            <Button asChild className="bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95">
+              <Link to="/app/holders/new">
+                <UserPlus className="h-4 w-4 me-1" /> New holder
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
       <div className="space-y-4 p-4 sm:p-6">
         {summary && (
