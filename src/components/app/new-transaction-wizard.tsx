@@ -490,7 +490,7 @@ function CustomerStep({
   picked, onPick, onClear, canViewBalances, isDeposit,
 }: {
   search: string; setSearch: (v: string) => void;
-  searchRef: React.RefObject<HTMLInputElement>;
+  searchRef: React.RefObject<HTMLInputElement | null>;
   results: HolderCardHit[] | null; isFetching: boolean; isError: boolean; debounced: string;
   picked: HolderCardHit | null; onPick: (h: HolderCardHit) => void; onClear: () => void;
   canViewBalances: boolean; isDeposit: boolean;
