@@ -241,9 +241,10 @@ export function AppShell() {
         <div className="min-h-screen bg-background">
           {/* Full-width sticky toolbar — fixed-width brand on the left, nav after, actions on the right */}
           <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl">
-            <div className="flex h-16 w-full items-center pl-4 pr-3 sm:h-[68px] sm:pl-6 sm:pr-5 lg:h-[72px] lg:pr-8">
-              {/* Brand block — fixed width on tablet/desktop, stationary top-left */}
-              <div className="flex h-full shrink-0 items-center sm:w-48 md:w-56 lg:w-64 lg:border-r lg:border-gold/15 lg:pr-6">
+            <div className="flex h-16 w-full items-center gap-2 px-3 sm:h-[68px] sm:gap-3 sm:px-5 lg:h-[72px] lg:px-8">
+              {/* Left cluster: hamburger (More) → logo. Stationary on every breakpoint. */}
+              <div className="flex h-full shrink-0 items-center gap-2 sm:gap-3">
+                <MoreButton />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
@@ -252,7 +253,7 @@ export function AppShell() {
                       className="inline-flex items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-gold/5"
                     >
                       <DahabCoin className="h-9 w-9" />
-                      <span className="hidden sm:inline">
+                      <span className="hidden md:inline">
                         <DahabMark size="sm" showArabic={false} />
                       </span>
                     </Link>
@@ -261,14 +262,11 @@ export function AppShell() {
                 </Tooltip>
               </div>
 
-              {/* Center nav — desktop only; tablet collapses into the More sheet */}
-              <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex xl:gap-2">
-                <MoreButton />
-                <span className="mx-2 h-7 w-px bg-gold/15" aria-hidden />
+              {/* Center nav — evenly spread tiles with raised + in the middle. Desktop. */}
+              <nav className="hidden flex-1 items-center justify-evenly gap-2 lg:flex xl:gap-4">
                 {leftNav.map((item) => (
                   <Tile key={item.to} item={item} />
                 ))}
-
                 {raisedNav ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -276,9 +274,36 @@ export function AppShell() {
                         to={raisedNav.to}
                         aria-label={t(raisedNav.labelKey)}
                         className={cn(
-                          "relative mx-1 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground",
-                          "ring-1 ring-gold/45 shadow-gold transition-transform hover:scale-[1.04]",
-                          isActive(raisedNav.to) && "scale-[1.04]",
+                          "relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground",
+                          "ring-2 ring-gold/50 shadow-gold transition-transform hover:scale-[1.06]",
+                          isActive(raisedNav.to) && "scale-[1.06]",
+                        )}
+                      >
+                        <PlusCircle className="h-7 w-7" strokeWidth={1.75} />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
+                  </Tooltip>
+                ) : null}
+                {rightNav.map((item) => (
+                  <Tile key={item.to} item={item} />
+                ))}
+              </nav>
+
+              {/* Tablet center — fewer tiles, evenly spread, raised + in the middle */}
+              <nav className="hidden flex-1 items-center justify-evenly gap-2 sm:flex lg:hidden">
+                {leftNav.slice(0, 1).map((item) => (
+                  <Tile key={item.to} item={item} />
+                ))}
+                {raisedNav ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to={raisedNav.to}
+                        aria-label={t(raisedNav.labelKey)}
+                        className={cn(
+                          "relative inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground ring-2 ring-gold/50 shadow-gold transition-transform hover:scale-[1.06]",
+                          isActive(raisedNav.to) && "scale-[1.06]",
                         )}
                       >
                         <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
@@ -287,15 +312,13 @@ export function AppShell() {
                     <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
                   </Tooltip>
                 ) : null}
-
-                {rightNav.map((item) => (
+                {rightNav.slice(0, 1).map((item) => (
                   <Tile key={item.to} item={item} />
                 ))}
               </nav>
 
-              {/* Tablet-only compact center — More + raised + bell handled separately */}
-              <div className="hidden flex-1 items-center justify-center gap-2 sm:flex lg:hidden">
-                <MoreButton />
+              {/* Mobile center — only the raised + sits centered between left cluster and bell */}
+              <div className="flex flex-1 items-center justify-center sm:hidden">
                 {raisedNav ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -303,26 +326,20 @@ export function AppShell() {
                         to={raisedNav.to}
                         aria-label={t(raisedNav.labelKey)}
                         className={cn(
-                          "relative inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-primary-foreground ring-1 ring-gold/45 shadow-gold transition-transform hover:scale-[1.04]",
-                          isActive(raisedNav.to) && "scale-[1.04]",
+                          "relative inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-gold text-primary-foreground ring-2 ring-gold/50 shadow-gold",
+                          isActive(raisedNav.to) && "scale-[1.05]",
                         )}
                       >
-                        <PlusCircle className="h-5 w-5" strokeWidth={1.75} />
+                        <PlusCircle className="h-6 w-6" strokeWidth={1.75} />
                       </Link>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
                   </Tooltip>
                 ) : null}
-                {leftNav.slice(0, 2).map((item) => (
-                  <Tile key={item.to} item={item} />
-                ))}
               </div>
 
-              {/* Mobile spacer — pushes actions to the right */}
-              <div className="flex-1 sm:hidden" />
-
-              {/* Right action cluster — consistent on all breakpoints */}
-              <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2 lg:border-l lg:border-gold/15 lg:pl-4">
+              {/* Right action cluster */}
+              <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="inline-flex">
@@ -331,8 +348,6 @@ export function AppShell() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
                 </Tooltip>
-                {/* Mobile-only More trigger (kept on right per phone pattern) */}
-                <span className="sm:hidden"><MoreButton /></span>
               </div>
             </div>
           </header>
