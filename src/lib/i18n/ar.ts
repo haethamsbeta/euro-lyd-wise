@@ -114,6 +114,8 @@ export const ar: Dict = {
   "nav.more": "المزيد",
   "nav.holders": "أصحاب حسابات دهب",
   "nav.groups": "المجموعات",
+  "nav.reports": "التقارير",
+  "nav.portalAccounts": "حسابات بوابة العملاء",
 
   // app shell
   "shell.noStaffTitle": "لا يوجد وصول للموظفين",

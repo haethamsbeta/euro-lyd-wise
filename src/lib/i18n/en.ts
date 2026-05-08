@@ -113,6 +113,8 @@ export const en = {
   "nav.more": "More",
   "nav.holders": "DAHAB holders",
   "nav.groups": "Groups",
+  "nav.reports": "Reports",
+  "nav.portalAccounts": "Customer Portal Accounts",
 
   // app shell
   "shell.noStaffTitle": "No staff access",
