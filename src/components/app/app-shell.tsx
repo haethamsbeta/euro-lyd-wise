@@ -139,7 +139,7 @@ export function AppShell() {
             to={item.to}
             aria-label={t(item.labelKey)}
             className={cn(
-              "group relative inline-flex h-12 w-12 items-center justify-center rounded-2xl transition-all",
+              "group relative inline-flex h-14 w-14 items-center justify-center rounded-2xl transition-all",
               active
                 ? "bg-gradient-gold text-primary-foreground shadow-gold ring-1 ring-gold/40"
                 : "text-muted-foreground hover:bg-gold/10 hover:text-foreground",
@@ -147,13 +147,13 @@ export function AppShell() {
           >
             <span
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                "flex h-11 w-11 items-center justify-center rounded-2xl transition-all",
                 active
                   ? "bg-primary-foreground/15 text-primary-foreground"
                   : "bg-gold/5 ring-1 ring-inset ring-gold/15 group-hover:ring-gold/35 group-hover:[filter:drop-shadow(0_0_6px_var(--gold))]",
               )}
             >
-              <Icon className="h-5 w-5" strokeWidth={1.5} />
+              <Icon className="h-6 w-6" strokeWidth={1.5} />
             </span>
           </Link>
         </TooltipTrigger>
@@ -166,26 +166,31 @@ export function AppShell() {
     <NotificationsProvider>
       <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background">
-        {/* Stationary brand mark — does not move with the toolbar */}
-        <Link
-          to="/app"
-          className="fixed top-3 left-3 z-50 flex items-center gap-2 sm:top-4 sm:left-6"
-          aria-label="Dahab"
-        >
-          <DahabCoin />
-          <span className="hidden lg:inline">
-            <DahabMark size="sm" showArabic={false} />
-          </span>
-        </Link>
-
         {/* Floating mockup-style top toolbar */}
         <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
           <div
             className={cn(
-              "relative mx-auto grid max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 rounded-3xl border border-gold/25",
-              "bg-card/85 px-4 py-2.5 backdrop-blur-xl shadow-[var(--shadow-gold)] sm:px-6",
+              "relative mx-auto grid max-w-6xl grid-cols-[auto_auto_1fr_auto] items-center gap-4 rounded-3xl border border-gold/25 sm:gap-6",
+              "bg-card/85 px-5 py-3 backdrop-blur-xl shadow-[var(--shadow-gold)] sm:px-8",
             )}
           >
+            {/* Brand inside the toolbar */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/app"
+                  aria-label="Dahab — Home"
+                  className="flex items-center gap-2 rounded-2xl px-2 py-1 transition-colors hover:bg-gold/5"
+                >
+                  <DahabCoin />
+                  <span className="hidden md:inline">
+                    <DahabMark size="sm" showArabic={false} />
+                  </span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Dahab — Home</TooltipContent>
+            </Tooltip>
+
             {/* More tile → side Sheet */}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <Tooltip>
@@ -193,12 +198,12 @@ export function AppShell() {
                   <SheetTrigger
                     aria-label={t("nav.more")}
                     className={cn(
-                      "group relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all",
+                      "group relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all",
                       "bg-gold/10 ring-1 ring-gold/30 hover:bg-gold/20",
                     )}
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold/15 ring-1 ring-inset ring-gold/35 text-foreground">
-                      <Menu className="h-5 w-5" strokeWidth={1.5} />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gold/15 ring-1 ring-inset ring-gold/35 text-foreground">
+                      <Menu className="h-6 w-6" strokeWidth={1.5} />
                     </span>
                   </SheetTrigger>
                 </TooltipTrigger>
@@ -261,7 +266,7 @@ export function AppShell() {
             </Sheet>
 
             {/* Primary tiles + raised center */}
-            <nav className="flex items-center justify-center gap-3 sm:gap-5">
+            <nav className="flex items-center justify-self-center gap-5 sm:gap-7">
               {leftNav.map((item) => (
                 <Tile key={item.to} item={item} />
               ))}
@@ -273,13 +278,13 @@ export function AppShell() {
                       to={raisedNav.to}
                       aria-label={t(raisedNav.labelKey)}
                       className={cn(
-                        "relative -mt-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground",
+                        "relative -mt-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground",
                         "ring-4 ring-card shadow-gold transition-transform hover:scale-105",
                         "before:absolute before:-inset-1 before:rounded-full before:bg-gold/20 before:blur-md before:-z-10",
                         isActive(raisedNav.to) && "scale-105",
                       )}
                     >
-                      <PlusCircle className="h-7 w-7" strokeWidth={1.75} />
+                      <PlusCircle className="h-8 w-8" strokeWidth={1.75} />
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">{t(raisedNav.labelKey)}</TooltipContent>
@@ -298,12 +303,19 @@ export function AppShell() {
 
             {/* Right cluster */}
             <div className="flex shrink-0 items-center gap-1 justify-self-end">
-              <NotificationBell />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <NotificationBell />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </header>
 
-        <main className="overflow-x-hidden pt-6 sm:pt-8 lg:pl-24">
+        <main className="overflow-x-hidden pt-6 sm:pt-8">
           <Outlet />
         </main>
       </div>
