@@ -564,3 +564,129 @@ html.theme-night .surface-cream {
     gap: 0.5rem;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   DAHAB · Mockup-parity utility layer.
+   Premium card variants, glass surfaces, gold gradients, and the gold
+   button gradient — translated 1:1 from the uploaded mockup so the whole
+   app immediately picks up the dark+gold private-banking aesthetic.
+   ────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Brand surface aliases — usable as bg-surface, bg-surface-2, etc.
+     via Tailwind v4's @theme inline mapping below. */
+  .bg-surface     { background-color: var(--surface, var(--card)); }
+  .bg-surface-2   { background-color: var(--surface-2, var(--secondary)); }
+  .bg-surface-3   { background-color: var(--surface-3, var(--accent)); }
+  .bg-elevated    { background-color: var(--bg-elevated, var(--card)); }
+  .text-text-primary   { color: var(--text-primary, var(--foreground)); }
+  .text-text-secondary { color: var(--text-secondary, var(--muted-foreground)); }
+  .text-text-tertiary  { color: var(--text-tertiary, var(--muted-foreground)); }
+
+  .text-gold-soft  { color: var(--gold-soft); }
+  .text-gold-deep  { color: var(--gold-deep); }
+  .bg-gold-soft    { background-color: var(--gold-soft); }
+  .bg-gold-deep    { background-color: var(--gold-deep); }
+  .border-gold-soft{ border-color: var(--gold-soft); }
+
+  /* Decorative gold hairline (1px gradient line). */
+  .gold-hairline {
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    height: 1px;
+  }
+
+  /* Soft gold rim + outer halo for premium surfaces. */
+  .gold-border-glow {
+    border: 1px solid rgba(212,168,87,0.25);
+    box-shadow:
+      0 0 0 1px rgba(212,168,87,0.05),
+      0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .shadow-gold-glow    { box-shadow: 0 0 24px rgba(212,168,87,0.20); }
+  .shadow-gold-glow-lg { box-shadow: 0 0 48px rgba(212,168,87,0.25); }
+  .shadow-premium {
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.4),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* Translucent dark glass card. */
+  .glass-card {
+    background: linear-gradient(135deg, rgba(22,27,34,0.85) 0%, rgba(31,37,48,0.7) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(212,168,87,0.15);
+  }
+
+  /* Mockup `Card variant="premium"` — gold hairline top + soft halo. */
+  .premium-card {
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--card) 0%, var(--surface-2, var(--secondary)) 100%);
+    border: 1px solid rgba(212,168,87,0.20);
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.40),
+      0 0 0 1px rgba(212,168,87,0.08);
+  }
+  .premium-card::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,168,87,0.40), transparent);
+    pointer-events: none;
+  }
+
+  /* Mockup `Card variant="dark-hero"` — used on landing/login. */
+  .dark-hero-card {
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #0B0E13 0%, #1A1410 50%, #14181F 100%);
+    border: 1px solid rgba(212,168,87,0.25);
+    box-shadow:
+      0 12px 48px rgba(0,0,0,0.5),
+      0 0 64px rgba(212,168,87,0.08);
+  }
+
+  /* Mockup primary "gold" button — metallic gradient with inner highlight. */
+  .btn-gold {
+    background-image: linear-gradient(to bottom, #E8C570 0%, #D4A857 50%, #A8842F 100%);
+    color: #14181F;
+    font-weight: 600;
+    box-shadow:
+      0 4px 16px rgba(212,168,87,0.30),
+      inset 0 1px 0 rgba(255,255,255,0.30);
+    transition: box-shadow 200ms ease, background-image 200ms ease, transform 120ms ease;
+  }
+  .btn-gold:hover:not(:disabled) {
+    background-image: linear-gradient(to bottom, #F0D080 0%, #E0B860 50%, #A8842F 100%);
+    box-shadow:
+      0 6px 24px rgba(212,168,87,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.40);
+  }
+  .btn-gold:active:not(:disabled) { transform: scale(0.98); }
+
+  /* Eyebrow/label used on Reports + section headers. */
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+  }
+
+  /* Custom scrollbar — gold-tinted, mockup parity. */
+  html.theme-night ::-webkit-scrollbar { width: 8px; height: 8px; }
+  html.theme-night ::-webkit-scrollbar-track { background: var(--background); }
+  html.theme-night ::-webkit-scrollbar-thumb {
+    background: var(--surface-2, #1F2530); border-radius: 4px;
+  }
+  html.theme-night ::-webkit-scrollbar-thumb:hover { background: var(--gold-deep); }
+  html.theme-night ::selection { background: var(--gold); color: #14181F; }
+
+  /* Make every <h1>/<h2> render in the serif by default for that
+     editorial banking feel — components can override with class names. */
+  html.theme-night h1, html.theme-night h2, html.theme-night h3 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+}
