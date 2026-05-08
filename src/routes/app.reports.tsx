@@ -112,8 +112,8 @@ function ReportsPage() {
           <PremiumCard className="p-6">
             <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
             <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-48" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                 <PieChart>
                   <Pie
                     data={currencyDistribution}
@@ -150,8 +150,8 @@ function ReportsPage() {
           <PremiumCard className="lg:col-span-2 p-6">
             <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
             <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-56" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                 <BarChart data={customerGrowth}>
                   <XAxis dataKey="m" axisLine={false} tickLine={false} tick={axisTick} />
                   <YAxis axisLine={false} tickLine={false} tick={axisTick} />
