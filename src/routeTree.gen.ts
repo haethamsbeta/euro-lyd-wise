@@ -23,6 +23,7 @@ import { Route as MLoginRouteImport } from './routes/m.login'
 import { Route as MDashboardRouteImport } from './routes/m.dashboard'
 import { Route as AppVaultsRouteImport } from './routes/app.vaults'
 import { Route as AppUsersRouteImport } from './routes/app.users'
+import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppAboutRouteImport } from './routes/app.about'
@@ -113,6 +114,11 @@ const AppVaultsRoute = AppVaultsRouteImport.update({
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAuditRoute = AppAuditRouteImport.update({
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
   '/m/login': typeof MLoginRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/users': typeof AppUsersRouteWithChildren
   '/app/vaults': typeof AppVaultsRouteWithChildren
   '/m/dashboard': typeof MDashboardRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
+    | '/app/reports'
     | '/app/users'
     | '/app/vaults'
     | '/m/dashboard'
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
+    | '/app/reports'
     | '/app/users'
     | '/m/dashboard'
     | '/m/login'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
+    | '/app/reports'
     | '/app/users'
     | '/app/vaults'
     | '/m/dashboard'
@@ -556,6 +568,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/app/users'
       preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reports': {
+      id: '/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/audit': {
@@ -738,6 +757,7 @@ interface AppRouteChildren {
   AppAboutRoute: typeof AppAboutRoute
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAuditRoute: typeof AppAuditRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppUsersRoute: typeof AppUsersRouteWithChildren
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
@@ -759,6 +779,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAboutRoute: AppAboutRoute,
   AppApprovalsRoute: AppApprovalsRoute,
   AppAuditRoute: AppAuditRoute,
+  AppReportsRoute: AppReportsRoute,
   AppUsersRoute: AppUsersRouteWithChildren,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
