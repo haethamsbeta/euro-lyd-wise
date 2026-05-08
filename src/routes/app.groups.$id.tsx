@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import {
   ArrowLeft, ArrowUp, ArrowDown, Star, Pencil, Trash2, Search, Users, Wallet,
-  Activity, ShieldAlert, Sparkles, Plus, X, Pin, Layers,
+  Activity, ShieldAlert, Sparkles, Plus, X, Pin, Layers, UserPlus, Check,
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useDebounced } from "@/hooks/use-debounced";
@@ -76,6 +76,7 @@ function GroupDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [addingMembers, setAddingMembers] = useState(false);
 
   const groupQ = useQuery({
     queryKey: ["group.detail", groupId],
@@ -292,6 +293,9 @@ function GroupDetailPage() {
             </div>
             {canMutate && (
               <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="gold" onClick={() => setAddingMembers(true)}>
+                  <UserPlus className="h-3.5 w-3.5" /> Add Members
+                </Button>
                 <Button size="sm" variant="outline" className="border-gold/20" onClick={() => togglePin.mutate()}>
                   <Star className={cn("h-3.5 w-3.5", group.is_pinned && "fill-gold text-gold")} />
                   {group.is_pinned ? "Unpin" : "Pin"}
@@ -391,21 +395,16 @@ function GroupDetailPage() {
         {/* Members + Activity grid */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <SectionTitle icon={<Users className="h-4 w-4" />} title="Members" />
-            {canMutate && (
-              <div className="mb-3">
-                <AddMemberAutocomplete
-                  groupId={groupId}
-                  existing={new Set(members.map((m) => m.holder_account_id))}
-                  onAdded={() => {
-                    qc.invalidateQueries({ queryKey: ["group.detail.members", groupId] });
-                    qc.invalidateQueries({ queryKey: ["groups.all-members"] });
-                  }}
-                />
-              </div>
-            )}
+            <div className="mb-3 flex items-center justify-between">
+              <SectionTitle icon={<Users className="h-4 w-4" />} title="Members" />
+              {canMutate && (
+                <Button size="sm" variant="outline" className="border-gold/20" onClick={() => setAddingMembers(true)}>
+                  <UserPlus className="h-3.5 w-3.5" /> Add
+                </Button>
+              )}
+            </div>
             {members.length === 0 ? (
-              <EmptyTile text="No members yet." />
+              <EmptyTile text={canMutate ? "No members yet — click Add to get started." : "No members yet."} />
             ) : (
               <ul className="space-y-2">
                 {members.slice(0, 10).map((m) => (
@@ -455,6 +454,20 @@ function GroupDetailPage() {
 
       {/* Edit modal */}
       {editing && <EditModal group={group} onClose={() => setEditing(false)} />}
+
+      {/* Add Members modal */}
+      {addingMembers && (
+        <AddMembersDialog
+          groupId={groupId}
+          existing={new Set(members.map((m) => m.holder_account_id))}
+          onClose={() => setAddingMembers(false)}
+          onAdded={() => {
+            qc.invalidateQueries({ queryKey: ["group.detail.members", groupId] });
+            qc.invalidateQueries({ queryKey: ["groups.all-members"] });
+            qc.invalidateQueries({ queryKey: ["groups.list.v2"] });
+          }}
+        />
+      )}
 
       {/* Delete confirm */}
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
