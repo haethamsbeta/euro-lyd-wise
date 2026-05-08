@@ -110,6 +110,10 @@ export function AppShell() {
   // Full nav list lives in the More drawer. Bottom dock owns primary navigation.
   const overflowNav = visibleNav;
   const hideDock = location.pathname.startsWith("/app/transactions/new");
+  const isActive = (to: string) =>
+    to === "/app"
+      ? location.pathname === "/app"
+      : location.pathname === to || location.pathname.startsWith(to + "/");
 
   const MoreButton = () => (
     <Tooltip>
