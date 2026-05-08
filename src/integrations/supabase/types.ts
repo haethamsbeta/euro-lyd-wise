@@ -91,7 +91,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          group_type: string
           id: number
+          is_pinned: boolean
           name: string
           updated_at: string
         }
@@ -99,7 +101,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          group_type?: string
           id?: number
+          is_pinned?: boolean
           name: string
           updated_at?: string
         }
@@ -107,7 +111,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          group_type?: string
           id?: number
+          is_pinned?: boolean
           name?: string
           updated_at?: string
         }
