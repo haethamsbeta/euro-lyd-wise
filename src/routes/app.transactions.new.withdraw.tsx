@@ -1,12 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { EntryForm } from "@/components/app/entry-form";
-import { RoleGate } from "@/components/app/app-shell";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app/transactions/new/withdraw")({
-  component: () => (
-    <RoleGate allow={["admin", "teller"]}>
-      <EntryForm direction="withdraw" />
-    </RoleGate>
-  ),
-  head: () => ({ meta: [{ title: "New withdrawal" }] }),
+  beforeLoad: () => {
+    throw redirect({ to: "/app/transactions/new", search: { type: "withdraw" } });
+  },
 });
