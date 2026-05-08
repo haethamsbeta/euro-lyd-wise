@@ -1,46 +1,96 @@
-## Goal
-Make the floating toolbar truly fill its width: bigger, more breathing room between icons, embed the Dahab logo inside the toolbar (far left, next to More), and ensure every icon shows its page name as a hover tooltip (no visible label text in the bar).
+# New Transaction Wizard — MagicPatterns Parity
 
-## Changes — single file: `src/components/app/app-shell.tsx`
+Rebuild `/app/transactions/new` as a single-page step wizard that visually and structurally matches the MagicPatterns mockup (Section 18 of `DESIGN_SPEC.md` + `pages/NewTransaction.tsx`), while keeping every backend call, role check, and approval rule from the current Lovable app intact.
 
-### 1. Embed the brand inside the toolbar
-- Add a new left-most cell in the toolbar grid containing the Dahab coin + wordmark (re-use `<DahabCoin />` and `<DahabMark size="sm" showArabic={false} />`).
-- Wrap it in a `<Link to="/app">` with `aria-label="Dahab"` so it doubles as a Home shortcut.
-- Remove the separate `fixed top-3 left-3` brand block (it currently floats outside the bar). The logo lives only inside the toolbar now.
-- Drop `lg:pl-24` from `<main>` since there's no fixed brand to clear anymore.
+## Scope
 
-### 2. New 4-column grid that uses the full width
-Replace the current `grid-cols-[auto_1fr_auto]` with:
+**In scope (UI / flow only):**
+- Replace the current two-route entry (`/app/transactions/new/deposit` and `/app/transactions/new/withdraw` rendering `EntryForm`) with one wizard at `/app/transactions/new` driven by `?type=` and an internal step machine.
+- Recreate stepper, animated step transitions, sticky bottom action bar, type cards, customer/account search, vault cards, details, review, and full-page result screens.
+- Enforce admin-only balance visibility throughout.
+
+**Out of scope (do not touch):**
+- Supabase schema, RLS, auth, role tables.
+- Existing `holder_cards` search query, post-transaction RPC, approval thresholds, audit triggers.
+- Notifications, vault listing, holders pages.
+- Internal Transfer (confirmed not supported — only Deposit + Withdraw).
+
+## Routes
+
+- `/app/transactions/new` — the wizard (replaces current chooser).
+  - `?type=deposit` → preselect Deposit, jump to Customer step.
+  - `?type=withdraw` → preselect Withdraw, jump to Customer step.
+  - Invalid/missing → start at Type step.
+- `/app/transactions/new/deposit` and `/.../withdraw` → kept as thin redirects to `/app/transactions/new?type=deposit|withdraw` so existing buttons/links keep working.
+- All existing entry points (dashboard "New transaction", deposit/withdraw shortcuts) continue to work without edits to those callers.
+
+## Step machine
+
+Single component `NewTransactionWizard` with state:
+
 ```
-grid grid-cols-[auto_auto_1fr_auto] items-center gap-4 sm:gap-6
+{ stepIdx, type, selectedAccount, vaultSide, amount, comment, valueDate,
+  attachments, isSubmitting, result, txnId }
 ```
-Cells:
-1. Brand (logo + wordmark)
-2. More button
-3. Primary nav (centered, `justify-self-center`, `gap-5 sm:gap-7`)
-4. NotificationBell (`justify-self-end`)
 
-Bump the pill to `max-w-6xl`, padding to `px-5 py-3 sm:px-8`, so the row spans almost the full viewport at desktop and the icons are evenly distributed instead of clustering.
+Steps (keys): `type` → `customer` → `vault` → `details` → `review`.
 
-### 3. Bigger, more breathing tiles
-- Primary tiles + More tile: `h-14 w-14` (was `h-12 w-12`).
-- Inner icon chip: `h-11 w-11 rounded-2xl` (was `h-9 w-9`).
-- Icon glyph: `h-6 w-6` with `strokeWidth={1.5}` (was `h-5 w-5`).
-- Raised `+`: `h-16 w-16` with `h-8 w-8` icon, `-mt-4` lift, keep `ring-4 ring-card shadow-gold` halo.
-- Inter-tile gap inside the nav: `gap-5 sm:gap-7` so the four primary tiles + raised `+` spread across the middle column instead of bunching.
+Cascade resets:
+- type change → clears account, vault, amount, comment, attachments, result.
+- account change → clears vault, amount, comment, result.
+- vault change → clears amount/comment/result downstream only if needed.
 
-### 4. Hover tooltips on every icon
-- Already-present `Tile` tooltip stays.
-- Add the same `Tooltip` wrapper around: the brand link ("Dahab — Home"), the raised `+` (already wrapped — keep), the More button (already wrapped — keep), and the `NotificationBell` trigger by wrapping its render with `Tooltip`/`TooltipTrigger asChild`/`TooltipContent` showing `t("nav.notifications")`.
-- Tooltip side stays `bottom`, `delayDuration={150}` on the existing `TooltipProvider`.
-- No visible text labels in the bar — labels only render inside tooltips and inside the More sheet.
+`canContinue()`, `next()`, `back()`, `goToStep()` (backward-only) implemented per spec. Review's primary button becomes "Confirm & Submit".
 
-### 5. Token cohesion (unchanged direction, just applied to new sizes)
-- Pill: `bg-card/85 backdrop-blur-xl border border-gold/25 shadow-[var(--shadow-gold)]`.
-- Inactive chip: `bg-gold/5 ring-1 ring-inset ring-gold/15`, hover `ring-gold/35` + soft gold drop-shadow.
-- Active chip: `bg-gradient-gold text-primary-foreground ring-1 ring-gold/40 shadow-gold`.
-- More: `bg-gold/10 ring-1 ring-gold/30 hover:bg-gold/20`.
-- Brand link: subtle `hover:bg-gold/5 rounded-2xl px-2 py-1` so it feels like a tile member without competing with active states.
+## Step UIs
 
-## Out of scope
-Routes, i18n keys, sheet contents, account menu internals, notification bell internals — unchanged.
+1. **Type** — two premium selectable cards (Deposit `ArrowDownRight`, Withdraw `ArrowUpRight`) with gold border + glow when active, check badge top-right.
+2. **Customer / Account** — reuses the existing `holder_cards` search query already in `entry-form.tsx`; result list rebuilt as stacked dark cards (name, DAHAB#, account#, currency badge, status, withdrawal limit, phone). Selected account confirmed via gold-glow card with "Change" button. Mobile-first single column, responsive grid on lg.
+3. **Vault** — two cards: Cash Vault (`Wallet`), Bank Vault (`Landmark`); active state gold border + glow. Wired to existing internal vault selection logic from current entry form.
+4. **Details** — large Playfair amount input with currency suffix + quick chips, comment textarea, optional value date. Admin-only balance preview (current + after). Non-admin sees withdrawal limit only and a generic "requires admin review" notice when overdrawn or > 25k. Approval-required amber callout uses existing `willPend` logic.
+5. **Review** — hero amount card with signed amount (emerald `+` for deposit, red `−` for withdraw), amber approval callout if `willPend`, detail rows with inline Edit icons that `goToStep()` back, compliance footnote. No balances for non-admins.
+
+## Stepper + transitions
+
+- Horizontal stepper (5 nodes): completed = gold filled + check, active = gold ring/text, future = muted. Connector lines animate to gold on completion.
+- Step body wrapped in `framer-motion` `AnimatePresence mode="wait"` with `initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}}` (~0.25s). `framer-motion` is already installed.
+- Mobile: compact stepper (numbered dots + active label only) — no overflow.
+
+## Sticky action bar
+
+Fixed bottom, `bg-card/95 backdrop-blur-md border-t border-gold/15 z-20`. Inner `max-w-4xl mx-auto px-4 md:px-8 py-4`. Page wrapper gets `pb-32`. Left = Cancel (step 1) / Back. Right = Continue / "Confirm & Submit" (review). Disabled + spinner during submit.
+
+## Submit + result screens
+
+- Submit calls the **existing** transaction posting code path used today by `EntryForm` (no backend change). Returns success or pending based on existing approval logic.
+- After submit, replace toast with full-page result screen rendered inside the wizard (terminal state):
+  - **Success** — emerald check, "Transaction Complete", receipt card (txn id, type, amount, customer, account, vault, value date, comment, status). Actions: Back to Dashboard / View Transactions / New Transaction (resets state, no reload).
+  - **Pending Approval** — amber clock, "Awaiting Approval", same receipt + Pending Review status badge.
+  - **Failed** — red icon if backend throws; shows safe error message + Try Again / Back to Transactions.
+- Submit button guarded against duplicate submission.
+
+## Balance privacy
+
+Reuse existing `canViewBalances = hasAnyRole(roles, ["admin"])`. Apply gate everywhere balance text could render in the new wizard (search results, selected card, details preview, review hero, receipt). Withdrawal limit + status remain visible to all.
+
+## Files
+
+**Replace / heavily edit:**
+- `src/components/app/entry-form.tsx` → renamed conceptually into `src/components/app/new-transaction-wizard.tsx` (new file). Keeps the existing query and submit hooks copied from current entry form.
+- `src/routes/app.transactions.new.index.tsx` → renders `<NewTransactionWizard />` with zod-validated `?type` search param.
+- `src/routes/app.transactions.new.deposit.tsx` and `.withdraw.tsx` → redirect to `/app/transactions/new?type=…` (preserves existing deep links).
+
+**Add:**
+- `src/components/app/wizard/Stepper.tsx`
+- `src/components/app/wizard/StickyActionBar.tsx`
+- `src/components/app/wizard/steps/TypeStep.tsx`, `CustomerStep.tsx`, `VaultStep.tsx`, `DetailsStep.tsx`, `ReviewStep.tsx`, `ResultStep.tsx`
+
+**Delete:**
+- Old `src/components/app/entry-form.tsx` after the new wizard is wired up (its query/submit logic is migrated, not duplicated).
+
+## Risks / guardrails
+
+- All Supabase calls and approval thresholds are copy-moved from `entry-form.tsx`, not rewritten — same RPC, same payload shape.
+- Roles read via existing `useAuth()` + `hasAnyRole`.
+- Build is strict: every new file lands with its imports, and `framer-motion` import already present in project.
+- No changes to `routeTree.gen.ts`; new component files under `src/components/app/wizard/` won't affect routing.
