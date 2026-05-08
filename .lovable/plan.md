@@ -1,39 +1,44 @@
-## Replicate the mockup toolbar look on the top bar
+## Goal
+Refine the floating top toolbar:
+1. Pin the Dahab logo to the top-left as a stationary brand mark (no scroll/sticky movement).
+2. Move the "More" button to the far opposite side (left side in LTR / mirror-aware) and make it visibly bigger than the other tiles.
+3. Refresh the icon look across the toolbar to feel more futuristic while keeping the same icons.
 
-Reference: `src/assets/daham-mockup.png` (bottom nav of the mobile mockup).
-Visual language to port to the back-office floating top toolbar:
+## Changes (single file: `src/components/app/app-shell.tsx`)
 
-- Soft ivory/cream pill on a thin gold hairline, deep soft drop shadow
-- Each entry = **icon above label** in a rounded-square hit-area
-- Active item lifts with a gold-gradient pill + gold ring + glow
-- A single **raised gold circular action** floats above the bar centerline (in the mockup it's "Scan / Pay" — for the back-office it becomes **"+ New Transaction"** since that's the most-used staff action)
-- 3-dots/"More" entry on the far right with the same icon-over-label treatment
+### 1. Stationary Dahab logo
+- Remove the `<Link to="/app">` brand block from inside the floating pill.
+- Add a new fixed brand element OUTSIDE the sticky header:
+  ```
+  <Link to="/app" className="fixed top-3 left-3 sm:top-4 sm:left-6 z-50 flex items-center gap-2">
+    <DahabCoin />
+    <span className="hidden lg:inline"><DahabMark size="sm" showArabic={false} /></span>
+  </Link>
+  ```
+- Logo now stays in the corner; the toolbar pill remains centered without it.
 
-### Files
+### 2. Bigger "More" on the opposite side
+- Move the More dropdown out of the centered `<nav>` and place it as the first child of the pill (left side in LTR), separated from the right-side notifications/account cluster which stays on the right.
+- Resize the More tile: `h-14 w-20 sm:w-24`, larger icon (`h-6 w-6`), label text `text-[11px]`, with stronger gold ring/glow:
+  ```
+  rounded-2xl bg-[oklch(0.82_0.14_85/0.12)] ring-1 ring-[oklch(0.82_0.14_85/0.35)]
+  hover:bg-[oklch(0.82_0.14_85/0.2)] shadow-[0_8px_20px_-10px_oklch(0.82_0.14_85/0.5)]
+  ```
+- Replace `MoreHorizontal` with `Menu` (more futuristic / control-panel feel) — kept as a Lucide icon, same intent.
 
-**Edit `src/components/app/app-shell.tsx`**
+### 3. Futuristic icon treatment (same icons, new styling)
+Apply consistently in the `Tile` component and raised "+" button:
+- `strokeWidth={1.5}` on all Lucide icons for a thinner, sci-fi line weight.
+- Wrap each tile icon in a subtle hex-like square halo: inner `rounded-xl` chip with `bg-[oklch(0.82_0.14_85/0.06)]` + inset border `inset-shadow-[0_0_0_1px_oklch(0.82_0.14_85/0.2)]`, active state swaps to gold gradient chip with `drop-shadow-[0_0_6px_oklch(0.82_0.14_85/0.55)]` glow on the icon.
+- Slight icon size bump (`h-[18px] w-[18px]`) and label letter-spacing `tracking-[0.08em]` uppercase for a HUD vibe.
+- Raised `+` button: keep gold gradient, add animated outer ring `ring-2 ring-[oklch(0.82_0.14_85/0.35)]` + `before:absolute before:-inset-1 before:rounded-full before:bg-[oklch(0.82_0.14_85/0.15)] before:blur-md` glow halo.
+- Pill border upgraded to `border-[oklch(0.82_0.14_85/0.4)]` with a faint top highlight via `bg-gradient-to-b from-[oklch(0.22_0.04_60/0.9)] to-[oklch(0.16_0.03_60/0.85)]` for layered depth.
 
-Rebuild the floating header pill:
+### 4. Layout tweak
+- Pill keeps `max-w-3xl mx-auto`, but inner flex becomes: `[More tile] · [centered nav with raised + tile] · [Notifications + AccountMenu]`.
+- Remove brand padding (`pe-1`) since brand is gone from the pill.
+- Add left padding on `<main>` only on large screens (`lg:pl-24`) so the fixed logo never overlaps page content header.
 
-- Container: `rounded-3xl` (not full-pill), `border border-[oklch(0.82_0.14_85/0.3)]`, `bg-[oklch(0.18_0.03_60/0.85)] backdrop-blur-xl`, `shadow-[0_18px_40px_-18px_oklch(0.82_0.14_85/0.45)]`, max-w-3xl, centered.
-- Brand on the far start (DahabCoin only on mobile, coin + wordmark on ≥sm).
-- Center cluster = primary nav rendered as **icon-over-label tiles** (~56×52, `rounded-2xl`):
-  - Inactive: muted icon, 11px label, hover gold tint.
-  - Active: gold-gradient background, dark text, soft inner highlight + outer gold glow.
-  - Items (admin shown):
-    1. Dashboard
-    2. Transactions
-    3. **(raised center)** New Transaction — gold circular button (`h-12 w-12`), gold gradient, white `+` (PlusCircle), `-translate-y-3`, sits visually above the bar, `shadow-gold` ring. Label "New" beneath, outside the lifted circle.
-    4. Holders
-    5. Approvals (admin) / Vaults (fallback)
-- Right cluster: NotificationBell, Account avatar, and a "More" tile (MoreHorizontal icon + "More" label) opening the existing dropdown with all overflow nav + Language/Theme toggles inline at the bottom.
-- Mobile (<md): keep brand + 3 highest-priority tiles (Dashboard, raised New, More); rest live in More menu.
-- Sticky `top-3`, page content gets `pt-4 sm:pt-6` to clear the bar.
-
-No nav entries or routes change. No business logic touched. Only `app-shell.tsx` is edited.
-
-### Why these choices
-
-- Icon-over-label + raised gold center directly mirrors the mockup's bottom nav rhythm.
-- Keeping the dark glass shell preserves the established "dark luxury" theme while still echoing the mockup's gold-on-cream chip energy via the active state.
-- "+ New Transaction" as the raised action matches the mockup intent (most-used quick action) without inventing new routes — it links to existing `/app/transactions/new`.
+## Out of scope
+- No nav items, routes, i18n, or business logic changes.
+- No new files.
