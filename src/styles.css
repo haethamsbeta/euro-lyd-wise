@@ -112,6 +112,13 @@
   --gold-soft:         oklch(0.86  0.09  86);
   --gold-deep:         oklch(0.55  0.13  72);
 
+  /* Surface aliases for light theme (mockup tokens are dark-only; keep
+     sensible champagne-tinted equivalents so utilities still resolve). */
+  --bg-elevated: oklch(0.985 0.005 85);
+  --surface:     oklch(1 0 0);
+  --surface-2:   oklch(0.95 0.012 80);
+  --surface-3:   oklch(0.92 0.04 85);
+
   --chart-1: oklch(0.78 0.14 85);
   --chart-2: oklch(0.62 0.13 78);
   --chart-3: oklch(0.45 0.10 70);
