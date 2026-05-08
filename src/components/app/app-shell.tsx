@@ -139,21 +139,21 @@ export function AppShell() {
             to={item.to}
             aria-label={t(item.labelKey)}
             className={cn(
-              "group relative inline-flex h-12 w-12 items-center justify-center rounded-2xl transition-all sm:h-14 sm:w-14",
+              "group relative inline-flex h-12 w-12 items-center justify-center rounded-2xl transition-all",
               active
-                ? "bg-gradient-gold text-[oklch(0.18_0.03_60)] shadow-[0_8px_20px_-8px_oklch(0.82_0.14_85/0.6)] ring-1 ring-[oklch(0.82_0.14_85/0.45)]"
-                : "text-muted-foreground hover:bg-[oklch(0.82_0.14_85/0.08)] hover:text-foreground",
+                ? "bg-gradient-gold text-primary-foreground shadow-gold ring-1 ring-gold/40"
+                : "text-muted-foreground hover:bg-gold/10 hover:text-foreground",
             )}
           >
             <span
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                 active
-                  ? "bg-[oklch(0.18_0.03_60/0.18)] text-[oklch(0.18_0.03_60)]"
-                  : "bg-[oklch(0.82_0.14_85/0.06)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.18)] group-hover:ring-[oklch(0.82_0.14_85/0.4)] group-hover:[filter:drop-shadow(0_0_6px_oklch(0.82_0.14_85/0.45))]",
+                  ? "bg-primary-foreground/15 text-primary-foreground"
+                  : "bg-gold/5 ring-1 ring-inset ring-gold/15 group-hover:ring-gold/35 group-hover:[filter:drop-shadow(0_0_6px_var(--gold))]",
               )}
             >
-              <Icon className="h-[20px] w-[20px]" strokeWidth={1.5} />
+              <Icon className="h-5 w-5" strokeWidth={1.5} />
             </span>
           </Link>
         </TooltipTrigger>
@@ -182,9 +182,8 @@ export function AppShell() {
         <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
           <div
             className={cn(
-              "relative mx-auto flex max-w-3xl items-center justify-between gap-2 rounded-3xl border border-[oklch(0.82_0.14_85/0.4)]",
-              "bg-gradient-to-b from-[oklch(0.22_0.04_60/0.9)] to-[oklch(0.16_0.03_60/0.85)] px-3 py-2 backdrop-blur-xl",
-              "shadow-[0_18px_40px_-18px_oklch(0.82_0.14_85/0.45)] sm:px-4",
+              "relative mx-auto grid max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 rounded-3xl border border-gold/25",
+              "bg-card/85 px-4 py-2.5 backdrop-blur-xl shadow-[var(--shadow-gold)] sm:px-6",
             )}
           >
             {/* More tile → side Sheet */}
@@ -194,12 +193,11 @@ export function AppShell() {
                   <SheetTrigger
                     aria-label={t("nav.more")}
                     className={cn(
-                      "group relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-all",
-                      "bg-[oklch(0.82_0.14_85/0.14)] ring-1 ring-[oklch(0.82_0.14_85/0.4)]",
-                      "shadow-[0_8px_20px_-10px_oklch(0.82_0.14_85/0.55)] hover:bg-[oklch(0.82_0.14_85/0.22)]",
+                      "group relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all",
+                      "bg-gold/10 ring-1 ring-gold/30 hover:bg-gold/20",
                     )}
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[oklch(0.82_0.14_85/0.2)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.45)] text-foreground">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold/15 ring-1 ring-inset ring-gold/35 text-foreground">
                       <Menu className="h-5 w-5" strokeWidth={1.5} />
                     </span>
                   </SheetTrigger>
@@ -207,7 +205,7 @@ export function AppShell() {
                 <TooltipContent side="bottom">{t("nav.more")}</TooltipContent>
               </Tooltip>
 
-              <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-gradient-to-b from-[oklch(0.22_0.04_60/0.98)] to-[oklch(0.16_0.03_60/0.98)] border-r-[oklch(0.82_0.14_85/0.3)]">
+              <SheetContent side="left" className="w-80 sm:w-96 overflow-y-auto bg-card border-r-gold/25">
                 <SheetHeader>
                   <SheetTitle className="font-serif text-xl">{t("nav.more")}</SheetTitle>
                 </SheetHeader>
@@ -228,11 +226,11 @@ export function AppShell() {
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                           active
-                            ? "bg-[oklch(0.82_0.14_85/0.14)] text-gold ring-1 ring-[oklch(0.82_0.14_85/0.35)]"
-                            : "text-foreground hover:bg-[oklch(0.82_0.14_85/0.08)]",
+                            ? "bg-gold/15 text-gold ring-1 ring-gold/35"
+                            : "text-foreground hover:bg-gold/10",
                         )}
                       >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[oklch(0.82_0.14_85/0.08)] ring-1 ring-inset ring-[oklch(0.82_0.14_85/0.2)]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 ring-1 ring-inset ring-gold/20">
                           <Icon className="h-4 w-4" strokeWidth={1.5} />
                         </span>
                         {t(i.labelKey)}
@@ -242,7 +240,7 @@ export function AppShell() {
                 </div>
 
                 {/* Preferences */}
-                <div className="mt-6 border-t border-[oklch(0.82_0.14_85/0.18)] pt-4">
+                <div className="mt-6 border-t border-gold/20 pt-4">
                   <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                     Preferences
                   </div>
@@ -253,7 +251,7 @@ export function AppShell() {
                 </div>
 
                 {/* Account */}
-                <div className="mt-6 border-t border-[oklch(0.82_0.14_85/0.18)] pt-4">
+                <div className="mt-6 border-t border-gold/20 pt-4">
                   <div className="px-1 pb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                     {t("account.signedInAs")}
                   </div>
@@ -263,7 +261,7 @@ export function AppShell() {
             </Sheet>
 
             {/* Primary tiles + raised center */}
-            <nav className="flex flex-1 items-center justify-center gap-1 sm:gap-2">
+            <nav className="flex items-center justify-center gap-3 sm:gap-5">
               {leftNav.map((item) => (
                 <Tile key={item.to} item={item} />
               ))}
@@ -275,9 +273,9 @@ export function AppShell() {
                       to={raisedNav.to}
                       aria-label={t(raisedNav.labelKey)}
                       className={cn(
-                        "relative -mt-4 mx-1 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-gold text-[oklch(0.18_0.03_60)]",
-                        "ring-4 ring-[oklch(0.18_0.03_60/0.85)] shadow-[0_10px_24px_-6px_oklch(0.82_0.14_85/0.7)] transition-transform hover:scale-105",
-                        "before:absolute before:-inset-1 before:rounded-full before:bg-[oklch(0.82_0.14_85/0.18)] before:blur-md before:-z-10",
+                        "relative -mt-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-gold text-primary-foreground",
+                        "ring-4 ring-card shadow-gold transition-transform hover:scale-105",
+                        "before:absolute before:-inset-1 before:rounded-full before:bg-gold/20 before:blur-md before:-z-10",
                         isActive(raisedNav.to) && "scale-105",
                       )}
                     >
@@ -299,7 +297,7 @@ export function AppShell() {
             </nav>
 
             {/* Right cluster */}
-            <div className="flex shrink-0 items-center gap-1 ps-1">
+            <div className="flex shrink-0 items-center gap-1 justify-self-end">
               <NotificationBell />
             </div>
           </div>
