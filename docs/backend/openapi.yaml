@@ -617,7 +617,7 @@ paths:
   /api/reports/liquidity-health:    { get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-5, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LiquidityHealth' } } } } } } }
   /api/reports/compliance/overview: { get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-6, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceOverview' } } } } } } }
   /api/reports/processing-time-distribution: { get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-7, responses: { '200': { description: OK } } } }
-  /api/reports/rejection-rate-trend:{ get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-8, parameters: [{ $ref: '#/components/parameters/Days' }], responses: { '200': { description: OK } } } }
+  /api/reports/rejection-rate-trend: { get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-8, parameters: [{ $ref: '#/components/parameters/Days' }], responses: { '200': { description: OK } } } }
   /api/reports/hourly-traffic:      { get: { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-9, responses: { '200': { description: OK } } } }
   /api/reports/saved:
     get:  { tags: [reports, 'role:admin', 'role:auditor'], summary: REP-11, responses: { '200': { description: OK } } }
