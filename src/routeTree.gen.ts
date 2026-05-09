@@ -35,6 +35,7 @@ import { Route as AppGroupsIndexRouteImport } from './routes/app.groups.index'
 import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppUsersNewConsumerRouteImport } from './routes/app.users.new-consumer'
+import { Route as AppTransactionsIdRouteImport } from './routes/app.transactions.$id'
 import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
 import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
@@ -180,6 +181,11 @@ const AppUsersNewConsumerRoute = AppUsersNewConsumerRouteImport.update({
   path: '/new-consumer',
   getParentRoute: () => AppUsersRoute,
 } as any)
+const AppTransactionsIdRoute = AppTransactionsIdRouteImport.update({
+  id: '/transactions/$id',
+  path: '/transactions/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/settings/security',
   path: '/settings/security',
@@ -284,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/transactions/$id': typeof AppTransactionsIdRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -323,6 +330,7 @@ export interface FileRoutesByTo {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/transactions/$id': typeof AppTransactionsIdRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -366,6 +374,7 @@ export interface FileRoutesById {
   '/app/me/activity': typeof AppMeActivityRoute
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
+  '/app/transactions/$id': typeof AppTransactionsIdRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -410,6 +419,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/transactions/$id'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/transactions/$id'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/app/me/activity'
     | '/app/settings/notifications'
     | '/app/settings/security'
+    | '/app/transactions/$id'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -702,6 +714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersNewConsumerRouteImport
       parentRoute: typeof AppUsersRoute
     }
+    '/app/transactions/$id': {
+      id: '/app/transactions/$id'
+      path: '/transactions/$id'
+      fullPath: '/app/transactions/$id'
+      preLoaderRoute: typeof AppTransactionsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings/security': {
       id: '/app/settings/security'
       path: '/settings/security'
@@ -847,6 +866,7 @@ interface AppRouteChildren {
   AppMeActivityRoute: typeof AppMeActivityRoute
   AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
+  AppTransactionsIdRoute: typeof AppTransactionsIdRoute
   AppGroupsIndexRoute: typeof AppGroupsIndexRoute
   AppHoldersIndexRoute: typeof AppHoldersIndexRoute
   AppTransactionsIndexRoute: typeof AppTransactionsIndexRoute
@@ -873,6 +893,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMeActivityRoute: AppMeActivityRoute,
   AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
+  AppTransactionsIdRoute: AppTransactionsIdRoute,
   AppGroupsIndexRoute: AppGroupsIndexRoute,
   AppHoldersIndexRoute: AppHoldersIndexRoute,
   AppTransactionsIndexRoute: AppTransactionsIndexRoute,
@@ -923,3 +944,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
