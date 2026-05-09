@@ -90,8 +90,10 @@ Run order:
    `dahab_migrations` (both have the privileges required for the seed
    inserts). Skip entirely in prod.
 6. `database/aws/06_validation_tests.sql` — smoke tests; must all pass.
-   Run as `dahab_migrations` (or the RDS master user) so writes/RLS
-   checks behave like a real migration.
+   Run as `dahab_app` so RLS + GRANTs are exercised exactly as the API
+   layer hits them at runtime. (If a future test needs elevated rights,
+   split it into a separate admin-validation file rather than escalating
+   this one.)
 
 From this point onward, every future schema change is a new timestamped
 migration run as `dahab_migrations`. Never edit an existing file in place.
@@ -187,10 +189,13 @@ that page.
 
 ## F. Reports warning (read before building report endpoints)
 
-- NEVER sum LYD + USD + EUR + GBP into a single number. Each currency is
+- NEVER sum LYD + USD + EUR into a single number. Each currency is
   reported on its own row. The only place a single combined figure is
   allowed is `report_consolidated_usd()`, which uses `fx_rates_current`
   and must label the result as "USD-equivalent (FX as of <timestamp>)".
+  Note: the `currency_code` enum currently contains only `USD`, `EUR`,
+  `LYD`. GBP is NOT in the enum and would require an enum migration
+  (plus a `currencies` row and a UI release) before being reportable.
 - All financial metrics are produced by SQL views or stored procedures
   (see `database/aws/02_views.sql` and `03_stored_procedures.sql`). The
   API layer is a thin pass-through.
