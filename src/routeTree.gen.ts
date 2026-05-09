@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as MRouteImport } from './routes/m'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -50,6 +51,11 @@ import { Route as ApiPublicAdminSeedDemoRouteImport } from './routes/api/public/
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MRoute = MRouteImport.update({
@@ -158,9 +164,9 @@ const AppGroupsIndexRoute = AppGroupsIndexRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const PortalAccountIdCurrencyRoute = PortalAccountIdCurrencyRouteImport.update({
-  id: '/portal/$accountId/$currency',
-  path: '/portal/$accountId/$currency',
-  getParentRoute: () => rootRouteImport,
+  id: '/$accountId/$currency',
+  path: '/$accountId/$currency',
+  getParentRoute: () => PortalRoute,
 } as any)
 const AppVaultsIdRoute = AppVaultsIdRouteImport.update({
   id: '/$id',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
+  '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/m': typeof MRouteWithChildren
+  '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
@@ -361,6 +370,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/m'
+    | '/portal'
     | '/reset-password'
     | '/app/about'
     | '/app/approvals'
@@ -398,6 +408,7 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/forgot-password'
     | '/login'
+    | '/portal'
     | '/reset-password'
     | '/app/about'
     | '/app/approvals'
@@ -436,6 +447,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/m'
+    | '/portal'
     | '/reset-password'
     | '/app/about'
     | '/app/approvals'
@@ -476,8 +488,8 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MRoute: typeof MRouteWithChildren
+  PortalRoute: typeof PortalRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
-  PortalAccountIdCurrencyRoute: typeof PortalAccountIdCurrencyRoute
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
@@ -489,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m': {
@@ -640,10 +659,10 @@ declare module '@tanstack/react-router' {
     }
     '/portal/$accountId/$currency': {
       id: '/portal/$accountId/$currency'
-      path: '/portal/$accountId/$currency'
+      path: '/$accountId/$currency'
       fullPath: '/portal/$accountId/$currency'
       preLoaderRoute: typeof PortalAccountIdCurrencyRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/app/vaults/$id': {
       id: '/app/vaults/$id'
@@ -836,6 +855,17 @@ const MRouteChildren: MRouteChildren = {
 
 const MRouteWithChildren = MRoute._addFileChildren(MRouteChildren)
 
+interface PortalRouteChildren {
+  PortalAccountIdCurrencyRoute: typeof PortalAccountIdCurrencyRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalAccountIdCurrencyRoute: PortalAccountIdCurrencyRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -843,8 +873,8 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MRoute: MRouteWithChildren,
+  PortalRoute: PortalRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
-  PortalAccountIdCurrencyRoute: PortalAccountIdCurrencyRoute,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
