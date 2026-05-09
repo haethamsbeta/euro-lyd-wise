@@ -211,7 +211,8 @@ export function GlobalSearch() {
       nav({ to: "/app/accounts/$id", params: { id: r.id } });
     else if (r.kind === "vault")
       nav({ to: "/app/vaults/$id", params: { id: r.id }, search: {} });
-    else if (r.kind === "transaction") nav({ to: "/app/transactions" });
+    else if (r.kind === "transaction")
+      nav({ to: "/app/transactions", search: { q: r.title, focus: r.id } });
   };
 
   return (
