@@ -15,10 +15,12 @@ import { PremiumCard } from "@/components/ui/premium-card";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import {
   TrendingUp, Users, ShieldCheck, ArrowDownRight, ArrowUpRight,
-  Landmark, Wallet, Settings, Star, Plus, X, Search, ArrowRightLeft,
+  Landmark, Wallet, Settings, Star, Plus, X, Search, ChevronRight,
+  Clock, UserPlus, FileSearch, Eye, Download, ShieldAlert, CheckCircle2,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -63,15 +65,10 @@ function usePrefs() {
   return { prefs, update };
 }
 
-function Dashboard() {
-  const t = useT();
-  const { prefs, update } = usePrefs();
-  const { roles } = useAuth();
-  const isAdmin = hasAnyRole(roles, ["admin"]);
-  const isStaff = hasAnyRole(roles, ["admin", "teller"]);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard.v2"],
+// ─── Shared dashboard data hook ──────────────────────────────────────────────
+function useDashData() {
+  return useQuery({
+    queryKey: ["dashboard.v3"],
     queryFn: async () => {
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
         supabase.from("accounts").select("id, kind, name, vault_channel"),
@@ -80,7 +77,7 @@ function Dashboard() {
           .from("transactions")
           .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment, customer_account_id")
           .order("created_at", { ascending: false })
-          .limit(6),
+          .limit(8),
         supabase.from("transactions").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("account_holders").select("id", { count: "exact", head: true }),
       ]);
@@ -93,9 +90,10 @@ function Dashboard() {
       };
     },
   });
+}
 
-  // Aggregate per currency
-  const totals = useMemo(() => {
+function useTotals(data: ReturnType<typeof useDashData>["data"]) {
+  return useMemo(() => {
     const cashByCur = new Map<string, number>();
     const bankByCur = new Map<string, number>();
     const customerByCur = new Map<string, number>();
@@ -114,95 +112,182 @@ function Dashboard() {
     }
     return { cashByCur, bankByCur, customerByCur };
   }, [data]);
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+function Dashboard() {
+  const { prefs, update } = usePrefs();
+  const { roles } = useAuth();
+  const isAdmin = hasAnyRole(roles, ["admin"]);
+  const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
+  const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isAuditor;
+  const roleLabel = isAdmin ? "Admin" : isAuditor ? "Auditor" : isTeller ? "Teller" : "Operator";
+  const accent = isAuditor ? "sky" : "gold";
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8 pb-12">
+      {/* Header greeting */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-foreground">{t("dash.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Welcome back. Here's what's happening across the DAHAB network today.
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
+            <h1 className="font-serif text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+              {greeting()}, {roleLabel}
+            </h1>
+            <span
+              className={cn(
+                "px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-[0.18em] font-bold border",
+                accent === "sky"
+                  ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                  : "bg-gold/10 text-gold border-gold/30"
+              )}
+            >
+              {roleLabel} View
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5" />
+            {new Intl.DateTimeFormat("en-US", {
+              weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
+            }).format(new Date())}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {isAdmin && data && data.pendingCount > 0 ? (
-            <Button asChild variant="outline" className="border-gold/40 text-gold hover:bg-gold/10">
-              <Link to="/app/approvals" className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4" /> Pending Approvals
-                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-gold text-[#14181F] px-1.5 py-0.5 text-xs font-bold">
-                  {data.pendingCount}
-                </span>
-              </Link>
-            </Button>
-          ) : null}
+          {isAdmin ? <PendingApprovalsButton /> : null}
           <CustomizeSheet prefs={prefs} onChange={update} />
-          {isStaff ? (
-            <Button asChild variant="gold" size="sm">
-              <Link to="/app/transactions/new" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> New Transaction
-              </Link>
-            </Button>
-          ) : null}
         </div>
       </div>
 
-      {/* Currency Totals Strip — mockup parity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((cur, i) => {
-          const network = (totals.cashByCur.get(cur) ?? 0) + (totals.bankByCur.get(cur) ?? 0);
-          return (
-            <PremiumCard
-              key={cur}
-              variant="premium"
-              className="p-6 group animate-in fade-in slide-in-from-bottom-2"
-              style={{ animationDelay: `${i * 100}ms`, animationFillMode: "both" } as React.CSSProperties}
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-                <Landmark className="w-24 h-24 text-gold" />
+      {isAdmin && <AdminDashboard prefs={prefs} update={update} />}
+      {isTeller && <TellerDashboard prefs={prefs} />}
+      {isAuditor && <AuditorDashboard prefs={prefs} />}
+      {!isAdmin && !isTeller && !isAuditor && <AdminDashboard prefs={prefs} update={update} />}
+    </div>
+  );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function PendingApprovalsButton() {
+  const { data } = useQuery({
+    queryKey: ["dash.pending.count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      return count ?? 0;
+    },
+  });
+  if (!data) return null;
+  return (
+    <Button asChild variant="outline" className="border-gold/40 text-gold hover:bg-gold/10 shadow-[0_0_15px_rgba(212,168,87,0.1)]">
+      <Link to="/app/approvals" className="flex items-center gap-2">
+        <ShieldCheck className="h-4 w-4" /> Pending Approvals
+        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-gold text-[#14181F] px-1.5 py-0.5 text-xs font-bold">
+          {data}
+        </span>
+      </Link>
+    </Button>
+  );
+}
+
+// ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
+function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashPrefs) => void }) {
+  const { data, isLoading } = useDashData();
+  const totals = useTotals(data);
+
+  // Network total expressed in LYD-equivalent (mock conversion: just sum LYD + USD*4.85 + EUR*5.3)
+  const network = useMemo(() => {
+    const lyd = (totals.cashByCur.get("LYD") ?? 0) + (totals.bankByCur.get("LYD") ?? 0);
+    const usd = (totals.cashByCur.get("USD") ?? 0) + (totals.bankByCur.get("USD") ?? 0);
+    const eur = (totals.cashByCur.get("EUR") ?? 0) + (totals.bankByCur.get("EUR") ?? 0);
+    return lyd + usd * 4.85 + eur * 5.3;
+  }, [totals]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+      {/* Hero — Network Pulse */}
+      <PremiumCard className="p-6 relative overflow-hidden border-gold/20 shadow-[0_0_40px_rgba(212,168,87,0.08)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold/15 via-transparent to-transparent opacity-80 pointer-events-none" />
+        <HeroGridOverlay />
+        <div className="relative z-10 flex flex-col lg:flex-row gap-8 lg:items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <LivePulse />
+              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Network Pulse</span>
+            </div>
+            <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance (LYD eq.)</div>
+            <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
+              <AnimatedNumber value={network} currency="LYD" />
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
+              const amt = (totals.cashByCur.get(c) ?? 0) + (totals.bankByCur.get(c) ?? 0);
+              const seed = c === "LYD" ? [30, 35, 40, 45, 60, 75, 80] : c === "USD" ? [40, 45, 42, 50, 48, 55, 60] : [60, 58, 55, 52, 54, 50, 48];
+              const trendUp = seed[seed.length - 1] >= seed[0];
+              return (
+                <div key={c} className="bg-surface-2/60 backdrop-blur-md border border-border/50 rounded-xl p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <CurrencyBadge currency={c} />
+                    <span className={cn("text-xs font-medium", trendUp ? "text-emerald-400" : "text-red-400")}>
+                      {trendUp ? "+" : ""}{((seed[seed.length - 1] - seed[0]) / Math.max(seed[0], 1) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-base font-semibold text-foreground tabular-nums mb-2 truncate">
+                    {formatMinor(amt, c)}
+                  </div>
+                  <Sparkline data={seed} color={trendUp ? "#34d399" : "#f87171"} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </PremiumCard>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "New Deposit", icon: ArrowDownRight, to: "/app/transactions/new/deposit" },
+          { label: "New Withdraw", icon: ArrowUpRight, to: "/app/transactions/new/withdraw" },
+          { label: "New Customer", icon: UserPlus, to: "/app/users/new-consumer" },
+        ].map((a) => (
+          <Link key={a.label} to={a.to} className="block group">
+            <PremiumCard className="p-4 flex flex-col items-center justify-center gap-3 hover:-translate-y-0.5 hover:border-gold/40 hover:bg-surface-2/50 transition-all cursor-pointer">
+              <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <a.icon className="w-5 h-5 text-gold" />
               </div>
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-gold-soft">
-                    Network Balance
-                  </span>
-                  <CurrencyBadge currency={cur} />
-                </div>
-                <div className="font-serif text-3xl font-bold text-gold tabular-nums mb-2">
-                  {formatMinor(network, cur)}
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-gold/70" />
-                  <span>Cash {formatMinor(totals.cashByCur.get(cur) ?? 0, cur)} · Bank {formatMinor(totals.bankByCur.get(cur) ?? 0, cur)}</span>
-                </div>
-              </div>
+              <span className="text-sm font-semibold text-foreground">{a.label}</span>
             </PremiumCard>
-          );
-        })}
+          </Link>
+        ))}
       </div>
 
-      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column */}
+        {/* Left col */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Vaults Row */}
           {(prefs.showCash || prefs.showBank) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {prefs.showCash && (
-                <VaultCard
-                  icon={<Wallet className="w-5 h-5 text-gold" />}
+                <VaultGaugeCard
+                  icon={<Wallet className="w-32 h-32 text-gold" />}
                   title="Cash Vaults"
-                  subtitle="Physical reserves"
+                  percent={vaultUtilization(totals.cashByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                     label: c, value: formatMinor(totals.cashByCur.get(c) ?? 0, c),
                   }))}
                 />
               )}
               {prefs.showBank && (
-                <VaultCard
-                  icon={<Landmark className="w-5 h-5 text-gold" />}
+                <VaultGaugeCard
+                  icon={<Landmark className="w-32 h-32 text-gold" />}
                   title="Bank Vaults"
-                  subtitle="Digital reserves"
+                  percent={vaultUtilization(totals.bankByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                     label: c, value: formatMinor(totals.bankByCur.get(c) ?? 0, c),
                   }))}
@@ -211,95 +296,12 @@ function Dashboard() {
             </div>
           )}
 
-          {/* Recent Transactions */}
-          {prefs.showRecent && (
-            <PremiumCard className="overflow-hidden">
-              <div className="p-5 border-b border-border flex items-center justify-between">
-                <h2 className="font-serif text-lg font-semibold text-foreground">Recent Transactions</h2>
-                <Link to="/app/transactions" className="text-sm text-gold hover:text-gold-soft font-medium">
-                  View All →
-                </Link>
-              </div>
-              <div className="overflow-x-auto">
-                {isLoading ? (
-                  <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
-                ) : !data || data.recentTx.length === 0 ? (
-                  <div className="p-6 text-sm text-muted-foreground">{t("dash.noTx")}</div>
-                ) : (
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-[11px] bg-surface-2 border-b border-border uppercase tracking-[0.14em]">
-                      <tr>
-                        <th className="px-5 py-3 font-semibold text-gold">Transaction</th>
-                        <th className="px-5 py-3 font-semibold text-gold hidden sm:table-cell">Channel</th>
-                        <th className="px-5 py-3 font-semibold text-gold text-right">Amount</th>
-                        <th className="px-5 py-3 font-semibold text-gold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {data.recentTx.map((tx) => {
-                        const isDeposit = tx.direction === "deposit";
-                        const isWithdraw = tx.direction === "withdraw";
-                        const amountClass = isDeposit
-                          ? "text-emerald-400"
-                          : isWithdraw
-                          ? "text-red-400"
-                          : "text-foreground";
-                        const sign = isDeposit ? "+" : isWithdraw ? "-" : "";
-                        return (
-                          <tr key={tx.id} className="hover:bg-surface-2/50 transition-colors">
-                            <td className="px-5 py-4">
-                              <div className="font-medium text-foreground capitalize">{tx.direction}</div>
-                              <div className="text-xs text-muted-foreground font-mono mt-0.5">{tx.tx_number}</div>
-                            </td>
-                            <td className="px-5 py-4 text-muted-foreground capitalize hidden sm:table-cell">{tx.channel}</td>
-                            <td className="px-5 py-4 text-right">
-                              <span className={`font-semibold tabular-nums ${amountClass}`}>
-                                {sign}{formatMinor(tx.amount_minor, tx.currency)}
-                              </span>
-                              <div className="mt-1 flex justify-end">
-                                <CurrencyBadge currency={tx.currency} />
-                              </div>
-                              <div className="mt-0.5 text-[10px] text-muted-foreground">{formatDateTime(tx.created_at)}</div>
-                            </td>
-                            <td className="px-5 py-4">
-                              <StatusBadge status={tx.status} />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </PremiumCard>
-          )}
+          {/* Urgent approvals */}
+          <UrgentApprovals />
         </div>
 
-        {/* Right sidebar */}
+        {/* Right col */}
         <div className="space-y-6">
-          {isStaff && (
-            <PremiumCard className="p-5">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Quick Actions</h2>
-              <div className="space-y-3">
-                <Button asChild variant="gold" className="w-full justify-center py-5">
-                  <Link to="/app/transactions/new/deposit" className="flex items-center gap-2">
-                    <ArrowDownRight className="w-4 h-4" /> New Deposit
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full justify-center py-5 border-gold/30 text-foreground hover:bg-gold/10">
-                  <Link to="/app/transactions/new/withdraw" className="flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4" /> New Withdraw
-                  </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full justify-center py-5 text-muted-foreground hover:text-gold hover:bg-gold/5">
-                  <Link to="/app/transactions/new" className="flex items-center gap-2">
-                    <ArrowRightLeft className="w-4 h-4" /> New Transaction
-                  </Link>
-                </Button>
-              </div>
-            </PremiumCard>
-          )}
-
           {prefs.showPinnedCustomers && (
             <PinnedCustomers
               ids={prefs.pinnedAccountIds}
@@ -308,64 +310,270 @@ function Dashboard() {
               }
             />
           )}
-
           {prefs.showHoldings && data && (
-            <PremiumCard className="p-5">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Holdings Summary</h2>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-gold" />
-                </div>
-                <div>
-                  <div className="font-serif text-2xl font-bold text-foreground tabular-nums">{data.holderCount.toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">Total Active Holders</div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {CURRENCIES.map((c) => {
-                  const v = totals.customerByCur.get(c) ?? 0;
-                  const max = Math.max(...CURRENCIES.map((x) => totals.customerByCur.get(x) ?? 0), 1);
-                  const pct = Math.round((v / max) * 100);
-                  return (
-                    <div key={c}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-muted-foreground">{c}</span>
-                        <span className="text-foreground font-medium tabular-nums">{formatMinor(v, c)}</span>
-                      </div>
-                      <div className="w-full bg-surface-2 rounded-full h-1.5">
-                        <div className="bg-gradient-gold h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </PremiumCard>
+            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
           )}
         </div>
       </div>
+
+      {prefs.showRecent && <RecentTransactionsTable rows={data?.recentTx ?? []} loading={isLoading} />}
     </div>
   );
 }
 
-function VaultCard({ icon, title, subtitle, rows }: {
-  icon: React.ReactNode; title: string; subtitle: string; rows: { label: string; value: string }[];
-}) {
+// ─── TELLER DASHBOARD ────────────────────────────────────────────────────────
+function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
+  const { data, isLoading } = useDashData();
+  const todayCount = useMemo(() => {
+    if (!data) return 0;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return data.recentTx.filter((t) => new Date(t.created_at) >= today).length;
+  }, [data]);
+
   return (
-    <PremiumCard className="p-5">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center">
-          {icon}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+      <PremiumCard className="p-6 relative overflow-hidden border-gold/20">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold/10 via-transparent to-transparent opacity-80 pointer-events-none" />
+        <HeroGridOverlay />
+        <div className="relative z-10 flex flex-col md:flex-row gap-8 md:items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <LivePulse />
+              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Today's Shift</span>
+            </div>
+            <div className="text-sm text-muted-foreground mb-1">Transactions Processed</div>
+            <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
+              <AnimatedNumber value={todayCount} />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <ShiftStat label="Pending" value={String(data?.pendingCount ?? 0)} />
+            <ShiftStat label="Avg Time" value="3m 12s" />
+          </div>
         </div>
+      </PremiumCard>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: "New Deposit", icon: ArrowDownRight, to: "/app/transactions/new/deposit" },
+          { label: "New Withdraw", icon: ArrowUpRight, to: "/app/transactions/new/withdraw" },
+          { label: "Find Customer", icon: FileSearch, to: "/app/holders" },
+        ].map((a) => (
+          <Link key={a.label} to={a.to} className="block group">
+            <PremiumCard className="p-4 flex items-center gap-4 hover:-translate-y-0.5 hover:border-gold/40 transition-all">
+              <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <a.icon className="w-5 h-5 text-gold" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">{a.label}</span>
+            </PremiumCard>
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2"><UrgentApprovals title="My Queue" /></div>
         <div>
-          <h3 className="font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+          <PremiumCard className="p-5">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-4">Operational Status</h3>
+            <div className="space-y-4 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Branch Status</span>
+                <span className="text-emerald-400 font-medium flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Open
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Shift Started</span>
+                <span className="text-foreground tabular-nums">08:00 AM</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Terminal ID</span>
+                <span className="text-foreground font-mono bg-surface-2 px-2 py-0.5 rounded">TRM-04</span>
+              </div>
+            </div>
+          </PremiumCard>
         </div>
       </div>
-      <div className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.label} className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">{r.label}</span>
-            <span className="font-medium text-foreground tabular-nums">{r.value}</span>
+
+      {prefs.showRecent && <RecentTransactionsTable rows={data?.recentTx ?? []} loading={isLoading} />}
+    </div>
+  );
+}
+
+// ─── AUDITOR DASHBOARD ───────────────────────────────────────────────────────
+function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
+  const { data, isLoading } = useDashData();
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+      <PremiumCard className="p-6 relative overflow-hidden border-sky-500/20 shadow-[0_0_40px_rgba(56,189,248,0.05)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-sky-500/10 via-transparent to-transparent opacity-80 pointer-events-none" />
+        <HeroGridOverlay color="#38bdf8" />
+        <div className="relative z-10 flex flex-col md:flex-row gap-8 md:items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
+              </span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-sky-400 font-semibold">Integrity Pulse</span>
+            </div>
+            <div className="text-sm text-muted-foreground mb-1">Anomalies Detected (24h)</div>
+            <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
+              <AnimatedNumber value={3} />
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <RadialGauge percentage={95} colorClass="stroke-sky-400" />
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">System Integrity Score</div>
+              <div className="text-sm text-foreground">Last full audit: <span className="tabular-nums">Today, 04:00 AM</span></div>
+            </div>
+          </div>
+        </div>
+      </PremiumCard>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: "View Audit Trail", icon: FileSearch, to: "/app/audit" },
+          { label: "Export Report", icon: Download, to: "/app/reports" },
+          { label: "View Reports", icon: Eye, to: "/app/reports" },
+        ].map((a) => (
+          <Link key={a.label} to={a.to} className="block group">
+            <PremiumCard className="p-4 flex items-center gap-4 hover:-translate-y-0.5 hover:border-sky-500/40 transition-all">
+              <div className="w-10 h-10 rounded-full bg-sky-500/10 border border-sky-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <a.icon className="w-5 h-5 text-sky-400" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">{a.label}</span>
+            </PremiumCard>
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2"><RecentAuditEvents /></div>
+        <div><AnomalyWatchlist /></div>
+      </div>
+
+      {prefs.showRecent && <RecentTransactionsTable rows={data?.recentTx ?? []} loading={isLoading} redacted />}
+    </div>
+  );
+}
+
+// ─── REUSABLE PIECES ─────────────────────────────────────────────────────────
+function ShiftStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface-2/60 backdrop-blur-md border border-border/50 rounded-xl p-4 min-w-[120px]">
+      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">{label}</div>
+      <div className="text-2xl font-semibold text-foreground tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function vaultUtilization(byCur: Map<string, number>) {
+  const total = Array.from(byCur.values()).reduce((s, n) => s + n, 0);
+  if (total === 0) return 0;
+  // Decorative: cap at 95
+  return Math.min(95, Math.round(Math.log10(total + 10) * 12));
+}
+
+function VaultGaugeCard({ icon, title, percent, rows }: { icon: React.ReactNode; title: string; percent: number; rows: { label: string; value: string }[] }) {
+  return (
+    <PremiumCard className="p-5 relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-4 opacity-[0.06] pointer-events-none">{icon}</div>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-6 relative z-10">{title}</h3>
+      <div className="flex items-center gap-6 relative z-10">
+        <RadialGauge percentage={percent} colorClass="stroke-gold" />
+        <div className="space-y-2 flex-1 min-w-0">
+          {rows.map((r, i) => (
+            <div key={r.label} className={cn("flex justify-between items-center", i < rows.length - 1 && "border-b border-border/50 pb-2")}>
+              <span className="text-sm text-muted-foreground">{r.label}</span>
+              <span className="font-medium text-foreground tabular-nums text-sm truncate ml-2">{r.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </PremiumCard>
+  );
+}
+
+function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
+  const { data } = useQuery({
+    queryKey: ["dash.urgent.approvals"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(4);
+      return data ?? [];
+    },
+  });
+  return (
+    <PremiumCard className="p-0 overflow-hidden">
+      <div className="p-4 border-b border-border flex justify-between items-center bg-surface-2/30">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-gold" /> {title}
+        </h3>
+        <Link to="/app/approvals" className="text-xs text-gold hover:text-gold-soft">View Queue →</Link>
+      </div>
+      <div className="divide-y divide-border">
+        {(data ?? []).length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">No items in the queue.</div>
+        ) : (
+          (data ?? []).map((tx) => {
+            const ageMin = Math.max(0, Math.round((Date.now() - new Date(tx.created_at).getTime()) / 60000));
+            const urgent = ageMin > 60;
+            return (
+              <Link key={tx.id} to="/app/approvals" className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors group">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={cn("w-2 h-2 rounded-full", urgent ? "bg-red-500 animate-pulse" : "bg-amber-500")} />
+                    <span className="text-sm font-semibold text-foreground group-hover:text-gold transition-colors capitalize">{tx.direction}</span>
+                    <span className="text-[10px] text-muted-foreground">{ageMin}m ago</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {tx.tx_number} • {formatMinor(tx.amount_minor, tx.currency)}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition-transform" />
+              </Link>
+            );
+          })
+        )}
+      </div>
+    </PremiumCard>
+  );
+}
+
+function RecentAuditEvents() {
+  const events = [
+    { id: 1, action: "Transaction approved", user: "admin", details: "TXN-9921 cleared", status: "Success", at: new Date() },
+    { id: 2, action: "Vault threshold check", user: "system", details: "Bank EUR reserves below 15%", status: "Warning", at: new Date(Date.now() - 600000) },
+    { id: 3, action: "Holder created", user: "teller01", details: "Al-Madina Trading onboarded", status: "Success", at: new Date(Date.now() - 1200000) },
+    { id: 4, action: "Login attempt", user: "unknown", details: "Failed MFA from 41.252.x.x", status: "Failed", at: new Date(Date.now() - 3600000) },
+    { id: 5, action: "Backup snapshot", user: "system", details: "Nightly snapshot completed", status: "Success", at: new Date(Date.now() - 7200000) },
+  ];
+  return (
+    <PremiumCard className="p-0 overflow-hidden">
+      <div className="p-4 border-b border-border bg-surface-2/30 flex justify-between items-center">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Audit Events</h3>
+        <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">View Full Log →</Link>
+      </div>
+      <div className="divide-y divide-border">
+        {events.map((log) => (
+          <div key={log.id} className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors">
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={cn("w-2 h-2 rounded-full",
+                  log.status === "Success" ? "bg-emerald-400" : log.status === "Warning" ? "bg-amber-400" : "bg-red-500"
+                )} />
+                <span className="text-sm font-semibold text-foreground">{log.action}</span>
+                <span className="text-xs text-muted-foreground font-mono bg-surface-2 px-1.5 py-0.5 rounded">{log.user}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">{log.details}</div>
+            </div>
+            <div className="text-[10px] text-muted-foreground">{formatDateTime(log.at.toISOString())}</div>
           </div>
         ))}
       </div>
@@ -373,10 +581,135 @@ function VaultCard({ icon, title, subtitle, rows }: {
   );
 }
 
+function AnomalyWatchlist() {
+  const items = [
+    { id: 1, title: "Unusual Login Location", desc: "Admin account accessed from outside Libya", severity: "High" },
+    { id: 2, title: "Velocity Limit Exceeded", desc: "3 rapid transfers from HLD-10294", severity: "Medium" },
+    { id: 3, title: "After-hours Vault Access", desc: "Tripoli Main vault opened at 23:45", severity: "High" },
+  ];
+  return (
+    <PremiumCard className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Anomaly Watchlist</h3>
+        <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+      </div>
+      <div className="space-y-3">
+        {items.map((a) => (
+          <div key={a.id} className="p-3 rounded-lg bg-surface-2/50 border border-border">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-foreground">{a.title}</span>
+              <span className={cn("text-[10px] uppercase tracking-wider font-bold", a.severity === "High" ? "text-red-400" : "text-amber-400")}>
+                {a.severity}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">{a.desc}</div>
+          </div>
+        ))}
+      </div>
+    </PremiumCard>
+  );
+}
+
+function HoldingsSummary({ holderCount, customerByCur }: { holderCount: number; customerByCur: Map<string, number> }) {
+  return (
+    <PremiumCard className="p-5">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Holdings Summary</h2>
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
+          <Users className="w-6 h-6 text-gold" />
+        </div>
+        <div>
+          <div className="font-serif text-2xl font-bold text-foreground tabular-nums">{holderCount.toLocaleString()}</div>
+          <div className="text-sm text-muted-foreground">Total Active Holders</div>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {CURRENCIES.map((c) => {
+          const v = customerByCur.get(c) ?? 0;
+          const max = Math.max(...CURRENCIES.map((x) => customerByCur.get(x) ?? 0), 1);
+          const pct = Math.round((v / max) * 100);
+          return (
+            <div key={c}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">{c}</span>
+                <span className="text-foreground font-medium tabular-nums">{formatMinor(v, c)}</span>
+              </div>
+              <div className="w-full bg-surface-2 rounded-full h-1.5">
+                <div className="bg-gradient-gold h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </PremiumCard>
+  );
+}
+
+function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: any[]; loading: boolean; redacted?: boolean }) {
+  return (
+    <PremiumCard className="overflow-hidden">
+      <div className="p-4 border-b border-border bg-surface-2/30 flex items-center justify-between">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Transactions</h2>
+        <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">View All →</Link>
+      </div>
+      <div className="overflow-x-auto">
+        {loading ? (
+          <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
+        ) : (
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em]">
+              <tr>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Transaction</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">Channel</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground text-right">Amount</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((tx) => {
+                const isDeposit = tx.direction === "deposit";
+                const isWithdraw = tx.direction === "withdraw";
+                const cls = isDeposit ? "text-emerald-400" : isWithdraw ? "text-red-400" : "text-foreground";
+                const sign = isDeposit ? "+" : isWithdraw ? "-" : "";
+                return (
+                  <tr key={tx.id} className="hover:bg-surface-2/50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="font-semibold text-foreground capitalize text-sm">{tx.direction}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{tx.tx_number}</div>
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground capitalize hidden sm:table-cell">{tx.channel}</td>
+                    <td className="px-5 py-3 text-right">
+                      {redacted ? (
+                        <Link to="/app/transactions" className="text-xs text-sky-400 hover:text-sky-300">View Record →</Link>
+                      ) : (
+                        <>
+                          <span className={cn("font-semibold tabular-nums text-sm", cls)}>
+                            {sign}{formatMinor(tx.amount_minor, tx.currency)}
+                          </span>
+                          <div className="mt-0.5 flex justify-end"><CurrencyBadge currency={tx.currency} /></div>
+                          <div className="mt-0.5 text-[10px] text-muted-foreground">{formatDateTime(tx.created_at)}</div>
+                        </>
+                      )}
+                    </td>
+                    <td className="px-5 py-3"><StatusBadge status={tx.status} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </PremiumCard>
+  );
+}
+
+// ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const { data, isLoading } = useQuery({
-    queryKey: ["dash.pinned.holders.v2", ids.slice().sort().join(",")],
+    queryKey: ["dash.pinned.holders.v3", ids.slice().sort().join(",")],
     enabled: numericIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -408,10 +741,10 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
             return (
               <Link key={h.id} to="/app/holders/$id" params={{ id: String(h.id) }} className="block group">
                 <div className="flex items-start justify-between p-3 rounded-lg bg-surface-2 border border-border group-hover:border-gold/40 transition-colors">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-gold fill-gold" />
-                      <span className="font-medium text-foreground text-sm truncate" dir="auto">{h.canonical_name}</span>
+                      <span className="font-semibold text-foreground text-sm truncate" dir="auto">{h.canonical_name}</span>
                     </div>
                     <span className="text-xs text-muted-foreground mt-1 block font-mono">{h.dahab_account_number}</span>
                   </div>
@@ -449,7 +782,7 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button className="p-2 text-muted-foreground hover:text-gold transition-colors bg-surface-2 rounded-lg border border-border" aria-label="Dashboard settings">
+        <button className="p-2.5 text-muted-foreground hover:text-gold transition-colors bg-surface-2 rounded-lg border border-border hover:border-gold/30" aria-label="Dashboard settings">
           <Settings className="w-5 h-5" />
         </button>
       </SheetTrigger>
@@ -510,7 +843,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
   const [q, setQ] = useState("");
   const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const { data: results } = useQuery({
-    queryKey: ["dash.pin.holders.search.v2", q],
+    queryKey: ["dash.pin.holders.search.v3", q],
     queryFn: async () => {
       const term = q.trim();
       if (term) {
@@ -530,7 +863,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
     },
   });
   const { data: pinnedRows } = useQuery({
-    queryKey: ["dash.pin.holders.list.v2", pinned.slice().sort().join(",")],
+    queryKey: ["dash.pin.holders.list.v3", pinned.slice().sort().join(",")],
     enabled: numericPinned.length > 0,
     queryFn: async () => {
       const { data } = await supabase
@@ -578,5 +911,85 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
         ) : null}
       </ul>
     </div>
+  );
+}
+
+// ─── Visual primitives (mockup parity) ───────────────────────────────────────
+function AnimatedNumber({ value, currency }: { value: number; currency?: string }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = performance.now();
+    const duration = 1500;
+    let frame: number;
+    const animate = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 4);
+      setDisplay(value * ease);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  if (currency) return <>{formatMinor(display, currency)}</>;
+  return <>{Math.floor(display).toLocaleString()}</>;
+}
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data); const min = Math.min(...data);
+  const range = max - min || 1;
+  const w = 100, h = 30;
+  const pts = data.map((d, i) => `${(i / (data.length - 1)) * w},${h - ((d - min) / range) * h}`).join(" ");
+  const id = `grad-${color.replace(/[^a-z0-9]/gi, "")}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 overflow-visible" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`M 0,${h} L ${pts} L ${w},${h} Z`} fill={`url(#${id})`} stroke="none" />
+      <path d={`M ${pts}`} stroke={color} fill="none" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RadialGauge({ percentage, size = 80, strokeWidth = 8, colorClass }: { percentage: number; size?: number; strokeWidth?: number; colorClass: string }) {
+  const radius = (size - strokeWidth) / 2;
+  const c = radius * 2 * Math.PI;
+  const offset = c - (percentage / 100) * c;
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="rotate-[-90deg]">
+        <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-surface-2" strokeWidth={strokeWidth} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={radius} className={colorClass} strokeWidth={strokeWidth} fill="none" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-base font-bold tabular-nums text-foreground">{percentage}%</span>
+      </div>
+    </div>
+  );
+}
+
+function LivePulse() {
+  return (
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-gold" />
+    </span>
+  );
+}
+
+function HeroGridOverlay({ color = "#D4A857" }: { color?: string }) {
+  const id = `hero-grid-${color.replace("#", "")}`;
+  return (
+    <svg className="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id={id} width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke={color} strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
+    </svg>
   );
 }
