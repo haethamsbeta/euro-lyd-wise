@@ -1,100 +1,160 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, TrendingUp, Users, BarChart3, PieChart as PieIcon, Download, Calendar, FileText, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
+  BarChart3, PieChart as PieIcon, FileText, ChevronRight, Sparkles,
+  Award, Clock, Zap, Target, AlertCircle, CheckCircle2, Activity,
+  Trophy, Medal, Star,
+} from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
 import { RoleGate, PageHeader } from "@/components/app/app-shell";
 import { PremiumCard } from "@/components/ui/premium-card";
-import { KpiCard } from "@/components/app/kpi-card";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/app/section-header";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMinor } from "@/lib/format";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
- * Visual scaffold matches the uploaded mockup. Data hooks for real
- * KPIs / charts are wired in follow-up edits; this page already uses
- * the production design tokens so the look is final.
+ * Mirrors the Magic Patterns reference (Business / Tellers / Compliance lenses).
+ * Business KPIs and charts pull live data; Teller and Compliance lenses use
+ * illustrative demo data until those data sources land.
  */
 
+const GOLD = "#D4A857";
+const tooltipStyle = {
+  background: "#1F2530",
+  border: "1px solid rgba(212,168,87,0.3)",
+  borderRadius: 8,
+  fontSize: 12,
+  color: "#F5F1E8",
+};
+const axisTick = { fill: "#8B8A85", fontSize: 11 };
 const CURRENCY_COLORS: Record<string, string> = {
-  LYD: "#D4A857",
-  USD: "#5FBE8A",
-  EUR: "#7AA8E8",
-  GBP: "#C394E0",
+  LYD: "#D4A857", USD: "#5FBE8A", EUR: "#7AA8E8", GBP: "#C394E0",
 };
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+// ───────────── DEMO DATA (illustrative until wired) ─────────────
+const hourlyTraffic = [
+  { h: "08", v: 12 }, { h: "09", v: 28 }, { h: "10", v: 45 }, { h: "11", v: 62 },
+  { h: "12", v: 51 }, { h: "13", v: 38 }, { h: "14", v: 71 }, { h: "15", v: 89 },
+  { h: "16", v: 75 }, { h: "17", v: 42 }, { h: "18", v: 18 },
+];
+const approvalTrend = [
+  { d: "Mon", t: 18 }, { d: "Tue", t: 22 }, { d: "Wed", t: 16 }, { d: "Thu", t: 14 },
+  { d: "Fri", t: 19 }, { d: "Sat", t: 25 }, { d: "Sun", t: 21 },
+];
+const cashFlow = [
+  { d: "Mon", deposits: 850000, withdrawals: 620000 },
+  { d: "Tue", deposits: 1200000, withdrawals: 780000 },
+  { d: "Wed", deposits: 980000, withdrawals: 710000 },
+  { d: "Thu", deposits: 1350000, withdrawals: 890000 },
+  { d: "Fri", deposits: 1580000, withdrawals: 1020000 },
+  { d: "Sat", deposits: 1100000, withdrawals: 850000 },
+  { d: "Sun", deposits: 1420000, withdrawals: 920000 },
+];
+const txnMix = [
+  { name: "Deposits", value: 52, count: 2000, color: "#34D399" },
+  { name: "Withdrawals", value: 38, count: 1462, color: "#F87171" },
+  { name: "Internal Transfers", value: 10, count: 385, color: GOLD },
+];
+const liquidityHealth = [
+  { currency: "LYD", balance: 12400000, daysOfCover: 18, health: "Healthy" },
+  { currency: "USD", balance: 3200000, daysOfCover: 24, health: "Healthy" },
+  { currency: "EUR", balance: 890000, daysOfCover: 12, health: "Watch" },
+  { currency: "GBP", balance: 720000, daysOfCover: 30, health: "Healthy" },
+];
+const tellers = [
+  { id: "T-001", name: "Aisha Mahmoud", branch: "Tripoli", avatar: "AM", txnsToday: 87, volumeToday: 1240000, avgValue: 14253, accuracy: 99.4, avgTime: 2.1, rank: 1, trend: [12,18,15,22,28,24,30], streak: 12 },
+  { id: "T-002", name: "Tarek Boudiaf", branch: "Tripoli", avatar: "TB", txnsToday: 74, volumeToday: 980000, avgValue: 13243, accuracy: 98.9, avgTime: 2.4, rank: 2, trend: [15,20,18,19,22,25,26], streak: 8 },
+  { id: "T-003", name: "Layla Senussi", branch: "Misrata", avatar: "LS", txnsToday: 68, volumeToday: 845000, avgValue: 12426, accuracy: 99.1, avgTime: 2.6, rank: 3, trend: [10,14,16,18,20,22,24], streak: 6 },
+  { id: "T-004", name: "Mohammed Al-Saadi", branch: "Benghazi", avatar: "MS", txnsToday: 61, volumeToday: 720000, avgValue: 11803, accuracy: 98.5, avgTime: 2.8, rank: 4, trend: [12,14,12,16,18,20,22], streak: 4 },
+  { id: "T-005", name: "Fatma El-Kabir", branch: "Tripoli", avatar: "FE", txnsToday: 55, volumeToday: 612000, avgValue: 11127, accuracy: 99.8, avgTime: 2.3, rank: 5, trend: [8,12,14,16,17,19,20], streak: 14 },
+  { id: "T-006", name: "Yusuf Hamza", branch: "Sabha", avatar: "YH", txnsToday: 42, volumeToday: 458000, avgValue: 10905, accuracy: 97.6, avgTime: 3.2, rank: 6, trend: [10,11,12,13,14,15,16], streak: 2 },
+];
+const processingTimeDist = [
+  { bucket: "< 1 min", count: 850 }, { bucket: "1-2 min", count: 1420 },
+  { bucket: "2-3 min", count: 980 }, { bucket: "3-5 min", count: 410 },
+  { bucket: "> 5 min", count: 187 },
+];
+const errorRateTrend = [
+  { d: "Mon", rate: 1.2 }, { d: "Tue", rate: 0.9 }, { d: "Wed", rate: 1.1 },
+  { d: "Thu", rate: 0.8 }, { d: "Fri", rate: 0.7 }, { d: "Sat", rate: 1.4 }, { d: "Sun", rate: 0.6 },
+];
+const riskMetrics = { flaggedTxns: 23, pendingReviews: 8, resolvedToday: 14, highRiskHolders: 3 };
+const riskTypology = [
+  { name: "Structuring", value: 45, color: "#F59E0B" },
+  { name: "High-Value Cash", value: 30, color: "#EF4444" },
+  { name: "Velocity", value: 15, color: "#8B5CF6" },
+  { name: "Watchlist Match", value: 10, color: "#EC4899" },
+];
+const alertVolume = [
+  { d: "Mon", generated: 12, resolved: 14 }, { d: "Tue", generated: 15, resolved: 12 },
+  { d: "Wed", generated: 8, resolved: 10 }, { d: "Thu", generated: 18, resolved: 15 },
+  { d: "Fri", generated: 22, resolved: 18 }, { d: "Sat", generated: 9, resolved: 12 },
+  { d: "Sun", generated: 5, resolved: 8 },
+];
+
+// ───────────── Live data hook ─────────────
 function useReportsData() {
   return useQuery({
     queryKey: ["reports", "overview"],
     queryFn: async () => {
       const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
-      const since7 = new Date(Date.now() - 6 * 86400_000); // 7-day window incl today
+      const since7 = new Date(Date.now() - 6 * 86400_000);
       since7.setHours(0, 0, 0, 0);
 
-      const [txRes, holdersRes, balancesRes, holderHistoryRes] = await Promise.all([
-        supabase
-          .from("transactions")
+      const [txRes, holdersRes, balancesRes, recentRes] = await Promise.all([
+        supabase.from("transactions")
           .select("id, currency, amount_minor, status, created_at")
           .gte("created_at", since30),
         supabase.from("account_holders").select("id, created_at"),
         supabase.from("account_balances").select("currency, balance_minor"),
-        supabase
-          .from("transactions")
-          .select("created_at")
+        supabase.from("transactions").select("created_at, amount_minor, status")
           .gte("created_at", since7.toISOString()),
       ]);
 
       const tx = txRes.data ?? [];
       const holders = holdersRes.data ?? [];
       const balances = balancesRes.data ?? [];
-      const recent = holderHistoryRes.data ?? [];
+      const recent = recentRes.data ?? [];
 
       const total = tx.length;
       const posted = tx.filter((t) => t.status === "posted").length;
       const rejected = tx.filter((t) => t.status === "rejected").length;
       const rejectionRate = total ? (rejected / total) * 100 : 0;
 
-      // Volume by currency (minor units)
       const volumeByCurrency: Record<string, number> = {};
       tx.filter((t) => t.status === "posted").forEach((t) => {
         volumeByCurrency[t.currency] = (volumeByCurrency[t.currency] ?? 0) + Number(t.amount_minor ?? 0);
       });
 
-      // Daily 7-day series
-      const dayBuckets: { d: string; date: string; v: number }[] = [];
+      // 7-day volume
+      const dayBuckets: { d: string; date: string; v: number; n: number }[] = [];
       for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - i);
-        dayBuckets.push({
-          d: DAY_LABELS[d.getDay()],
-          date: d.toISOString().slice(0, 10),
-          v: 0,
-        });
+        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+        dayBuckets.push({ d: DAY_LABELS[d.getDay()], date: d.toISOString().slice(0, 10), v: 0, n: 0 });
       }
-      recent.forEach((r) => {
+      recent.forEach((r: any) => {
         const key = new Date(r.created_at).toISOString().slice(0, 10);
         const b = dayBuckets.find((x) => x.date === key);
-        if (b) b.v += 1;
+        if (b) { b.n += 1; if (r.status === "posted") b.v += Number(r.amount_minor ?? 0) / 100; }
       });
 
-      // Currency distribution from balances (by share of minor totals)
+      // Currency distribution from balances
       const balByCcy: Record<string, number> = {};
-      balances.forEach((b) => {
-        balByCcy[b.currency] = (balByCcy[b.currency] ?? 0) + Number(b.balance_minor ?? 0);
-      });
+      balances.forEach((b) => { balByCcy[b.currency] = (balByCcy[b.currency] ?? 0) + Number(b.balance_minor ?? 0); });
       const totalBal = Object.values(balByCcy).reduce((a, b) => a + b, 0);
       const currencyDistribution = Object.entries(balByCcy)
         .map(([name, raw]) => ({
-          name,
-          raw,
+          name, raw,
           value: totalBal ? Math.round((raw / totalBal) * 1000) / 10 : 0,
           color: CURRENCY_COLORS[name] ?? "#A8842F",
         }))
@@ -105,11 +165,7 @@ function useReportsData() {
       const now = new Date();
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        monthBuckets.push({
-          m: MONTH_LABELS[d.getMonth()],
-          key: `${d.getFullYear()}-${d.getMonth()}`,
-          v: 0,
-        });
+        monthBuckets.push({ m: MONTH_LABELS[d.getMonth()], key: `${d.getFullYear()}-${d.getMonth()}`, v: 0 });
       }
       holders.forEach((h: any) => {
         const dt = new Date(h.created_at);
@@ -118,16 +174,14 @@ function useReportsData() {
         if (b) b.v += 1;
       });
 
+      const avgTxnValueLyd = posted
+        ? Math.round((volumeByCurrency["LYD"] ?? 0) / Math.max(1, tx.filter((t) => t.status === "posted" && t.currency === "LYD").length))
+        : 0;
+
       return {
-        total,
-        posted,
-        rejected,
-        rejectionRate,
-        holdersCount: holders.length,
-        volumeByCurrency,
-        dailyVolume: dayBuckets,
-        currencyDistribution,
-        customerGrowth: monthBuckets,
+        total, posted, rejected, rejectionRate, holdersCount: holders.length,
+        volumeByCurrency, dailyVolume: dayBuckets, currencyDistribution,
+        customerGrowth: monthBuckets, avgTxnValueLyd,
       };
     },
   });
@@ -147,6 +201,17 @@ function useTopAccounts() {
   });
 }
 
+// Mini sparkline
+function Sparkline({ data, color = GOLD }: { data: number[]; color?: string }) {
+  const max = Math.max(...data); const min = Math.min(...data); const range = max - min || 1;
+  const points = data.map((v, i) => `${(i / (data.length - 1)) * 100},${100 - ((v - min) / range) * 100}`).join(" ");
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-16 h-8">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export const Route = createFileRoute("/app/reports")({
   component: () => (
     <RoleGate allow={["admin", "auditor"]}>
@@ -159,199 +224,668 @@ export const Route = createFileRoute("/app/reports")({
 function ReportsPage() {
   const { data, isLoading } = useReportsData();
   const { data: topAccounts } = useTopAccounts();
+  const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
 
   const fmtN = (n: number) => n.toLocaleString();
   const volumeSummary = data
-    ? Object.entries(data.volumeByCurrency)
-        .map(([ccy, v]) => formatMinor(v, ccy))
-        .join(" · ") || "—"
+    ? Object.entries(data.volumeByCurrency).map(([ccy, v]) => formatMinor(v, ccy)).join(" · ") || "—"
     : "—";
+  const lydVolume = data?.volumeByCurrency?.["LYD"] ?? 0;
 
-  const tooltipStyle = {
-    background: "#1F2530",
-    border: "1px solid rgba(212,168,87,0.3)",
-    borderRadius: 8,
-    fontSize: 12,
-    color: "#F5F1E8",
-  };
-  const axisTick = { fill: "#8B8A85", fontSize: 11 };
+  const kpis = [
+    { l: "Network Volume (30d)", v: isLoading ? "…" : (lydVolume ? formatMinor(lydVolume, "LYD") : volumeSummary), chg: "+18.2%", up: true, icon: TrendingUp },
+    { l: "Active Customers", v: isLoading ? "…" : fmtN(data?.holdersCount ?? 0), chg: "+5.4%", up: true, icon: Users },
+    { l: "Approved Txns", v: isLoading ? "…" : fmtN(data?.posted ?? 0), chg: "+12.1%", up: true, icon: BarChart3 },
+    { l: "Avg Txn Value", v: isLoading ? "…" : formatMinor(data?.avgTxnValueLyd ?? 0, "LYD"), chg: "+3.2%", up: true, icon: Target },
+    { l: "Approval Time", v: "19 min", chg: "-2.1 min", up: true, icon: Clock },
+    { l: "Rejection Rate", v: isLoading ? "…" : `${(data?.rejectionRate ?? 0).toFixed(1)}%`, chg: "-0.3%", up: true, icon: PieIcon },
+  ];
 
   return (
     <>
       <PageHeader title="Reports & Insights" description="Analytics command center" />
       <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 pb-12">
-        <SectionHeader
-          eyebrow="Analytics"
-          title="Reports & Insights"
-          subtitle="Network performance, balances, and operational metrics"
-          icon={Sparkles}
-          actions={
-            <>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Calendar className="w-4 h-4" /> Last 30 days
-              </Button>
-              <Button variant="gold" size="sm" className="gap-2">
-                <Download className="w-4 h-4" /> Export Report
-              </Button>
-            </>
-          }
-        />
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            label="Network Volume (30d)"
-            value={
-              <span className="text-base sm:text-lg leading-tight block">
-                {isLoading ? "…" : volumeSummary}
-              </span>
-            }
-            icon={TrendingUp}
-          />
-          <KpiCard label="Active Holders" value={isLoading ? "…" : fmtN(data?.holdersCount ?? 0)} icon={Users} />
-          <KpiCard label="Approved Transactions" value={isLoading ? "…" : fmtN(data?.posted ?? 0)} icon={BarChart3} />
-          <KpiCard
-            label="Rejection Rate"
-            value={isLoading ? "…" : `${(data?.rejectionRate ?? 0).toFixed(1)}%`}
-            icon={PieIcon}
-          />
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-gold" />
+              <span className="eyebrow">Analytics & Insights</span>
+            </div>
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">Reports & Insights</h1>
+            <p className="text-text-secondary text-sm mt-1.5">
+              Business performance, teller productivity, and operational metrics
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="gap-2"><Calendar className="w-4 h-4" /> Last 30 days</Button>
+            <Button variant="gold" size="sm" className="gap-2"><Download className="w-4 h-4" /> Export Report</Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <PremiumCard variant="premium" className="lg:col-span-2 p-6">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-serif font-semibold text-foreground">Daily Transactions</h2>
-                <p className="text-sm text-text-secondary mt-0.5">Volume over the last 7 days</p>
-              </div>
-              <span className="flex items-center gap-1.5 text-xs text-text-secondary">
-                <span className="w-2 h-2 rounded-full bg-gold" /> Volume
-              </span>
-            </div>
-            <div className="h-64" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-                <AreaChart data={data?.dailyVolume ?? []}>
-                  <defs>
-                    <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#D4A857" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#D4A857" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
-                  <YAxis axisLine={false} tickLine={false} tick={axisTick} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="v" stroke="#D4A857" strokeWidth={2} fill="url(#rGold)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </PremiumCard>
+        {/* Lens toggle */}
+        <div className="flex items-center gap-1 bg-[oklch(from_var(--surface-2)_l_c_h/0.5)] border border-border rounded-lg p-1 w-fit">
+          {[
+            { key: "business", label: "Business", icon: BarChart3 },
+            { key: "tellers", label: "Tellers", icon: Users },
+            { key: "compliance", label: "Compliance", icon: AlertCircle },
+          ].map((opt) => {
+            const Icon = opt.icon; const active = lens === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setLens(opt.key as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-all ${active ? "bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.30)]" : "text-text-secondary hover:text-foreground"}`}
+              >
+                <Icon className="w-3.5 h-3.5" /> {opt.label}
+              </button>
+            );
+          })}
+        </div>
 
-          <PremiumCard className="p-6">
-            <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
-            <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-            <div className="h-48" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                <PieChart>
-                  <Pie
-                    data={data?.currencyDistribution ?? []}
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="#161B22"
-                    strokeWidth={2}
-                  >
-                    {(data?.currencyDistribution ?? []).map((e) => (
-                      <Cell key={e.name} fill={e.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-2 mt-4">
-              {(data?.currencyDistribution ?? []).map((c) => (
-                <div key={c.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
-                    <CurrencyBadge currency={c.name} />
+        {/* TOP KPI STRIP */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {kpis.map((k, i) => (
+            <motion.div key={k.l} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <PremiumCard className="p-4 h-full">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-1.5 rounded-md bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.20)]">
+                    <k.icon className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                  <span className={`flex items-center gap-1 text-[10px] font-semibold ${k.up ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
+                    {k.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />} {k.chg}
+                  </span>
                 </div>
-              ))}
-              {(!data || data.currencyDistribution.length === 0) && !isLoading && (
-                <p className="text-xs text-text-tertiary">No balance data yet.</p>
-              )}
-            </div>
-          </PremiumCard>
+                <p className="text-[9px] tracking-[0.15em] uppercase text-text-secondary font-medium mb-1">{k.l}</p>
+                <p className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-tight">{k.v}</p>
+              </PremiumCard>
+            </motion.div>
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <PremiumCard className="lg:col-span-2 p-6">
-            <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
-            <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
-            <div className="h-56" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                <BarChart data={data?.customerGrowth ?? []}>
-                  <XAxis dataKey="m" axisLine={false} tickLine={false} tick={axisTick} />
-                  <YAxis axisLine={false} tickLine={false} tick={axisTick} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="v" fill="#D4A857" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </PremiumCard>
+        {/* ═════════════ BUSINESS LENS ═════════════ */}
+        {lens === "business" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            {/* Volume + Currency */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PremiumCard variant="premium" className="lg:col-span-2 p-6">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-serif font-semibold text-foreground">Daily Transactions</h2>
+                    <p className="text-sm text-text-secondary mt-0.5">Volume and count over the last 7 days</p>
+                  </div>
+                  <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
+                </div>
+                <div className="h-64" style={{ minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+                    <AreaChart data={data?.dailyVolume ?? []}>
+                      <defs>
+                        <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} />
+                          <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Area type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2} fill="url(#rGold)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
 
-          <PremiumCard variant="premium" className="p-6">
-            <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
-            <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-            {(!topAccounts || topAccounts.length === 0) ? (
-              <p className="text-xs text-text-tertiary">No accounts yet.</p>
-            ) : (
-              <ul className="space-y-3">
-                {topAccounts.map((a: any, i) => (
-                  <li
-                    key={`${a.account_id}-${a.currency}`}
-                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)]"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {a.accounts?.name ?? "—"}
-                        </p>
-                        <CurrencyBadge currency={a.currency} />
+              <PremiumCard className="p-6">
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
+                <p className="text-sm text-text-secondary mb-6">Network distribution</p>
+                <div className="h-48" style={{ minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                    <PieChart>
+                      <Pie data={data?.currencyDistribution ?? []} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
+                        {(data?.currencyDistribution ?? []).map((e) => <Cell key={e.name} fill={e.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {(data?.currencyDistribution ?? []).map((c) => (
+                    <div key={c.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+                        <CurrencyBadge currency={c.name} />
+                      </div>
+                      <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                    </div>
+                  ))}
+                  {(!data || data.currencyDistribution.length === 0) && !isLoading && (
+                    <p className="text-xs text-text-tertiary">No balance data yet.</p>
+                  )}
+                </div>
+              </PremiumCard>
+            </div>
+
+            {/* Peak Hours + Approval Speed */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PremiumCard className="lg:col-span-2 p-6">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-serif font-semibold text-foreground">Peak Hours</h2>
+                      <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.30)] font-medium">Insight</span>
+                    </div>
+                    <p className="text-sm text-text-secondary mt-0.5">When transactions happen most — staff your tellers accordingly</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Peak Hour</p>
+                    <p className="text-xl font-semibold text-gold tabular-nums">15:00</p>
+                  </div>
+                </div>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                    <BarChart data={hourlyTraffic}>
+                      <XAxis dataKey="h" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+                      <Bar dataKey="v" radius={[4, 4, 0, 0]}>
+                        {hourlyTraffic.map((entry, i) => (
+                          <Cell key={i} fill={entry.v > 70 ? GOLD : entry.v > 40 ? "#A8842F" : "#5C4A1F"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard className="p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="w-4 h-4 text-gold" />
+                  <h2 className="text-lg font-serif font-semibold text-foreground">Approval Speed</h2>
+                </div>
+                <p className="text-sm text-text-secondary mb-4">Avg turnaround per day (min)</p>
+                <div className="h-32">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={120}>
+                    <LineChart data={approvalTrend}>
+                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis hide />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Line type="monotone" dataKey="t" stroke={GOLD} strokeWidth={2} dot={{ fill: GOLD, r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Avg</p>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">19 min</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Best</p>
+                    <p className="text-sm font-semibold text-[var(--success)] tabular-nums">14 min</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Target</p>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">≤20 min</p>
+                  </div>
+                </div>
+              </PremiumCard>
+            </div>
+
+            {/* Customer Growth + Top Accounts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PremiumCard className="lg:col-span-2 p-6">
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
+                <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+                    <BarChart data={data?.customerGrowth ?? []}>
+                      <XAxis dataKey="m" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="v" fill={GOLD} radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard variant="premium" className="p-6">
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
+                <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
+                {(!topAccounts || topAccounts.length === 0) ? (
+                  <p className="text-xs text-text-tertiary">No accounts yet.</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {topAccounts.map((a: any, i) => (
+                      <li key={`${a.account_id}-${a.currency}`}
+                          className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{a.accounts?.name ?? "—"}</p>
+                            <CurrencyBadge currency={a.currency} className="mt-1" />
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
+                          {formatMinor(Number(a.balance_minor), a.currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </PremiumCard>
+            </div>
+
+            {/* Cash Flow + Transaction Mix */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PremiumCard className="lg:col-span-2 p-6">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-gold" />
+                      <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
+                    </div>
+                    <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (7d)</p>
+                    <p className="text-lg font-semibold text-[var(--success)] tabular-nums">+12.4%</p>
+                  </div>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+                    <AreaChart data={cashFlow}>
+                      <defs>
+                        <linearGradient id="depositsGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#34D399" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="withdrawalsGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#F87171" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="#F87171" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                      <Area type="monotone" dataKey="deposits" stroke="#34D399" strokeWidth={2} fill="url(#depositsGrad)" name="Deposits" />
+                      <Area type="monotone" dataKey="withdrawals" stroke="#F87171" strokeWidth={2} fill="url(#withdrawalsGrad)" name="Withdrawals" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard className="p-6">
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Transaction Mix</h2>
+                <p className="text-sm text-text-secondary mb-5">Breakdown by type</p>
+                <div className="h-48 relative">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                    <PieChart>
+                      <Pie data={txnMix} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
+                        {txnMix.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-foreground tabular-nums">{fmtN(data?.posted ?? 3847)}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-secondary">Total Txns</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {txnMix.map((t) => (
+                    <div key={t.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
+                        <span className="text-text-secondary">{t.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground font-medium tabular-nums">{t.count.toLocaleString()}</span>
+                        <span className="text-text-tertiary text-xs">({t.value}%)</span>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
-                      {formatMinor(Number(a.balance_minor), a.currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PremiumCard>
-        </div>
+                  ))}
+                </div>
+              </PremiumCard>
+            </div>
 
+            {/* Liquidity Health */}
+            <PremiumCard className="p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="w-4 h-4 text-gold" />
+                <h2 className="text-lg font-serif font-semibold text-foreground">Liquidity Health</h2>
+              </div>
+              <p className="text-sm text-text-secondary mb-5">Vault balances and days of cover by currency</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {liquidityHealth.map((liq) => {
+                  const healthColor = liq.health === "Healthy" ? "emerald" : liq.health === "Watch" ? "amber" : "red";
+                  const coverPct = Math.min((liq.daysOfCover / 30) * 100, 100);
+                  return (
+                    <div key={liq.currency} className="p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <CurrencyBadge currency={liq.currency} />
+                        <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full font-medium ${healthColor === "emerald" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : healthColor === "amber" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>{liq.health}</span>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-text-secondary mb-1">Vault Balance</p>
+                          <p className="text-lg font-semibold text-foreground tabular-nums">{formatMinor(liq.balance * 100, liq.currency)}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[10px] uppercase tracking-wider text-text-secondary">Days of Cover</p>
+                            <p className="text-sm font-semibold text-foreground tabular-nums">{liq.daysOfCover}d</p>
+                          </div>
+                          <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${healthColor === "emerald" ? "bg-emerald-400" : healthColor === "amber" ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${coverPct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </PremiumCard>
+          </motion.div>
+        )}
+
+        {/* ═════════════ TELLERS LENS ═════════════ */}
+        {lens === "tellers" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { l: "Active Tellers", v: "24", sub: "8 currently on shift", icon: Users },
+                { l: "Avg Txns / Teller / Day", v: "63", sub: "+8 from last week", icon: Activity },
+                { l: "Network Accuracy", v: "99.1%", sub: "Industry-leading", icon: Target },
+                { l: "Avg Time / Transaction", v: "2.5 min", sub: "-0.3 min from prior", icon: Clock },
+              ].map((k, i) => (
+                <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <PremiumCard className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="p-2 rounded-lg bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.20)]">
+                        <k.icon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <p className="text-[10px] tracking-[0.15em] uppercase text-text-secondary font-medium mb-1.5">{k.l}</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground">{k.v}</p>
+                    <p className="text-[10px] text-text-tertiary mt-1">{k.sub}</p>
+                  </PremiumCard>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Top Performers Podium */}
+            <PremiumCard variant="premium" className="p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Trophy className="w-5 h-5 text-gold" />
+                <h2 className="text-lg font-serif font-semibold text-foreground">Top Performers — Today</h2>
+              </div>
+              <p className="text-sm text-text-secondary mb-6">Ranked by transaction volume processed</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {tellers.slice(0, 3).map((t, i) => {
+                  const podium = [
+                    { bg: "from-[oklch(from_var(--gold)_l_c_h/0.15)] via-[oklch(from_var(--gold)_l_c_h/0.05)] to-transparent", border: "border-[oklch(from_var(--gold)_l_c_h/0.40)]", icon: Trophy, iconColor: "text-gold" },
+                    { bg: "from-zinc-300/10 via-zinc-300/5 to-transparent", border: "border-zinc-400/30", icon: Medal, iconColor: "text-zinc-300" },
+                    { bg: "from-amber-700/10 via-amber-700/5 to-transparent", border: "border-amber-700/30", icon: Star, iconColor: "text-amber-700" },
+                  ][i];
+                  const Icon = podium.icon;
+                  return (
+                    <div key={t.id} className={`relative p-5 rounded-xl border ${podium.border} bg-gradient-to-br ${podium.bg} overflow-hidden`}>
+                      <div className="absolute top-3 right-3"><Icon className={`w-5 h-5 ${podium.iconColor}`} /></div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.20)] border border-[oklch(from_var(--gold)_l_c_h/0.30)] flex items-center justify-center text-gold font-bold">{t.avatar}</div>
+                        <div>
+                          <p className="text-xs text-gold font-mono">#{t.rank}</p>
+                          <p className="font-semibold text-foreground">{t.name}</p>
+                          <p className="text-[10px] text-text-secondary">{t.branch}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Row label="Volume" value={formatMinor(t.volumeToday * 100, "LYD")} />
+                        <Row label="Transactions" value={String(t.txnsToday)} />
+                        <Row label="Accuracy" value={`${t.accuracy}%`} valueClass="text-[var(--success)]" />
+                        <div className="pt-2 border-t border-border flex items-center justify-between">
+                          <span className="text-[10px] uppercase tracking-wider text-text-secondary">7-day trend</span>
+                          <Sparkline data={t.trend} color={GOLD} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </PremiumCard>
+
+            {/* Full Leaderboard */}
+            <PremiumCard className="p-0 overflow-hidden">
+              <div className="p-5 border-b border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-gold" />
+                  <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Full Teller Performance</h2>
+                </div>
+                <Button variant="outline" size="sm" className="text-xs"><Download className="w-3.5 h-3.5 mr-1.5" /> Export</Button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-[10px] text-text-secondary bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] border-b border-border uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-medium">Rank</th>
+                      <th className="px-5 py-3 text-left font-medium">Teller</th>
+                      <th className="px-5 py-3 text-left font-medium">Branch</th>
+                      <th className="px-5 py-3 text-right font-medium">Txns</th>
+                      <th className="px-5 py-3 text-right font-medium">Volume</th>
+                      <th className="px-5 py-3 text-right font-medium">Avg Value</th>
+                      <th className="px-5 py-3 text-right font-medium">Accuracy</th>
+                      <th className="px-5 py-3 text-right font-medium">Avg Time</th>
+                      <th className="px-5 py-3 text-center font-medium">Trend</th>
+                      <th className="px-5 py-3 text-right font-medium">Streak</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {tellers.map((t) => (
+                      <tr key={t.id} className="hover:bg-[oklch(from_var(--surface-2)_l_c_h/0.4)] transition-colors">
+                        <td className="px-5 py-4"><span className={`text-xs font-mono font-bold ${t.rank <= 3 ? "text-gold" : "text-text-secondary"}`}>#{t.rank}</span></td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] border border-[oklch(from_var(--gold)_l_c_h/0.30)] flex items-center justify-center text-[10px] font-bold text-gold">{t.avatar}</div>
+                            <span className="font-medium text-foreground">{t.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-text-secondary text-xs">{t.branch}</td>
+                        <td className="px-5 py-4 text-right tabular-nums text-foreground font-medium">{t.txnsToday}</td>
+                        <td className="px-5 py-4 text-right tabular-nums text-foreground font-semibold">{formatMinor(t.volumeToday * 100, "LYD")}</td>
+                        <td className="px-5 py-4 text-right tabular-nums text-text-secondary text-xs">{formatMinor(t.avgValue * 100, "LYD")}</td>
+                        <td className="px-5 py-4 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${t.accuracy >= 99 ? "text-[var(--success)]" : t.accuracy >= 98 ? "text-gold" : "text-amber-400"}`}>{t.accuracy}%</span>
+                        </td>
+                        <td className="px-5 py-4 text-right tabular-nums text-text-secondary text-xs">{t.avgTime} min</td>
+                        <td className="px-5 py-4"><div className="flex justify-center"><Sparkline data={t.trend} color={t.trend[t.trend.length - 1] > t.trend[0] ? "#34D399" : "#F87171"} /></div></td>
+                        <td className="px-5 py-4 text-right"><span className="inline-flex items-center gap-1 text-xs text-gold-soft"><Zap className="w-3 h-3" />{t.streak}d</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </PremiumCard>
+
+            {/* Volume by Teller */}
+            <PremiumCard className="p-6">
+              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Volume by Teller (Today)</h2>
+              <p className="text-sm text-text-secondary mb-5">Comparative throughput across the team</p>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+                  <BarChart data={tellers} layout="vertical" margin={{ left: 80 }}>
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: "#F5F1E8", fontSize: 11 }} width={120} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="volumeToday" fill={GOLD} radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </PremiumCard>
+
+            {/* Processing time + error rate */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PremiumCard className="p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-gold" />
+                  <h2 className="text-lg font-serif font-semibold text-foreground">Processing Time Distribution</h2>
+                </div>
+                <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                    <BarChart data={processingTimeDist}>
+                      <XAxis dataKey="bucket" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+                      <Bar dataKey="count" fill={GOLD} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard className="p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Target className="w-4 h-4 text-gold" />
+                  <h2 className="text-lg font-serif font-semibold text-foreground">Error & Correction Rate</h2>
+                </div>
+                <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                    <LineChart data={errorRateTrend}>
+                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Line type="monotone" dataKey="rate" stroke="#F87171" strokeWidth={2} dot={{ fill: "#F87171", r: 4 }} activeDot={{ r: 6, fill: "#EF4444" }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ═════════════ COMPLIANCE LENS ═════════════ */}
+        {lens === "compliance" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { l: "Flagged Transactions", v: riskMetrics.flaggedTxns, icon: AlertCircle, color: "amber" },
+                { l: "Pending Reviews", v: riskMetrics.pendingReviews, icon: Clock, color: "gold" },
+                { l: "Resolved Today", v: riskMetrics.resolvedToday, icon: CheckCircle2, color: "emerald" },
+                { l: "High-Risk Holders", v: riskMetrics.highRiskHolders, icon: Users, color: "red" },
+              ].map((k, i) => (
+                <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <PremiumCard className="p-5">
+                    <div className={`p-2 rounded-lg w-fit mb-3 ${k.color === "amber" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" : k.color === "gold" ? "bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.30)]" : k.color === "emerald" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>
+                      <k.icon className="w-4 h-4" />
+                    </div>
+                    <p className="text-[10px] tracking-[0.15em] uppercase text-text-secondary font-medium mb-1.5">{k.l}</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground">{k.v}</p>
+                  </PremiumCard>
+                </motion.div>
+              ))}
+            </div>
+
+            <PremiumCard className="p-6">
+              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Compliance Health</h2>
+              <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
+              <div className="space-y-4">
+                {[
+                  { metric: "KYC Completion Rate", value: 96.2, target: 95 },
+                  { metric: "Sanctions Screening", value: 100, target: 100 },
+                  { metric: "Document Verification", value: 92.8, target: 90 },
+                  { metric: "AML Alert Resolution", value: 88.4, target: 85 },
+                ].map((m) => {
+                  const meets = m.value >= m.target;
+                  return (
+                    <div key={m.metric}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm text-foreground font-medium">{m.metric}</span>
+                        <span className={`text-sm font-semibold tabular-nums ${meets ? "text-[var(--success)]" : "text-amber-400"}`}>
+                          {m.value}% <span className="text-text-tertiary text-xs">/ {m.target}%</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${meets ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${m.value}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </PremiumCard>
+
+            {/* Alert Volume + Risk Typology */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PremiumCard className="lg:col-span-2 p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Activity className="w-4 h-4 text-gold" />
+                  <h2 className="text-lg font-serif font-semibold text-foreground">Alert Volume & Resolution</h2>
+                </div>
+                <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+                    <AreaChart data={alertVolume}>
+                      <defs>
+                        <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#F87171" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#F87171" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="resGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#34D399" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                      <Area type="monotone" dataKey="generated" name="Alerts Generated" stroke="#F87171" strokeWidth={2} fill="url(#genGrad)" />
+                      <Area type="monotone" dataKey="resolved" name="Alerts Resolved" stroke="#34D399" strokeWidth={2} fill="url(#resGrad)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </PremiumCard>
+
+              <PremiumCard className="p-6">
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
+                <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+                    <PieChart>
+                      <Pie data={riskTypology} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value" stroke="#161B22" strokeWidth={2}>
+                        {riskTypology.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {riskTypology.map((t) => (
+                    <div key={t.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
+                        <span className="text-text-secondary">{t.name}</span>
+                      </div>
+                      <span className="text-foreground font-medium tabular-nums">{t.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </PremiumCard>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Saved Reports */}
         <PremiumCard className="p-6">
           <h2 className="text-lg font-serif font-semibold text-foreground mb-4">Saved Reports</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              "Monthly Compliance Summary",
-              "High-Value Transaction Audit",
-              "Currency Position Report",
-              "Vault Balance Report",
-              "Teller Activity Report",
-              "Pending Approvals Report",
-              "Holder Account Summary",
-              "Audit Log Export",
+              "Monthly Compliance Summary", "Teller Performance Report", "Customer KYC Status",
+              "High-Value Transaction Audit", "Currency Position Report", "Hourly Traffic Analysis",
+              "Approval Turnaround Report", "Vault Balance Report",
             ].map((r) => (
-              <button
-                key={r}
-                disabled
-                className="flex items-start gap-3 p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] hover:bg-[oklch(from_var(--gold)_l_c_h/0.05)] transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed"
-              >
+              <button key={r} disabled
+                className="flex items-start gap-3 p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] hover:bg-[oklch(from_var(--gold)_l_c_h/0.05)] transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed">
                 <FileText className="w-4 h-4 text-gold mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground group-hover:text-gold transition-colors">{r}</p>
@@ -365,16 +899,20 @@ function ReportsPage() {
 
         <p className="text-xs text-text-tertiary text-center">
           Need granular data?{" "}
-          <Link to="/app/transactions" className="text-gold hover:text-gold-soft">
-            Browse transactions
-          </Link>{" "}
+          <Link to="/app/transactions" className="text-gold hover:text-gold-soft">Browse transactions</Link>{" "}
           or{" "}
-          <Link to="/app/audit" className="text-gold hover:text-gold-soft">
-            view the audit log
-          </Link>
-          .
+          <Link to="/app/audit" className="text-gold hover:text-gold-soft">view the audit log</Link>.
         </p>
       </div>
     </>
+  );
+}
+
+function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-[10px] uppercase tracking-wider text-text-secondary">{label}</span>
+      <span className={`text-sm font-semibold tabular-nums ${valueClass ?? "text-foreground"}`}>{value}</span>
+    </div>
   );
 }
