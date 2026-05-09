@@ -435,42 +435,57 @@ function AccountListBlock({
               >
                 <Card
                   className={cn(
-                    "group cursor-pointer p-4 transition-all",
+                    "group relative cursor-pointer overflow-hidden border-gold/20 bg-card/80 p-5 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.5)] transition-all",
                     isHighlighted
                       ? "border-gold ring-2 ring-gold/40 shadow-[0_0_30px_rgba(212,168,87,0.25)]"
-                      : "hover:border-gold/30",
+                      : "hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_10px_30px_-10px_oklch(0.74_0.135_82/0.35)]",
                   )}
                 >
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute inset-y-0 left-0 w-1",
+                      tt.text.replace("text-", "bg-"),
+                    )}
+                  />
                   <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div className="flex items-start gap-4">
                       <CurrencyBadge currency={acc.currency_code} className="mt-1" />
                       <div className="min-w-0">
-                        <div className="font-medium transition-colors group-hover:text-gold" dir="auto">
+                        <div className="font-serif text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-gold" dir="auto">
                           {acc.account_display_name}
                         </div>
                         {acc.account_alias_name && (
-                          <div className="mt-0.5 text-[10px] text-text-tertiary">{acc.account_alias_name}</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">{acc.account_alias_name}</div>
                         )}
-                        <div className="mt-1.5 inline-block rounded border border-border bg-surface-2 px-2 py-0.5 font-mono text-xs text-gold/80">
+                        <div className="mt-2 inline-flex items-center rounded-md border border-gold/30 bg-gold/5 px-2 py-0.5 font-mono text-xs font-semibold tracking-wide text-gold">
                           {acc.account_number}
                         </div>
                         {!compact && (
-                          <div className="mt-1.5 text-[10px] text-text-secondary">
-                            <Badge variant="outline" className="text-[10px]">{acc.account_nature}</Badge>
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="border-border/80 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider"
+                            >
+                              {acc.account_nature}
+                            </Badge>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4 sm:justify-end">
                       <div className="text-right">
-                        <div className={cn("font-semibold tabular-nums", tt.text)}>
-                          {fmt(Number(acc.current_balance ?? 0))} <span className="text-xs opacity-70">{acc.currency_code}</span>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                          Current balance
                         </div>
-                        <div className="mt-1 flex justify-end">
+                        <div className={cn("mt-0.5 font-serif text-2xl font-semibold tabular-nums leading-none", tt.text)}>
+                          {fmt(Number(acc.current_balance ?? 0))}
+                          <span className="ml-1 align-baseline text-sm font-normal opacity-70">{acc.currency_code}</span>
+                        </div>
+                        <div className="mt-2 flex justify-end">
                           <StatusBadge status={acc.status} />
                         </div>
                       </div>
-                      <ArrowRight className="h-5 w-5 text-text-tertiary transition-all group-hover:translate-x-1 group-hover:text-gold" />
+                      <ArrowRight className="h-5 w-5 text-muted-foreground transition-all group-hover:translate-x-1 group-hover:text-gold" />
                     </div>
                   </div>
                 </Card>
