@@ -331,11 +331,26 @@ function TxDetail() {
             <div className="text-[10px] uppercase tracking-[0.15em] text-text-secondary mb-4">
               Audit trail
             </div>
-            {!audit || audit.length === 0 ? (
-              <div className="text-sm text-text-secondary">No audit events.</div>
-            ) : (
-              <div className="relative pl-5 border-l border-border space-y-4">
-                {audit.map((ev) => (
+            <div className="relative pl-5 border-l border-border space-y-4">
+              {/* Initiation entry — always shown */}
+              <div className="relative">
+                <span className="absolute -left-[25px] top-1.5 w-2.5 h-2.5 rounded-full bg-gold/70 border border-gold" />
+                <div className="text-sm font-medium text-foreground">Initiated</div>
+                <div className="text-xs text-text-secondary mt-0.5">
+                  by{" "}
+                  <span className="text-gold-soft">
+                    {creator || "Unknown teller"}
+                  </span>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-text-tertiary mt-1">
+                  {formatDateTime(tx.created_at)}
+                </div>
+              </div>
+
+              {(!audit || audit.length === 0) ? (
+                <div className="text-xs text-text-secondary">No further audit events.</div>
+              ) : (
+                audit.map((ev) => (
                   <div key={ev.id} className="relative">
                     <span className="absolute -left-[25px] top-1.5 w-2.5 h-2.5 rounded-full bg-surface-2 border border-border" />
                     <div className="text-sm font-medium text-foreground capitalize">
@@ -358,9 +373,9 @@ function TxDetail() {
                       ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </PremiumCard>
         </div>
 
