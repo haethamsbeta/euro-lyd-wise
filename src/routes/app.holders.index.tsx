@@ -10,6 +10,7 @@ import { Search, UserPlus } from "lucide-react";
 import { useDebounced } from "@/hooks/use-debounced";
 import { Button } from "@/components/ui/button";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 
 export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
 
@@ -17,7 +18,7 @@ function HoldersList() {
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 250);
   const [curFilter, setCurFilter] = useState<string | null>(null);
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
 
   const { data: summary } = useQuery({
