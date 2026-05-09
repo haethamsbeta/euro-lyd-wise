@@ -269,60 +269,65 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
         ))}
       </div>
 
+      {/* Body: flat 12-col grid on lg+. On mobile it's a single column with the
+          existing source order preserved. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-5">
-        {/* Left col */}
-        <div className="lg:col-span-7 space-y-6 lg:space-y-5">
-          {(prefs.showCash || prefs.showBank) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {prefs.showCash && (
-                <VaultGaugeCard
-                  icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                  title="Cash Vaults"
-                  percent={vaultUtilization(totals.cashByCur)}
-                  rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
-                    label: c, value: formatMinor(totals.cashByCur.get(c) ?? 0, c),
-                  }))}
-                />
-              )}
-              {prefs.showBank && (
-                <VaultGaugeCard
-                  icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                  title="Bank Vaults"
-                  percent={vaultUtilization(totals.bankByCur)}
-                  rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
-                    label: c, value: formatMinor(totals.bankByCur.get(c) ?? 0, c),
-                  }))}
-                />
-              )}
-            </div>
-          )}
+        {/* Vaults — full width on desktop */}
+        {(prefs.showCash || prefs.showBank) && (
+          <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {prefs.showCash && (
+              <VaultGaugeCard
+                icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
+                title="Cash Vaults"
+                percent={vaultUtilization(totals.cashByCur)}
+                rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
+                  label: c, value: formatMinor(totals.cashByCur.get(c) ?? 0, c),
+                }))}
+              />
+            )}
+            {prefs.showBank && (
+              <VaultGaugeCard
+                icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
+                title="Bank Vaults"
+                percent={vaultUtilization(totals.bankByCur)}
+                rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
+                  label: c, value: formatMinor(totals.bankByCur.get(c) ?? 0, c),
+                }))}
+              />
+            )}
+          </div>
+        )}
 
-          {/* Holdings (desktop position — moved here on lg+ to balance columns) */}
-          {prefs.showHoldings && data && (
-            <div className="hidden lg:block">
-              <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
-            </div>
-          )}
-        </div>
-
-        {/* Right col */}
-        <div className="lg:col-span-5 space-y-6 lg:space-y-5">
-          {prefs.showPinnedCustomers && (
+        {/* Pinned Customers — full width on desktop, directly under vaults */}
+        {prefs.showPinnedCustomers && (
+          <div className="lg:col-span-12">
             <PinnedCustomers
               ids={prefs.pinnedAccountIds}
               onUnpin={(id) =>
                 update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
               }
             />
-          )}
-          {/* Urgent approvals */}
+          </div>
+        )}
+
+        {/* Holdings (desktop position) */}
+        {prefs.showHoldings && data && (
+          <div className="hidden lg:block lg:col-span-7">
+            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+          </div>
+        )}
+
+        {/* Urgent approvals — right side on desktop */}
+        <div className="lg:col-span-5">
           <UrgentApprovals />
-          {prefs.showHoldings && data && (
-            <div className="lg:hidden">
-              <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
-            </div>
-          )}
         </div>
+
+        {/* Holdings (mobile/tablet position) */}
+        {prefs.showHoldings && data && (
+          <div className="lg:hidden">
+            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+          </div>
+        )}
       </div>
 
       {prefs.showRecent && <RecentTransactionsTable rows={data?.recentTx ?? []} loading={isLoading} />}
