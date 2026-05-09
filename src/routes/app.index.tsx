@@ -714,62 +714,80 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,status,holder_accounts(currency_code,current_balance)")
+        .select("id,dahab_account_number,canonical_name,status,holder_accounts(id,currency_code,current_balance,account_display_name,account_nature)")
         .in("id", numericIds);
       if (error) throw error;
       return data ?? [];
     },
   });
   return (
-    <PremiumCard className="p-5">
+    <PremiumCard className="p-5 border-gold/40 bg-[linear-gradient(135deg,oklch(0.74_0.135_82/0.10),transparent_60%)] shadow-[0_10px_40px_-20px_var(--gold)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pinned Customers</h2>
+        <div className="flex items-center gap-2">
+          <Star className="w-4 h-4 text-gold fill-gold" />
+          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">Pinned Customers</h2>
+          <span className="chip chip-gold">{numericIds.length}</span>
+        </div>
         <Users className="w-4 h-4 text-gold" />
       </div>
       {numericIds.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Pin customers via the Customize panel.</p>
+        <div className="rounded-lg border border-dashed border-gold/30 bg-surface-2/50 p-4 text-center">
+          <Star className="w-5 h-5 text-gold/60 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">Pin customers via the Customize panel to see their accounts here.</p>
+        </div>
       ) : isLoading ? (
         <p className="text-xs text-muted-foreground">Loading…</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {(data ?? []).map((h: any) => {
-            const totals: Record<string, number> = {};
-            for (const a of h.holder_accounts ?? []) {
-              totals[a.currency_code] = (totals[a.currency_code] ?? 0) + Number(a.current_balance ?? 0);
-            }
-            const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+            const accounts = (h.holder_accounts ?? []) as any[];
             return (
-              <Link key={h.id} to="/app/holders/$id" params={{ id: String(h.id) }} className="block group">
-                <div className="flex items-start justify-between p-3 rounded-lg bg-surface-2 border border-border group-hover:border-gold/40 transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Star className="w-3.5 h-3.5 text-gold fill-gold" />
-                      <span className="font-semibold text-foreground text-sm truncate" dir="auto">{h.canonical_name}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-1 block font-mono">{h.dahab_account_number}</span>
-                  </div>
-                  <div className="text-right shrink-0 ml-2">
-                    {top ? (
-                      <>
-                        <span className="text-sm font-semibold text-foreground tabular-nums block">
-                          {Number(top[1]).toLocaleString()}
-                        </span>
-                        <CurrencyBadge currency={top[0]} />
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No accounts</span>
-                    )}
-                  </div>
+              <div key={h.id} className="rounded-xl bg-surface-2 border border-gold/20 overflow-hidden hover:border-gold/40 transition-colors">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gold/10 bg-[linear-gradient(90deg,oklch(0.74_0.135_82/0.08),transparent)]">
+                  <Link to="/app/holders/$id" params={{ id: String(h.id) }} className="min-w-0 flex-1 flex items-center gap-2 group">
+                    <Star className="w-3.5 h-3.5 text-gold fill-gold shrink-0" />
+                    <span className="font-semibold text-foreground text-sm truncate group-hover:text-gold transition-colors" dir="auto">
+                      {h.canonical_name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono truncate">{h.dahab_account_number}</span>
+                  </Link>
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); onUnpin(String(h.id)); }}
-                    className="ml-2 p-1 rounded text-muted-foreground hover:text-gold opacity-0 group-hover:opacity-100 transition"
+                    className="ml-2 p-1 rounded text-muted-foreground hover:text-gold transition"
                     aria-label="Unpin"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              </Link>
+                {accounts.length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground">No accounts</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
+                    {accounts.map((a: any) => (
+                      <Link
+                        key={a.id}
+                        to="/app/accounts/$id"
+                        params={{ id: String(a.id) }}
+                        className="rounded-lg border border-border bg-card/60 p-2.5 hover:border-gold/40 hover:shadow-[0_4px_16px_-8px_var(--gold)] transition-all"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <CurrencyBadge currency={a.currency_code} />
+                          <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{a.account_nature}</span>
+                        </div>
+                        <div className="font-serif text-base text-gold tabular-nums num">
+                          {Number(a.current_balance ?? 0).toLocaleString()}
+                        </div>
+                        {a.account_display_name && (
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5" dir="auto">
+                            {a.account_display_name}
+                          </div>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
