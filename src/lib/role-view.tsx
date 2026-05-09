@@ -69,11 +69,8 @@ export function RoleViewProvider({ children }: { children: ReactNode }) {
 
 export function useRoleView(): RoleViewState {
   const c = useContext(Ctx);
-  if (c) return c;
-  // Fallback when used outside the provider — behave as no-op view.
-  // This keeps components defensive.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { roles } = useAuth();
+  if (c) return c;
   return {
     realRoles: roles,
     viewAs: null,
