@@ -276,7 +276,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {prefs.showCash && (
                 <VaultGaugeCard
-                  icon={<Wallet className="w-32 h-32 text-gold" />}
+                  icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                   title="Cash Vaults"
                   percent={vaultUtilization(totals.cashByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
@@ -286,7 +286,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               )}
               {prefs.showBank && (
                 <VaultGaugeCard
-                  icon={<Landmark className="w-32 h-32 text-gold" />}
+                  icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                   title="Bank Vaults"
                   percent={vaultUtilization(totals.bankByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
