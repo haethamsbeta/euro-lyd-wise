@@ -448,6 +448,36 @@ export type Database = {
         }
         Relationships: []
       }
+      branches: {
+        Row: {
+          city: string | null
+          code: string
+          created_at: string
+          id: number
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          code: string
+          created_at?: string
+          id?: number
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          code?: string
+          created_at?: string
+          id?: number
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       currencies: {
         Row: {
           currency_code: string
@@ -817,24 +847,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          branch_id: number | null
           created_at: string
           full_name: string
           id: string
           must_change_password: boolean
         }
         Insert: {
+          branch_id?: number | null
           created_at?: string
           full_name?: string
           id: string
           must_change_password?: boolean
         }
         Update: {
+          branch_id?: number | null
           created_at?: string
           full_name?: string
           id?: string
           must_change_password?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -908,6 +949,7 @@ export type Database = {
         Row: {
           amount_minor: number
           approved_by_user_id: string | null
+          branch_id: number | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
           corrected_by_tx_id: string | null
@@ -931,6 +973,7 @@ export type Database = {
         Insert: {
           amount_minor: number
           approved_by_user_id?: string | null
+          branch_id?: number | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
           corrected_by_tx_id?: string | null
@@ -954,6 +997,7 @@ export type Database = {
         Update: {
           amount_minor?: number
           approved_by_user_id?: string | null
+          branch_id?: number | null
           channel?: Database["public"]["Enums"]["vault_channel"]
           comment?: string
           corrected_by_tx_id?: string | null
@@ -975,6 +1019,13 @@ export type Database = {
           vault_account_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_corrected_by_tx_id_fkey"
             columns: ["corrected_by_tx_id"]
@@ -1226,6 +1277,7 @@ export type Database = {
             Returns: {
               amount_minor: number
               approved_by_user_id: string | null
+              branch_id: number | null
               channel: Database["public"]["Enums"]["vault_channel"]
               comment: string
               corrected_by_tx_id: string | null
@@ -1258,6 +1310,7 @@ export type Database = {
             Returns: {
               amount_minor: number
               approved_by_user_id: string | null
+              branch_id: number | null
               channel: Database["public"]["Enums"]["vault_channel"]
               comment: string
               corrected_by_tx_id: string | null
@@ -1296,6 +1349,7 @@ export type Database = {
         Returns: {
           amount_minor: number
           approved_by_user_id: string | null
+          branch_id: number | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
           corrected_by_tx_id: string | null
@@ -1389,6 +1443,7 @@ export type Database = {
         Returns: {
           amount_minor: number
           approved_by_user_id: string | null
+          branch_id: number | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
           corrected_by_tx_id: string | null
@@ -1421,6 +1476,7 @@ export type Database = {
         Returns: {
           amount_minor: number
           approved_by_user_id: string | null
+          branch_id: number | null
           channel: Database["public"]["Enums"]["vault_channel"]
           comment: string
           corrected_by_tx_id: string | null
