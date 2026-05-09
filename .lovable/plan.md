@@ -1,30 +1,59 @@
 ## Goal
+Make the frontend ready to connect to SQL Server DAHABDB via Lambda/API, without breaking the running Supabase-backed preview today.
 
-On desktop (`lg:`+) only, move the **Pinned Customers** card out of the right column and place it as a **full-width row directly under the Cash/Bank vault boxes**. Phone and tablet layouts stay exactly as they are.
+## Strategy: dual-backend toggle (mirrors existing `authService` pattern)
+The codebase already ships `src/lib/authService.ts` that switches between `supabase` and `lambda` via `VITE_AUTH_BACKEND`. I will extend that pattern app-wide:
 
-## Current state
+- New env flag: `VITE_DATA_BACKEND = "supabase" | "lambda"` (default `supabase`).
+- Each `src/lib/api/*` module exports a typed function. Internally it routes to either `apiFetch(...)` (lambda) or the existing `supabase.from/rpc(...)` call (supabase).
+- Routes import only from `src/lib/api/*` — never from `@/integrations/supabase/*` directly.
+- When `VITE_DATA_BACKEND=lambda` is set in the AWS environment, every page automatically uses the Lambda API. No further code change needed for cutover.
 
-- On `lg:`, Pinned Customers lives in the right column (`lg:col-span-5`) above Urgent Approvals. It looks like a narrow squeezed card.
-- On phone/tablet, it stacks naturally in the single column — that's correct and untouched.
+This satisfies the user's intent ("frontend must use Lambda/API endpoints through apiFetch") **without** taking the live Supabase preview offline before the API exists.
 
-## Change
+## Work items
 
-In `src/routes/app.index.tsx` `AdminDashboard`:
+### A. Adapter layer (15 files under `src/lib/api/`)
+`auth.ts, dashboard.ts, holders.ts, accounts.ts, transactions.ts, approvals.ts, vaults.ts, reports.ts, audit.ts, users.ts, groups.ts, portal.ts, push.ts, notifications.ts, admin.ts`
 
-1. Render `PinnedCustomers` **twice**, gated by breakpoint (same pattern already used for `HoldingsSummary`):
-   - Mobile/tablet: existing position in the right column, wrapped in `lg:hidden`. No visual change below `lg`.
-   - Desktop: a new full-width slot inside the left column (`lg:col-span-7`) immediately under the Cash/Bank vault grid, wrapped in `hidden lg:block`. Since the left column already holds Vaults + Holdings on desktop, the new order becomes: Vaults → Pinned Customers → Holdings.
+Each exports the functions used by today's routes; behind the flag it either calls `apiFetch` or falls back to the existing supabase query. Adapter signatures match what pages already destructure (so route diffs are minimal).
 
-2. Result on desktop: Pinned Customers spans the same width as the vault grid above it (the full left column = 7/12 of the page width). Right column on desktop becomes Urgent Approvals only.
+### B. Hardcoded business values — remove now (no flag)
+1. `src/routes/app.index.tsx` Network Pulse (lines 205–210): drop `USD*4.85 + EUR*5.3`. Replace with `api.reports.liquidityHealth()`. If `missing_rates.length > 0`, render the existing card layout but show "FX rates required — set rates" linking to `/app/admin/fx-rates`.
+2. `src/routes/app.reports.tsx` H3–H10: replace each static array (`hourlyTraffic, cashFlow, tellers, processingTimeDist, errorRateTrend, riskMetrics, riskTypology, kyc/aml targets`) with `useQuery` against `api.reports.*`. Empty/loading/error states use existing skeleton + EmptyState components — no UI redesign.
+3. `src/routes/login.tsx` H11: keep demo Fill buttons but only render under `import.meta.env.DEV`.
 
-## Out of scope
+### C. Page migration to adapters
+Switch the following routes' imports from `@/integrations/supabase/client` to `@/lib/api/*`:
+`/app, /app/holders, /app/holders/$id, /app/accounts/$id, /app/transactions, /app/vaults, /app/vaults/$id, /app/reports, /app/audit, /app/users, /app/settings/notifications`.
 
-- Phone & tablet layouts (every change is `lg:` / `hidden lg:block` gated).
-- Bottom dock visibility.
-- Pinned Customers component internals, data, or behavior.
-- Any other widget, page, or route.
+Write paths (new tx, approvals, corrections, portal, admin) stay on supabase for this PR and are tracked in V2 audit as remaining work.
 
-## Acceptance check
+### D. Auth contract
+Add `src/lib/api/auth.ts` matching the 6 endpoints listed. The existing `authService.lambda.ts` keeps working; this adapter is what `authService.lambda` calls internally.
 
-- 1536×864 desktop: Pinned Customers sits as a wide card directly below the two vault boxes, matching their combined width. Right column shows only Urgent Approvals.
-- 390×844 phone & 820×1180 tablet: pixel-identical to current build.
+### E. Push & notifications
+- `src/lib/api/push.ts` — wrap the 10 push endpoints. `push-client.ts` keeps working unchanged because it already speaks the same shapes. Confirm no admin endpoint returns `endpoint/p256dh/auth` or VAPID private key (server code already redacts; will re-verify).
+- `src/lib/api/notifications.ts` — list/markRead/prefs.
+
+### F. Server route cleanup
+- `src/routes/api/public/admin/seed-demo.ts`: wrap the entire handler in `if (!import.meta.env.DEV) return 404`. (Cannot delete — would break dev seeding.)
+- `src/routes/api/public/hooks/notifications-tick.ts`: replace supabase RPC with HMAC-signed `POST` to `${INTERNAL_API_BASE}/api/internal/notifications/tick` using `process.env.INTERNAL_WEBHOOK_SECRET`. Falls back to current behavior in dev when secret unset.
+
+### G. Currency
+Keep `GBP` in `src/lib/dahabApi.ts` `Currency` type. No change needed (already present).
+
+### H. Deliverable doc
+`docs/SQLSERVER_READINESS_AUDIT_V2.md` listing: removed hardcoded blocks, adapter file inventory, per-route migration status, remaining `supabase.*` references with reason, blockers (API not yet live, env vars to set, write paths still pending).
+
+## Out of scope (called out in V2)
+- Migrating write/mutation paths (new transaction wizard, approvals, FX rates admin, holder create) — needs API contracts confirmed first.
+- Cognito swap in `authService.lambda.ts` — already stubbed.
+- Removing `@/integrations/supabase/*` files — can't until cutover is verified.
+
+## Risk
+- Bundle size grows (~15 small files).
+- Adapters double-implement each call (supabase + lambda branch). Acceptable for cutover window; the supabase branch deletes after go-live.
+- No UI regression: route components keep identical query keys, return shapes, and JSX.
+
+If you approve, I'll execute A–H in one pass and produce the V2 audit at the end.
