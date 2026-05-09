@@ -42,6 +42,7 @@ import { Route as AppHoldersNewRouteImport } from './routes/app.holders.new'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
 import { Route as AppAdminFxRatesRouteImport } from './routes/app.admin.fx-rates'
+import { Route as AppAdminBranchesRouteImport } from './routes/app.admin.branches'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
@@ -215,6 +216,11 @@ const AppAdminFxRatesRoute = AppAdminFxRatesRouteImport.update({
   path: '/admin/fx-rates',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminBranchesRoute = AppAdminBranchesRouteImport.update({
+  id: '/admin/branches',
+  path: '/admin/branches',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccountsIdRoute = AppAccountsIdRouteImport.update({
   id: '/accounts/$id',
   path: '/accounts/$id',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/m': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
   '/app/accounts/$id': typeof AppAccountsIdRoute
+  '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/m/'
     | '/app/accounts/$id'
+    | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/m'
     | '/app/accounts/$id'
+    | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/m/'
     | '/app/accounts/$id'
+    | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -739,6 +751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminFxRatesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/branches': {
+      id: '/app/admin/branches'
+      path: '/admin/branches'
+      fullPath: '/app/admin/branches'
+      preLoaderRoute: typeof AppAdminBranchesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/accounts/$id': {
       id: '/app/accounts/$id'
       path: '/accounts/$id'
@@ -820,6 +839,7 @@ interface AppRouteChildren {
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppAccountsIdRoute: typeof AppAccountsIdRoute
+  AppAdminBranchesRoute: typeof AppAdminBranchesRoute
   AppAdminFxRatesRoute: typeof AppAdminFxRatesRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
@@ -845,6 +865,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppAccountsIdRoute: AppAccountsIdRoute,
+  AppAdminBranchesRoute: AppAdminBranchesRoute,
   AppAdminFxRatesRoute: AppAdminFxRatesRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
@@ -902,3 +923,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
