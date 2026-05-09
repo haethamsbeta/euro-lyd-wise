@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,6 +54,9 @@ import {
   Building2,
   Calendar as CalendarIcon,
   X,
+  Plus,
+  TrendingUp,
+  Eye,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth, hasAnyRole } from "@/lib/auth";
@@ -248,16 +251,81 @@ function TxList() {
 
   const colCount = isAdmin ? 10 : 9;
 
+  // KPIs derived from the loaded set (last 200 txns)
+  const kpis = useMemo(() => {
+    const rows = data ?? [];
+    const today = new Date();
+    const isToday = (d: string) => {
+      const x = new Date(d);
+      return (
+        x.getFullYear() === today.getFullYear() &&
+        x.getMonth() === today.getMonth() &&
+        x.getDate() === today.getDate()
+      );
+    };
+    return {
+      today: rows.filter((r) => isToday(r.created_at)).length,
+      pending: rows.filter((r) => r.status === "pending").length,
+      posted: rows.filter((r) => r.status === "posted").length,
+      rejected: rows.filter((r) => r.status === "rejected" || r.status === "reversed").length,
+    };
+  }, [data]);
+
   return (
     <TooltipProvider delayDuration={150}>
       <div>
         <PageHeader
           title="Transactions"
           description="All posted, pending, rejected, and reversed entries — grouped by day for quick review."
+          actions={
+            <div className="flex items-center gap-2">
+              {!isAdmin ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-500">
+                  <Eye className="h-3 w-3" /> Read only
+                </span>
+              ) : null}
+              <Link to="/app/transactions/new">
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="h-4 w-4" /> New transaction
+                </Button>
+              </Link>
+            </div>
+          }
         />
         <div className="space-y-4 p-4 sm:p-6">
+          {/* KPI strip */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiTile
+              label="Txns today"
+              value={kpis.today}
+              icon={<TrendingUp className="h-3.5 w-3.5" />}
+              tone="primary"
+              onClick={() => setDatePreset("today")}
+            />
+            <KpiTile
+              label="Pending"
+              value={kpis.pending}
+              tone="warning"
+              onClick={() => setStatusFilter("pending")}
+            />
+            <KpiTile
+              label="Posted"
+              value={kpis.posted}
+              tone="success"
+              onClick={() => setStatusFilter("posted")}
+            />
+            <KpiTile
+              label="Rejected / reversed"
+              value={kpis.rejected}
+              tone="destructive"
+              onClick={() => setStatusFilter("rejected")}
+            />
+          </div>
+
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-3">
             <div className="relative max-w-xs flex-1 min-w-[220px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -421,7 +489,9 @@ function TxList() {
                 }}
               />
             </div>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent className="p-0">
