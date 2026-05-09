@@ -170,6 +170,7 @@ function UsersPage() {
                   <th className="px-4 py-2 text-start">Email</th>
                   <th className="px-4 py-2 text-start">{t("users.col.roles")}</th>
                   <th className="px-4 py-2 text-start">Push</th>
+                  <th className="px-4 py-2 text-start">Test push</th>
                   <th className="px-4 py-2 text-start">{t("users.col.grant")}</th>
                   <th className="px-4 py-2 text-start">Actions</th>
                 </tr>
@@ -253,10 +254,7 @@ function UsersPage() {
                         </TooltipProvider>
                       </td>
                       <td className="px-4 py-2">
-                        <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-start gap-1">
                           <Button
                             size="sm"
                             variant="outline"
@@ -267,6 +265,20 @@ function UsersPage() {
                             <Send className="h-3.5 w-3.5" />
                             {testingId === p.id ? "Sending…" : "Send test"}
                           </Button>
+                          <span className="text-[11px] text-muted-foreground">
+                            {pushOn
+                              ? `Ready — ${push?.subscription_count} device(s)`
+                              : pushPartial
+                                ? "In-app only (no devices)"
+                                : "Off — in-app only"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
                           {(() => {
                           const isStaff = userRoles.some((r) => ["admin","teller","auditor"].includes(r.role));
                           const isSelf = user?.id === p.id;
