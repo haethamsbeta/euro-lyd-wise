@@ -106,8 +106,11 @@ function VaultsPage() {
               <TrendingUp className="h-3 w-3" /> Across {vaults.length} vaults
             </div>
             {missingRates.length > 0 && (
-              <div className="mt-1 text-[11px] text-warning">
-                Missing FX rate: {missingRates.join(", ")}
+              <div className="mt-2 text-[11px] text-warning">
+                Missing FX rate: {missingRates.join(", ")} ·{" "}
+                <Link to="/app/admin/fx-rates" className="underline hover:text-gold">
+                  Set rates
+                </Link>
               </div>
             )}
           </div>
