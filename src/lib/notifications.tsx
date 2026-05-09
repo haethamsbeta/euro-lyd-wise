@@ -13,7 +13,8 @@ export type NotifEvent =
   | "daily_summary"
   | "account_change"
   | "reminder_pending"
-  | "reminder_shift";
+  | "reminder_shift"
+  | "test";
 
 export type NotifSeverity = "info" | "warning" | "critical";
 
@@ -138,7 +139,9 @@ function maybeBrowserNotify(n: Notification) {
   if (!browserNotifSupported()) return;
   if (Notification.permission !== "granted") return;
   // Only fire when tab is hidden — otherwise the in-app toast covers it.
-  if (typeof document !== "undefined" && document.visibilityState === "visible") return;
+  // Exception: test events always fire so the sender can confirm delivery.
+  const isTest = n.event_type === "test";
+  if (!isTest && typeof document !== "undefined" && document.visibilityState === "visible") return;
   try {
     new Notification(n.title, { body: n.body, tag: n.id });
   } catch {
