@@ -10,6 +10,7 @@ import {
   ScrollText,
   Plus,
   Activity,
+  Layers,
 } from "lucide-react";
 import { useAuth, type AppRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
@@ -25,7 +26,7 @@ type DockItemDef = {
   badge?: number;
 };
 
-type DockKey = "Dashboard" | "Transactions" | "Holders" | "Vaults" | "Approvals" | "Audit" | "MyActivity";
+type DockKey = "Dashboard" | "Transactions" | "Holders" | "Vaults" | "Approvals" | "Audit" | "MyActivity" | "Groups";
 
 const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
   Dashboard:    { key: "Dashboard",    to: "/app",              labelKey: "nav.dashboard",    icon: LayoutDashboard },
@@ -35,10 +36,11 @@ const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
   Approvals:    { key: "Approvals",    to: "/app/approvals",    labelKey: "nav.approvals",    icon: ClipboardCheck },
   Audit:        { key: "Audit",        to: "/app/audit",        labelKey: "nav.audit",        icon: ScrollText },
   MyActivity:   { key: "MyActivity",   to: "/app/me/activity",  labelKey: "nav.myActivity",   icon: Activity },
+  Groups:       { key: "Groups",       to: "/app/groups",       labelKey: "nav.groups",       icon: Layers },
 };
 
 const DOCK_CONFIG: Record<AppRole, { left: DockKey[]; right: DockKey[]; showFab: boolean }> = {
-  admin:    { left: ["Dashboard", "Transactions"], right: ["Holders", "Approvals"], showFab: true },
+  admin:    { left: ["Dashboard", "Transactions"], right: ["Holders", "Groups"], showFab: true },
   teller:   { left: ["Dashboard", "Transactions"], right: ["Holders", "MyActivity"], showFab: true },
   auditor:  { left: ["Dashboard", "Transactions"], right: ["Holders", "Audit"],     showFab: false },
   consumer: { left: ["Dashboard"],                  right: [],                       showFab: false },
