@@ -115,7 +115,9 @@ function LoginPage() {
           </CardContent>
         </Card>
 
-        <DemoCredentials portal={portal} lock={true} />
+        {/* Demo Fill / Prepare buttons are dev-only; never shipped to production
+            (no password retrieval ever happens — only static dev credentials). */}
+        {import.meta.env.DEV && <DemoCredentials portal={portal} lock={true} />}
 
         <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />

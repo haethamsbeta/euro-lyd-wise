@@ -22,6 +22,7 @@ import { useT } from "@/lib/i18n";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -202,13 +203,20 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
   const { data, isLoading } = useDashData();
   const totals = useTotals(data);
 
-  // Network total expressed in LYD-equivalent (mock conversion: just sum LYD + USD*4.85 + EUR*5.3)
-  const network = useMemo(() => {
-    const lyd = (totals.cashByCur.get("LYD") ?? 0) + (totals.bankByCur.get("LYD") ?? 0);
-    const usd = (totals.cashByCur.get("USD") ?? 0) + (totals.bankByCur.get("USD") ?? 0);
-    const eur = (totals.cashByCur.get("EUR") ?? 0) + (totals.bankByCur.get("EUR") ?? 0);
-    return lyd + usd * 4.85 + eur * 5.3;
-  }, [totals]);
+  // Network total expressed in LYD-equivalent. Frontend MUST NOT compute FX
+  // — the backend report applies admin-entered fx_rates and returns either a
+  // single LYD-minor total or the list of missing rate pairs. See
+  // src/lib/api/reports.ts → liquidityHealth().
+  const liquidity = useQuery({
+    queryKey: ["reports", "liquidity-health"],
+    queryFn: () => api.reports.liquidityHealth(),
+    // Until the Lambda API is live this query will fail; we render a graceful
+    // "rates required" CTA instead of a number computed on the client.
+    retry: false,
+    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+  });
+  const network = liquidity.data?.network_total_lyd_minor ?? null;
+  const missingRates = liquidity.data?.missing_rates ?? [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -224,8 +232,21 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             </div>
             <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance (LYD eq.)</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
-              <AnimatedNumber value={network} currency="LYD" />
+              {network !== null ? (
+                <AnimatedNumber value={network} currency="LYD" />
+              ) : (
+                <span className="text-muted-foreground text-2xl">—</span>
+              )}
             </div>
+            {missingRates.length > 0 && (
+              <div className="mt-2 text-xs text-amber-400">
+                FX rates missing for{" "}
+                {missingRates.map((r) => `${r.from}→${r.to}`).join(", ")}.{" "}
+                <Link to="/app/admin/fx-rates" className="underline hover:text-gold">
+                  Set rates
+                </Link>
+              </div>
+            )}
           </div>
           <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
