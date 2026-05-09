@@ -296,8 +296,6 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             </div>
           )}
 
-          {/* Urgent approvals */}
-          <UrgentApprovals />
         </div>
 
         {/* Right col */}
@@ -310,6 +308,8 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               }
             />
           )}
+          {/* Urgent approvals */}
+          <UrgentApprovals />
           {prefs.showHoldings && data && (
             <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
           )}
