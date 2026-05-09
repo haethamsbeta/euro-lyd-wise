@@ -16,7 +16,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AppRouteImport } from './routes/app'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as MIndexRouteImport } from './routes/m.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as MLoginRouteImport } from './routes/m.login'
@@ -81,11 +80,6 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MIndexRoute = MIndexRouteImport.update({
@@ -244,7 +238,6 @@ const ApiPublicAdminSeedDemoRoute = ApiPublicAdminSeedDemoRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -284,7 +277,6 @@ export interface FileRoutesByFullPath {
   '/app/transactions/new/': typeof AppTransactionsNewIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -322,7 +314,6 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -364,7 +355,6 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/app'
     | '/change-password'
     | '/forgot-password'
@@ -404,7 +394,6 @@ export interface FileRouteTypes {
     | '/app/transactions/new/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/change-password'
     | '/forgot-password'
     | '/login'
@@ -441,7 +430,6 @@ export interface FileRouteTypes {
     | '/app/transactions/new'
   id:
     | '__root__'
-    | '/'
     | '/app'
     | '/change-password'
     | '/forgot-password'
@@ -482,7 +470,6 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -543,13 +530,6 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m/': {
@@ -867,7 +847,6 @@ const PortalRouteWithChildren =
   PortalRoute._addFileChildren(PortalRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
