@@ -16,6 +16,8 @@ import { AccountMenu } from "@/components/app/account-menu";
 import { useT } from "@/lib/i18n";
 import { BottomDock } from "@/components/app/bottom-dock";
 import { GlobalSearch } from "@/components/app/global-search";
+import { useRoleView } from "@/lib/role-view";
+import { RoleViewSwitcher } from "@/components/app/role-view-switcher";
 import {
   Sheet,
   SheetContent,
@@ -64,6 +66,7 @@ const RAISED_PATH = "/app/transactions/new";
 
 export function AppShell() {
   const { session, roles, loading, rolesLoading, signOut, user } = useAuth();
+  const { effectiveRoles, isPreviewing, viewAs, setViewAs } = useRoleView();
   const nav = useNavigate();
   const location = useLocation();
   const t = useT();
@@ -85,6 +88,7 @@ export function AppShell() {
     );
   }
 
+  // Real role decides if the shell is even reachable; preview never grants access.
   const isStaff = hasAnyRole(roles, ["admin", "teller", "auditor"]);
   if (!isStaff) {
     return (
@@ -108,7 +112,8 @@ export function AppShell() {
     );
   }
 
-  const visibleNav = NAV.filter((i) => hasAnyRole(roles, i.roles));
+  // Nav and visibility react to the previewed role.
+  const visibleNav = NAV.filter((i) => hasAnyRole(effectiveRoles, i.roles));
 
   // Full nav list lives in the More drawer. Bottom dock owns primary navigation.
   const overflowNav = visibleNav;
@@ -234,6 +239,7 @@ export function AppShell() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
                 </Tooltip>
+                <RoleViewSwitcher />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="inline-flex">
@@ -248,6 +254,23 @@ export function AppShell() {
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent pointer-events-none" />
           </header>
           {moreSheet}
+
+          {isPreviewing && (
+            <div className="border-b border-gold/30 bg-gold/10">
+              <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3 px-4 py-2 text-xs sm:px-6">
+                <span className="text-gold">
+                  Previewing as <span className="font-semibold capitalize">{viewAs}</span> — UI is filtered to that role's view. Your real access is unchanged.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setViewAs(null)}
+                  className="rounded-md border border-gold/40 bg-gold/15 px-2.5 py-1 font-medium text-gold transition-colors hover:bg-gold/25"
+                >
+                  Exit preview
+                </button>
+              </div>
+            </div>
+          )}
 
           <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-28 md:pb-24")}>
             <Outlet />
@@ -274,8 +297,8 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export function RoleGate({ allow, children }: { allow: AppRole[]; children: React.ReactNode }) {
-  const { roles } = useAuth();
-  if (!hasAnyRole(roles, allow)) {
+  const { effectiveRoles } = useRoleView();
+  if (!hasAnyRole(effectiveRoles, allow)) {
     return (
       <div className="p-10 text-center text-sm text-muted-foreground">
         You don't have permission to view this page.

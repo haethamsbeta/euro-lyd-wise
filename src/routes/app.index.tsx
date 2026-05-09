@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
@@ -117,7 +118,7 @@ function useTotals(data: ReturnType<typeof useDashData>["data"]) {
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 function Dashboard() {
   const { prefs, update } = usePrefs();
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isAuditor;

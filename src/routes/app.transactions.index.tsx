@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ExportPdfButton } from "@/components/app/export-pdf";
@@ -105,7 +106,7 @@ function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
 }
 
 function TxList() {
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const search = Route.useSearch();
   const navigate = useNavigate();

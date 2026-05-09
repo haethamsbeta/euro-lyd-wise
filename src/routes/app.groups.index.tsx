@@ -25,6 +25,7 @@ import {
   FolderOpen, FilterX, ShieldAlert, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { useDebounced } from "@/hooks/use-debounced";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -84,7 +85,7 @@ type SortKey = "pinned" | "newest" | "name" | "members";
 // ────────────────────────────────────────────────────────────────────────────
 
 function GroupsPage() {
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const canMutate = isAdmin;

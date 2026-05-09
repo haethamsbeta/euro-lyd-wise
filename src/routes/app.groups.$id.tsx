@@ -24,6 +24,7 @@ import {
   Activity, ShieldAlert, Sparkles, Plus, X, Pin, Layers, UserPlus, Check,
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { useDebounced } from "@/hooks/use-debounced";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -69,7 +70,7 @@ function GroupDetailPage() {
   const groupId = Number(id);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const canMutate = isAdmin;
   const canViewBalances = isAdmin;
