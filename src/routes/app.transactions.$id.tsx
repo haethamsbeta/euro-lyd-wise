@@ -339,7 +339,7 @@ function TxDetail() {
                 <div className="text-xs text-text-secondary mt-0.5">
                   by{" "}
                   <span className="text-gold-soft">
-                    {creator?.full_name ?? "Unknown teller"}
+                    {creator || "Unknown teller"}
                   </span>
                 </div>
                 <div className="text-[10px] uppercase tracking-wider text-text-tertiary mt-1">
