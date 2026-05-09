@@ -126,12 +126,12 @@ function Dashboard() {
   const accent = isAuditor ? "sky" : "gold";
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 pb-12">
+    <div className="space-y-6 p-4 sm:p-6 lg:px-8 lg:pt-4 lg:pb-12 lg:space-y-5 lg:max-w-7xl lg:mx-auto">
       {/* Header greeting */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <h1 className="font-serif text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+            <h1 className="font-serif text-2xl sm:text-3xl lg:text-[26px] font-semibold tracking-tight text-foreground">
               {greeting()}, {roleLabel}
             </h1>
             <span
@@ -213,21 +213,21 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
       {/* Hero — Network Pulse */}
-      <PremiumCard className="p-6 relative overflow-hidden border-gold/20 shadow-[0_0_40px_rgba(212,168,87,0.08)]">
+      <PremiumCard className="p-6 lg:p-5 relative overflow-hidden border-gold/20 shadow-[0_0_40px_rgba(212,168,87,0.08)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold/15 via-transparent to-transparent opacity-80 pointer-events-none" />
         <HeroGridOverlay />
-        <div className="relative z-10 flex flex-col lg:flex-row gap-8 lg:items-center justify-between">
-          <div className="flex-1">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:gap-6 gap-8 lg:items-center justify-between">
+          <div className="flex-1 lg:basis-5/12">
             <div className="flex items-center gap-2 mb-3">
               <LivePulse />
               <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Network Pulse</span>
             </div>
             <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance (LYD eq.)</div>
-            <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
+            <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
               <AnimatedNumber value={network} currency="LYD" />
             </div>
           </div>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
               const amt = (totals.cashByCur.get(c) ?? 0) + (totals.bankByCur.get(c) ?? 0);
               const seed = c === "LYD" ? [30, 35, 40, 45, 60, 75, 80] : c === "USD" ? [40, 45, 42, 50, 48, 55, 60] : [60, 58, 55, 52, 54, 50, 48];
@@ -259,9 +259,9 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
           { label: "New Customer", icon: UserPlus, to: "/app/users/new-consumer" },
         ].map((a) => (
           <Link key={a.label} to={a.to} className="block group">
-            <PremiumCard className="p-4 flex flex-col items-center justify-center gap-3 hover:-translate-y-0.5 hover:border-gold/40 hover:bg-surface-2/50 transition-all cursor-pointer">
-              <div className="w-10 h-10 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <a.icon className="w-5 h-5 text-gold" />
+            <PremiumCard className="p-4 lg:p-3 flex flex-col items-center justify-center gap-3 lg:flex-row lg:justify-start lg:gap-3 hover:-translate-y-0.5 hover:border-gold/40 hover:bg-surface-2/50 transition-all cursor-pointer">
+              <div className="w-10 h-10 lg:w-9 lg:h-9 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <a.icon className="w-5 h-5 lg:w-4 lg:h-4 text-gold" />
               </div>
               <span className="text-sm font-semibold text-foreground">{a.label}</span>
             </PremiumCard>
@@ -269,14 +269,14 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-5">
         {/* Left col */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-7 space-y-6 lg:space-y-5">
           {(prefs.showCash || prefs.showBank) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {prefs.showCash && (
                 <VaultGaugeCard
-                  icon={<Wallet className="w-32 h-32 text-gold" />}
+                  icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                   title="Cash Vaults"
                   percent={vaultUtilization(totals.cashByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
@@ -286,7 +286,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               )}
               {prefs.showBank && (
                 <VaultGaugeCard
-                  icon={<Landmark className="w-32 h-32 text-gold" />}
+                  icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                   title="Bank Vaults"
                   percent={vaultUtilization(totals.bankByCur)}
                   rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
@@ -297,10 +297,16 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             </div>
           )}
 
+          {/* Holdings (desktop position — moved here on lg+ to balance columns) */}
+          {prefs.showHoldings && data && (
+            <div className="hidden lg:block">
+              <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+            </div>
+          )}
         </div>
 
         {/* Right col */}
-        <div className="space-y-6">
+        <div className="lg:col-span-5 space-y-6 lg:space-y-5">
           {prefs.showPinnedCustomers && (
             <PinnedCustomers
               ids={prefs.pinnedAccountIds}
@@ -312,7 +318,9 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
           {/* Urgent approvals */}
           <UrgentApprovals />
           {prefs.showHoldings && data && (
-            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+            <div className="lg:hidden">
+              <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+            </div>
           )}
         </div>
       </div>
@@ -653,14 +661,14 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Transactions</h2>
         <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">View All →</Link>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto lg:max-h-[420px] lg:overflow-y-auto">
         {loading ? (
           <div className="p-6 text-sm text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
         ) : (
           <table className="w-full text-sm text-left">
-            <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em]">
+            <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em] lg:sticky lg:top-0 lg:z-10">
               <tr>
                 <th className="px-5 py-2.5 font-semibold text-muted-foreground">Transaction</th>
                 <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">Channel</th>
