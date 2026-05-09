@@ -609,10 +609,11 @@ function DayGroup({
           {label} <span className="ml-2 font-normal normal-case text-muted-foreground/70">({items.length})</span>
         </td>
       </tr>
-      {items.map((tx) => (
+      {items.map((tx, i) => (
         <TxRow
           key={tx.id}
           tx={tx}
+          index={i}
           isAdmin={isAdmin}
           byId={byId}
           onEdit={onEdit}
