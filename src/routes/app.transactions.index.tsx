@@ -753,10 +753,45 @@ function TxRow({
   );
 }
 
-function statusAccent(tx: Tx): { bar: string } {
-  return _statusAccent(tx);
+function KpiTile({
+  label,
+  value,
+  icon,
+  tone = "primary",
+  onClick,
+}: {
+  label: string;
+  value: number | string;
+  icon?: React.ReactNode;
+  tone?: "primary" | "warning" | "success" | "destructive";
+  onClick?: () => void;
+}) {
+  const toneCls =
+    tone === "warning"
+      ? "text-warning"
+      : tone === "success"
+        ? "text-success"
+        : tone === "destructive"
+          ? "text-destructive"
+          : "text-primary";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent/30"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          {label}
+        </span>
+        {icon ? <span className={cn("opacity-70", toneCls)}>{icon}</span> : null}
+      </div>
+      <div className={cn("mt-1.5 text-2xl font-semibold tabular-nums", toneCls)}>{value}</div>
+    </button>
+  );
 }
-function _statusAccent(tx: Tx): { bar: string } {
+
+function statusAccent(tx: Tx): { bar: string } {
   if (tx.status === "pending") return { bar: "bg-warning" };
   if (tx.status === "rejected") return { bar: "bg-destructive" };
   if (tx.status === "reversed") return { bar: "bg-warning/60" };
