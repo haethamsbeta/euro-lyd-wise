@@ -25,9 +25,6 @@ export const Route = createFileRoute("/app/vaults/")({ component: VaultsPage });
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 
-// USD-equivalent rates for consolidated overview (display only)
-const USD_RATE: Record<string, number> = { USD: 1, EUR: 1.08, LYD: 0.21 };
-
 function VaultsPage() {
   const t = useT();
 
@@ -57,11 +54,22 @@ function VaultsPage() {
     },
   });
 
-  // Consolidated USD-equivalent reserves
-  const consolidatedUsd = vaults.reduce((sum: number, v: any) => {
-    const balances = v.account_balances ?? [];
-    return sum + balances.reduce((s: number, b: any) => s + (b.balance_minor ?? 0) * (USD_RATE[b.currency] ?? 0), 0);
-  }, 0);
+  // Consolidated USD-equivalent reserves — sourced from the database (fx_rates).
+  const { data: consolidated } = useQuery({
+    queryKey: ["vaults.consolidatedUsd"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("report_consolidated_usd");
+      if (error) throw error;
+      return data as {
+        total_usd_minor: number;
+        breakdown: Array<{ currency: string; usd_rate: number | null; rate_date: string | null }>;
+        missing_rates: string[];
+        computed_at: string;
+      };
+    },
+  });
+  const consolidatedUsd = Number(consolidated?.total_usd_minor ?? 0);
+  const missingRates = consolidated?.missing_rates ?? [];
 
   return (
     <div className="space-y-8 p-4 pb-12 sm:p-6">
@@ -97,6 +105,11 @@ function VaultsPage() {
             <div className="mt-2 flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" /> Across {vaults.length} vaults
             </div>
+            {missingRates.length > 0 && (
+              <div className="mt-1 text-[11px] text-warning">
+                Missing FX rate: {missingRates.join(", ")}
+              </div>
+            )}
           </div>
         </Card>
 

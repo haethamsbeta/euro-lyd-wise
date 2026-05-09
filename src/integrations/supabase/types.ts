@@ -466,6 +466,39 @@ export type Database = {
         }
         Relationships: []
       }
+      fx_rates: {
+        Row: {
+          as_of_date: string
+          created_at: string
+          created_by: string | null
+          currency: Database["public"]["Enums"]["currency_code"]
+          id: number
+          note: string | null
+          source: string
+          usd_rate: number
+        }
+        Insert: {
+          as_of_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency: Database["public"]["Enums"]["currency_code"]
+          id?: never
+          note?: string | null
+          source?: string
+          usd_rate: number
+        }
+        Update: {
+          as_of_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"]
+          id?: never
+          note?: string | null
+          source?: string
+          usd_rate?: number
+        }
+        Relationships: []
+      }
       holder_account_limit_events: {
         Row: {
           actor_user_id: string | null
@@ -1061,6 +1094,15 @@ export type Database = {
       }
     }
     Views: {
+      fx_rates_current: {
+        Row: {
+          as_of_date: string | null
+          currency: Database["public"]["Enums"]["currency_code"] | null
+          source: string | null
+          usd_rate: number | null
+        }
+        Relationships: []
+      }
       v_holder_account_withdraw_limits: {
         Row: {
           account_number: string | null
@@ -1406,6 +1448,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      report_consolidated_usd: { Args: never; Returns: Json }
       resolve_review_row: {
         Args: { p_decision: Json; p_row_id: number }
         Returns: Json
