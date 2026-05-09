@@ -71,17 +71,37 @@ VITE_API_BASE_URL=https://api.dahablibya.com
 06_validation_tests.sql    -- post-deploy smoke tests
 ```
 
-Run as the `dahab_migrations` user. Example with `psql`:
+**Bootstrap (first run only).** On a fresh RDS instance the three app
+roles (`dahab_app`, `dahab_readonly`, `dahab_migrations`) do not exist
+yet — `05_permissions.sql` is what creates them. The first run of steps
+`01` → `05` MUST therefore be performed by the **RDS master/admin user**.
+After `05_permissions.sql` completes, every future schema migration
+should be run as `dahab_migrations`.
+
+First-run example with `psql` (RDS master user):
 
 ```sh
-export PGHOST=$DB_HOST PGUSER=dahab_migrations PGDATABASE=dahab PGSSLMODE=require
+export PGHOST=$DB_HOST PGUSER=$RDS_MASTER_USER PGDATABASE=dahab PGSSLMODE=require
 psql -v ON_ERROR_STOP=1 -f 01_schema.sql
 psql -v ON_ERROR_STOP=1 -f 02_views.sql
 psql -v ON_ERROR_STOP=1 -f 03_stored_procedures.sql
-psql -v ON_ERROR_STOP=1 -f 05_permissions.sql
-# only for dev/staging:
+psql -v ON_ERROR_STOP=1 -f 05_permissions.sql      # creates the three app roles
+# Dev/staging ONLY — NEVER run in production. RDS master or dahab_migrations.
 psql -v ON_ERROR_STOP=1 -f 04_seed_dev_data.sql
-psql -v ON_ERROR_STOP=1 -f 06_validation_tests.sql
+```
+
+Validation tests run as `dahab_app` so they exercise real RLS + GRANT
+behaviour the API will hit at runtime:
+
+```sh
+PGUSER=dahab_app psql -v ON_ERROR_STOP=1 -f 06_validation_tests.sql
+```
+
+All subsequent schema changes (new timestamped migration files) run as
+`dahab_migrations`, never the RDS master:
+
+```sh
+PGUSER=dahab_migrations psql -v ON_ERROR_STOP=1 -f <new_migration>.sql
 ```
 
 ## How frontend / backend connect safely
