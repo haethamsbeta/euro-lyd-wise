@@ -272,7 +272,7 @@ export function AppShell() {
             </div>
           )}
 
-          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-32 sm:pb-28 md:pb-24")}>
+          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-36 sm:pb-32 md:pb-28 lg:pb-24")}>
             <Outlet />
           </main>
           {!hideDock && <BottomDock />}
