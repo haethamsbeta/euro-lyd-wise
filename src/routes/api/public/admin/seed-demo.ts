@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+// SQL Server cutover note: this endpoint is Postgres-only and depends on the
+// Supabase auth admin API + the seed_demo_ledger() pgSQL function. It MUST
+// NOT run against the SQL Server DAHABDB backend. We hard-disable it unless
+// NODE_ENV === "development" to keep production builds safe.
+const SEED_DEMO_ENABLED = process.env.NODE_ENV === "development";
+
 const DEMO_USERS = [
   { email: "admin@demo.test",    password: "Admin#12345",    full_name: "Demo Admin",    role: "admin"    as const },
   { email: "teller@demo.test",   password: "Teller#12345",   full_name: "Demo Teller",   role: "teller"   as const },
@@ -27,6 +33,12 @@ export const Route = createFileRoute("/api/public/admin/seed-demo")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        if (!SEED_DEMO_ENABLED) {
+          return Response.json(
+            { ok: false, error: "Disabled outside development." },
+            { status: 404 },
+          );
+        }
         // Require a shared secret to prevent unauthenticated admin takeover.
         const expected = process.env.SEED_SECRET;
         if (!expected) {
@@ -72,6 +84,8 @@ export const Route = createFileRoute("/api/public/admin/seed-demo")({
         }
       },
       GET: async () =>
+        !SEED_DEMO_ENABLED
+          ? Response.json({ ok: false, error: "Not found" }, { status: 404 }) :
         Response.json(
           {
             ok: false,
