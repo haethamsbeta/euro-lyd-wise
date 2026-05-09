@@ -323,7 +323,15 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             />
           )}
           {step.key === "vault" && (
-            <VaultStep value={channel} onPick={changeChannel} />
+            <VaultStep
+              value={channel}
+              onPick={(v) => {
+                changeChannel(v);
+                // Auto-advance to Details — vault step has only two options,
+                // tellers shouldn't need to click Continue after picking.
+                setStepIdx((idx) => Math.min(idx + 1, STEPS.length - 1));
+              }}
+            />
           )}
           {step.key === "details" && picked && (
             <DetailsStep
