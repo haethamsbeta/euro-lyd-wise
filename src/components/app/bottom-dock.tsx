@@ -119,7 +119,7 @@ function Fab({ label }: { label: string }) {
     >
       <span className="pointer-events-none absolute inset-0 rounded-full bg-gold/30 opacity-30 animate-ping" />
       <Plus
-        className="relative z-10 w-8 h-8 sm:w-7 sm:h-7 transition-transform duration-300 group-hover:rotate-90"
+        className="relative z-10 w-7 h-7 sm:w-7 sm:h-7 transition-transform duration-300 group-hover:rotate-90"
         strokeWidth={2.5}
       />
     </Link>
