@@ -170,72 +170,74 @@
      success #198754
 */
 .dark {
-  --background:        oklch(0.86  0.018 82);   /* deeper warm sand — makes ivory cards & gold pop */
-  --foreground:        oklch(0.18  0.012 60);   /* charcoal, still strong contrast on sand */
-  --card:              oklch(1     0     0);    /* #FFFFFF ivory */
-  --card-foreground:   oklch(0.20  0.012 60);
-  --popover:           oklch(1     0     0);
-  --popover-foreground:oklch(0.20  0.012 60);
+  --background:        oklch(0.78  0.028 78);   /* richer aged-sand — deeper warmth, ivory cards pop */
+  --foreground:        oklch(0.15  0.014 60);   /* deeper charcoal for stronger text contrast */
+  --card:              oklch(0.985 0.008 86);   /* warm ivory, slightly off-white for depth */
+  --card-foreground:   oklch(0.16  0.014 60);
+  --popover:           oklch(0.985 0.008 86);
+  --popover-foreground:oklch(0.16  0.014 60);
 
-  --primary:           oklch(0.74  0.135 82);   /* #D4AF37 luxury gold */
+  --primary:           oklch(0.66  0.145 78);   /* deeper luxury gold for stronger CTAs */
   --primary-foreground:oklch(1     0     0);
 
-  --secondary:         oklch(0.92  0.020 86);   /* warm cream tint, slightly deeper */
-  --secondary-foreground: oklch(0.22 0.015 60);
-  --muted:             oklch(0.92  0.020 86);
-  --muted-foreground:  oklch(0.42  0.012 60);   /* darker for legibility on warm sand */
-  --accent:            oklch(0.92  0.05  85);   /* champagne wash */
-  --accent-foreground: oklch(0.25  0.04  60);
+  --secondary:         oklch(0.88  0.025 84);   /* deeper cream tint */
+  --secondary-foreground: oklch(0.20 0.015 60);
+  --muted:             oklch(0.88  0.025 84);
+  --muted-foreground:  oklch(0.36  0.014 60);   /* darker for crisp legibility */
+  --accent:            oklch(0.86  0.06  85);   /* deeper champagne wash */
+  --accent-foreground: oklch(0.20  0.04  60);
 
   --destructive:       oklch(0.55  0.20  25);
   --destructive-foreground: oklch(1 0 0);
   --success:           oklch(0.55  0.13 150);   /* #198754 */
   --success-foreground:oklch(1     0    0);
-  --warning:           oklch(0.74  0.135 82);
+  --warning:           oklch(0.66  0.145 78);
   --warning-foreground:oklch(0.20  0.04  60);
 
-  --border:            oklch(0.78  0.024 82);   /* deeper beige rim against darker bg */
-  --input:             oklch(0.96  0.014 86);   /* keep input fields bright for readability */
-  --ring:              oklch(0.74  0.135 82 / 0.55);
+  --border:            oklch(0.68  0.030 78);   /* much deeper rim — visible separation everywhere */
+  --input:             oklch(0.95  0.018 86);   /* bright fields keep readability against deeper bg */
+  --ring:              oklch(0.66  0.145 78 / 0.6);
 
-  --gold:              oklch(0.74  0.135 82);   /* luxury gold #D4AF37 */
-  --gold-soft:         oklch(0.84  0.10  86);   /* champagne #E8C766 */
-  --gold-deep:         oklch(0.58  0.115 72);   /* deep gold #B98216 */
+  --gold:              oklch(0.66  0.145 78);   /* deeper luxury gold */
+  --gold-soft:         oklch(0.80  0.115 86);   /* warmer champagne */
+  --gold-deep:         oklch(0.50  0.120 70);   /* darker deep gold for shadowing */
 
-  --chart-1: oklch(0.74 0.135 82);
-  --chart-2: oklch(0.58 0.115 72);
-  --chart-3: oklch(0.84 0.10  86);
+  --chart-1: oklch(0.66 0.145 78);
+  --chart-2: oklch(0.50 0.120 70);
+  --chart-3: oklch(0.80 0.115 86);
   --chart-4: oklch(0.55 0.13 150);
   --chart-5: oklch(0.50 0.012 60);
 
-  --sidebar:                    oklch(1     0     0);    /* ivory rail */
-  --sidebar-foreground:         oklch(0.22  0.015 60);
-  --sidebar-primary:            oklch(0.74  0.135 82);
+  --sidebar:                    oklch(0.985 0.008 86);   /* ivory rail */
+  --sidebar-foreground:         oklch(0.18  0.015 60);
+  --sidebar-primary:            oklch(0.66  0.145 78);
   --sidebar-primary-foreground: oklch(1     0    0);
-  --sidebar-accent:             oklch(0.955 0.018 86);
-  --sidebar-accent-foreground:  oklch(0.22  0.015 60);
-  --sidebar-border:             oklch(0.89  0.022 85);
-  --sidebar-ring:               oklch(0.74  0.135 82 / 0.45);
+  --sidebar-accent:             oklch(0.92  0.022 86);
+  --sidebar-accent-foreground:  oklch(0.18  0.015 60);
+  --sidebar-border:             oklch(0.78  0.025 82);
+  --sidebar-ring:               oklch(0.66  0.145 78 / 0.5);
 
   /* Brand gradients — champagne → luxury gold → deep gold */
   --gradient-gold: linear-gradient(135deg,
-      oklch(0.88 0.09  88) 0%,
-      oklch(0.84 0.10  86) 25%,
-      oklch(0.74 0.135 82) 60%,
-      oklch(0.58 0.115 72) 100%);
+      oklch(0.84 0.10  88) 0%,
+      oklch(0.78 0.125 84) 30%,
+      oklch(0.66 0.145 78) 65%,
+      oklch(0.48 0.120 70) 100%);
   --gradient-gold-text: linear-gradient(180deg,
-      oklch(0.78 0.13  84) 0%,
-      oklch(0.68 0.13  78) 50%,
-      oklch(0.50 0.10  70) 100%);
+      oklch(0.72 0.140 82) 0%,
+      oklch(0.58 0.135 76) 50%,
+      oklch(0.42 0.110 70) 100%);
   --gradient-vault: radial-gradient(ellipse 80% 60% at 50% 0%,
-      oklch(0.74 0.135 82 / 0.10) 0%,
+      oklch(0.66 0.145 78 / 0.18) 0%,
       transparent 70%);
-  --shadow-gold:    0 14px 40px -14px oklch(0.58 0.115 72 / 0.35);
-  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.7) inset,
-                    0 24px 60px -30px oklch(0.40 0.10 60 / 0.18),
-                    0 0 0 1px oklch(0.89 0.022 85 / 0.6);
-  --shadow-rim:     0 0 0 1px oklch(0.74 0.135 82 / 0.28),
-                    0 0 0 4px oklch(0.74 0.135 82 / 0.06);
+  --shadow-gold:    0 18px 50px -16px oklch(0.45 0.120 70 / 0.55),
+                    0 4px 12px -4px oklch(0.40 0.10 60 / 0.25);
+  --shadow-elegant: 0 1px 0 0 oklch(1 0 0 / 0.75) inset,
+                    0 30px 70px -28px oklch(0.25 0.06 55 / 0.45),
+                    0 8px 20px -10px oklch(0.30 0.06 55 / 0.30),
+                    0 0 0 1px oklch(0.78 0.025 82 / 0.7);
+  --shadow-rim:     0 0 0 1px oklch(0.66 0.145 78 / 0.40),
+                    0 0 0 4px oklch(0.66 0.145 78 / 0.10);
 }
 
 /* ──────────────────────────────────────────────────────────────────────
