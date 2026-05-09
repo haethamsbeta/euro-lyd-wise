@@ -226,13 +226,15 @@ export function GlobalSearch() {
             setTimeout(() => inputRef.current?.focus(), 0);
           }}
           className={cn(
-            "group inline-flex h-10 items-center gap-2 rounded-xl border border-gold/25 bg-gold/5 px-3 text-sm text-muted-foreground transition-all",
+            "group inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-gold/5 text-sm text-muted-foreground transition-all",
             "hover:border-gold/45 hover:bg-gold/10 hover:text-foreground",
-            "min-w-[160px] sm:min-w-[260px] md:min-w-[340px] lg:min-w-[420px]",
+            // Icon-only square on phone/tablet, expands to a full search bar from md up
+            "h-10 w-10 justify-center px-0 md:w-auto md:justify-start md:px-3",
+            "md:min-w-[340px] lg:min-w-[420px]",
           )}
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="hidden flex-1 text-left sm:inline">
+          <span className="hidden flex-1 text-left md:inline">
             Search holders, accounts, transactions…
           </span>
           <span className="ms-auto hidden items-center gap-1 rounded border border-gold/25 bg-background/50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground md:inline-flex">
