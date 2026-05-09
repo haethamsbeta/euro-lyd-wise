@@ -12,6 +12,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useAuth, type AppRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -125,7 +126,7 @@ function Fab({ label }: { label: string }) {
 }
 
 export function BottomDock() {
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const location = useLocation();
   const t = useT();
   const role = pickRole(roles as AppRole[]);
