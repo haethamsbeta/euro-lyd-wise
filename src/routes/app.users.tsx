@@ -17,6 +17,8 @@ import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send } from "lucide-react";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
+import { sendTestPushToUser } from "@/server/push.functions";
+import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/app/users")({
   component: () => <RoleGate allow={["admin"]}><UsersPage /></RoleGate>,
@@ -51,7 +53,13 @@ function UsersPage() {
       if (e2) throw e2;
       const emailMap = new Map((emails ?? []).map((e) => [e.id, e.email]));
       const pushMap = new Map(
-        ((pushRes?.data as Array<{ user_id: string; browser_push_enabled: boolean; subscription_count: number }> | null) ?? []).map(
+        ((pushRes?.data as Array<{
+          user_id: string;
+          browser_push_enabled: boolean;
+          subscription_count: number;
+          last_seen_at: string | null;
+          last_success_at: string | null;
+        }> | null) ?? []).map(
           (r) => [r.user_id, r],
         ),
       );
@@ -115,11 +123,20 @@ function UsersPage() {
   async function onSendTest(targetId: string, name: string) {
     setTestingId(targetId);
     try {
-      const { error } = await supabase.rpc("admin_send_test_notification", { p_user_id: targetId });
-      if (error) throw error;
-      toast.success(`Test sent to ${name}`, {
-        description: "It appears in their notification inbox immediately, and as a system popup if their browser permits it.",
-      });
+      const r = await sendTestPushToUser({ data: { user_id: targetId } });
+      if (r.sent > 0) {
+        toast.success(`Test sent to ${name}`, {
+          description: `Delivered to ${r.sent} of ${r.total} device(s) — they'll see a system popup.`,
+        });
+      } else if (r.total === 0) {
+        toast.message(`In-app test sent to ${name}`, {
+          description: "They have no push-enabled devices yet — only the in-app inbox will show it.",
+        });
+      } else {
+        toast.warning(`Push delivery failed for ${name}`, {
+          description: `0 of ${r.total} device(s) received the push. The in-app inbox still got the test.`,
+        });
+      }
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -214,10 +231,22 @@ function UsersPage() {
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
-                              {pushOn
-                                ? `Browser notifications enabled on ${push?.subscription_count} device(s). System popup fires when their tab is hidden.`
-                                : pushPartial
-                                ? "User has push toggled on but hasn't granted browser permission on any device yet."
+                              {pushOn ? (
+                                <div className="space-y-0.5">
+                                  <div>{push?.subscription_count} device(s) subscribed.</div>
+                                  {push?.last_seen_at && (
+                                    <div className="text-xs opacity-70">
+                                      Last seen {formatDistanceToNow(new Date(push.last_seen_at), { addSuffix: true })}
+                                    </div>
+                                  )}
+                                  {push?.last_success_at && (
+                                    <div className="text-xs opacity-70">
+                                      Last delivery {formatDistanceToNow(new Date(push.last_success_at), { addSuffix: true })}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : pushPartial
+                                ? "User has push toggled on but no device is subscribed yet."
                                 : "Push is off — notifications still appear in the in-app inbox."}
                             </TooltipContent>
                           </Tooltip>

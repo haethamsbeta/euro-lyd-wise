@@ -14,10 +14,24 @@ import { toast } from "sonner";
 import {
   browserNotifPermission,
   browserNotifSupported,
-  requestBrowserNotifPermission,
 } from "@/lib/notifications";
-import { Bell, BellOff, Send } from "lucide-react";
+import { Bell, BellOff, Send, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  ENDPOINT_KEY,
+  ensureSubscription,
+  iOSNeedsInstall,
+  isInIframe,
+  isPreviewHost,
+  pingCurrent,
+  prettyDeviceLabel,
+  pushSupported,
+  removeDevice,
+  revokeDevice,
+  unsubscribeBrowser,
+} from "@/lib/push-client";
+import { sendTestPushToSelf } from "@/server/push.functions";
+import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/app/settings/notifications")({
   component: () => (
@@ -59,9 +73,13 @@ function NotifSettingsPage() {
   const qc = useQueryClient();
   const [perm, setPerm] = useState<string>("default");
   const [testing, setTesting] = useState(false);
+  const [enabling, setEnabling] = useState(false);
+  const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null);
 
   useEffect(() => {
     setPerm(browserNotifPermission());
+    try { setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY)); } catch {}
+    pingCurrent();
   }, []);
 
   const { data: prefs, isLoading } = useQuery({
@@ -85,46 +103,88 @@ function NotifSettingsPage() {
     if (prefs) setDraft(prefs);
   }, [prefs]);
 
-  // Sync push_subscriptions row so admins can see device status.
-  async function syncPushSubscription(enabled: boolean) {
-    if (!user) return;
-    const label = "This browser";
-    if (enabled) {
-      const { data: existing } = await supabase
+  // Per-user device list with realtime sync.
+  const { data: devices, refetch: refetchDevices } = useQuery({
+    enabled: !!user,
+    queryKey: ["push.devices", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("push_subscriptions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("label", label)
-        .maybeSingle();
-      if (existing) {
-        await supabase
-          .from("push_subscriptions")
-          .update({ granted: true, user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("push_subscriptions").insert({
-          user_id: user.id,
-          granted: true,
-          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-          label,
-        });
-      }
-    } else {
-      await supabase.from("push_subscriptions").update({ granted: false }).eq("user_id", user.id);
-    }
-  }
+        .select("id, label, user_agent, granted, endpoint, created_at, last_seen_at, last_success_at, last_error")
+        .eq("user_id", user!.id)
+        .order("last_seen_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`push-devices:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "push_subscriptions", filter: `user_id=eq.${user.id}` },
+        () => refetchDevices(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id, refetchDevices]);
 
   async function sendSelfTest() {
     setTesting(true);
     try {
-      const { error } = await supabase.rpc("notif_self_test");
-      if (error) throw error;
-      toast.success("Test notification sent — watch for the toast and system popup.");
+      const r = await sendTestPushToSelf();
+      if (r.sent > 0) toast.success(`Test sent — delivered to ${r.sent} of ${r.total} device(s).`);
+      else if (r.total === 0) toast.message("In-app test sent. Enable a device below to receive system push.");
+      else toast.error(`Push delivery failed (${r.failed} of ${r.total}). See device row for details.`);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setTesting(false);
     }
+  }
+
+  async function onEnableHere() {
+    setEnabling(true);
+    try {
+      const r = await ensureSubscription();
+      if (!r) throw new Error("Could not subscribe this browser to push.");
+      try { setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY)); } catch {}
+      setPerm("granted");
+      setDraft((d) => (d ? { ...d, browser_push_enabled: true } : d));
+      toast.success("This device is now subscribed to push notifications.");
+      await refetchDevices();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnabling(false);
+    }
+  }
+
+  async function onRevokeCurrent() {
+    try {
+      await unsubscribeBrowser();
+      setCurrentEndpoint(null);
+      setDraft((d) => (d ? { ...d, browser_push_enabled: false } : d));
+      await refetchDevices();
+      toast.success("This device's push subscription was revoked.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function onRevokeRow(id: string) {
+    try {
+      await revokeDevice({ data: { id } });
+      await refetchDevices();
+    } catch (e) { toast.error((e as Error).message); }
+  }
+  async function onRemoveRow(id: string) {
+    try {
+      await removeDevice({ data: { id } });
+      await refetchDevices();
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   const save = useMutation({
@@ -143,7 +203,6 @@ function NotifSettingsPage() {
         })
         .eq("user_id", user!.id);
       if (error) throw error;
-      await syncPushSubscription(next.browser_push_enabled && perm === "granted");
     },
     onSuccess: () => {
       toast.success("Notification preferences saved");
@@ -164,6 +223,11 @@ function NotifSettingsPage() {
   const setEnabled = (key: string, v: boolean) =>
     setDraft({ ...draft, enabled: { ...draft.enabled, [key]: v } });
 
+  const previewBlocked = isPreviewHost() || isInIframe();
+  const iosBlocked = iOSNeedsInstall();
+  const fmt = (iso: string | null | undefined) =>
+    iso ? formatDistanceToNow(new Date(iso), { addSuffix: true }) : "—";
+
   return (
     <>
       <PageHeader
@@ -182,58 +246,136 @@ function NotifSettingsPage() {
         }
       />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Browser notifications</CardTitle>
             <CardDescription>
-              Get a system notification on your desktop when the app tab is in the background.
+              Real Web Push — system notifications fire even when the tab is closed, on every device you enable.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 text-xs">
-              <Badge variant={draft.browser_push_enabled && perm === "granted" ? "default" : "secondary"}>
-                {draft.browser_push_enabled && perm === "granted"
-                  ? "Background notifications enabled"
-                  : "Foreground delivery only"}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between rounded-md border p-3">
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
               <div className="flex items-center gap-2 text-sm">
                 {perm === "granted" ? <Bell className="h-4 w-4 text-primary" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
                 <span>
                   Permission: <strong className="font-medium">{perm}</strong>
                 </span>
+                <Badge variant={currentEndpoint ? "default" : "secondary"} className="ms-2">
+                  {currentEndpoint ? "This device subscribed" : "This device not subscribed"}
+                </Badge>
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!browserNotifSupported() || perm === "granted" || perm === "denied"}
-                onClick={async () => {
-                  const r = await requestBrowserNotifPermission();
-                  setPerm(r);
-                  if (r === "granted") {
-                    setDraft({ ...draft, browser_push_enabled: true });
-                    await syncPushSubscription(true);
-                  }
-                }}
-              >
-                Enable browser notifications
-              </Button>
+              <div className="flex items-center gap-2">
+                {currentEndpoint ? (
+                  <Button size="sm" variant="outline" onClick={onRevokeCurrent}>
+                    <X className="me-1 h-3.5 w-3.5" /> Revoke this device
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={onEnableHere}
+                    disabled={enabling || !pushSupported() || previewBlocked || iosBlocked || perm === "denied"}
+                  >
+                    {enabling ? "Enabling…" : "Enable on this device"}
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {previewBlocked && (
+              <p className="text-xs text-muted-foreground">
+                Push subscriptions are disabled inside the editor preview iframe. Open the published or custom-domain URL to enable on a real device.
+              </p>
+            )}
+            {iosBlocked && (
+              <p className="text-xs text-muted-foreground">
+                On iOS, push notifications only work after you install the app to your Home Screen (Share → Add to Home Screen), then open it from there.
+              </p>
+            )}
+            {!browserNotifSupported() && !previewBlocked && (
+              <p className="text-xs text-muted-foreground">This browser does not support push notifications.</p>
+            )}
+            {perm === "denied" && (
+              <p className="text-xs text-muted-foreground">
+                You blocked notifications. Re-enable them in your browser's site settings, then refresh.
+              </p>
+            )}
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="bp">Use browser notifications</Label>
+              <Label htmlFor="bp">Receive push on enabled devices</Label>
               <Switch
                 id="bp"
-                checked={draft.browser_push_enabled && perm === "granted"}
-                disabled={perm !== "granted"}
+                checked={draft.browser_push_enabled}
                 onCheckedChange={(v) => setDraft({ ...draft, browser_push_enabled: v })}
               />
             </div>
-            {perm === "denied" && (
-              <p className="text-xs text-muted-foreground">
-                You blocked notifications in your browser. Re-enable them in your browser's site settings, then return here.
-              </p>
-            )}
+
+            <Separator />
+
+            <div>
+              <h4 className="mb-2 text-sm font-medium">Your devices</h4>
+              {(devices ?? []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No devices yet. Enable on this device to add the first one.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-start">Device</th>
+                        <th className="px-3 py-2 text-start">Status</th>
+                        <th className="px-3 py-2 text-start">Last seen</th>
+                        <th className="px-3 py-2 text-start">Last delivery</th>
+                        <th className="px-3 py-2 text-start">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(devices ?? []).map((d) => {
+                        const isCurrent = !!currentEndpoint && d.endpoint === currentEndpoint;
+                        const label = d.label ?? prettyDeviceLabel(d.user_agent);
+                        return (
+                          <tr key={d.id}>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{label}</span>
+                                {isCurrent && <Badge variant="outline" className="text-[10px]">This browser</Badge>}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {prettyDeviceLabel(d.user_agent)}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge variant={d.granted && d.endpoint ? "default" : "secondary"}>
+                                {d.granted && d.endpoint ? "Granted" : "Revoked"}
+                              </Badge>
+                              {d.last_error && (
+                                <div className="mt-1 max-w-[180px] truncate text-xs text-destructive" title={d.last_error}>
+                                  {d.last_error}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground">{fmt(d.last_seen_at)}</td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground">{fmt(d.last_success_at)}</td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1">
+                                {d.granted && d.endpoint && (
+                                  <Button size="sm" variant="ghost" onClick={() => onRevokeRow(d.id)}>
+                                    <X className="me-1 h-3.5 w-3.5" /> Revoke
+                                  </Button>
+                                )}
+                                {!d.granted && (
+                                  <Button size="sm" variant="ghost" onClick={() => onRemoveRow(d.id)}>
+                                    <Trash2 className="me-1 h-3.5 w-3.5" /> Remove
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
