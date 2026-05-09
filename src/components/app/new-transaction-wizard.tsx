@@ -280,12 +280,9 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
               <Sparkles className="h-3.5 w-3.5 text-gold" />
               <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-gold">New Transaction</span>
             </div>
-            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">
+          <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">
               {type ? (isDeposit ? "New Deposit" : "New Withdrawal") : "Create transaction"}
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Step {stepIdx + 1} of {STEPS.length} · {step.label}
-            </p>
           </div>
           {type ? (
             <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-gold/5 text-gold sm:flex">
@@ -293,8 +290,22 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             </div>
           ) : null}
         </div>
+      </div>
 
-        <Stepper stepIdx={stepIdx} onJump={goToStep} />
+      {/* Sticky stepper + context strip */}
+      <div className="sticky top-0 z-10 mb-2 border-b border-gold/15 bg-background/85 px-4 py-4 shadow-[0_8px_30px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <Stepper stepIdx={stepIdx} onJump={goToStep} />
+          <ContextPills
+            stepIdx={stepIdx}
+            type={type}
+            picked={picked}
+            channel={channel}
+            amountMinor={amountMinor}
+            currency={currency}
+            onJump={goToStep}
+          />
+        </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-4 pb-32 pt-6 md:px-8">
@@ -406,6 +417,89 @@ function Stepper({ stepIdx, onJump }: { stepIdx: number; onJump: (k: StepKey) =>
       <div className="mt-2 text-center text-[11px] font-medium text-gold md:hidden">
         {STEPS[stepIdx].label}
       </div>
+    </div>
+  );
+}
+
+function ContextPills({
+  stepIdx, type, picked, channel, amountMinor, currency, onJump,
+}: {
+  stepIdx: number;
+  type: Direction | null;
+  picked: HolderCardHit | null;
+  channel: Channel | null;
+  amountMinor: number | null;
+  currency: Currency;
+  onJump: (k: StepKey) => void;
+}) {
+  const pillBase =
+    "group inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all";
+  const filled =
+    "border-gold/40 bg-card/80 text-foreground hover:bg-gold/5";
+  const empty =
+    "border-dashed border-border bg-card/40 text-muted-foreground";
+  const showCustomerSlot = stepIdx >= 1;
+  const showVaultSlot = stepIdx >= 2;
+  const showAmountSlot = stepIdx >= 3;
+  if (!type && !showCustomerSlot) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {type ? (
+        <button type="button" onClick={() => onJump("type")} className={cn(pillBase, filled)}>
+          <span className="font-medium capitalize">{type}</span>
+          <Pencil className="h-3 w-3 text-gold opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+      ) : (
+        <span className={cn(pillBase, empty)}>—</span>
+      )}
+      {showCustomerSlot ? (
+        picked ? (
+          <button type="button" onClick={() => onJump("customer")} className={cn(pillBase, filled, "min-w-0")}>
+            <User className="h-3 w-3 text-gold shrink-0" />
+            <span className="truncate font-medium">{picked.holder_name}</span>
+            <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">
+              {picked.dahab_account_number}
+            </span>
+            <Pencil className="h-3 w-3 shrink-0 text-gold opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        ) : (
+          <span className={cn(pillBase, empty)}>Select customer</span>
+        )
+      ) : null}
+      {showCustomerSlot && picked ? (
+        <button type="button" onClick={() => onJump("customer")} className={cn(pillBase, filled)}>
+          <CurrencyBadge currency={picked.currency} className="!px-1.5 !py-0.5 !text-[10px]" />
+          <span className="font-mono text-[10px]">•••• {picked.account_number.slice(-4)}</span>
+          <Pencil className="h-3 w-3 text-gold opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+      ) : null}
+      {showVaultSlot ? (
+        channel ? (
+          <button type="button" onClick={() => onJump("vault")} className={cn(pillBase, filled)}>
+            {channel === "cash" ? (
+              <Wallet className="h-3 w-3 text-gold" />
+            ) : (
+              <Landmark className="h-3 w-3 text-gold" />
+            )}
+            <span className="font-medium capitalize">{channel}</span>
+            <Pencil className="h-3 w-3 text-gold opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        ) : (
+          <span className={cn(pillBase, empty)}>Select vault</span>
+        )
+      ) : null}
+      {showAmountSlot ? (
+        amountMinor && amountMinor > 0 ? (
+          <button type="button" onClick={() => onJump("details")} className={cn(pillBase, filled)}>
+            <span className="font-semibold tabular-nums">
+              {formatMinor(amountMinor, currency)}
+            </span>
+            <Pencil className="h-3 w-3 text-gold opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        ) : (
+          <span className={cn(pillBase, empty)}>Enter amount</span>
+        )
+      ) : null}
     </div>
   );
 }
