@@ -56,20 +56,45 @@ Hard rules:
 
 ## B. Database setup order
 
-Run as the `dahab_migrations` user (created by `05_permissions.sql`). Use
-`psql -v ON_ERROR_STOP=1`. Do NOT reorder — later files depend on earlier
-ones.
+Use `psql -v ON_ERROR_STOP=1` for every step. Do NOT reorder — later files
+depend on earlier ones.
+
+**Bootstrap (first run only).** The `dahab_app`, `dahab_readonly`, and
+`dahab_migrations` roles do not exist yet on a fresh RDS instance, and they
+are only created by `05_permissions.sql`. To avoid a chicken-and-egg
+problem, the first run of steps 1–4 below MUST be performed by the AWS RDS
+master/admin user (the user created with the RDS instance, e.g.
+`dahab_master`). That same master user then runs `05_permissions.sql`,
+which creates `dahab_migrations`, `dahab_app`, and `dahab_readonly`. From
+that point on, all future schema migrations are run as `dahab_migrations`.
+
+> Note: a dedicated `00_bootstrap_roles.sql` file is NOT required, because
+> `05_permissions.sql` already provisions every role the app needs. It
+> would only be worth adding if you wanted to split role creation away from
+> grants/RLS — not needed for the current setup.
+
+Run order:
 
 1. `database/aws/01_schema.sql` — enums, tables, FKs, indexes, triggers.
-2. `database/aws/02_views.sql` — dashboard + reports views.
-3. `database/aws/03_stored_procedures.sql` — all RPCs the API calls.
-4. `database/aws/05_permissions.sql` — roles, GRANTs, RLS policies. Run
-   BEFORE seed so seed inserts respect grants.
-5. `database/aws/04_seed_dev_data.sql` — dev/staging only. Skip in prod.
+   Run as the RDS master/admin user.
+2. `database/aws/02_views.sql` — dashboard + reports views. Run as the
+   RDS master/admin user.
+3. `database/aws/03_stored_procedures.sql` — all RPCs the API calls. Run
+   as the RDS master/admin user.
+4. `database/aws/05_permissions.sql` — creates `dahab_migrations`,
+   `dahab_app`, `dahab_readonly` and applies GRANTs + RLS. MUST be run by
+   the RDS master/admin user. Run BEFORE seed so seed inserts respect
+   grants.
+5. `database/aws/04_seed_dev_data.sql` — **dev/staging ONLY, NEVER in
+   production.** Run as the RDS master/admin user or as
+   `dahab_migrations` (both have the privileges required for the seed
+   inserts). Skip entirely in prod.
 6. `database/aws/06_validation_tests.sql` — smoke tests; must all pass.
+   Run as `dahab_migrations` (or the RDS master user) so writes/RLS
+   checks behave like a real migration.
 
-For destructive schema changes, author a new timestamped migration — never
-edit an existing file in place.
+From this point onward, every future schema change is a new timestamped
+migration run as `dahab_migrations`. Never edit an existing file in place.
 
 ---
 
@@ -191,7 +216,11 @@ Tick in order. Do not skip ahead.
 - [ ] `03_stored_procedures.sql` ran with no errors.
 - [ ] `05_permissions.sql` ran; `dahab_app`, `dahab_readonly`,
       `dahab_migrations` roles exist with least privilege.
-- [ ] `04_seed_dev_data.sql` ran in dev/staging only (NOT in prod).
+- [ ] First-run bootstrap performed by the RDS master/admin user for
+      steps 01 → 05 (because `dahab_migrations` does not exist until
+      `05_permissions.sql` completes).
+- [ ] `04_seed_dev_data.sql` ran in dev/staging only (NEVER in prod), and
+      was executed by the RDS master/admin user or `dahab_migrations`.
 - [ ] `06_validation_tests.sql` passed every assertion.
 - [ ] API layer deployed (Lambda / ECS) with all env vars from §C set.
 - [ ] JWT verification middleware enforced on every non-public route.
@@ -205,8 +234,9 @@ Tick in order. Do not skip ahead.
       reset, must-change-password flow).
 - [ ] Reports verified: per-currency totals correct; consolidated USD
       labelled with FX timestamp; no silent currency mixing.
-- [ ] Ledger balances verified: `balance_after` monotonic per account;
-      sum of debits == sum of credits per transaction.
+- [ ] Ledger balances verified: `balance_after` is sequentially correct
+      per account after every posted ledger entry; sum of debits == sum
+      of credits per transaction.
 - [ ] No DB credentials, service-role tokens, or AWS keys in any frontend
       bundle (grep the production build).
 - [ ] HTTPS enforced everywhere; HSTS on; CORS restricted to listed
