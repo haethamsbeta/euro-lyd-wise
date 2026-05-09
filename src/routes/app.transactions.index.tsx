@@ -63,7 +63,13 @@ import { ExportPdfButton } from "@/components/app/export-pdf";
 import { describeTx } from "@/lib/tx-describe";
 import { useDebounced } from "@/hooks/use-debounced";
 
-export const Route = createFileRoute("/app/transactions/")({ component: TxList });
+export const Route = createFileRoute("/app/transactions/")({
+  component: TxList,
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+    focus: typeof search.focus === "string" ? search.focus : undefined,
+  }),
+});
 
 type Tx = {
   id: string;
@@ -108,7 +114,8 @@ function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
 function TxList() {
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
-  const [q, setQ] = useState("");
+  const search = Route.useSearch();
+  const [q, setQ] = useState(search.q ?? "");
   const debouncedQ = useDebounced(q, 250);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>("all");
@@ -118,6 +125,11 @@ function TxList() {
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+
+  // Sync incoming search params (e.g. from global search) into local state.
+  useEffect(() => {
+    if (search.q !== undefined) setQ(search.q);
+  }, [search.q]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v2", debouncedQ],
