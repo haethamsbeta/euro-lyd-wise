@@ -158,7 +158,7 @@ async function deliverOne(sub: Sub, payload: PushPayload) {
         "Content-Type": "application/octet-stream",
         TTL: "60",
       },
-      body,
+      body: body as BodyInit,
     });
     return {
       ok: res.ok,

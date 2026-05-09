@@ -117,7 +117,7 @@ export const sendTestPushToSelf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     // Best-effort in-app notification via existing RPC (uses caller's auth).
-    await context.supabase.rpc("notif_self_test").then(() => null).catch(() => null);
+    try { await context.supabase.rpc("notif_self_test"); } catch {}
     const result = await sendPushToUser(context.userId, TEST_PAYLOAD);
     return result;
   });
@@ -132,10 +132,9 @@ export const sendTestPushToUser = createServerFn({ method: "POST" })
     });
     if (error || !isAdmin) throw new Response("Forbidden", { status: 403 });
     // Write the in-app notification row through admin RPC (bypasses enabled gate for tests).
-    await context.supabase
-      .rpc("admin_send_test_notification", { p_user_id: data.user_id })
-      .then(() => null)
-      .catch(() => null);
+    try {
+      await context.supabase.rpc("admin_send_test_notification", { p_user_id: data.user_id });
+    } catch {}
     const result = await sendPushToUser(data.user_id, TEST_PAYLOAD);
     return result;
   });
