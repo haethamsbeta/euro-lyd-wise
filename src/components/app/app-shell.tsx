@@ -234,6 +234,14 @@ export function AppShell() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="inline-flex">
+                      <ThemeToggle />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t("theme.toggleLabel")}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
                       <NotificationBell />
                     </span>
                   </TooltipTrigger>
