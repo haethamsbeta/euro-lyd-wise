@@ -67,7 +67,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors",
-        "min-w-[56px] min-h-[44px] px-2 py-1 sm:px-3 sm:py-1.5",
+        "min-w-[48px] min-h-[44px] px-1.5 py-1 sm:min-w-[56px] sm:px-3 sm:py-1.5",
         active
           ? "text-gold"
           : "text-muted-foreground hover:text-foreground hover:bg-gold/10",
@@ -92,7 +92,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
           </span>
         ) : null}
       </div>
-      <span className="text-[11px] sm:text-[10px] font-medium tracking-wide truncate max-w-[68px]">{label}</span>
+      <span className="text-[10px] sm:text-[10px] font-medium tracking-wide truncate max-w-[58px] sm:max-w-[68px]">{label}</span>
     </Link>
   );
 }
@@ -103,7 +103,7 @@ function Fab({ label }: { label: string }) {
       to="/app/transactions/new"
       aria-label={label}
       title={label}
-      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-8 mx-3 w-[60px] h-[60px] sm:-mt-7 sm:mx-3 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
+      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-8 mx-1.5 w-[56px] h-[56px] sm:-mt-7 sm:mx-3 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
       style={{
         boxShadow:
           "0 8px 24px oklch(var(--gold) / 0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
@@ -168,7 +168,7 @@ export function BottomDock() {
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl pointer-events-none" />
 
       <div
-        className="relative pointer-events-auto mx-3 mb-3 max-w-2xl h-[72px] sm:mx-6 sm:mb-4 sm:h-[68px] lg:mx-auto lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
+        className="relative pointer-events-auto mx-2 mb-3 max-w-2xl h-[72px] sm:mx-6 sm:mb-4 sm:h-[68px] lg:mx-auto lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-1 sm:px-2"
         style={{
           boxShadow:
             "0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold) / 0.08)",
