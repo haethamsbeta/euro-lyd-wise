@@ -530,14 +530,112 @@ function ActionBar({
 
 function TypeStep({ value, onPick }: { value: Direction | null; onPick: (v: Direction) => void }) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <SelectableCard active={value === "deposit"} onClick={() => onPick("deposit")}
-        icon={<ArrowDownRight className="h-6 w-6" />} title="Deposit"
-        desc="Receive cash or wire into a customer account." />
-      <SelectableCard active={value === "withdraw"} onClick={() => onPick("withdraw")}
-        icon={<ArrowUpRight className="h-6 w-6" />} title="Withdraw"
-        desc="Disburse cash or wire from a customer account." />
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <DirectionCard
+        kind="deposit"
+        active={value === "deposit"}
+        onClick={() => onPick("deposit")}
+      />
+      <DirectionCard
+        kind="withdraw"
+        active={value === "withdraw"}
+        onClick={() => onPick("withdraw")}
+      />
     </div>
+  );
+}
+
+function DirectionCard({
+  kind,
+  active,
+  onClick,
+}: {
+  kind: Direction;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const isDeposit = kind === "deposit";
+  const Icon = isDeposit ? ArrowDownRight : ArrowUpRight;
+  const title = isDeposit ? "Deposit" : "Withdraw";
+  const desc = isDeposit
+    ? "Receive cash or wire into a customer account."
+    : "Disburse cash or wire from a customer account.";
+  // Color tokens — semantic success/destructive from the design system.
+  const tone = isDeposit
+    ? {
+        ring: "ring-[oklch(0.72_0.18_150/0.45)]",
+        border: active
+          ? "border-[oklch(0.72_0.18_150)]"
+          : "border-[oklch(0.72_0.18_150/0.30)] hover:border-[oklch(0.72_0.18_150/0.65)]",
+        bg: active
+          ? "bg-[oklch(0.72_0.18_150/0.12)]"
+          : "bg-[oklch(0.72_0.18_150/0.04)] hover:bg-[oklch(0.72_0.18_150/0.08)]",
+        glow: active
+          ? "shadow-[0_20px_60px_-20px_oklch(0.72_0.18_150/0.55)]"
+          : "",
+        iconWrap: active
+          ? "bg-[oklch(0.72_0.18_150)] text-[oklch(0.16_0.02_60)]"
+          : "bg-[oklch(0.72_0.18_150/0.15)] text-[oklch(0.78_0.18_150)]",
+        title: active ? "text-[oklch(0.78_0.18_150)]" : "text-foreground",
+        check: "bg-[oklch(0.72_0.18_150)]",
+      }
+    : {
+        ring: "ring-[oklch(0.65_0.22_25/0.45)]",
+        border: active
+          ? "border-[oklch(0.65_0.22_25)]"
+          : "border-[oklch(0.65_0.22_25/0.30)] hover:border-[oklch(0.65_0.22_25/0.65)]",
+        bg: active
+          ? "bg-[oklch(0.65_0.22_25/0.12)]"
+          : "bg-[oklch(0.65_0.22_25/0.04)] hover:bg-[oklch(0.65_0.22_25/0.08)]",
+        glow: active
+          ? "shadow-[0_20px_60px_-20px_oklch(0.65_0.22_25/0.55)]"
+          : "",
+        iconWrap: active
+          ? "bg-[oklch(0.65_0.22_25)] text-white"
+          : "bg-[oklch(0.65_0.22_25/0.15)] text-[oklch(0.72_0.22_25)]",
+        title: active ? "text-[oklch(0.72_0.22_25)]" : "text-foreground",
+        check: "bg-[oklch(0.65_0.22_25)]",
+      };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-3xl border-2 p-8 text-left transition-all md:p-10",
+        "min-h-[220px] md:min-h-[260px]",
+        tone.border,
+        tone.bg,
+        tone.glow,
+      )}
+    >
+      {active && (
+        <div
+          className={cn(
+            "absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full",
+            tone.check,
+          )}
+        >
+          <Check className="h-4 w-4 text-white" />
+        </div>
+      )}
+      <div
+        className={cn(
+          "mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-colors md:h-20 md:w-20",
+          tone.iconWrap,
+        )}
+      >
+        <Icon className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />
+      </div>
+      <h3
+        className={cn(
+          "mb-2 font-playfair text-2xl font-semibold md:text-3xl",
+          tone.title,
+        )}
+      >
+        {title}
+      </h3>
+      <p className="text-sm leading-relaxed text-muted-foreground md:text-base">{desc}</p>
+    </button>
   );
 }
 
