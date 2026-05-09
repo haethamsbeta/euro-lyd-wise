@@ -92,17 +92,37 @@ function VaultDetail() {
     return { inMinor, outMinor };
   }, [tx]);
 
+  // Compute running vault balance per currency (oldest -> newest), then
+  // display newest -> oldest. Vault is debit-nature: customer deposits add
+  // cash to the vault (+), customer withdrawals remove cash (−). Only
+  // `posted` rows contribute to the running balance.
+  const txWithBalance = useMemo(() => {
+    const list = ((tx ?? []) as any[]).slice().sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    const running: Record<string, number> = {};
+    const enriched = list.map((r) => {
+      const counts = r.status === "posted";
+      const signed = r.direction === "deposit" ? r.amount_minor : -r.amount_minor;
+      if (counts) {
+        running[r.currency] = (running[r.currency] ?? 0) + signed;
+      }
+      return { ...r, balance_after: running[r.currency] ?? 0, _counted: counts };
+    });
+    return enriched.reverse();
+  }, [tx]);
+
   // Filter by search reference
   const filteredTx = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return (tx ?? []) as any[];
-    return ((tx ?? []) as any[]).filter(
+    if (!q) return txWithBalance;
+    return txWithBalance.filter(
       (r) =>
         r.tx_number?.toLowerCase().includes(q) ||
         r.comment?.toLowerCase().includes(q) ||
         r.accounts?.name?.toLowerCase().includes(q),
     );
-  }, [tx, search]);
+  }, [txWithBalance, search]);
 
   const totalBalanceMinor =
     vault?.account_balances?.find((x: any) => x.currency === currency)?.balance_minor ?? 0;
@@ -265,24 +285,27 @@ function VaultDetail() {
                   <th className="px-5 py-3 font-medium">Customer</th>
                   <th className="px-5 py-3 text-right font-medium">Amount</th>
                   <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">
+                    Balance after{currency ? "" : " (per currency)"}
+                  </th>
                   <th className="px-5 py-3 font-medium">Comment</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredTx.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
                       No transactions found.
                     </td>
                   </tr>
                 ) : (
                   filteredTx.map((r: any) => {
-                    const intoVault = r.direction === "withdraw";
+                    const intoVault = r.direction === "deposit";
                     const Icon =
                       r.direction === "deposit"
-                        ? ArrowUpFromLine
-                        : r.direction === "withdraw"
                         ? ArrowDownToLine
+                        : r.direction === "withdraw"
+                        ? ArrowUpFromLine
                         : ArrowRightLeft;
                     return (
                       <tr key={r.id} className="transition-colors hover:bg-muted/40">
@@ -336,6 +359,9 @@ function VaultDetail() {
                           >
                             {r.status}
                           </Badge>
+                        </td>
+                        <td className="px-5 py-3 text-right font-mono font-semibold tabular-nums">
+                          {r._counted ? formatMinor(r.balance_after, r.currency) : "—"}
                         </td>
                         <td className="max-w-sm truncate px-5 py-3 text-muted-foreground">
                           {r.comment}
