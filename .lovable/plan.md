@@ -1,116 +1,63 @@
 ## Goal
 
-Produce a **single, authoritative backend specification document** that a backend developer can use to build the AWS RDS + API layer for DAHAB without guessing. It must cover every screen, every metric, every insight, and every endpoint — and explicitly state that **no value is hardcoded in the frontend**; everything is fetched from the backend.
+Redesign the Transactions module to match the Magic Patterns DAHAB mockup (premium dark + gold theme, Playfair display, KPI strip, status-rich rows, full detail page, polished wizard) while keeping every existing search, filter, edit, attachment, reversal and approval feature working against the current Supabase data model.
 
-This is documentation only. No UI, schema, or behavior changes.
+## Scope (3 files)
 
-## Deliverable
+### 1. `src/routes/app.transactions.index.tsx` (rewrite presentation, keep logic)
 
-One new master file:
+Keep as-is (no behavior change):
+- Supabase query (`transactions.list.v2` + `transactions.dahabmap`)
+- Search debounce, status / direction / date / files-only filters
+- `?q=` and `?focus=` URL sync
+- Edit dialog, reverse, approve/reject, attachments — all current mutations and dialogs
+- Role gating (admin / teller / auditor)
+- Existing exports (`ExportPdfButton`, `describeTx`)
 
-```
-docs/BACKEND_SOURCE_OF_TRUTH.md
-```
+Replace presentation with mockup layout:
+- Header row: H1 "Transactions" (Playfair) + subtitle, right side `[Export]` secondary + `[+ New Transaction]` primary gold gradient button
+- KPI strip: 4 motion cards (Today / Pending / Completed / Failed) computed from current rows, clickable to set `statusFilter`
+- Quick-filter chip row (All / Today / Pending only / Over 25k / Cash / Bank / Deposits / Withdrawals) wired to existing filters
+- Toolbar Card: search input (gold focus ring), currency + direction selects, filter icon
+- Table Card: gold-hairline premium card, uppercase tracked thead, hover gold rows, motion stagger, amount cell colored ±, `CurrencyBadge` + `StatusBadge` reused
+- Row click → navigate to `/app/transactions/$id` (new route below) instead of opening side sheet; keep edit dialog accessible from detail page
 
-Plus a machine-readable companion (so backend tooling can codegen against it):
+### 2. NEW `src/routes/app.transactions.$id.tsx`
 
-```
-docs/backend/openapi.yaml          # full OpenAPI 3.1 spec for every endpoint
-docs/backend/metrics.catalog.json  # every metric/insight with its SQL source + response shape
-```
+Detail page per spec:
+- Breadcrumb `← Transactions / TXN-####`
+- Hero premium card: ID + StatusBadge + kind chip, big Playfair amount with sign + CurrencyBadge, action cluster (Approve/Reject when pending; Reverse/Download when posted; Retry when failed; Read-Only chip for auditor)
+- Left col: Status Timeline card (Initiated → Pending → Approved/Rejected → Completed with animated active halo), Audit Trail card from existing audit log query
+- Right col: From/To tile pair with center arrow disc, Amount Details card (amount/fee/total), Compliance & Documentation card (existing attachments), Reference Information card (description + internal notes)
+- Hooks reuse existing approve/reject/reverse mutations extracted from current list page
 
-The existing files (`DATABASE_CONTRACT.md`, `API_CONTRACT.md`, `REPORTS_METRIC_MAPPING.md`, `database/aws/*.sql`) stay as-is and are referenced from the master doc.
+### 3. `src/components/app/new-transaction-wizard.tsx` (visual polish only)
 
-## Structure of `BACKEND_SOURCE_OF_TRUTH.md`
+Keep all existing step logic, validation, submit flow, deep-link `?type=`. Apply mockup styling pass:
+- Sticky stepper + context pill row with gold rings/halos
+- Step 1 type cards: emerald/red toned, keyboard D/W
+- Step 2 customer search + AccountTile grid with currency-colored top border
+- Step 3 vault cards (Cash gold / Bank sky)
+- Step 4 calculator hero (huge Playfair amount input, quick-amount chips, balance preview tiles, animated approval warning)
+- Step 5 review with hero amount + ReviewRow list + certify footer
+- Fixed bottom action bar
+- Result screen replaces wizard on success (spring-in disc, receipt card with serrated bottom edge, action buttons)
 
-1. **App architecture overview**
-   - Frontend (TanStack Start, Vite) → API gateway → AWS RDS PostgreSQL 15+
-   - ASCII diagram of request flow, auth (JWT), RLS, stored procedures
-   - Hard rule: **no business value, threshold, FX rate, or metric is hardcoded in the frontend** — everything comes from the API.
+## Shared primitives (reuse / extend existing)
 
-2. **Module map** (one row per screen → endpoints + tables it depends on)
-   - Auth, Dashboard, Holders, Accounts, Transactions, Approvals, Vaults, Groups, Imports, Reports, Compliance, Audit, Notifications, Admin (Users, Branches, FX rates), Portal.
+- `PremiumCard` (already exists, `variant="premium"`)
+- `StatusBadge`, `CurrencyBadge` (already exist) — extend StatusBadge to map "completed/posted/approved" → success, "pending" → warning, "rejected/failed/reversed" → destructive
+- New tiny helper: `KpiTile` extracted from current inline KPI
 
-3. **Complete endpoint catalog** — every route the frontend needs, grouped by module. For each:
-   - Method + path
-   - Roles allowed
-   - Query / body params (typed)
-   - Response shape (TS interface name from `API_RESPONSE_SHAPES.md`)
-   - Backing SQL view / stored proc
-   - Caching hints
-   - Pagination contract
+## Out of scope
 
-4. **Metrics & insights catalog** — exhaustive list of every KPI card, chart, table, and badge in the app. For each metric:
-   - Where it appears (route + component)
-   - Plain-English definition
-   - Exact SQL (view name from `database/aws/02_views.sql` or new SQL to add)
-   - Endpoint that returns it
-   - Currency rule (per-currency vs USD-consolidated)
-   - Refresh cadence / realtime flag
-   - "Needs confirmation" flag where business rule is ambiguous
+- No DB schema changes
+- No new mutations beyond what already exists
+- No changes to deposit/withdraw shortcut routes (`app.transactions.new.deposit.tsx`, `.withdraw.tsx`) — they already delegate to the wizard
 
-   Covers all metrics from:
-   - **Dashboard**: pending count, holders, recent tx, totals by currency × channel.
-   - **Vaults**: per-vault balances, Total Consolidated USD (RPC `report_consolidated_usd`), recent activity, days-of-cover, target vs actual.
-   - **Reports → Business lens**: B1–B13 (volume, posted, rejected, rejection rate, active holders, volume by currency 30d, daily volume 7d, currency distribution, customer growth 7m, avg LYD txn, top accounts, cash flow, approval speed, transaction mix).
-   - **Reports → Tellers lens**: T1–T9 (leaderboard, processing time, rejection trend, liquidity health).
-   - **Reports → Compliance lens**: flagged today, pending reviews, resolved today, high-risk holders, alert typology, daily alert volume.
-   - **Audit**: counts, action timeline.
-   - **Notifications**: unread count, severity breakdown.
+## Technical notes
 
-5. **FX & consolidation rules**
-   - `fx_rates` is **manually entered by admins** — no auto-fetch ever.
-   - Consolidated USD computed only via RPC; missing rates returned in `missing_rates[]`; UI links to `/app/admin/fx-rates`.
-
-6. **Data integrity invariants** (reference `DATA_INTEGRITY_RULES.md`)
-   - Double-entry, immutable transactions, append-only audit, branch auto-tag trigger, teller daily stats trigger.
-
-7. **Security model**
-   - Roles: `admin`, `teller`, `auditor`, `consumer`.
-   - JWT claims → `app.current_user_id` / `app.current_role` GUCs → RLS policies.
-   - Per-endpoint role matrix.
-
-8. **Backend build checklist** for the developer
-   - Run `database/aws/01_schema.sql` → `02_views.sql` → `03_stored_procedures.sql` → `05_permissions.sql`.
-   - Implement endpoints in the order of `BACKEND_ADAPTER_PLAN.md`.
-   - Validate with `06_validation_tests.sql`.
-   - Acceptance: every metric in section 4 returns the documented shape.
-
-9. **Open questions / Needs confirmation** — single consolidated list (active holder definition, internal-transfer direction, GBP support, point-in-time FX, compliance alert rules).
-
-## OpenAPI companion (`docs/backend/openapi.yaml`)
-
-- Full OpenAPI 3.1 with every path from section 3
-- Reusable `components.schemas` mirroring `API_RESPONSE_SHAPES.md`
-- `securitySchemes: bearerAuth` (JWT), per-operation `security` + role tags
-- Common error envelope, pagination params, currency enum
-
-## Metric catalog companion (`docs/backend/metrics.catalog.json`)
-
-Array of objects:
-```json
-{
-  "id": "vaults.total_consolidated_usd",
-  "label": "Total Consolidated Balance (USD eq.)",
-  "screen": "/app/vaults",
-  "endpoint": "POST /api/vaults/consolidated-usd",
-  "sql_source": "rpc:report_consolidated_usd()",
-  "currency_rule": "usd_equivalent_manual_rates",
-  "realtime": false,
-  "needs_confirmation": false
-}
-```
-One entry per metric/insight in the app — backend can codegen tests from this.
-
-## What this is NOT
-
-- No UI changes
-- No new tables, views, or migrations (those already exist in `database/aws/`)
-- No frontend wiring to AWS yet
-- No invented business rules — anything ambiguous goes under "Needs confirmation"
-
-## Files to create
-
-- `docs/BACKEND_SOURCE_OF_TRUTH.md` (master doc, ~800–1200 lines)
-- `docs/backend/openapi.yaml` (full spec)
-- `docs/backend/metrics.catalog.json` (machine-readable catalog)
+- All colors via existing CSS tokens in `src/styles.css` (`--gold`, `--surface`, `--success`, etc.) — no hardcoded hex in components
+- `framer-motion` is already a dependency
+- Row navigation switches from in-page Sheet to dedicated route; the Sheet code is removed from list and the equivalent info lives on the detail page
+- Currency formatter stays `formatMinor` from `src/lib/format.ts`
