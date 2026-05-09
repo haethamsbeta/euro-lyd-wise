@@ -49,6 +49,7 @@ const NAV: NavItem[] = [
   { to: "/app/reports", labelKey: "nav.reports", icon: BarChart3, roles: ["admin", "auditor"] },
   { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
   { to: "/app/portal-accounts", labelKey: "nav.portalAccounts", icon: UsersIcon, roles: ["admin"] },
+  { to: "/app/admin/fx-rates", labelKey: "nav.fxRates", icon: BarChart3, roles: ["admin"] },
   { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
   { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
