@@ -103,7 +103,7 @@ function Fab({ label }: { label: string }) {
       to="/app/transactions/new"
       aria-label={label}
       title={label}
-      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-9 mx-3 w-16 h-16 sm:-mt-8 sm:mx-2 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
+      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-8 mx-3 w-[60px] h-[60px] sm:-mt-7 sm:mx-3 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
       style={{
         boxShadow:
           "0 8px 24px oklch(var(--gold) / 0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
