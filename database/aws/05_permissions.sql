@@ -1,11 +1,36 @@
--- DAHAB — Roles, GRANTs, RLS policies. Run as superuser (e.g. dahab_migrations).
+-- DAHAB — Roles, GRANTs, RLS policies.
+--
+-- BOOTSTRAP: on a fresh RDS instance the three app roles below do not exist
+-- yet, so this file MUST be executed by the RDS master/admin user. After
+-- this script completes, all subsequent schema migrations should be run
+-- as `dahab_migrations`.
 
--- App-layer DB users
-CREATE ROLE dahab_app       LOGIN PASSWORD 'CHANGE_ME_FROM_SECRETS_MANAGER';
-CREATE ROLE dahab_readonly  LOGIN PASSWORD 'CHANGE_ME_FROM_SECRETS_MANAGER';
+-- App-layer DB users (idempotent — safe to re-run).
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dahab_migrations') THEN
+    CREATE ROLE dahab_migrations LOGIN PASSWORD 'CHANGE_ME_FROM_SECRETS_MANAGER';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dahab_app') THEN
+    CREATE ROLE dahab_app       LOGIN PASSWORD 'CHANGE_ME_FROM_SECRETS_MANAGER';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dahab_readonly') THEN
+    CREATE ROLE dahab_readonly  LOGIN PASSWORD 'CHANGE_ME_FROM_SECRETS_MANAGER';
+  END IF;
+END $$;
 
-GRANT CONNECT ON DATABASE dahab TO dahab_app, dahab_readonly;
-GRANT USAGE   ON SCHEMA public  TO dahab_app, dahab_readonly;
+GRANT CONNECT ON DATABASE dahab TO dahab_app, dahab_readonly, dahab_migrations;
+GRANT USAGE   ON SCHEMA public  TO dahab_app, dahab_readonly, dahab_migrations;
+
+-- Migrations role: full DDL on public schema, but NOT a superuser.
+-- Owns future migrations and is the role used to author SECURITY DEFINER
+-- procedures so they execute with migration-level privileges.
+GRANT CREATE ON SCHEMA public TO dahab_migrations;
+GRANT ALL ON ALL TABLES    IN SCHEMA public TO dahab_migrations;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO dahab_migrations;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO dahab_migrations;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES    TO dahab_migrations;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO dahab_migrations;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO dahab_migrations;
 
 -- Read-only role
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO dahab_readonly;
