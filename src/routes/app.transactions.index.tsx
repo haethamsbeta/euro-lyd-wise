@@ -1,9 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import { PremiumCard } from "@/components/ui/premium-card";
+import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,13 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -36,27 +33,15 @@ import { formatMinor, formatDateTime, parseAmountToMinor } from "@/lib/format";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  Download,
-  ExternalLink,
-  FileText,
-  ImageIcon,
   Paperclip,
-  Pencil,
   Search,
   ShieldAlert,
-  File as FileIcon,
-  User as UserIcon,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Hash,
-  Wallet,
-  Building2,
   Calendar as CalendarIcon,
   X,
   Plus,
   TrendingUp,
   Eye,
+  Filter as FilterIcon,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth, hasAnyRole } from "@/lib/auth";
