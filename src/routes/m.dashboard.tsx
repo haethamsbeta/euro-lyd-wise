@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
-import { Menu, Bell, Eye, ArrowLeftRight, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, MoreHorizontal, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Menu, Bell, Eye, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, MoreHorizontal, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
