@@ -1,24 +1,21 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
 function HolderDetail() {
   const { id } = Route.useParams();
   const holderId = Number(id);
-  const [openAcc, setOpenAcc] = useState<number | null>(null);
-  const [highlightAcc, setHighlightAcc] = useState<number | null>(null);
+  const nav = useNavigate();
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
 
@@ -45,23 +42,15 @@ function HolderDetail() {
     },
   });
 
-  // Deep-link: open + scroll + highlight the targeted account from #account-N
+  // Deep-link redirect: #account-N → /app/accounts/N
   useEffect(() => {
-    if (!holder) return;
     if (typeof window === "undefined") return;
     const m = window.location.hash.match(/^#account-(\d+)$/);
     if (!m) return;
     const targetId = Number(m[1]);
     if (!Number.isFinite(targetId)) return;
-    setOpenAcc(targetId);
-    setHighlightAcc(targetId);
-    const t = setTimeout(() => {
-      const el = document.getElementById(`account-${targetId}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 120);
-    const clear = setTimeout(() => setHighlightAcc(null), 2600);
-    return () => { clearTimeout(t); clearTimeout(clear); };
-  }, [holder]);
+    nav({ to: "/app/accounts/$id", params: { id: String(targetId) } });
+  }, [nav]);
 
   return (
     <div>
@@ -116,17 +105,11 @@ function HolderDetail() {
 
             <div className="grid gap-3 md:grid-cols-2">
               {(holder.holder_accounts ?? []).map((a: any) => {
-                const isOpen = openAcc === a.id;
-                const isHighlight = highlightAcc === a.id;
                 return (
-                  <Card
-                    key={a.id}
-                    id={`account-${a.id}`}
-                    className={`card-luxe transition scroll-mt-24 ${isOpen ? "md:col-span-2 border-[oklch(0.82_0.14_85/0.5)]" : ""} ${isHighlight ? "ring-2 ring-gold shadow-[0_0_0_4px_oklch(from_var(--gold)_l_c_h/0.18),0_24px_56px_-24px_var(--gold)]" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOpenAcc(isOpen ? null : a.id)}
+                  <Card key={a.id} id={`account-${a.id}`} className="card-luxe transition hover:border-gold/40">
+                    <Link
+                      to="/app/accounts/$id"
+                      params={{ id: String(a.id) }}
                       className="flex w-full items-start justify-between gap-2 p-4 text-left"
                     >
                       <div className="min-w-0 flex-1">
@@ -149,16 +132,9 @@ function HolderDetail() {
                         <div className="font-serif text-lg text-gold">
                           {Number(a.current_balance ?? 0).toLocaleString()} {a.currency_code}
                         </div>
-                        {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
-                    </button>
-                    {isOpen && (
-                      <>
-                        {isAdmin && <LimitsEditor account={a} />}
-                        {isAdmin && <WithdrawLimitEditor account={a} />}
-                        <LedgerPanel accountId={a.id} currency={a.currency_code} />
-                      </>
-                    )}
+                    </Link>
                   </Card>
                 );
               })}
@@ -169,8 +145,6 @@ function HolderDetail() {
     </div>
   );
 }
-
-function LimitsEditor({ account }: { account: any }) {
   const qc = useQueryClient();
   const [credit, setCredit] = useState(String(account.credit_limit ?? 0));
   const [debit, setDebit] = useState(String(account.debit_limit ?? 0));
