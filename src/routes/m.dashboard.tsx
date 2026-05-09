@@ -115,8 +115,7 @@ function MobileDashboard() {
         ) : null}
 
         {/* quick actions */}
-        <div className="rounded-2xl bg-card border border-border p-4 grid grid-cols-4 gap-2">
-          <Action icon={<ArrowLeftRight className="h-5 w-5" />} label="Transfer" />
+        <div className="rounded-2xl bg-card border border-border p-4 grid grid-cols-3 gap-2">
           <Action icon={<Receipt className="h-5 w-5" />} label="Pay Bills" />
           <Action icon={<Smartphone className="h-5 w-5" />} label="Top Up" />
           <Action icon={<CreditCard className="h-5 w-5" />} label="Cards" />
