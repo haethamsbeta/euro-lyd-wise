@@ -16,7 +16,8 @@ import {
   browserNotifSupported,
   requestBrowserNotifPermission,
 } from "@/lib/notifications";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/app/settings/notifications")({
   component: () => (
@@ -57,6 +58,7 @@ function NotifSettingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [perm, setPerm] = useState<string>("default");
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     setPerm(browserNotifPermission());
@@ -83,6 +85,40 @@ function NotifSettingsPage() {
     if (prefs) setDraft(prefs);
   }, [prefs]);
 
+  // Sync push_subscriptions row so admins can see device status.
+  async function syncPushSubscription(enabled: boolean) {
+    if (!user) return;
+    if (enabled) {
+      await supabase
+        .from("push_subscriptions")
+        .upsert(
+          {
+            user_id: user.id,
+            granted: true,
+            user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+            label: "This browser",
+          },
+          { onConflict: "user_id,label" as never },
+        )
+        .then(() => undefined, () => undefined);
+    } else {
+      await supabase.from("push_subscriptions").update({ granted: false }).eq("user_id", user.id);
+    }
+  }
+
+  async function sendSelfTest() {
+    setTesting(true);
+    try {
+      const { error } = await supabase.rpc("notif_self_test");
+      if (error) throw error;
+      toast.success("Test notification sent — watch for the toast and system popup.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const save = useMutation({
     mutationFn: async (next: Prefs) => {
       const { error } = await supabase
@@ -99,6 +135,7 @@ function NotifSettingsPage() {
         })
         .eq("user_id", user!.id);
       if (error) throw error;
+      await syncPushSubscription(next.browser_push_enabled && perm === "granted");
     },
     onSuccess: () => {
       toast.success("Notification preferences saved");
@@ -125,9 +162,15 @@ function NotifSettingsPage() {
         title="Notifications"
         description="Choose what to be notified about and customize reminders."
         actions={
-          <Button onClick={() => save.mutate(draft)} disabled={save.isPending}>
-            {save.isPending ? "Saving…" : "Save changes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={sendSelfTest} disabled={testing}>
+              <Send className="me-2 h-4 w-4" />
+              {testing ? "Sending…" : "Send test to me"}
+            </Button>
+            <Button onClick={() => save.mutate(draft)} disabled={save.isPending}>
+              {save.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
         }
       />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
@@ -139,6 +182,13 @@ function NotifSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant={draft.browser_push_enabled && perm === "granted" ? "default" : "secondary"}>
+                {draft.browser_push_enabled && perm === "granted"
+                  ? "Background notifications enabled"
+                  : "Foreground delivery only"}
+              </Badge>
+            </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="flex items-center gap-2 text-sm">
                 {perm === "granted" ? <Bell className="h-4 w-4 text-primary" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
@@ -155,6 +205,7 @@ function NotifSettingsPage() {
                   setPerm(r);
                   if (r === "granted") {
                     setDraft({ ...draft, browser_push_enabled: true });
+                    await syncPushSubscription(true);
                   }
                 }}
               >
