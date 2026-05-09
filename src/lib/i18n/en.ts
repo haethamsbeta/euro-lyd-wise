@@ -115,6 +115,7 @@ export const en = {
   "nav.groups": "Groups",
   "nav.reports": "Reports",
   "nav.portalAccounts": "Customer Portal Accounts",
+  "nav.fxRates": "FX rates",
 
   // app shell
   "shell.noStaffTitle": "No staff access",
