@@ -163,12 +163,12 @@ export function BottomDock() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", bounce: 0.15, duration: 0.5, delay: 0.1 }}
       className="fixed inset-x-0 bottom-0 z-20 pointer-events-none"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.25rem)" }}
     >
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl pointer-events-none" />
 
       <div
-        className="relative pointer-events-auto mx-3 mb-2 max-w-2xl h-[68px] sm:mx-4 sm:mb-3 sm:h-16 lg:mx-auto rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
+        className="relative pointer-events-auto mx-3 mb-3 max-w-2xl h-[72px] sm:mx-6 sm:mb-4 sm:h-[68px] lg:mx-auto lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
         style={{
           boxShadow:
             "0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold) / 0.08)",
