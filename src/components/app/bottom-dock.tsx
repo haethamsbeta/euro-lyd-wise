@@ -66,7 +66,8 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
       title={label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+        "relative flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors",
+        "min-w-[56px] min-h-[44px] px-2 py-1 sm:px-3 sm:py-1.5",
         active
           ? "text-gold"
           : "text-muted-foreground hover:text-foreground hover:bg-gold/10",
@@ -75,13 +76,13 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
       {active && (
         <motion.div
           layoutId="dock-active-dot"
-          className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold"
+          className="absolute -top-1.5 sm:-top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold"
           style={{ boxShadow: "0 0 8px oklch(var(--gold) / 0.8)" }}
           transition={{ type: "spring", stiffness: 500, damping: 35 }}
         />
       )}
       <div className="relative">
-        <Icon className="w-5 h-5" strokeWidth={1.75} />
+        <Icon className="w-[22px] h-[22px] sm:w-5 sm:h-5" strokeWidth={1.75} />
         {item.badge && item.badge > 0 ? (
           <span
             className="absolute -top-1.5 -right-2 bg-destructive text-destructive-foreground rounded-full text-[9px] font-bold min-w-[14px] h-[14px] px-1 flex items-center justify-center leading-none"
@@ -91,7 +92,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
           </span>
         ) : null}
       </div>
-      <span className="text-[10px] font-medium tracking-wide">{label}</span>
+      <span className="text-[11px] sm:text-[10px] font-medium tracking-wide truncate max-w-[68px]">{label}</span>
     </Link>
   );
 }
@@ -102,7 +103,7 @@ function Fab({ label }: { label: string }) {
       to="/app/transactions/new"
       aria-label={label}
       title={label}
-      className="group relative -mt-7 mx-2 inline-flex w-14 h-14 items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all"
+      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-9 mx-3 w-16 h-16 sm:-mt-8 sm:mx-2 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
       style={{
         boxShadow:
           "0 8px 24px oklch(var(--gold) / 0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
@@ -118,7 +119,7 @@ function Fab({ label }: { label: string }) {
     >
       <span className="pointer-events-none absolute inset-0 rounded-full bg-gold/30 opacity-30 animate-ping" />
       <Plus
-        className="relative z-10 w-7 h-7 transition-transform duration-300 group-hover:rotate-90"
+        className="relative z-10 w-8 h-8 sm:w-7 sm:h-7 transition-transform duration-300 group-hover:rotate-90"
         strokeWidth={2.5}
       />
     </Link>
@@ -167,7 +168,7 @@ export function BottomDock() {
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl pointer-events-none" />
 
       <div
-        className="relative pointer-events-auto mx-4 mb-3 max-w-2xl sm:mx-auto h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
+        className="relative pointer-events-auto mx-3 mb-2 max-w-2xl h-[68px] sm:mx-4 sm:mb-3 sm:h-16 lg:mx-auto rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
         style={{
           boxShadow:
             "0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold) / 0.08)",
