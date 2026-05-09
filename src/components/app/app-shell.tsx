@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AccountMenu } from "@/components/app/account-menu";
 import { useT } from "@/lib/i18n";
 import { BottomDock } from "@/components/app/bottom-dock";
+import { GlobalSearch } from "@/components/app/global-search";
 import {
   Sheet,
   SheetContent,
@@ -216,8 +217,10 @@ export function AppShell() {
                 </Tooltip>
               </div>
 
-              {/* Center spacer — primary navigation is the floating bottom dock */}
-              <div className="flex-1" />
+              {/* Center: global search */}
+              <div className="flex flex-1 items-center justify-center px-2">
+                <GlobalSearch />
+              </div>
 
               {/* Right action cluster */}
               <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2">
