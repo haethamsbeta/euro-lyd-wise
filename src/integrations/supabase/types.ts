@@ -879,26 +879,44 @@ export type Database = {
       }
       push_subscriptions: {
         Row: {
+          auth: string | null
           created_at: string
+          endpoint: string | null
           granted: boolean
           id: string
           label: string | null
+          last_error: string | null
+          last_seen_at: string
+          last_success_at: string | null
+          p256dh: string | null
           user_agent: string | null
           user_id: string
         }
         Insert: {
+          auth?: string | null
           created_at?: string
+          endpoint?: string | null
           granted?: boolean
           id?: string
           label?: string | null
+          last_error?: string | null
+          last_seen_at?: string
+          last_success_at?: string | null
+          p256dh?: string | null
           user_agent?: string | null
           user_id: string
         }
         Update: {
+          auth?: string | null
           created_at?: string
+          endpoint?: string | null
           granted?: boolean
           id?: string
           label?: string | null
+          last_error?: string | null
+          last_seen_at?: string
+          last_success_at?: string | null
+          p256dh?: string | null
           user_agent?: string | null
           user_id?: string
         }
@@ -1265,13 +1283,27 @@ export type Database = {
         Args: { p_new_email: string; p_target_user: string }
         Returns: undefined
       }
+      admin_list_push_devices: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          endpoint_present: boolean
+          granted: boolean
+          id: string
+          label: string
+          last_error: string
+          last_seen_at: string
+          last_success_at: string
+          user_agent: string
+        }[]
+      }
       admin_list_push_status: {
         Args: never
         Returns: {
           browser_push_enabled: boolean
           full_name: string
-          has_prefs: boolean
-          last_subscription_at: string
+          last_seen_at: string
+          last_success_at: string
           subscription_count: number
           user_id: string
         }[]
