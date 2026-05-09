@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ScrollText,
   Plus,
+  Activity,
 } from "lucide-react";
 import { useAuth, type AppRole } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
