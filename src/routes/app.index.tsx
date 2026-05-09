@@ -661,14 +661,14 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Transactions</h2>
         <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">View All →</Link>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto lg:max-h-[420px] lg:overflow-y-auto">
         {loading ? (
           <div className="p-6 text-sm text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
         ) : (
           <table className="w-full text-sm text-left">
-            <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em]">
+            <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em] lg:sticky lg:top-0 lg:z-10">
               <tr>
                 <th className="px-5 py-2.5 font-semibold text-muted-foreground">Transaction</th>
                 <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">Channel</th>
