@@ -641,16 +641,75 @@ function DirectionCard({
 
 function VaultStep({ value, onPick }: { value: Channel | null; onPick: (v: Channel) => void }) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <SelectableCard active={value === "cash"} onClick={() => onPick("cash")}
-        icon={<Wallet className="h-6 w-6" />} title="Cash Vault"
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <VaultCard
+        active={value === "cash"}
+        onClick={() => onPick("cash")}
+        icon={<Wallet className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
+        title="Cash Vault"
         desc="Physical cash handled at branch."
-        hint="Walk-in deposits, teller-counted withdrawals" />
-      <SelectableCard active={value === "bank"} onClick={() => onPick("bank")}
-        icon={<Landmark className="h-6 w-6" />} title="Bank Vault"
+        hint="Walk-in deposits, teller-counted withdrawals"
+      />
+      <VaultCard
+        active={value === "bank"}
+        onClick={() => onPick("bank")}
+        icon={<Landmark className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
+        title="Bank Vault"
         desc="Wire / digital transfer through bank."
-        hint="SWIFT wires, ACH, internal bank movements" />
+        hint="SWIFT wires, ACH, internal bank movements"
+      />
     </div>
+  );
+}
+
+function VaultCard({
+  active, onClick, icon, title, desc, hint,
+}: {
+  active: boolean; onClick: () => void;
+  icon: React.ReactNode; title: string; desc: string; hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-3xl border-2 p-8 text-left transition-all md:p-10",
+        "min-h-[220px] md:min-h-[260px]",
+        active
+          ? "border-gold bg-gold/10 shadow-[0_20px_60px_-20px_oklch(0.74_0.135_82/0.55)]"
+          : "border-gold/25 bg-card/60 hover:border-gold/55 hover:bg-card",
+      )}
+    >
+      {active && (
+        <div className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-gold">
+          <Check className="h-4 w-4 text-[var(--surface)]" />
+        </div>
+      )}
+      <div
+        className={cn(
+          "mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-colors md:h-20 md:w-20",
+          active
+            ? "bg-gradient-gold text-[var(--surface)]"
+            : "bg-gold/10 text-gold",
+        )}
+      >
+        {icon}
+      </div>
+      <h3
+        className={cn(
+          "mb-2 font-playfair text-2xl font-semibold md:text-3xl",
+          active ? "text-gold" : "text-foreground",
+        )}
+      >
+        {title}
+      </h3>
+      <p className="text-sm leading-relaxed text-muted-foreground md:text-base">{desc}</p>
+      {hint && (
+        <p className="mt-4 border-t border-gold/15 pt-3 text-[12px] italic text-muted-foreground/80">
+          {hint}
+        </p>
+      )}
+    </button>
   );
 }
 
