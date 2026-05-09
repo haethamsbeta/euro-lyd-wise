@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { KeyRound, Mail, UserPlus } from "lucide-react";
+import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send } from "lucide-react";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 
 export const Route = createFileRoute("/app/users")({
@@ -32,6 +32,7 @@ function UsersPage() {
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [emailEdit, setEmailEdit] = useState<{ id: string; current: string | null } | null>(null);
   const [newEmail, setNewEmail] = useState("");
+  const [testingId, setTestingId] = useState<string | null>(null);
 
   const listEmails = useServerFn(adminListUserEmails);
   const changeEmail = useServerFn(adminChangeUserEmail);
@@ -40,15 +41,21 @@ function UsersPage() {
     queryKey: ["users.profiles"],
     enabled: !!user,
     queryFn: async () => {
-      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails] = await Promise.all([
+      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails, pushRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, created_at"),
         supabase.from("user_roles").select("user_id, role, id"),
         listEmails().catch(() => [] as Array<{ id: string; email: string | null }>),
+        supabase.rpc("admin_list_push_status"),
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       const emailMap = new Map((emails ?? []).map((e) => [e.id, e.email]));
-      return { profiles: profiles ?? [], roles: roles ?? [], emailMap };
+      const pushMap = new Map(
+        ((pushRes?.data as Array<{ user_id: string; browser_push_enabled: boolean; subscription_count: number }> | null) ?? []).map(
+          (r) => [r.user_id, r],
+        ),
+      );
+      return { profiles: profiles ?? [], roles: roles ?? [], emailMap, pushMap };
     },
   });
 
@@ -105,6 +112,21 @@ function UsersPage() {
     }
   }
 
+  async function onSendTest(targetId: string, name: string) {
+    setTestingId(targetId);
+    try {
+      const { error } = await supabase.rpc("admin_send_test_notification", { p_user_id: targetId });
+      if (error) throw error;
+      toast.success(`Test sent to ${name}`, {
+        description: "It appears in their notification inbox immediately, and as a system popup if their browser permits it.",
+      });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   const profiles = (data?.profiles ?? []).filter((p) =>
     !search || p.full_name.toLowerCase().includes(search.toLowerCase()) || p.id.includes(search),
   );
@@ -130,6 +152,7 @@ function UsersPage() {
                   <th className="px-4 py-2 text-start">{t("users.col.user")}</th>
                   <th className="px-4 py-2 text-start">Email</th>
                   <th className="px-4 py-2 text-start">{t("users.col.roles")}</th>
+                  <th className="px-4 py-2 text-start">Push</th>
                   <th className="px-4 py-2 text-start">{t("users.col.grant")}</th>
                   <th className="px-4 py-2 text-start">Actions</th>
                 </tr>
@@ -138,6 +161,9 @@ function UsersPage() {
                 {profiles.map((p) => {
                   const userRoles = (data?.roles ?? []).filter((r) => r.user_id === p.id);
                   const email = data?.emailMap?.get(p.id) ?? null;
+                  const push = data?.pushMap?.get(p.id);
+                  const pushOn = !!push?.browser_push_enabled && (push?.subscription_count ?? 0) > 0;
+                  const pushPartial = !!push?.browser_push_enabled && (push?.subscription_count ?? 0) === 0;
                   return (
                     <tr key={p.id}>
                       <td className="px-4 py-2">
@@ -176,13 +202,46 @@ function UsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-2">
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={pushOn ? "default" : pushPartial ? "secondary" : "outline"}
+                                className="gap-1"
+                              >
+                                {pushOn ? <BellRing className="h-3 w-3" /> : <BellOff className="h-3 w-3" />}
+                                {pushOn ? "Push on" : pushPartial ? "In-app only" : "Off"}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              {pushOn
+                                ? `Browser notifications enabled on ${push?.subscription_count} device(s). System popup fires when their tab is hidden.`
+                                : pushPartial
+                                ? "User has push toggled on but hasn't granted browser permission on any device yet."
+                                : "Push is off — notifications still appear in the in-app inbox."}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
+                      <td className="px-4 py-2">
                         <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
                       </td>
                       <td className="px-4 py-2">
-                        {(() => {
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            disabled={testingId === p.id}
+                            onClick={() => onSendTest(p.id, p.full_name || "this user")}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {testingId === p.id ? "Sending…" : "Send test"}
+                          </Button>
+                          {(() => {
                           const isStaff = userRoles.some((r) => ["admin","teller","auditor"].includes(r.role));
                           const isSelf = user?.id === p.id;
-                          if (!isStaff || isSelf) return <span className="text-xs text-muted-foreground">—</span>;
+                          if (!isStaff || isSelf) return null;
                           return (
                             <Button
                               size="sm"
@@ -195,7 +254,8 @@ function UsersPage() {
                               {resettingId === p.id ? "Sending…" : "Reset password"}
                             </Button>
                           );
-                        })()}
+                          })()}
+                        </div>
                       </td>
                     </tr>
                   );
