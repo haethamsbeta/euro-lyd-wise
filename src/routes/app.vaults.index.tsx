@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
+import { RoleGate } from "@/components/app/app-shell";
 import {
   Landmark,
   Banknote,
@@ -21,7 +22,13 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-export const Route = createFileRoute("/app/vaults/")({ component: VaultsPage });
+export const Route = createFileRoute("/app/vaults/")({
+  component: () => (
+    <RoleGate allow={["admin", "auditor"]}>
+      <VaultsPage />
+    </RoleGate>
+  ),
+});
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 

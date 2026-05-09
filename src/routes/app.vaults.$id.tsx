@@ -23,11 +23,16 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
+import { RoleGate } from "@/components/app/app-shell";
 
 type VaultSearch = { currency?: "USD" | "EUR" | "LYD" };
 
 export const Route = createFileRoute("/app/vaults/$id")({
-  component: VaultDetail,
+  component: () => (
+    <RoleGate allow={["admin", "auditor"]}>
+      <VaultDetail />
+    </RoleGate>
+  ),
   validateSearch: (search: Record<string, unknown>): VaultSearch => {
     const c = search.currency;
     if (c === "USD" || c === "EUR" || c === "LYD") return { currency: c };

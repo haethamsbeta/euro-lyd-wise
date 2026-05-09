@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ScrollText,
   Plus,
+  Activity,
 } from "lucide-react";
 import { useAuth, type AppRole } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +24,7 @@ type DockItemDef = {
   badge?: number;
 };
 
-type DockKey = "Dashboard" | "Transactions" | "Holders" | "Vaults" | "Approvals" | "Audit";
+type DockKey = "Dashboard" | "Transactions" | "Holders" | "Vaults" | "Approvals" | "Audit" | "MyActivity";
 
 const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
   Dashboard:    { key: "Dashboard",    to: "/app",              labelKey: "nav.dashboard",    icon: LayoutDashboard },
@@ -32,11 +33,12 @@ const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
   Vaults:       { key: "Vaults",       to: "/app/vaults",       labelKey: "nav.vaults",       icon: Wallet },
   Approvals:    { key: "Approvals",    to: "/app/approvals",    labelKey: "nav.approvals",    icon: ClipboardCheck },
   Audit:        { key: "Audit",        to: "/app/audit",        labelKey: "nav.audit",        icon: ScrollText },
+  MyActivity:   { key: "MyActivity",   to: "/app/me/activity",  labelKey: "nav.myActivity",   icon: Activity },
 };
 
 const DOCK_CONFIG: Record<AppRole, { left: DockKey[]; right: DockKey[]; showFab: boolean }> = {
   admin:    { left: ["Dashboard", "Transactions"], right: ["Holders", "Approvals"], showFab: true },
-  teller:   { left: ["Dashboard", "Transactions"], right: ["Holders", "Vaults"],    showFab: true },
+  teller:   { left: ["Dashboard", "Transactions"], right: ["Holders", "MyActivity"], showFab: true },
   auditor:  { left: ["Dashboard", "Transactions"], right: ["Holders", "Audit"],     showFab: false },
   consumer: { left: ["Dashboard"],                  right: [],                       showFab: false },
 };

@@ -19,9 +19,14 @@ import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { RoleGate } from "@/components/app/app-shell";
 
 export const Route = createFileRoute("/app/accounts/$id")({
-  component: AccountDetail,
+  component: () => (
+    <RoleGate allow={["admin", "auditor"]}>
+      <AccountDetail />
+    </RoleGate>
+  ),
   notFoundComponent: () => (
     <div className="p-8 text-center">
       <p className="font-serif text-2xl">Account not found</p>
