@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,7 +38,7 @@ function HolderDetail() {
   const { id } = Route.useParams();
   const holderId = Number(id);
   const nav = useNavigate();
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isReadOnly = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isReadOnly;
