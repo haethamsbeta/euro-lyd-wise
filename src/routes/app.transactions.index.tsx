@@ -626,12 +626,14 @@ function DayGroup({
 
 function TxRow({
   tx,
+  index,
   isAdmin,
   byId,
   onEdit,
   onOpen,
 }: {
   tx: Tx;
+  index: number;
   isAdmin: boolean;
   byId: Map<string, Tx>;
   onEdit: (tx: Tx) => void;
