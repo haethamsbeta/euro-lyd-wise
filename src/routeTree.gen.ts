@@ -41,6 +41,7 @@ import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppHoldersNewRouteImport } from './routes/app.holders.new'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
+import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
 import { Route as AppTransactionsNewIndexRouteImport } from './routes/app.transactions.new.index'
 import { Route as AppTransactionsNewWithdrawRouteImport } from './routes/app.transactions.new.withdraw'
 import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.transactions.new.deposit'
@@ -208,6 +209,11 @@ const AppGroupsIdRoute = AppGroupsIdRouteImport.update({
   path: '/groups/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountsIdRoute = AppAccountsIdRouteImport.update({
+  id: '/accounts/$id',
+  path: '/accounts/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransactionsNewIndexRoute = AppTransactionsNewIndexRouteImport.update({
   id: '/transactions/new/',
   path: '/transactions/new/',
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/m/login': typeof MLoginRoute
   '/app': typeof AppIndexRoute
   '/m': typeof MIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/m/login': typeof MLoginRoute
   '/app/': typeof AppIndexRoute
   '/m/': typeof MIndexRoute
+  '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app/'
     | '/m/'
+    | '/app/accounts/$id'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app'
     | '/m'
+    | '/app/accounts/$id'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/m/login'
     | '/app/'
     | '/m/'
+    | '/app/accounts/$id'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -708,6 +720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/accounts/$id': {
+      id: '/app/accounts/$id'
+      path: '/accounts/$id'
+      fullPath: '/app/accounts/$id'
+      preLoaderRoute: typeof AppAccountsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/transactions/new/': {
       id: '/app/transactions/new/'
       path: '/transactions/new'
@@ -781,6 +800,7 @@ interface AppRouteChildren {
   AppUsersRoute: typeof AppUsersRouteWithChildren
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
   AppHoldersNewRoute: typeof AppHoldersNewRoute
@@ -804,6 +824,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppUsersRoute: AppUsersRouteWithChildren,
   AppVaultsRoute: AppVaultsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppAccountsIdRoute: AppAccountsIdRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
   AppHoldersNewRoute: AppHoldersNewRoute,
@@ -860,12 +881,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

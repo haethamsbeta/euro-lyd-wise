@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneShell, DahamLogo } from "@/components/mobile/phone-shell";
-import { Menu, Bell, Eye, ArrowLeftRight, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, MoreHorizontal, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Menu, Bell, Eye, Receipt, Smartphone, CreditCard, Wallet, PiggyBank, ChevronRight, ScanLine, Home, MoreHorizontal, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,8 +115,7 @@ function MobileDashboard() {
         ) : null}
 
         {/* quick actions */}
-        <div className="rounded-2xl bg-card border border-border p-4 grid grid-cols-4 gap-2">
-          <Action icon={<ArrowLeftRight className="h-5 w-5" />} label="Transfer" />
+        <div className="rounded-2xl bg-card border border-border p-4 grid grid-cols-3 gap-2">
           <Action icon={<Receipt className="h-5 w-5" />} label="Pay Bills" />
           <Action icon={<Smartphone className="h-5 w-5" />} label="Top Up" />
           <Action icon={<CreditCard className="h-5 w-5" />} label="Cards" />
