@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +55,6 @@ function fmt(n: number, c?: string) {
 function AccountDetail() {
   const { id } = Route.useParams();
   const accountId = Number(id);
-  const nav = useNavigate();
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isTeller = hasAnyRole(roles, ["teller"]);
