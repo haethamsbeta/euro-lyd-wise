@@ -103,7 +103,7 @@ function Fab({ label }: { label: string }) {
       to="/app/transactions/new"
       aria-label={label}
       title={label}
-      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-9 mx-3 w-16 h-16 sm:-mt-8 sm:mx-2 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
+      className="group relative inline-flex items-center justify-center rounded-full border-2 border-background bg-gradient-gold text-primary-foreground transition-all -mt-8 mx-3 w-[60px] h-[60px] sm:-mt-7 sm:mx-3 sm:w-[60px] sm:h-[60px] lg:-mt-7 lg:w-14 lg:h-14"
       style={{
         boxShadow:
           "0 8px 24px oklch(var(--gold) / 0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
@@ -119,7 +119,7 @@ function Fab({ label }: { label: string }) {
     >
       <span className="pointer-events-none absolute inset-0 rounded-full bg-gold/30 opacity-30 animate-ping" />
       <Plus
-        className="relative z-10 w-8 h-8 sm:w-7 sm:h-7 transition-transform duration-300 group-hover:rotate-90"
+        className="relative z-10 w-7 h-7 sm:w-7 sm:h-7 transition-transform duration-300 group-hover:rotate-90"
         strokeWidth={2.5}
       />
     </Link>
@@ -163,12 +163,12 @@ export function BottomDock() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", bounce: 0.15, duration: 0.5, delay: 0.1 }}
       className="fixed inset-x-0 bottom-0 z-20 pointer-events-none"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.25rem)" }}
     >
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl pointer-events-none" />
 
       <div
-        className="relative pointer-events-auto mx-3 mb-2 max-w-2xl h-[68px] sm:mx-4 sm:mb-3 sm:h-16 lg:mx-auto rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
+        className="relative pointer-events-auto mx-3 mb-3 max-w-2xl h-[72px] sm:mx-6 sm:mb-4 sm:h-[68px] lg:mx-auto lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-2"
         style={{
           boxShadow:
             "0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold) / 0.08)",
