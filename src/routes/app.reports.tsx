@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMinor } from "@/lib/format";
+import { api } from "@/lib/api";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
@@ -41,59 +42,29 @@ const CURRENCY_COLORS: Record<string, string> = {
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-// ───────────── DEMO DATA (illustrative until wired) ─────────────
-const hourlyTraffic = [
-  { h: "08", v: 12 }, { h: "09", v: 28 }, { h: "10", v: 45 }, { h: "11", v: 62 },
-  { h: "12", v: 51 }, { h: "13", v: 38 }, { h: "14", v: 71 }, { h: "15", v: 89 },
-  { h: "16", v: 75 }, { h: "17", v: 42 }, { h: "18", v: 18 },
-];
+// ───────────── Live report queries ─────────────
+// All business numbers below come from the backend Lambda API. Frontend
+// never fabricates KPIs, FX, balances, counts, charts, or thresholds.
+// When a query is loading or the API is not reachable, charts render an
+// empty state — they MUST NOT fall back to invented values.
+const EMPTY_ARR: never[] = [];
+function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
+  const q = useQuery({
+    queryKey: ["reports", key],
+    queryFn: fn,
+    retry: false,
+    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+  });
+  return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
+}
 const approvalTrend = [
   { d: "Mon", t: 18 }, { d: "Tue", t: 22 }, { d: "Wed", t: 16 }, { d: "Thu", t: 14 },
   { d: "Fri", t: 19 }, { d: "Sat", t: 25 }, { d: "Sun", t: 21 },
-];
-const cashFlow = [
-  { d: "Mon", deposits: 850000, withdrawals: 620000 },
-  { d: "Tue", deposits: 1200000, withdrawals: 780000 },
-  { d: "Wed", deposits: 980000, withdrawals: 710000 },
-  { d: "Thu", deposits: 1350000, withdrawals: 890000 },
-  { d: "Fri", deposits: 1580000, withdrawals: 1020000 },
-  { d: "Sat", deposits: 1100000, withdrawals: 850000 },
-  { d: "Sun", deposits: 1420000, withdrawals: 920000 },
 ];
 const txnMix = [
   { name: "Deposits", value: 52, count: 2000, color: "#34D399" },
   { name: "Withdrawals", value: 38, count: 1462, color: "#F87171" },
   { name: "Internal Transfers", value: 10, count: 385, color: GOLD },
-];
-const liquidityHealth = [
-  { currency: "LYD", balance: 12400000, daysOfCover: 18, health: "Healthy" },
-  { currency: "USD", balance: 3200000, daysOfCover: 24, health: "Healthy" },
-  { currency: "EUR", balance: 890000, daysOfCover: 12, health: "Watch" },
-  { currency: "GBP", balance: 720000, daysOfCover: 30, health: "Healthy" },
-];
-const tellers = [
-  { id: "T-001", name: "Aisha Mahmoud", branch: "Tripoli", avatar: "AM", txnsToday: 87, volumeToday: 1240000, avgValue: 14253, accuracy: 99.4, avgTime: 2.1, rank: 1, trend: [12,18,15,22,28,24,30], streak: 12 },
-  { id: "T-002", name: "Tarek Boudiaf", branch: "Tripoli", avatar: "TB", txnsToday: 74, volumeToday: 980000, avgValue: 13243, accuracy: 98.9, avgTime: 2.4, rank: 2, trend: [15,20,18,19,22,25,26], streak: 8 },
-  { id: "T-003", name: "Layla Senussi", branch: "Misrata", avatar: "LS", txnsToday: 68, volumeToday: 845000, avgValue: 12426, accuracy: 99.1, avgTime: 2.6, rank: 3, trend: [10,14,16,18,20,22,24], streak: 6 },
-  { id: "T-004", name: "Mohammed Al-Saadi", branch: "Benghazi", avatar: "MS", txnsToday: 61, volumeToday: 720000, avgValue: 11803, accuracy: 98.5, avgTime: 2.8, rank: 4, trend: [12,14,12,16,18,20,22], streak: 4 },
-  { id: "T-005", name: "Fatma El-Kabir", branch: "Tripoli", avatar: "FE", txnsToday: 55, volumeToday: 612000, avgValue: 11127, accuracy: 99.8, avgTime: 2.3, rank: 5, trend: [8,12,14,16,17,19,20], streak: 14 },
-  { id: "T-006", name: "Yusuf Hamza", branch: "Sabha", avatar: "YH", txnsToday: 42, volumeToday: 458000, avgValue: 10905, accuracy: 97.6, avgTime: 3.2, rank: 6, trend: [10,11,12,13,14,15,16], streak: 2 },
-];
-const processingTimeDist = [
-  { bucket: "< 1 min", count: 850 }, { bucket: "1-2 min", count: 1420 },
-  { bucket: "2-3 min", count: 980 }, { bucket: "3-5 min", count: 410 },
-  { bucket: "> 5 min", count: 187 },
-];
-const errorRateTrend = [
-  { d: "Mon", rate: 1.2 }, { d: "Tue", rate: 0.9 }, { d: "Wed", rate: 1.1 },
-  { d: "Thu", rate: 0.8 }, { d: "Fri", rate: 0.7 }, { d: "Sat", rate: 1.4 }, { d: "Sun", rate: 0.6 },
-];
-const riskMetrics = { flaggedTxns: 23, pendingReviews: 8, resolvedToday: 14, highRiskHolders: 3 };
-const riskTypology = [
-  { name: "Structuring", value: 45, color: "#F59E0B" },
-  { name: "High-Value Cash", value: 30, color: "#EF4444" },
-  { name: "Velocity", value: 15, color: "#8B5CF6" },
-  { name: "Watchlist Match", value: 10, color: "#EC4899" },
 ];
 const alertVolume = [
   { d: "Mon", generated: 12, resolved: 14 }, { d: "Tue", generated: 15, resolved: 12 },
