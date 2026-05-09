@@ -18,6 +18,7 @@ import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
@@ -69,7 +70,7 @@ type ResultState =
 export function NewTransactionWizard({ initialType }: { initialType?: Direction }) {
   const nav = useNavigate();
   const qc = useQueryClient();
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const canViewBalances = hasAnyRole(roles, ["admin"]);
 
   const [stepIdx, setStepIdx] = useState<number>(initialType ? 1 : 0);

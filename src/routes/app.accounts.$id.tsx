@@ -13,6 +13,7 @@ import {
   TrendingUp, TrendingDown, Wallet, ShieldCheck, Search, Download, X, Check,
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { toast } from "sonner";
 import { useDebounced } from "@/hooks/use-debounced";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ function fmt(n: number, c?: string) {
 function AccountDetail() {
   const { id } = Route.useParams();
   const accountId = Number(id);
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isTeller = hasAnyRole(roles, ["teller"]);
   const canPost = isAdmin || isTeller;

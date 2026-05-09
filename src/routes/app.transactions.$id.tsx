@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { useAuth, hasAnyRole } from "@/lib/auth";
+import { useEffectiveRoles } from "@/lib/role-view";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -72,7 +73,7 @@ type Attachment = {
 function TxDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { roles } = useAuth();
+  const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const qc = useQueryClient();
