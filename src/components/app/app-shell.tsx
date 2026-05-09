@@ -203,9 +203,9 @@ export function AppShell() {
         <div className="min-h-screen bg-background">
           {/* Full-width sticky toolbar — fixed-width brand on the left, nav after, actions on the right */}
           <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl relative">
-            <div className="flex h-16 w-full items-center gap-2 px-3 sm:h-[68px] sm:gap-3 sm:px-5 lg:h-[72px] lg:px-8">
+            <div className="flex h-16 w-full items-center gap-1 px-2.5 sm:h-[68px] sm:gap-3 sm:px-5 lg:h-[72px] lg:px-8">
               {/* Left cluster: hamburger (More) → logo. Stationary on every breakpoint. */}
-              <div className="flex h-full shrink-0 items-center gap-2 sm:gap-3">
+              <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-3">
                 <MoreButton />
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -225,12 +225,12 @@ export function AppShell() {
               </div>
 
               {/* Center: global search */}
-              <div className="flex flex-1 items-center justify-center px-2">
+              <div className="flex flex-1 items-center justify-center px-1 sm:px-2">
                 <GlobalSearch />
               </div>
 
               {/* Right action cluster */}
-              <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-2">
+              <div className="flex h-full shrink-0 items-center gap-0.5 sm:gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="inline-flex">
@@ -272,7 +272,7 @@ export function AppShell() {
             </div>
           )}
 
-          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-28 md:pb-24")}>
+          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-32 sm:pb-28 md:pb-24")}>
             <Outlet />
           </main>
           {!hideDock && <BottomDock />}
