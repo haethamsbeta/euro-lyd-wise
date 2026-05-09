@@ -22,6 +22,7 @@ import { useT } from "@/lib/i18n";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
