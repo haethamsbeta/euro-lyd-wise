@@ -75,7 +75,10 @@
      tracking + heavier weights) carries the body for a clean, modern look. */
   --font-serif: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Intentionally aliased to the sans stack so transaction numbers and other
+     numeric strings render in the same sharp Inter face as the rest of the UI.
+     Tabular figures are still applied via font-variant-numeric. */
+  --font-mono: "Inter", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
   --font-arabic: "Cairo", "Amiri", "Segoe UI", Tahoma, sans-serif;
 }
 
