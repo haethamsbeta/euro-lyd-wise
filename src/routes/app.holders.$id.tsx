@@ -1,14 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
-  ArrowLeft, ChevronRight, Wallet, TrendingUp, TrendingDown, Layers,
-  Phone, Mail, Calendar, Copy,
+  ArrowLeft, ArrowRight, Plus, Edit, Shield, Building, User as UserIcon,
+  Mail, Phone, MapPin, AlertTriangle, Search, StickyNote, CheckCircle2,
+  Clock, Eye, Copy,
 } from "lucide-react";
 import { AddLinkedAccountDialog } from "@/components/app/add-linked-account-dialog";
 import { useAuth, hasAnyRole } from "@/lib/auth";
@@ -27,12 +30,19 @@ function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maxi
 
 export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
 
+type Tab = "Overview" | "Linked Accounts" | "Transactions" | "Activity" | "Notes";
+const TABS: Tab[] = ["Overview", "Linked Accounts", "Transactions", "Activity", "Notes"];
+
 function HolderDetail() {
   const { id } = Route.useParams();
   const holderId = Number(id);
   const nav = useNavigate();
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
+  const isReadOnly = hasAnyRole(roles, ["auditor"]) && !isAdmin;
+
+  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const [highlightedAccountId, setHighlightedAccountId] = useState<number | null>(null);
 
   const { data: holder, isLoading } = useQuery({
     queryKey: ["holder", holderId],
@@ -57,208 +67,618 @@ function HolderDetail() {
     },
   });
 
-  // Deep-link redirect: #account-N → /app/accounts/N
+  // Deep-link: #account-N → switch to Linked Accounts tab and highlight
   useEffect(() => {
     if (typeof window === "undefined") return;
     const m = window.location.hash.match(/^#account-(\d+)$/);
     if (!m) return;
     const targetId = Number(m[1]);
     if (!Number.isFinite(targetId)) return;
-    nav({ to: "/app/accounts/$id", params: { id: String(targetId) } });
+    setHighlightedAccountId(targetId);
+    setActiveTab("Linked Accounts");
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(`account-${targetId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 200);
+    return () => window.clearTimeout(t);
   }, [nav]);
 
+  const accountIds = useMemo(
+    () => (holder?.holder_accounts ?? []).map((a: any) => a.id),
+    [holder],
+  );
+
+  const { data: ledger } = useQuery({
+    queryKey: ["holder-ledger", holderId, accountIds.join(",")],
+    enabled: accountIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("holder_ledger_entries")
+        .select("id,account_id,currency_code,credit_amount,debit_amount,description,posted_at,tx_number,balance_after")
+        .in("account_id", accountIds)
+        .order("posted_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  function copy(value?: string | null) {
+    if (!value) return;
+    navigator.clipboard?.writeText(value).then(() => toast.success("Copied", { duration: 1500 })).catch(() => {});
+  }
+
+  if (isLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  }
+  if (!holder) {
+    return <div className="p-6 text-sm text-muted-foreground">Holder not found.</div>;
+  }
+
+  const accounts = holder.holder_accounts ?? [];
+  const totalLyd = (totals ?? []).reduce((sum, t) => sum + Number(t.total_balance ?? 0), 0);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6 p-4 pb-12 sm:p-6"
+    >
+      {/* Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <Link to="/app/holders" className="flex items-center gap-1 transition-colors hover:text-gold">
+            <ArrowLeft className="h-3.5 w-3.5" /> Holders
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-foreground">{holder.canonical_name}</span>
+        </div>
+        {isReadOnly && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-400">
+            <Eye className="h-3 w-3" /> Read-Only
+          </span>
+        )}
+      </div>
+
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="flex flex-col justify-between gap-4 md:flex-row md:items-start"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/25 via-gold-deep/30 to-surface-2 text-gold-soft shadow-[0_0_30px_rgba(212,168,87,0.15)]">
+            {holderTypeIcon(holder.holder_type)}
+          </div>
+          <div className="min-w-0">
+            <h1 className="flex flex-wrap items-center gap-3 font-serif text-2xl font-semibold" dir="auto">
+              {holder.canonical_name}
+              <StatusBadge status={holder.status} />
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-text-secondary">
+              <button
+                onClick={() => copy(holder.dahab_account_number)}
+                className="group inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 font-mono text-xs text-gold hover:border-gold/40"
+                title="Copy DAHAB number"
+              >
+                {holder.dahab_account_number}
+                <Copy className="h-3 w-3 opacity-0 transition group-hover:opacity-100" />
+              </button>
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                {holderTypeIcon(holder.holder_type, "h-3.5 w-3.5")} {holder.holder_type}
+              </span>
+              {holder.created_at && (
+                <span className="text-xs">Joined {new Date(holder.created_at).toLocaleDateString()}</span>
+              )}
+            </div>
+          </div>
+        </div>
+        {!isReadOnly && (
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && <AddLinkedAccountDialog holderId={holder.id} />}
+            <Button variant="outline" size="sm" className="gap-2">
+              <Edit className="h-4 w-4" /> Edit Profile
+            </Button>
+            {isAdmin && (
+              holder.status === "SUSPENDED" ? (
+                <Button variant="outline" size="sm" className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10">
+                  Reactivate
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-2 border-red-500/40 text-red-400 hover:bg-red-500/10">
+                  <AlertTriangle className="h-4 w-4" /> Suspend
+                </Button>
+              )
+            )}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Tabs */}
+      <div className="scrollbar-none relative flex overflow-x-auto border-b border-border">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors",
+                isActive ? "text-gold" : "text-text-secondary hover:text-foreground",
+              )}
+            >
+              {tab}
+              {isActive && (
+                <motion.span
+                  layoutId="activeHolderTab"
+                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-gold to-transparent"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === "Overview" && (
+            <OverviewTab
+              holder={holder}
+              accounts={accounts}
+              totals={totals ?? []}
+              totalLyd={totalLyd}
+              isReadOnly={isReadOnly}
+              highlightedAccountId={highlightedAccountId}
+            />
+          )}
+          {activeTab === "Linked Accounts" && (
+            <AccountListBlock
+              accounts={accounts}
+              isReadOnly={isReadOnly}
+              isAdmin={isAdmin}
+              holderId={holder.id}
+              highlightedAccountId={highlightedAccountId}
+            />
+          )}
+          {activeTab === "Transactions" && (
+            <TransactionsTab entries={ledger ?? []} accounts={accounts} />
+          )}
+          {activeTab === "Activity" && <ActivityTab entries={ledger ?? []} />}
+          {activeTab === "Notes" && <NotesTab isReadOnly={isReadOnly} />}
+        </motion.div>
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function holderTypeIcon(type?: string | null, cls = "h-6 w-6") {
+  const t = (type ?? "").toLowerCase();
+  if (t.includes("corp") || t.includes("company") || t.includes("business")) return <Building className={cls} />;
+  if (t.includes("trust")) return <Shield className={cls} />;
+  return <UserIcon className={cls} />;
+}
+
+function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, highlightedAccountId }: any) {
+  const accountsByCurrency: Record<string, number> = {};
+  for (const t of totals) accountsByCurrency[t.currency] = Number(t.total_balance ?? 0);
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Left column */}
+      <div className="space-y-6">
+        <Card className="p-5">
+          <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.15em] text-text-secondary">
+            Profile Information
+          </h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <div className="mb-1 text-[11px] uppercase tracking-wider text-text-secondary">Canonical Name</div>
+              <div className="font-medium" dir="auto">{holder.canonical_name}</div>
+            </div>
+            <div className="space-y-3 border-t border-border pt-4">
+              {holder.email && (
+                <ProfileRow icon={Mail} label="Primary Email" value={holder.email} />
+              )}
+              {holder.phone && (
+                <ProfileRow icon={Phone} label="Primary Phone" value={holder.phone} />
+              )}
+              <ProfileRow icon={MapPin} label="Holder Type" value={holder.holder_type ?? "—"} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.15em] text-text-secondary">
+            Account Summary
+          </h3>
+          <div className="space-y-3">
+            <SummaryRow label="Linked Accounts" value={String(accounts.length)} />
+            <SummaryRow label="Currencies" value={String(totals.length || 0)} />
+            <SummaryRow
+              label="Status"
+              value={<StatusBadge status={holder.status} />}
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Right column */}
+      <div className="space-y-6 lg:col-span-2">
+        <Card className="relative overflow-hidden p-6">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold/15 via-card to-card opacity-80" />
+          <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#D4A857" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hero-grid)" />
+          </svg>
+          <div className="relative z-10">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-gold">
+                Consolidated Balance
+              </span>
+            </div>
+            <div className="mb-5 font-serif text-4xl font-semibold tabular-nums">
+              {fmt(totalLyd)}
+              <span className="ml-2 font-sans text-lg font-normal opacity-60">LYD eq.</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {totals.map((t: any) => (
+                <div
+                  key={t.currency}
+                  className="flex items-center gap-2 rounded-lg border border-border/50 bg-surface-2/60 px-3 py-1.5 backdrop-blur-sm"
+                >
+                  <span className="text-[10px] font-bold tracking-wider text-gold">{t.currency}</span>
+                  <span className="text-sm font-medium tabular-nums">{fmt(Number(t.total_balance ?? 0))}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <AccountListBlock
+          accounts={accounts}
+          isReadOnly={isReadOnly}
+          isAdmin={false}
+          holderId={holder.id}
+          highlightedAccountId={highlightedAccountId}
+          compact
+        />
+      </div>
+    </div>
+  );
+}
+
+function ProfileRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+      <div className="min-w-0">
+        <div className="text-sm">{value}</div>
+        <div className="mt-0.5 text-[10px] uppercase tracking-wider text-text-secondary">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] uppercase tracking-wider text-text-secondary">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+function AccountListBlock({
+  accounts,
+  isReadOnly,
+  isAdmin,
+  holderId,
+  highlightedAccountId,
+  compact = false,
+}: {
+  accounts: any[];
+  isReadOnly: boolean;
+  isAdmin: boolean;
+  holderId: number;
+  highlightedAccountId: number | null;
+  compact?: boolean;
+}) {
   return (
     <div>
-      <PageHeader
-        title={holder?.canonical_name ?? "Holder"}
-        description={holder?.dahab_account_number}
-        actions={
-          <>
-            {isAdmin && holder ? <AddLinkedAccountDialog holderId={holder.id} /> : null}
-            <Button asChild variant="outline" size="sm">
-              <Link to="/app/holders"><ArrowLeft className="h-4 w-4 me-1" /> Back</Link>
-            </Button>
-          </>
-        }
-      />
-      <div className="space-y-4 p-4 sm:p-6">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : !holder ? (
-          <p className="text-sm text-muted-foreground">Holder not found.</p>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-serif text-lg font-semibold">
+          Linked Accounts ({accounts.length})
+        </h2>
+        {!isReadOnly && isAdmin && <AddLinkedAccountDialog holderId={holderId} />}
+      </div>
+      <div className="space-y-3">
+        {accounts.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              No linked accounts yet.
+            </CardContent>
+          </Card>
         ) : (
-          <>
-            <HolderHero holder={holder} accountsCount={(holder.holder_accounts ?? []).length} />
-
-            <KpiStrip totals={totals ?? []} accountsCount={(holder.holder_accounts ?? []).length} />
-
-            {totals && totals.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                {totals.map((t) => {
-                  const tt = tint(t.currency);
-                  return (
-                    <Card key={t.currency} className={cn("card-luxe overflow-hidden border", tt.ring)}>
-                      <div className={cn("bg-gradient-to-br p-4", tt.gradient)}>
-                        <div className="flex items-center justify-between">
-                          <CurrencyBadge currency={t.currency} />
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t.account_count} acct</span>
+          accounts.map((acc) => {
+            const isHighlighted = acc.id === highlightedAccountId;
+            const tt = tint(acc.currency_code);
+            return (
+              <Link
+                key={acc.id}
+                to="/app/accounts/$id"
+                params={{ id: String(acc.id) }}
+                id={`account-${acc.id}`}
+                className="block scroll-mt-24"
+              >
+                <Card
+                  className={cn(
+                    "group cursor-pointer p-4 transition-all",
+                    isHighlighted
+                      ? "border-gold ring-2 ring-gold/40 shadow-[0_0_30px_rgba(212,168,87,0.25)]"
+                      : "hover:border-gold/30",
+                  )}
+                >
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <div className="flex items-start gap-4">
+                      <CurrencyBadge currency={acc.currency_code} className="mt-1" />
+                      <div className="min-w-0">
+                        <div className="font-medium transition-colors group-hover:text-gold" dir="auto">
+                          {acc.account_display_name}
                         </div>
-                        <div className={cn("mt-3 font-serif text-2xl tabular-nums", tt.text)}>
-                          {fmt(Number(t.total_balance ?? 0))} <span className="text-xs uppercase tracking-wider opacity-70">{t.currency}</span>
+                        {acc.account_alias_name && (
+                          <div className="mt-0.5 text-[10px] text-text-tertiary">{acc.account_alias_name}</div>
+                        )}
+                        <div className="mt-1.5 inline-block rounded border border-border bg-surface-2 px-2 py-0.5 font-mono text-xs text-gold/80">
+                          {acc.account_number}
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-[var(--success)]" /> C {fmt(Number(t.total_credits ?? 0))}</span>
-                          <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-destructive" /> D {fmt(Number(t.total_debits ?? 0))}</span>
+                        {!compact && (
+                          <div className="mt-1.5 text-[10px] text-text-secondary">
+                            <Badge variant="outline" className="text-[10px]">{acc.account_nature}</Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 sm:justify-end">
+                      <div className="text-right">
+                        <div className={cn("font-semibold tabular-nums", tt.text)}>
+                          {fmt(Number(acc.current_balance ?? 0))} <span className="text-xs opacity-70">{acc.currency_code}</span>
+                        </div>
+                        <div className="mt-1 flex justify-end">
+                          <StatusBadge status={acc.status} />
                         </div>
                       </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            <div className="flex items-center justify-between pt-2">
-              <h2 className="font-serif text-lg">Linked accounts</h2>
-              <span className="text-xs text-muted-foreground">{(holder.holder_accounts ?? []).length} total</span>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(holder.holder_accounts ?? []).map((a: any) => {
-                const tt = tint(a.currency_code);
-                return (
-                  <Card key={a.id} id={`account-${a.id}`} className={cn("card-luxe overflow-hidden border transition hover:translate-y-[-1px] hover:shadow-lg", tt.ring)}>
-                    <Link
-                      to="/app/accounts/$id"
-                      params={{ id: String(a.id) }}
-                      className="block w-full text-left"
-                    >
-                      <div className={cn("bg-gradient-to-br p-4", tt.gradient)}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <CurrencyBadge currency={a.currency_code} />
-                            <span className="font-mono text-sm">{a.account_number}</span>
-                            {a.dahab_account_number && (
-                              <Badge variant="outline" className="font-mono text-[10px] text-gold">{a.dahab_account_number}</Badge>
-                            )}
-                          </div>
-                          <Badge variant={a.status === "ACTIVE" ? "secondary" : "outline"} className="text-[10px]">{a.status}</Badge>
-                        </div>
-
-                        <div className="mt-3 flex items-end justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-base text-foreground/85" dir="rtl">{a.account_display_name}</div>
-                            {a.account_alias_name ? (
-                              <div className="mt-0.5 truncate text-xs text-muted-foreground">{a.account_alias_name}</div>
-                            ) : null}
-                            <div className="mt-1">
-                              <Badge variant="outline" className="text-[10px]">{a.account_nature}</Badge>
-                            </div>
-                          </div>
-                          <div className="text-end">
-                            <div className={cn("font-serif text-2xl tabular-nums", tt.text)}>
-                              {fmt(Number(a.current_balance ?? 0))}
-                            </div>
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{a.currency_code}</div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2 text-[11px] text-muted-foreground">
-                          <span>Credit <span className="font-mono text-foreground/70">{fmt(Number(a.credit_limit ?? 0))}</span></span>
-                          <span>Debit <span className="font-mono text-foreground/70">{fmt(Number(a.debit_limit ?? 0))}</span></span>
-                          <span className="flex items-center gap-1 text-gold">Open <ChevronRight className="h-3 w-3" /></span>
-                        </div>
-                      </div>
-                    </Link>
-                  </Card>
-                );
-              })}
-              {(holder.holder_accounts ?? []).length === 0 ? (
-                <Card className="card-luxe md:col-span-2">
-                  <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    No linked accounts yet.{isAdmin ? " Use \u201cAdd Linked Account\u201d above to create one." : ""}
-                  </CardContent>
+                      <ArrowRight className="h-5 w-5 text-text-tertiary transition-all group-hover:translate-x-1 group-hover:text-gold" />
+                    </div>
+                  </div>
                 </Card>
-              ) : null}
-            </div>
-          </>
+              </Link>
+            );
+          })
         )}
       </div>
     </div>
   );
 }
 
-function HolderHero({ holder, accountsCount }: { holder: any; accountsCount: number }) {
-  function copy(value?: string | null) {
-    if (!value) return;
-    navigator.clipboard?.writeText(value).then(() => toast.success("Copied", { duration: 1500 })).catch(() => {});
-  }
+function TransactionsTab({ entries, accounts }: { entries: any[]; accounts: any[] }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"All" | "Credit" | "Debit">("All");
+  const accountMap = useMemo(() => {
+    const m: Record<number, any> = {};
+    for (const a of accounts) m[a.id] = a;
+    return m;
+  }, [accounts]);
+  const filtered = entries.filter((e) => {
+    if (search) {
+      const s = search.toLowerCase();
+      if (!(e.description ?? "").toLowerCase().includes(s) && !(e.tx_number ?? "").toLowerCase().includes(s)) return false;
+    }
+    const isCredit = Number(e.credit_amount ?? 0) > 0;
+    if (filter === "Credit" && !isCredit) return false;
+    if (filter === "Debit" && isCredit) return false;
+    return true;
+  });
   return (
-    <Card className="card-luxe overflow-hidden border border-[oklch(0.82_0.14_85/0.4)]">
-      <div className="bg-gradient-to-br from-[oklch(0.82_0.14_85/0.18)] via-transparent to-transparent p-5">
-        <div className="flex flex-wrap items-start gap-3">
-          <button
-            onClick={() => copy(holder.dahab_account_number)}
-            className="group inline-flex items-center gap-1 rounded-md border border-gold/30 bg-card/60 px-2 py-1 font-mono text-sm text-gold hover:border-gold/60"
-            title="Copy DAHAB number"
-          >
-            {holder.dahab_account_number}
-            <Copy className="h-3 w-3 opacity-0 transition group-hover:opacity-100" />
-          </button>
-          <Badge variant="secondary">{holder.status}</Badge>
-          <Badge variant="outline">{holder.holder_type}</Badge>
-          <span className="ms-auto text-[11px] text-muted-foreground">
-            {accountsCount} linked account(s)
-          </span>
+    <Card className="p-5">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <h2 className="mr-auto font-serif text-lg font-semibold">All Transactions</h2>
+        <div className="relative min-w-[200px] max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+          <Input
+            placeholder="Search description or txn id…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
-
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <div className="font-serif text-2xl md:text-3xl" dir="auto">{holder.canonical_name}</div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {holder.phone ? (
-                <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {holder.phone}</span>
-              ) : null}
-              {holder.email ? (
-                <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {holder.email}</span>
-              ) : null}
-              {holder.created_at ? (
-                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> Created {new Date(holder.created_at).toLocaleDateString()}</span>
-              ) : null}
-            </div>
-          </div>
+        <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+          {(["All", "Credit", "Debit"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilter(t)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                filter === t
+                  ? "border border-gold/30 bg-gold/15 text-gold"
+                  : "text-text-secondary hover:text-foreground",
+              )}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </div>
-    </Card>
-  );
-}
 
-function KpiStrip({ totals, accountsCount }: { totals: Array<{ currency: string; total_balance: number; account_count: number; total_debits: number; total_credits: number }>; accountsCount: number }) {
-  const agg = useMemo(() => {
-    let credits = 0, debits = 0;
-    for (const t of totals) { credits += Number(t.total_credits ?? 0); debits += Number(t.total_debits ?? 0); }
-    return { credits, debits, currencies: totals.length };
-  }, [totals]);
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <KpiTile icon={<Layers className="h-4 w-4" />} label="Linked accounts" value={String(accountsCount)} tone="default" />
-      <KpiTile icon={<Wallet className="h-4 w-4" />} label="Currencies" value={String(agg.currencies)} tone="default" hint={totals.map(t => t.currency).join(" · ") || "—"} />
-      <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Total credits" value={fmt(agg.credits)} tone="success" />
-      <KpiTile icon={<TrendingDown className="h-4 w-4" />} label="Total debits" value={fmt(agg.debits)} tone="danger" />
-    </div>
-  );
-}
-
-function KpiTile({ icon, label, value, hint, tone }: { icon: React.ReactNode; label: string; value: string; hint?: string; tone: "default" | "success" | "danger" }) {
-  const toneCls = tone === "success" ? "text-[var(--success)]" : tone === "danger" ? "text-destructive" : "text-foreground";
-  return (
-    <Card className="card-luxe">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span className={toneCls}>{icon}</span>{label}
+      {filtered.length === 0 ? (
+        <div className="py-16 text-center">
+          <Search className="mx-auto mb-3 h-10 w-10 text-text-tertiary" />
+          <p className="text-sm text-text-secondary">No transactions match your filters.</p>
         </div>
-        <div className={cn("mt-1 font-serif text-xl tabular-nums", toneCls)}>{value}</div>
-        {hint ? <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{hint}</div> : null}
-      </CardContent>
+      ) : (
+        <div className="-mx-5 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {["Date", "Description", "Account", "Reference", "Amount"].map((h, i) => (
+                  <th
+                    key={h}
+                    className={cn(
+                      "py-3 text-[10px] font-semibold uppercase tracking-wider text-text-secondary",
+                      i === 0 ? "px-5 text-left" : i === 4 ? "px-5 text-right" : "px-3 text-left",
+                    )}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e) => {
+                const isCredit = Number(e.credit_amount ?? 0) > 0;
+                const amount = isCredit ? Number(e.credit_amount) : Number(e.debit_amount);
+                const acc = accountMap[e.account_id];
+                return (
+                  <tr key={e.id} className="group border-b border-border/50 transition-colors hover:bg-surface-2/50">
+                    <td className="px-5 py-3 text-xs text-text-secondary">
+                      {new Date(e.posted_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-3">{e.description ?? "—"}</td>
+                    <td className="px-3 py-3">
+                      {acc ? (
+                        <Link to="/app/accounts/$id" params={{ id: String(acc.id) }} className="text-xs text-text-secondary transition-colors hover:text-gold">
+                          {acc.account_display_name}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-text-secondary">#{e.account_id}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.tx_number}</td>
+                    <td
+                      className={cn(
+                        "px-5 py-3 text-right font-medium tabular-nums",
+                        isCredit ? "text-emerald-400" : "text-red-400",
+                      )}
+                    >
+                      {isCredit ? "+" : "-"}
+                      {fmt(amount)} {e.currency_code}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
+  );
+}
+
+function ActivityTab({ entries }: { entries: any[] }) {
+  const events = entries.slice(0, 10).map((e) => {
+    const isCredit = Number(e.credit_amount ?? 0) > 0;
+    const amount = isCredit ? Number(e.credit_amount) : Number(e.debit_amount);
+    return {
+      id: e.id,
+      title: isCredit ? "Credit Posted" : "Debit Posted",
+      desc: `${e.description ?? "Ledger entry"} — ${fmt(amount)} ${e.currency_code}`,
+      time: new Date(e.posted_at).toLocaleString(),
+      tone: isCredit ? "emerald" : ("amber" as const),
+      icon: isCredit ? CheckCircle2 : Clock,
+    };
+  });
+  const toneMap: Record<string, string> = {
+    gold: "bg-gold/15 text-gold border-gold/30",
+    sky: "bg-sky-500/10 text-sky-400 border-sky-500/30",
+    amber: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+    emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    neutral: "bg-surface-2 text-text-secondary border-border",
+  };
+  return (
+    <Card className="p-5">
+      <h2 className="mb-5 font-serif text-lg font-semibold">Activity Timeline</h2>
+      {events.length === 0 ? (
+        <p className="py-8 text-center text-sm text-text-secondary">No activity yet.</p>
+      ) : (
+        <div className="relative ml-3 space-y-6 border-l border-border pl-12">
+          {events.map((e) => {
+            const Icon = e.icon;
+            return (
+              <div key={e.id} className="relative">
+                <div className={cn("absolute -left-[37px] top-0 flex h-9 w-9 items-center justify-center rounded-full border ring-4 ring-background", toneMap[e.tone])}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{e.title}</div>
+                  <div className="mt-0.5 text-xs text-text-secondary">{e.desc}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-wider text-text-tertiary">{e.time}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function NotesTab({ isReadOnly }: { isReadOnly: boolean }) {
+  const [draft, setDraft] = useState("");
+  const [notes, setNotes] = useState<{ id: string; author: string; time: string; body: string }[]>([]);
+  const save = () => {
+    if (!draft.trim()) return;
+    setNotes((prev) => [{ id: `n${Date.now()}`, author: "You", time: "just now", body: draft.trim() }, ...prev]);
+    setDraft("");
+  };
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      {!isReadOnly && (
+        <Card className="h-fit p-5 lg:col-span-1">
+          <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-text-secondary">Add Note</h3>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add a private note about this holder…"
+            className="h-32 w-full resize-none rounded-lg border border-border bg-surface-2 p-3 text-sm placeholder:text-text-tertiary focus:border-gold/40 focus:outline-none focus:ring-1 focus:ring-gold/30"
+          />
+          <Button className="mt-3 w-full gap-2" onClick={save}>
+            <StickyNote className="h-4 w-4" /> Save Note
+          </Button>
+          <p className="mt-2 text-[10px] text-text-tertiary">Visible only to back-office staff.</p>
+        </Card>
+      )}
+      <Card className={cn("p-5", isReadOnly ? "lg:col-span-3" : "lg:col-span-2")}>
+        <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.15em] text-text-secondary">Notes ({notes.length})</h3>
+        {notes.length === 0 ? (
+          <p className="py-8 text-center text-sm text-text-secondary">No notes yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {notes.map((n) => (
+              <div key={n.id} className="rounded-xl border border-border bg-surface-2 p-4">
+                <p className="text-sm">{n.body}</p>
+                <div className="mt-2 text-[10px] uppercase tracking-wider text-text-tertiary">
+                  <span className="text-gold-soft">{n.author}</span> · {n.time}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
