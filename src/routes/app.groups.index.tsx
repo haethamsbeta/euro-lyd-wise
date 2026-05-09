@@ -465,7 +465,7 @@ function ManagedBalanceKpi({ totals }: { totals: [string, number][] }) {
         {top ? `${top[1].toLocaleString()} ${top[0]}` : "—"}
       </div>
       {totals.length > 1 && (
-        <div className="mt-1 truncate text-[11px] text-muted-foreground">
+        <div className="mt-1 truncate text-xs text-muted-foreground">
           + {totals.slice(1, 4).map(([c, v]) => `${v.toLocaleString()} ${c}`).join(" · ")}
         </div>
       )}
