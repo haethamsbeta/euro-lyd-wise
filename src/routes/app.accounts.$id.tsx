@@ -501,12 +501,12 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
           </Button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-base">
             <thead>
-              <tr className="text-left text-xs uppercase text-muted-foreground">
+              <tr className="text-left text-sm uppercase tracking-wide text-muted-foreground">
                 <Th label="Date" k="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <th className="p-2">TX #</th>
-                <th className="p-2">Description</th>
+                <th className="p-4">TX #</th>
+                <th className="p-4">Description</th>
                 <Th label="Debit" k="debit" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
                 <Th label="Credit" k="credit" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
                 <Th label={`Balance (${currency})`} k="balance" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
@@ -514,17 +514,17 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Loading…</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-base text-muted-foreground">Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No matching transactions.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-base text-muted-foreground">No matching transactions.</td></tr>
               ) : filtered.map((e) => (
                 <tr key={e.id} className="border-t border-gold/10 hover:bg-gold/5">
-                  <td className="p-2 text-xs">{new Date(e.posted_at).toLocaleString()}</td>
-                  <td className="p-2 font-mono text-xs text-gold">{e.tx_number}</td>
-                  <td className="p-2">{e.description}</td>
-                  <td className="p-2 text-right text-destructive">{Number(e.debit_amount) ? fmt(Number(e.debit_amount)) : "—"}</td>
-                  <td className="p-2 text-right text-[var(--success)]">{Number(e.credit_amount) ? fmt(Number(e.credit_amount)) : "—"}</td>
-                  <td className="p-2 text-right font-medium">{fmt(Number(e.balance_after))}</td>
+                  <td className="p-4 text-sm whitespace-nowrap">{new Date(e.posted_at).toLocaleString()}</td>
+                  <td className="p-4 font-mono text-sm text-gold whitespace-nowrap">{e.tx_number}</td>
+                  <td className="p-4 text-base">{e.description}</td>
+                  <td className="p-4 text-right text-base text-destructive tabular-nums">{Number(e.debit_amount) ? fmt(Number(e.debit_amount)) : "—"}</td>
+                  <td className="p-4 text-right text-base text-[var(--success)] tabular-nums">{Number(e.credit_amount) ? fmt(Number(e.credit_amount)) : "—"}</td>
+                  <td className="p-4 text-right text-base font-semibold tabular-nums">{fmt(Number(e.balance_after))}</td>
                 </tr>
               ))}
             </tbody>
@@ -538,7 +538,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
 function Th({ label, k, sortKey, sortDir, onClick, className }: { label: string; k: SortKey; sortKey: SortKey; sortDir: "asc" | "desc"; onClick: (k: SortKey) => void; className?: string }) {
   const active = sortKey === k;
   return (
-    <th className={cn("p-2", className)}>
+    <th className={cn("p-4", className)}>
       <button type="button" onClick={() => onClick(k)} className={cn("inline-flex items-center gap-1 hover:text-foreground", active && "text-gold")}>
         {label} {active ? (sortDir === "asc" ? "↑" : "↓") : ""}
       </button>
