@@ -709,3 +709,159 @@ paths:
   /api/portal/accounts/{id}/{currency}/statement:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: currency, in: path, required: true, schema: { $ref: '#/components/schemas/Currency' } }]
     get: { tags: [portal, 'role:consumer'], summary: PORT-3 Statement PDF, responses: { '200': { description: PDF stream } } }
+
+  # =========================================================================
+  # Push notifications (Web Push) — added 2026-05-09
+  # See BACKEND_SOURCE_OF_TRUTH.md §10 for the full sender contract.
+  # =========================================================================
+  /api/push/vapid-public-key:
+    get:
+      tags: [me]
+      summary: PUSH-1 Get VAPID public key
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vapid_public_key: { type: string, nullable: true, description: Base64url P-256 public key, or null if not configured. }
+  /api/push/subscriptions:
+    post:
+      tags: [me]
+      summary: PUSH-2 Upsert this device's push subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, p256dh, auth]
+              properties:
+                endpoint:   { type: string, format: uri }
+                p256dh:     { type: string }
+                auth:       { type: string }
+                label:      { type: string, nullable: true }
+                user_agent: { type: string, nullable: true }
+      responses: { '200': { description: OK } }
+  /api/push/subscriptions/unsubscribe:
+    post:
+      tags: [me]
+      summary: PUSH-3 Mark this device unsubscribed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties: { endpoint: { type: string } }
+      responses: { '200': { description: OK } }
+  /api/push/subscriptions/{id}/revoke:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [me]
+      summary: PUSH-4 Revoke an owned subscription (soft)
+      responses: { '200': { description: OK } }
+  /api/push/subscriptions/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    delete:
+      tags: [me]
+      summary: PUSH-5 Hard-delete an owned subscription
+      responses: { '204': { description: Deleted } }
+  /api/push/subscriptions/ping:
+    post:
+      tags: [me]
+      summary: PUSH-6 Touch last_seen_at for this device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties: { endpoint: { type: string } }
+      responses: { '200': { description: OK } }
+  /api/push/test/self:
+    post:
+      tags: [me]
+      summary: PUSH-7 Send a real Web Push to all of caller's devices
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:  { type: integer, description: Number of 2xx push responses. }
+                  total: { type: integer, description: Total endpoints attempted. }
+        '503': { description: VAPID keys not configured. }
+  /api/push/test/user:
+    post:
+      tags: [admin, 'role:admin']
+      summary: PUSH-8 Admin — send a real Web Push to a target user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties: { user_id: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:  { type: integer }
+                  total: { type: integer }
+        '403': { description: Caller is not an admin. }
+        '503': { description: VAPID keys not configured. }
+  /api/admin/push/status:
+    get:
+      tags: [admin, 'role:admin']
+      summary: PUSH-9 List push status for every user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    user_id:               { type: string, format: uuid }
+                    browser_push_enabled:  { type: boolean }
+                    subscription_count:    { type: integer }
+                    last_seen_at:          { type: string, format: date-time, nullable: true }
+                    last_success_at:       { type: string, format: date-time, nullable: true }
+  /api/admin/push/users/{id}/devices:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [admin, 'role:admin']
+      summary: PUSH-10 List a user's push devices (no secrets)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:               { type: string, format: uuid }
+                    label:            { type: string, nullable: true }
+                    user_agent:       { type: string, nullable: true }
+                    granted:          { type: boolean }
+                    endpoint_present: { type: boolean }
+                    created_at:       { type: string, format: date-time }
+                    last_seen_at:     { type: string, format: date-time, nullable: true }
+                    last_success_at:  { type: string, format: date-time, nullable: true }
+                    last_error:       { type: string, nullable: true }

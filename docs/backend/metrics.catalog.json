@@ -6,7 +6,9 @@
     "count": "Currency-agnostic integer.",
     "percentage": "0-100 number computed by backend.",
     "seconds": "Duration in seconds.",
-    "usd_equivalent_manual_rates": "USD-equivalent computed from admin-entered fx_rates; missing rates returned in missing_rates[]."
+    "usd_equivalent_manual_rates": "USD-equivalent computed from admin-entered fx_rates; missing rates returned in missing_rates[].",
+    "boolean": "True/false flag.",
+    "ratio": "0..1 number computed by backend."
   },
   "metrics": [
     { "id": "dash.totals.cash_by_currency", "label": "Cash totals", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "account_balances JOIN accounts ON kind='vault' AND channel='cash' GROUP BY currency", "currency_rule": "per_currency", "realtime": true },
@@ -71,6 +73,17 @@
     { "id": "account.ledger", "label": "Ledger / statement", "screen": "/app/accounts/$id", "endpoint": "GET /api/accounts/{id}/ledger", "sql_source": "ledger_entries", "currency_rule": "per_currency" },
 
     { "id": "approvals.queue_count", "label": "Approval queue size", "screen": "/app/approvals", "endpoint": "GET /api/approvals", "sql_source": "count(transactions status='pending')", "currency_rule": "count", "realtime": true },
-    { "id": "approvals.queue", "label": "Approval queue rows", "screen": "/app/approvals", "endpoint": "GET /api/approvals", "sql_source": "transactions WHERE status='pending'", "currency_rule": "per_currency", "realtime": true }
+    { "id": "approvals.queue", "label": "Approval queue rows", "screen": "/app/approvals", "endpoint": "GET /api/approvals", "sql_source": "transactions WHERE status='pending'", "currency_rule": "per_currency", "realtime": true },
+
+    { "id": "push.subscriptions.active",          "label": "Active push subscriptions",        "screen": "/app/users",                       "endpoint": "GET /api/admin/push/status",                   "sql_source": "count(push_subscriptions WHERE granted=true AND endpoint IS NOT NULL)", "currency_rule": "count",   "realtime": true },
+    { "id": "push.subscriptions.per_user",        "label": "Push devices per user",             "screen": "/app/users",                       "endpoint": "GET /api/admin/push/status",                   "sql_source": "rpc:admin_list_push_status().subscription_count",                       "currency_rule": "count",   "realtime": true },
+    { "id": "push.user.last_seen_at",             "label": "User last device seen",             "screen": "/app/users",                       "endpoint": "GET /api/admin/push/status",                   "sql_source": "rpc:admin_list_push_status().last_seen_at",                             "currency_rule": "n/a",     "realtime": true },
+    { "id": "push.user.last_success_at",          "label": "User last push delivered",          "screen": "/app/users",                       "endpoint": "GET /api/admin/push/status",                   "sql_source": "rpc:admin_list_push_status().last_success_at",                          "currency_rule": "n/a",     "realtime": true },
+    { "id": "push.devices.list",                  "label": "Per-user device list",              "screen": "/app/users (admin drill-down)",    "endpoint": "GET /api/admin/push/users/{id}/devices",       "sql_source": "rpc:admin_list_push_devices(:id)",                                      "currency_rule": "n/a",     "realtime": false },
+    { "id": "push.delivery.last_test_sent",       "label": "Last test sent count",              "screen": "/app/users (toast)",               "endpoint": "POST /api/push/test/user",                     "sql_source": "sender result.sent",                                                    "currency_rule": "count",   "realtime": false },
+    { "id": "push.delivery.last_test_total",      "label": "Last test target devices",          "screen": "/app/users (toast)",               "endpoint": "POST /api/push/test/user",                     "sql_source": "sender result.total",                                                   "currency_rule": "count",   "realtime": false },
+    { "id": "push.devices.stale_7d",              "label": "Devices not seen in 7d",            "screen": "(admin health)",                   "endpoint": "GET /api/admin/push/status",                   "sql_source": "count(push_subscriptions WHERE granted=true AND last_seen_at < now()-'7d')", "currency_rule": "count","realtime": false },
+    { "id": "push.delivery.success_rate_24h",     "label": "Push delivery success rate (24h)",  "screen": "(admin health)",                   "endpoint": "GET /api/admin/push/status",                   "sql_source": "count(last_success_at >= now()-'24h') / count(granted=true)",           "currency_rule": "ratio",   "realtime": false },
+    { "id": "push.self.last_devices_seen",        "label": "My devices last seen",              "screen": "/app/settings/notifications",      "endpoint": "GET /api/me (derived from /api/push/subscriptions list)", "sql_source": "push_subscriptions WHERE user_id=:me",                "currency_rule": "n/a",     "realtime": true }
   ]
 }
