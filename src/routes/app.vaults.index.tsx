@@ -105,6 +105,11 @@ function VaultsPage() {
             <div className="mt-2 flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" /> Across {vaults.length} vaults
             </div>
+            {missingRates.length > 0 && (
+              <div className="mt-1 text-[11px] text-warning">
+                Missing FX rate: {missingRates.join(", ")}
+              </div>
+            )}
           </div>
         </Card>
 
