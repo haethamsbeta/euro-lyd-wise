@@ -512,9 +512,14 @@ function GroupCard({
 }) {
   const meta = metaFor(g.group_type);
   const accountCount = aggs.reduce((s, a) => s + a.accountCount, 0);
-  const lyd = aggs.find((a) => a.currency === "LYD")?.balance ?? 0;
-  const top = aggs.slice(0, 3);
+  const primary = aggs[0];
+  const secondary = aggs.slice(1, 3);
   const overflow = Math.max(0, aggs.length - 3);
+  const totalCredits30d = aggs.reduce((s, a) => s + a.credits30d, 0);
+  const totalDebits30d = aggs.reduce((s, a) => s + a.debits30d, 0);
+  const totalTx30d = aggs.reduce((s, a) => s + a.tx30d, 0);
+  const hasNegative = aggs.some((a) => a.balance < 0);
+  const isStale = canViewBalances && aggs.length > 0 && totalTx30d === 0;
 
   return (
     <div
@@ -595,51 +600,89 @@ function GroupCard({
         {g.description || "No description provided."}
       </p>
 
-      {/* Members */}
-      <div className="flex items-center justify-between border-t border-gold/10 pt-3">
-        <MemberAvatars groupId={g.id} count={memberCount} />
-        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
-      </div>
+      {/* Status chips */}
+      {(accountCount > 0 || hasNegative || isStale) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {accountCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-gold/20 bg-gold/5 px-2 py-0.5 text-[10px] font-medium text-gold">
+              {accountCount} acct{accountCount === 1 ? "" : "s"}
+            </span>
+          )}
+          {hasNegative && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-rose-400/30 bg-rose-400/10 px-2 py-0.5 text-[10px] font-medium text-rose-300">
+              <ShieldAlert className="h-3 w-3" /> Negative balance
+            </span>
+          )}
+          {isStale && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+              No activity · 30d
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Balances · 30d Activity strip */}
+      {/* Hero balances */}
       {canViewBalances ? (
         aggs.length === 0 ? (
-          <div className="rounded-lg border border-gold/10 bg-surface-2/50 px-3 py-2 text-[11px] text-muted-foreground">
+          <div className="rounded-xl border border-gold/10 bg-surface-2/50 px-3 py-3 text-center text-xs text-muted-foreground">
             No balances yet
           </div>
         ) : (
-          <div className="rounded-xl border border-gold/15 bg-surface-2/40 p-3">
-            <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <span>Balances · 30d Activity</span>
-              <span className="text-gold/80">{accountCount} acct{accountCount === 1 ? "" : "s"}</span>
+          <div className="rounded-xl border border-gold/15 bg-surface-2/40 p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Total balance</span>
+              <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold", meta.pillBg, meta.pillBorder, meta.pillText)}>
+                {primary.currency}
+              </span>
             </div>
-            <ul className="space-y-1.5">
-              {top.map((a) => (
-                <li key={a.currency} className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className={cn("inline-flex items-center rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-bold", meta.pillBg, meta.pillBorder, meta.pillText)}>
-                    {a.currency}
-                  </span>
-                  <span className="flex-1 truncate text-right font-mono tabular-nums text-foreground">
-                    {a.balance.toLocaleString()}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 font-mono tabular-nums text-emerald-400">
-                    <ArrowUp className="h-3 w-3" />{compactNum(a.credits30d)}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 font-mono tabular-nums text-rose-400">
-                    <ArrowDown className="h-3 w-3" />{compactNum(a.debits30d)}
-                  </span>
-                </li>
-              ))}
-              {overflow > 0 && (
-                <li className="text-[10px] text-muted-foreground">+ {overflow} more currenc{overflow === 1 ? "y" : "ies"}</li>
-              )}
-            </ul>
-            {lyd > 0 && (
-              <div className="mt-2 flex items-center justify-between border-t border-gold/10 pt-2 text-[10px] text-muted-foreground">
-                <span>LYD balance</span>
-                <span className="font-mono tabular-nums text-gold">{lyd.toLocaleString()} LYD</span>
+            <div className={cn(
+              "font-playfair font-semibold tabular-nums leading-tight",
+              "text-2xl md:text-3xl",
+              primary.balance < 0 ? "text-rose-300" : "text-foreground",
+            )}>
+              {primary.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </div>
+
+            {secondary.length > 0 && (
+              <div className="mt-3 space-y-1.5 border-t border-gold/10 pt-2.5">
+                {secondary.map((a) => (
+                  <div key={a.currency} className="flex items-center justify-between gap-2">
+                    <span className={cn("inline-flex items-center rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold", meta.pillBg, meta.pillBorder, meta.pillText)}>
+                      {a.currency}
+                    </span>
+                    <span className={cn(
+                      "font-mono text-base tabular-nums",
+                      a.balance < 0 ? "text-rose-300" : "text-foreground",
+                    )}>
+                      {a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ))}
+                {overflow > 0 && (
+                  <div className="text-right text-xs text-muted-foreground">+ {overflow} more currenc{overflow === 1 ? "y" : "ies"}</div>
+                )}
               </div>
             )}
+
+            {/* 30d activity strip */}
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gold/10 pt-3">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Credits 30d</div>
+                <div className="mt-0.5 inline-flex items-center gap-1 font-mono text-sm tabular-nums text-emerald-400">
+                  <ArrowUp className="h-3 w-3" />{compactNum(totalCredits30d)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Debits 30d</div>
+                <div className="mt-0.5 inline-flex items-center gap-1 font-mono text-sm tabular-nums text-rose-400">
+                  <ArrowDown className="h-3 w-3" />{compactNum(totalDebits30d)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Txns</div>
+                <div className="mt-0.5 font-mono text-sm tabular-nums text-foreground">{compactNum(totalTx30d)}</div>
+              </div>
+            </div>
           </div>
         )
       ) : (
@@ -647,6 +690,12 @@ function GroupCard({
           {memberCount} member{memberCount === 1 ? "" : "s"}
         </div>
       )}
+
+      {/* Members footer */}
+      <div className="flex items-center justify-between border-t border-gold/10 pt-3">
+        <MemberAvatars groupId={g.id} count={memberCount} />
+        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
+      </div>
     </div>
   );
 }

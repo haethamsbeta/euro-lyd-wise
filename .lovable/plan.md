@@ -1,61 +1,54 @@
 ## Goal
 
-Tighten the mobile and tablet experience of `/app/*` so the bottom dock and top toolbar feel balanced and finger-friendly. The web (≥`lg`) layout stays exactly as-is. The center "+" FAB stays the largest, most prominent element on the dock.
+Improve only `src/routes/app.groups.index.tsx` (the Groups landing page). Keep the group detail page and any other flow pages untouched. Make balances visually dominant and surface more at-a-glance signals useful for admins/auditors monitoring groups.
 
 ## Scope
 
-Files touched:
-- `src/components/app/bottom-dock.tsx` — dock sizing, spacing, FAB, safe-area
-- `src/components/app/app-shell.tsx` — top toolbar density on phone/tablet, main `pb` to match new dock height
-- `src/components/app/global-search.tsx` — collapse to an icon-trigger on phone, expand inline from tablet up
+- File touched: `src/routes/app.groups.index.tsx` only.
+- No schema, query, route, or business-logic changes — same data already fetched (`balancesQ`, `activityQ`, `membersQ`).
 
-No changes to routes, business logic, role view, or any `lg:` styles already in use.
+## Changes to the Group Card (`GroupCard`)
 
-## Bottom dock adjustments (phone + tablet)
+Make balances the visual anchor of each card:
 
-Currently the bar is `h-16`, `mx-4 mb-3`, items use `text-[10px]` labels and `w-5 h-5` icons. On a 390px iPhone this feels cramped, the FAB barely clears the bar, and labels are hard to read.
+1. **Primary balance hero**
+   - Replace the small "Balances · 30d Activity" header + tiny rows with a hero balance block.
+   - Show the top currency balance in a large display: `text-2xl md:text-3xl` font-playfair, tabular-nums, with a clearly labeled currency chip beside it (e.g. `LYD`).
+   - Below it, a "Total balance" eyebrow label so meaning is obvious.
 
-Changes (all gated to `<lg`, desktop classes unchanged):
-- Increase bar height: `h-16` → `h-[68px]` on `<sm`, `sm:h-[64px]`, `lg:h-16` (current).
-- Outer margins: `mx-3 mb-2` on `<sm`, current `mx-4 mb-3` from `sm` up. Add `pb-[max(env(safe-area-inset-bottom),0.25rem)]` wrapper so iPhone home-indicator never overlaps.
-- Item padding: `px-2 py-1` on `<sm`, `sm:px-3 sm:py-1.5`. Make each `<DockItem>` `min-w-[56px] min-h-[44px]` for proper touch target.
-- Icons: `w-[22px] h-[22px]` on `<sm`, `sm:w-5 sm:h-5`. Stroke unchanged.
-- Labels: `text-[11px]` on `<sm`, `sm:text-[10px]`; allow `truncate max-w-[64px]`.
-- Active dot stays, but re-anchor to `-top-1.5` on `<sm` so it doesn't clip under the rounded edge.
+2. **Secondary currencies row**
+   - Up to 2 additional currencies under the hero in `text-base` font-mono tabular-nums (was `text-[11px]`), each with its currency chip.
+   - Overflow indicator (`+ N more`) kept but slightly larger (`text-xs`).
 
-## FAB (must stay big and obvious)
+3. **30-day activity strip**
+   - Move the credits/debits 30d numbers into a dedicated 2-column strip below the balances: green ▲ Credits and red ▼ Debits, each with `text-sm` value and a small label. Include the 30d tx count.
+   - This gives auditors flow signals without hunting.
 
-- Size up on phone/tablet: `w-16 h-16` on `<sm`, `sm:w-15 sm:h-15` (15 = 60px via arbitrary), `lg:w-14 lg:h-14` (current).
-- Lift more so it visually breaks the bar on the taller mobile dock: `-mt-9` on `<sm`, `sm:-mt-8`, `lg:-mt-7`.
-- Keep gradient, ring, ping animation, and `Plus` icon (size up to `w-8 h-8` on `<sm`).
-- Keep horizontal margin so left/right item clusters don't crowd it: `mx-3` on `<sm`.
+4. **Status / health chips** (auditor-oriented, all derived from existing data)
+   - Account count chip (already shown faintly — promote to a visible chip).
+   - "No activity 30d" warning chip when `tx30d === 0` across all currencies.
+   - "Negative balance" warning chip when any currency aggregate balance < 0.
+   - Pinned chip stays.
 
-## Top toolbar adjustments (phone + tablet)
+5. **Card layout polish**
+   - Slightly larger card padding on md+ for the new content.
+   - Keep the cursor-pointer / hover behavior, type pill, member avatars row, dropdown menu, pin star, and routing exactly as is.
 
-Currently the header is `h-16` on phone with `MoreButton + DahabCoin + GlobalSearch + NotificationBell + RoleViewSwitcher + AccountMenu`. On 390px the search swallows the row and the right-side icons get cramped.
+## Changes to KPI strip (top of page)
 
-Changes:
-- Header height stays `h-16` on phone but reduce horizontal padding to `px-2.5` (`sm:px-5` already there).
-- Reduce inter-element gap on phone: `gap-1` (`sm:gap-3` already there).
-- Hide the brand wordmark on `<md` (already hidden), keep just the coin.
-- `GlobalSearch`: render as an icon-only "search" button on `<md` that toggles a full-width overlay search bar pinned just under the header. From `md` up keep current inline search exactly as it is now. This frees ~180px on phone for the right cluster.
-- Right cluster on phone: shrink each control to `h-9 w-9` via wrapper if needed; current sizes are fine but ensure `gap-1` so all four (search-trigger, bell, role-switcher, account) fit without overflow on 360–390px widths.
+Light improvement so the page header is more informative without redesigning:
 
-## Main content padding
+- Add a small breakdown line under "Total Members" showing `acct_count` accounts (sum of `aggregateGroup` account counts) — uses already-fetched data.
+- `ManagedBalanceKpi` remains; ensure secondary currencies line is more readable (`text-xs` instead of `text-[11px]`).
 
-`<main>` currently uses `pb-28 md:pb-24`. With the slightly taller mobile dock + safe-area, bump to `pb-32 sm:pb-28 md:pb-24 lg:pb-24`. Desktop unchanged.
+## Non-goals
 
-## Out of scope / explicitly preserved
+- Do NOT modify the group detail page (`app.groups.$id.tsx`), modals (`GroupModal`), or any flow elsewhere.
+- Do not change queries, sorting, filtering, permissions, or the consumer/auditor read-only behavior.
+- Do not introduce new dependencies.
 
-- All `lg:` and `md:` (where `md` already matches desktop) classes are kept verbatim.
-- No changes to `DOCK_CONFIG`, role logic, routing, queries, or any business logic.
-- `/m/*` mobile-app routes and `/portal` are not touched.
-- No design-token changes; uses existing `gold/*` and `card/*` tokens.
+## Acceptance check
 
-## Verification
-
-After edits, take phone (390×844) and tablet (820×1180) screenshots of `/app` to confirm:
-- FAB visibly larger than dock items and clearly clears the bar
-- Dock labels legible, no clipping, safe-area respected
-- Top toolbar fits all controls without overflow on 360px width
-- Desktop (≥1024px) screenshot is pixel-identical to before
+- Group card balance value is visibly larger (≥ `text-2xl`) and dominates the card.
+- Auditors can see, per group: total balance (top currency), additional currencies, 30d credits/debits/tx count, account count, and warnings for stale/negative state — all without clicking in.
+- All other Groups-flow pages render identically to before.
