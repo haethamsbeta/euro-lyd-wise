@@ -609,10 +609,11 @@ function DayGroup({
           {label} <span className="ml-2 font-normal normal-case text-muted-foreground/70">({items.length})</span>
         </td>
       </tr>
-      {items.map((tx) => (
+      {items.map((tx, i) => (
         <TxRow
           key={tx.id}
           tx={tx}
+          index={i}
           isAdmin={isAdmin}
           byId={byId}
           onEdit={onEdit}
@@ -625,12 +626,14 @@ function DayGroup({
 
 function TxRow({
   tx,
+  index,
   isAdmin,
   byId,
   onEdit,
   onOpen,
 }: {
   tx: Tx;
+  index: number;
   isAdmin: boolean;
   byId: Map<string, Tx>;
   onEdit: (tx: Tx) => void;
@@ -654,7 +657,11 @@ function TxRow({
 
   return (
     <tr
-      className="group cursor-pointer transition-colors hover:bg-muted/40"
+      className={cn(
+        "group cursor-pointer transition-colors hover:bg-muted/60",
+        index % 2 === 0 ? "bg-background" : "bg-muted/20",
+        "shadow-[inset_0_-1px_0_0_hsl(var(--border)/0.4)]",
+      )}
       onClick={() => onOpen(tx)}
     >
       <td className={cn("w-1 p-0", accent.bar)} aria-hidden />
