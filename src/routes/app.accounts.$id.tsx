@@ -186,7 +186,10 @@ function AccountDetail() {
             </div>
 
             <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-              <div className="min-w-0">
+              <div className={cn("order-1 text-start font-serif text-3xl md:text-4xl", t.text)}>
+                {fmt(balance, currency)}
+              </div>
+              <div className="order-2 min-w-0 text-end">
                 <div className="text-base text-foreground/80" dir="rtl">{a.account_display_name}</div>
                 {a.account_alias_name ? <div className="text-xs text-muted-foreground">{a.account_alias_name}</div> : null}
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -196,9 +199,6 @@ function AccountDetail() {
                   </Link>
                   {holder?.dahab_account_number ? <span className="font-mono"> · {holder.dahab_account_number}</span> : null}
                 </div>
-              </div>
-              <div className={cn("text-end font-serif text-3xl md:text-4xl", t.text)}>
-                {fmt(balance, currency)}
               </div>
             </div>
           </div>
