@@ -1,40 +1,35 @@
 ## Goal
 
-Promote the existing "Send test" push action to its own dedicated column in the Users & Roles table so admins can clearly see and trigger a push test per user, side-by-side with the existing Push status indicator.
+Restrict the teller role across the staff app: hide vaults, balances, reports, customer-portal accounts, FX rates, branches, and all holder/account creation flows. Tellers should still process transactions and look up customers (without seeing money totals).
 
-## Current state
+## What changes for tellers
 
-`src/routes/app.users.tsx` already has:
-- A **Push** column showing `Push on` / `In-app only` / `Off` with a tooltip (devices count, last seen, last delivery).
-- A **Send test** button (calls `sendTestPushToUser`) buried inside the **Actions** column next to "Reset password".
+| Surface | Today | After |
+|---|---|---|
+| Sidebar / "More" drawer | Sees Vaults, Reports, plus dashboard balance widgets | Vaults, Reports removed (Portal Accounts, FX Rates, Branches, Users are already admin-only) |
+| Bottom dock | Right slot shows "Vaults" | Replaced with "My Activity" (already teller-allowed) |
+| `/app/vaults` and `/app/vaults/$id` | Reachable | Hard-gated to admin + auditor (RoleGate) |
+| `/app/reports` | Already admin/auditor | No change (verify) |
+| `/app/portal-accounts`, `/app/admin/fx-rates`, `/app/admin/branches` | Already admin-only | No change (verify) |
+| `/app/holders` index | "New holder" button is admin-only | Also hide any per-row balance/currency totals from tellers |
+| `/app/holders/$id` | Shows consolidated balance card, per-account `current_balance`, totals-by-currency | For tellers: hide consolidated balance card, the per-account "Current balance" line, totals-by-currency strip, and the "Add linked account" button (already admin-gated) |
+| `/app/accounts/$id` | Shows balance hero | Hard-gated away from tellers (RoleGate admin/auditor); they reach customer info via holders only |
+| `/app/` dashboard | `TellerDashboard` already shows shift stats (no balances) | No change (already balance-free) |
 
-The end-to-end push pipeline (server fn → VAPID → SW → toast feedback) is already wired and working from the previous turn.
+Admins and auditors keep full access. Consumer portal routes are unaffected.
 
-## Changes (UI only, single file)
+## Technical details
 
-**File:** `src/routes/app.users.tsx`
+1. **`src/components/app/app-shell.tsx`** — in `NAV`, drop `"teller"` from the `roles` arrays for `/app/vaults` and `/app/reports` (reports is already admin/auditor — confirm).
+2. **`src/components/app/bottom-dock.tsx`** — change the `teller` config `right` from `["Holders", "Vaults"]` to `["Holders", "MyActivity"]` (or "Approvals" hidden, "MyActivity" shown), wired to `/app/me/activity`. Verify the dock map already supports that key; add it if not.
+3. **`src/routes/app.vaults.index.tsx`** and **`src/routes/app.vaults.$id.tsx`** — wrap component in `<RoleGate allow={["admin","auditor"]}>`.
+4. **`src/routes/app.accounts.$id.tsx`** — wrap component in `<RoleGate allow={["admin","auditor"]}>`.
+5. **`src/routes/app.holders.$id.tsx`** — compute `isTeller` via `useAuth` + `hasAnyRole`; conditionally hide:
+   - the "Consolidated Balance" card,
+   - the totals-by-currency rows,
+   - each account card's "Current balance" value (replace with status only, or omit the line),
+   - any link to `/app/accounts/$id` for tellers.
+6. **`src/routes/app.holders.index.tsx`** — for tellers, omit balance/currency-summary chips on rows (the "New holder" button is already admin-gated).
+7. **No DB / RLS changes** — request is presentation-only. Server policies already restrict mutations; this PR removes UI affordances and read paths from tellers consistently with that.
 
-1. Add a new table header `Test push` between the existing **Push** column and **Grant role** column.
-2. Render a new `<td>` per row containing:
-   - The existing `Send test` button (moved out of Actions).
-   - A small inline status hint under/next to the button:
-     - If `pushOn`: show "Ready — N device(s)" in muted text.
-     - If `pushPartial` (toggle on, 0 subscriptions): show "In-app only" in amber muted text.
-     - If off: show "Off — in-app only" in muted text.
-   - Disable the button + show "No devices" hint when the user has zero subscriptions? **No** — keep it enabled so admins can always fire the in-app test; the toast already differentiates outcomes (sent / in-app only / failed).
-3. Remove the `Send test` button from the **Actions** column so it's not duplicated. Actions column keeps only "Reset password" (when applicable).
-4. Keep the existing tooltip on the **Push** status column unchanged (it already shows last seen / last delivery details).
-5. No i18n keys are introduced beyond reusing existing English labels already in the file ("Send test", "Sending…").
-
-## Out of scope
-
-- No changes to server functions, SW, DB schema, or the Notifications settings page.
-- No bulk "Send test to all users" action (can be a follow-up if desired).
-- No changes to mobile/responsive table breakpoints beyond the natural new column width (table already has `overflow-x-auto`).
-
-## Verification
-
-- Open `/app/users` as admin → confirm new **Test push** column appears with button + status hint per row.
-- Click **Send test** for a user with a subscribed device → system notification fires + toast says "Delivered to N of N".
-- Click for a user with push off → toast says "In-app test sent … no push-enabled devices".
-- Confirm the **Actions** column no longer shows a duplicate Send test button.
+No backend, schema, or doc updates required.
