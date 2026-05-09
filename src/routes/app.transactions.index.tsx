@@ -657,7 +657,11 @@ function TxRow({
 
   return (
     <tr
-      className="group cursor-pointer transition-colors hover:bg-muted/40"
+      className={cn(
+        "group cursor-pointer transition-colors hover:bg-muted/60",
+        index % 2 === 0 ? "bg-background" : "bg-muted/20",
+        "shadow-[inset_0_-1px_0_0_hsl(var(--border)/0.4)]",
+      )}
       onClick={() => onOpen(tx)}
     >
       <td className={cn("w-1 p-0", accent.bar)} aria-hidden />
