@@ -175,18 +175,30 @@ function HolderDetail() {
           </div>
         </div>
         {!isReadOnly && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gold/25 bg-card/70 p-2 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] backdrop-blur">
             {isAdmin && <AddLinkedAccountDialog holderId={holder.id} />}
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-gold/40 bg-gold/5 font-medium text-foreground hover:border-gold/70 hover:bg-gold/15 hover:text-gold"
+            >
               <Edit className="h-4 w-4" /> Edit Profile
             </Button>
             {isAdmin && (
               holder.status === "SUSPENDED" ? (
-                <Button variant="outline" size="sm" className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-emerald-500/60 bg-emerald-500/10 font-medium text-emerald-400 hover:bg-emerald-500/20"
+                >
                   Reactivate
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" className="gap-2 border-red-500/40 text-red-400 hover:bg-red-500/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-red-500/60 bg-red-500/10 font-medium text-red-400 hover:bg-red-500/20"
+                >
                   <AlertTriangle className="h-4 w-4" /> Suspend
                 </Button>
               )
@@ -196,7 +208,7 @@ function HolderDetail() {
       </motion.div>
 
       {/* Tabs */}
-      <div className="scrollbar-none relative flex overflow-x-auto border-b border-border">
+      <div className="scrollbar-none relative flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1.5 backdrop-blur">
         {TABS.map((tab) => {
           const isActive = activeTab === tab;
           return (
@@ -204,18 +216,13 @@ function HolderDetail() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors",
-                isActive ? "text-gold" : "text-text-secondary hover:text-foreground",
+                "relative whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                isActive
+                  ? "border border-gold/50 bg-gold/15 text-gold shadow-[0_0_18px_-6px_oklch(0.74_0.135_82/0.45)]"
+                  : "border border-transparent text-foreground/70 hover:bg-muted/40 hover:text-foreground",
               )}
             >
               {tab}
-              {isActive && (
-                <motion.span
-                  layoutId="activeHolderTab"
-                  className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-gold to-transparent"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
             </button>
           );
         })}
