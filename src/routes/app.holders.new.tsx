@@ -57,6 +57,7 @@ const CURRENCIES = [
   { code: "LYD", name: "Libyan Dinar", flag: "🇱🇾" },
   { code: "USD", name: "US Dollar", flag: "🇺🇸" },
   { code: "EUR", name: "Euro", flag: "🇪🇺" },
+  { code: "GBP", name: "British Pound", flag: "🇬🇧" },
 ] as const;
 
 type Step = 1 | 2;
@@ -342,7 +343,7 @@ function NewHolderPage() {
                   <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                     Currency
                   </Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {CURRENCIES.map((c) => {
                       const active = currency === c.code;
                       return (
