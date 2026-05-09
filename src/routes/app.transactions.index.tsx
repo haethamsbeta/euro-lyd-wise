@@ -193,6 +193,13 @@ function TxList() {
     return m;
   }, [data]);
 
+  // Auto-open the details sheet when navigated with ?focus=<txId>
+  useEffect(() => {
+    if (!search.focus || !data) return;
+    const tx = data.find((t) => t.id === search.focus);
+    if (tx) setDetails(tx);
+  }, [search.focus, data]);
+
   const filtered = useMemo(() => {
     let rows = (data ?? []).map((t) => ({
       ...t,
