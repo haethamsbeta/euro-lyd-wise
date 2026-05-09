@@ -13,10 +13,61 @@ import { cn } from "@/lib/utils";
 import { formatMinor } from "@/lib/format";
 
 type Result =
-  | { kind: "holder"; id: string; title: string; subtitle?: string }
-  | { kind: "account"; id: string; title: string; subtitle?: string }
-  | { kind: "vault"; id: string; title: string; subtitle?: string }
-  | { kind: "transaction"; id: string; title: string; subtitle?: string };
+  | { kind: "holder"; id: string; title: string; subtitle?: string; score: number }
+  | { kind: "account"; id: string; title: string; subtitle?: string; score: number }
+  | { kind: "vault"; id: string; title: string; subtitle?: string; score: number }
+  | { kind: "transaction"; id: string; title: string; subtitle?: string; score: number };
+
+function scoreMatch(term: string, ...fields: (string | null | undefined)[]): number {
+  const t = term.toLowerCase();
+  let best = 0;
+  for (const f of fields) {
+    if (!f) continue;
+    const v = f.toLowerCase();
+    if (v === t) best = Math.max(best, 100);
+    else if (v.startsWith(t)) best = Math.max(best, 80);
+    else {
+      // word-boundary start
+      const idx = v.indexOf(t);
+      if (idx === 0) best = Math.max(best, 80);
+      else if (idx > 0 && /[\s\-_/.@#]/.test(v[idx - 1])) best = Math.max(best, 60);
+      else if (idx > 0) best = Math.max(best, 40 - Math.min(idx, 30));
+    }
+  }
+  return best;
+}
+
+function Highlight({ text, term }: { text?: string | null; term: string }) {
+  if (!text) return null;
+  if (!term) return <>{text}</>;
+  const parts: Array<{ s: string; hit: boolean }> = [];
+  const lower = text.toLowerCase();
+  const t = term.toLowerCase();
+  let i = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(t, i);
+    if (idx === -1) {
+      parts.push({ s: text.slice(i), hit: false });
+      break;
+    }
+    if (idx > i) parts.push({ s: text.slice(i, idx), hit: false });
+    parts.push({ s: text.slice(idx, idx + t.length), hit: true });
+    i = idx + t.length;
+  }
+  return (
+    <>
+      {parts.map((p, k) =>
+        p.hit ? (
+          <mark key={k} className="rounded bg-gold/30 px-0.5 text-foreground">
+            {p.s}
+          </mark>
+        ) : (
+          <span key={k}>{p.s}</span>
+        ),
+      )}
+    </>
+  );
+}
 
 function useDebounced<T>(value: T, delay = 200): T {
   const [v, setV] = useState(value);
@@ -90,40 +141,50 @@ export function GlobalSearch() {
       const out: Result[] = [];
 
       for (const h of holders.data ?? []) {
+        const score =
+          scoreMatch(term, h.canonical_name, h.dahab_account_number, h.email, h.phone) + 5;
         out.push({
           kind: "holder",
           id: String(h.id),
           title: h.canonical_name,
           subtitle: h.dahab_account_number ?? h.email ?? h.phone ?? undefined,
+          score,
         });
       }
       for (const a of accounts.data ?? []) {
+        const score = scoreMatch(term, a.name, a.account_number);
         out.push({
           kind: "account",
           id: a.id,
           title: a.name,
           subtitle: a.account_number ?? undefined,
+          score,
         });
       }
       for (const v of vaults.data ?? []) {
+        const score = scoreMatch(term, v.name, v.vault_channel);
         out.push({
           kind: "vault",
           id: v.id,
           title: v.name,
           subtitle: `${v.vault_channel} vault`,
+          score,
         });
       }
       const seen = new Set<string>();
       for (const t of [...(txByNumber.data ?? []), ...(txByComment.data ?? [])]) {
         if (seen.has(t.id)) continue;
         seen.add(t.id);
+        const score = scoreMatch(term, t.tx_number, t.comment);
         out.push({
           kind: "transaction",
           id: t.id,
           title: t.tx_number,
           subtitle: `${formatMinor(t.amount_minor, t.currency)} · ${t.status}${t.comment ? ` · ${t.comment}` : ""}`,
+          score,
         });
       }
+      out.sort((a, b) => b.score - a.score);
       return out;
     },
   });
@@ -136,6 +197,9 @@ export function GlobalSearch() {
       transaction: [],
     };
     for (const r of data ?? []) map[r.kind].push(r);
+    (Object.keys(map) as Result["kind"][]).forEach((k) =>
+      map[k].sort((a, b) => b.score - a.score),
+    );
     return map;
   }, [data]);
 
@@ -203,10 +267,10 @@ export function GlobalSearch() {
             <EmptyHint text={`No results for "${debounced}".`} />
           ) : (
             <>
-              <Group title="Holders" icon={IdCard} items={grouped.holder} onSelect={handleSelect} />
-              <Group title="Accounts" icon={IdCard} items={grouped.account} onSelect={handleSelect} />
-              <Group title="Vaults" icon={Wallet} items={grouped.vault} onSelect={handleSelect} />
-              <Group title="Transactions" icon={ListOrdered} items={grouped.transaction} onSelect={handleSelect} />
+              <Group title="Holders" icon={IdCard} items={grouped.holder} term={debounced} onSelect={handleSelect} />
+              <Group title="Accounts" icon={IdCard} items={grouped.account} term={debounced} onSelect={handleSelect} />
+              <Group title="Vaults" icon={Wallet} items={grouped.vault} term={debounced} onSelect={handleSelect} />
+              <Group title="Transactions" icon={ListOrdered} items={grouped.transaction} term={debounced} onSelect={handleSelect} />
             </>
           )}
         </div>
@@ -223,11 +287,13 @@ function Group({
   title,
   icon: Icon,
   items,
+  term,
   onSelect,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   items: Result[];
+  term: string;
   onSelect: (r: Result) => void;
 }) {
   if (items.length === 0) return null;
@@ -248,9 +314,13 @@ function Group({
                 <Icon className="h-4 w-4 text-gold" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-foreground">{r.title}</span>
+                <span className="block truncate font-medium text-foreground">
+                  <Highlight text={r.title} term={term} />
+                </span>
                 {r.subtitle ? (
-                  <span className="block truncate text-xs text-muted-foreground">{r.subtitle}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    <Highlight text={r.subtitle} term={term} />
+                  </span>
                 ) : null}
               </span>
             </button>
