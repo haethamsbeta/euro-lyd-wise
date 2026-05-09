@@ -754,6 +754,9 @@ function TxRow({
 }
 
 function statusAccent(tx: Tx): { bar: string } {
+  return _statusAccent(tx);
+}
+function _statusAccent(tx: Tx): { bar: string } {
   if (tx.status === "pending") return { bar: "bg-warning" };
   if (tx.status === "rejected") return { bar: "bg-destructive" };
   if (tx.status === "reversed") return { bar: "bg-warning/60" };
