@@ -88,19 +88,27 @@ function NotifSettingsPage() {
   // Sync push_subscriptions row so admins can see device status.
   async function syncPushSubscription(enabled: boolean) {
     if (!user) return;
+    const label = "This browser";
     if (enabled) {
-      await supabase
+      const { data: existing } = await supabase
         .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: user.id,
-            granted: true,
-            user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-            label: "This browser",
-          },
-          { onConflict: "user_id,label" as never },
-        )
-        .then(() => undefined, () => undefined);
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("label", label)
+        .maybeSingle();
+      if (existing) {
+        await supabase
+          .from("push_subscriptions")
+          .update({ granted: true, user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("push_subscriptions").insert({
+          user_id: user.id,
+          granted: true,
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+          label,
+        });
+      }
     } else {
       await supabase.from("push_subscriptions").update({ granted: false }).eq("user_id", user.id);
     }
