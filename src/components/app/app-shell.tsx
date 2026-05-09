@@ -232,6 +232,14 @@ export function AppShell() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">{t("nav.notifications")}</TooltipContent>
                 </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <AccountMenu variant="compact" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t("account.menuLabel")}</TooltipContent>
+                </Tooltip>
               </div>
             </div>
             {/* Gold gradient hairline mirroring the dock's top hairline */}
