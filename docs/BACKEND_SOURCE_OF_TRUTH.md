@@ -408,3 +408,114 @@ Role × endpoint matrix is encoded in `docs/backend/openapi.yaml` via tags `role
 ---
 
 _Last updated: 2026-05-09._
+
+---
+
+## 10. Push notifications (Web Push) — added 2026-05-09
+
+The frontend now ships a real Web Push pipeline (VAPID + Service Worker) on top
+of the existing in-app inbox. The AWS backend MUST implement an equivalent set
+of tables, RPCs, REST endpoints, and a server-side push sender to keep parity
+with the live Supabase implementation.
+
+### 10.1 Required deployment secrets
+
+| Env var | Purpose |
+|---|---|
+| `VAPID_PUBLIC_KEY`   | Base64url-encoded P-256 public key. Returned to clients via `GET /api/push/vapid-public-key`. |
+| `VAPID_PRIVATE_KEY`  | Base64url-encoded P-256 private key. Used to sign VAPID JWTs server-side. Never sent to clients. |
+| `VAPID_SUBJECT`      | `mailto:` URI used in the VAPID JWT `sub` claim. Required by Web Push providers. |
+
+Without these three secrets, every push send must return `503 push_not_configured`. The frontend toggle surfaces this state.
+
+### 10.2 Schema additions
+
+New table (also documented in `docs/DATABASE_CONTRACT.md`):
+
+```sql
+CREATE TABLE push_subscriptions (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint        text,                       -- W3C PushSubscription.endpoint
+  p256dh          text,                       -- base64url ECDH public key
+  auth            text,                       -- base64url auth secret
+  label           text,                       -- friendly device name
+  user_agent      text,
+  granted         boolean NOT NULL DEFAULT true,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  last_seen_at    timestamptz NOT NULL DEFAULT now(),
+  last_success_at timestamptz,
+  last_error      text
+);
+CREATE UNIQUE INDEX ux_push_subscriptions_endpoint
+  ON push_subscriptions (endpoint) WHERE endpoint IS NOT NULL;
+CREATE INDEX ix_push_subscriptions_user ON push_subscriptions (user_id);
+```
+
+RLS:
+- `push self all` — `user_id = auth.uid()` (insert/update/delete own rows).
+- `push admin read` — `has_role(auth.uid(), 'admin')` (admins can list every device).
+
+### 10.3 New stored procedures / RPCs
+
+| RPC | Args | Returns | Caller | Purpose |
+|---|---|---|---|---|
+| `admin_list_push_status()` | — | `[{ user_id, browser_push_enabled, subscription_count, last_seen_at, last_success_at }]` | admin | Powers the **Push** column on `/app/users`. `subscription_count` counts only rows where `granted=true AND endpoint IS NOT NULL`. |
+| `admin_list_push_devices(p_user_id uuid)` | user id | `[{ id, label, user_agent, granted, endpoint_present, created_at, last_seen_at, last_success_at, last_error }]` | admin | Per-user device drill-down. Never returns `endpoint`/`p256dh`/`auth` (sensitive). |
+| `admin_send_test_notification(p_user_id uuid)` | user id | `void` | admin | Inserts an in-app `notifications` row regardless of the recipient's `notification_preferences.enabled` gate. Used by admin "Send test". |
+| `notif_self_test()` | — | `void` | self | Existing — inserts a self-targeted in-app notification. |
+
+### 10.4 New REST endpoints
+
+All under `/api/push/*`. Full schemas live in `docs/backend/openapi.yaml`.
+
+| ID | Method + Path | Roles | Purpose |
+|---|---|---|---|
+| PUSH-1 | `GET /api/push/vapid-public-key`        | any authed | Returns the public VAPID key (or `null` if unconfigured). |
+| PUSH-2 | `POST /api/push/subscriptions`          | any authed | Upsert this device's subscription `{ endpoint, p256dh, auth, label?, user_agent? }`. Sets `granted=true`, refreshes `last_seen_at`, clears `last_error`. |
+| PUSH-3 | `POST /api/push/subscriptions/unsubscribe` | any authed | `{ endpoint }` — set `granted=false` for the caller's matching row. |
+| PUSH-4 | `POST /api/push/subscriptions/{id}/revoke` | any authed | `granted=false` for owned subscription. |
+| PUSH-5 | `DELETE /api/push/subscriptions/{id}`   | any authed | Hard-delete owned subscription. |
+| PUSH-6 | `POST /api/push/subscriptions/ping`     | any authed | `{ endpoint }` — touch `last_seen_at`. Called on tab focus. |
+| PUSH-7 | `POST /api/push/test/self`              | any authed | Triggers in-app notif + real Web Push to **all** of caller's granted devices. Returns `{ sent, total }`. |
+| PUSH-8 | `POST /api/push/test/user`              | admin | `{ user_id }` — calls `admin_send_test_notification` then sends real push to every granted device. Returns `{ sent, total }`. |
+| PUSH-9 | `GET  /api/admin/push/status`           | admin | Wraps `admin_list_push_status()`. |
+| PUSH-10 | `GET /api/admin/push/users/{id}/devices` | admin | Wraps `admin_list_push_devices(id)`. |
+
+### 10.5 Push sender behaviour (server)
+
+Implemented in the API layer (Lambda/Worker/Node):
+
+1. Build a VAPID JWT (`alg=ES256`, claims `aud=<push origin>`, `exp=now+12h`, `sub=VAPID_SUBJECT`) signed with `VAPID_PRIVATE_KEY`.
+2. Encrypt the JSON payload `{ title, body, url, tag }` per RFC 8291 (AES-128-GCM, salt 16B, ephemeral ECDH key, HKDF).
+3. `POST` to `subscription.endpoint` with headers:
+   - `Authorization: vapid t=<jwt>, k=<base64url(VAPID_PUBLIC_KEY)>`
+   - `Content-Encoding: aes128gcm`
+   - `TTL: 60`
+   - `Urgency: normal`
+4. Persistence rules per device after each send attempt:
+   - **2xx** → `last_success_at = now()`, `last_error = null`.
+   - **404 / 410** → `DELETE` the row (subscription is permanently gone).
+   - **other** → `last_error = '<status> <body-snippet>'`; do NOT delete.
+5. Always return `{ sent, total }` to the caller. `total` includes endpoints that failed; `sent` counts only 2xx responses.
+
+### 10.6 Service worker contract (frontend deploy artifact)
+
+- Served at origin root (`/sw.js`) — must NOT be behind auth or a path prefix.
+- Registered with scope `/`, `userVisibleOnly: true`.
+- Handles `push` (renders `data.title/body/url/tag`) and `notificationclick` (focuses an existing tab to `data.url` or opens a new one).
+- Required `manifest.webmanifest` keys for iOS PWA: `name`, `display: 'standalone'`, `start_url`, `icons[192,512]`.
+
+### 10.7 Authoring rules for backend devs
+
+- Never expose `endpoint`, `p256dh`, or `auth` in any response. They are only readable inside the push sender.
+- All admin-only push endpoints MUST verify `has_role(caller, 'admin')` server-side; do not rely on the client.
+- The 410-Gone auto-delete behaviour is a correctness requirement, not an optimisation — without it, dead endpoints accumulate forever and `subscription_count` becomes meaningless.
+- `sendTestPushToUser` MUST also write the in-app row (admin override) so the recipient sees the test even when their browser is closed and unsubscribed.
+
+### 10.8 Module map addition
+
+| Screen / route | Roles | Primary endpoints | Tables / RPCs |
+|---|---|---|---|
+| `/app/settings/notifications` | any authed | PUSH-1, PUSH-2, PUSH-3, PUSH-4, PUSH-5, PUSH-6, PUSH-7 | `push_subscriptions`, `notification_preferences` |
+| `/app/users` (Push column + Test push column) | admin | PUSH-8, PUSH-9, PUSH-10 | `admin_list_push_status`, `admin_list_push_devices`, `admin_send_test_notification` |
