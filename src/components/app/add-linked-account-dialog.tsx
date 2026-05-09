@@ -113,8 +113,11 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Plus className="h-4 w-4 me-1" /> Add account
+        <Button
+          size="sm"
+          className="gap-1.5 bg-gradient-gold font-semibold text-primary-foreground shadow-[0_4px_18px_-4px_oklch(0.74_0.135_82/0.55)] hover:opacity-95"
+        >
+          <Plus className="h-4 w-4" /> Add account
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl overflow-hidden p-0">
