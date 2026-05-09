@@ -40,6 +40,7 @@ function HolderDetail() {
   const { roles } = useAuth();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isReadOnly = hasAnyRole(roles, ["auditor"]) && !isAdmin;
+  const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isReadOnly;
 
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [highlightedAccountId, setHighlightedAccountId] = useState<number | null>(null);
@@ -244,6 +245,7 @@ function HolderDetail() {
               totals={totals ?? []}
               totalLyd={totalLyd}
               isReadOnly={isReadOnly}
+              isTeller={isTeller}
               highlightedAccountId={highlightedAccountId}
             />
           )}
@@ -252,6 +254,7 @@ function HolderDetail() {
               accounts={accounts}
               isReadOnly={isReadOnly}
               isAdmin={isAdmin}
+              isTeller={isTeller}
               holderId={holder.id}
               highlightedAccountId={highlightedAccountId}
             />
@@ -274,7 +277,7 @@ function holderTypeIcon(type?: string | null, cls = "h-6 w-6") {
   return <UserIcon className={cls} />;
 }
 
-function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, highlightedAccountId }: any) {
+function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, isTeller, highlightedAccountId }: any) {
   const accountsByCurrency: Record<string, number> = {};
   for (const t of totals) accountsByCurrency[t.currency] = Number(t.total_balance ?? 0);
   return (
@@ -319,7 +322,7 @@ function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, highlight
 
       {/* Right column */}
       <div className="space-y-6 lg:col-span-2">
-        <Card className="relative overflow-hidden p-6">
+        {!isTeller && <Card className="relative overflow-hidden p-6">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gold/15 via-card to-card opacity-80" />
           <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -355,12 +358,13 @@ function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, highlight
               ))}
             </div>
           </div>
-        </Card>
+        </Card>}
 
         <AccountListBlock
           accounts={accounts}
           isReadOnly={isReadOnly}
           isAdmin={false}
+          isTeller={isTeller}
           holderId={holder.id}
           highlightedAccountId={highlightedAccountId}
           compact
@@ -395,6 +399,7 @@ function AccountListBlock({
   accounts,
   isReadOnly,
   isAdmin,
+  isTeller = false,
   holderId,
   highlightedAccountId,
   compact = false,
@@ -402,6 +407,7 @@ function AccountListBlock({
   accounts: any[];
   isReadOnly: boolean;
   isAdmin: boolean;
+  isTeller?: boolean;
   holderId: number;
   highlightedAccountId: number | null;
   compact?: boolean;
@@ -425,54 +431,49 @@ function AccountListBlock({
           accounts.map((acc) => {
             const isHighlighted = acc.id === highlightedAccountId;
             const tt = tint(acc.currency_code);
-            return (
-              <Link
-                key={acc.id}
-                to="/app/accounts/$id"
-                params={{ id: String(acc.id) }}
-                id={`account-${acc.id}`}
-                className="block scroll-mt-24"
+            const cardInner = (
+              <Card
+                className={cn(
+                  "group relative overflow-hidden border-gold/20 bg-card/80 p-5 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.5)] transition-all",
+                  !isTeller && "cursor-pointer",
+                  isHighlighted
+                    ? "border-gold ring-2 ring-gold/40 shadow-[0_0_30px_rgba(212,168,87,0.25)]"
+                    : !isTeller && "hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_10px_30px_-10px_oklch(0.74_0.135_82/0.35)]",
+                )}
               >
-                <Card
+                <div
                   className={cn(
-                    "group relative cursor-pointer overflow-hidden border-gold/20 bg-card/80 p-5 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.5)] transition-all",
-                    isHighlighted
-                      ? "border-gold ring-2 ring-gold/40 shadow-[0_0_30px_rgba(212,168,87,0.25)]"
-                      : "hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_10px_30px_-10px_oklch(0.74_0.135_82/0.35)]",
+                    "pointer-events-none absolute inset-y-0 left-0 w-1",
+                    tt.text.replace("text-", "bg-"),
                   )}
-                >
-                  <div
-                    className={cn(
-                      "pointer-events-none absolute inset-y-0 left-0 w-1",
-                      tt.text.replace("text-", "bg-"),
-                    )}
-                  />
-                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                    <div className="flex items-start gap-4">
-                      <CurrencyBadge currency={acc.currency_code} className="mt-1" />
-                      <div className="min-w-0">
-                        <div className="font-serif text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-gold" dir="auto">
-                          {acc.account_display_name}
-                        </div>
-                        {acc.account_alias_name && (
-                          <div className="mt-0.5 text-[11px] text-muted-foreground">{acc.account_alias_name}</div>
-                        )}
-                        <div className="mt-2 inline-flex items-center rounded-md border border-gold/30 bg-gold/5 px-2 py-0.5 font-mono text-xs font-semibold tracking-wide text-gold">
-                          {acc.account_number}
-                        </div>
-                        {!compact && (
-                          <div className="mt-2 flex items-center gap-1.5">
-                            <Badge
-                              variant="outline"
-                              className="border-border/80 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider"
-                            >
-                              {acc.account_nature}
-                            </Badge>
-                          </div>
-                        )}
+                />
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div className="flex items-start gap-4">
+                    <CurrencyBadge currency={acc.currency_code} className="mt-1" />
+                    <div className="min-w-0">
+                      <div className="font-serif text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-gold" dir="auto">
+                        {acc.account_display_name}
                       </div>
+                      {acc.account_alias_name && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">{acc.account_alias_name}</div>
+                      )}
+                      <div className="mt-2 inline-flex items-center rounded-md border border-gold/30 bg-gold/5 px-2 py-0.5 font-mono text-xs font-semibold tracking-wide text-gold">
+                        {acc.account_number}
+                      </div>
+                      {!compact && (
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="border-border/80 bg-muted/40 text-[10px] font-semibold uppercase tracking-wider"
+                          >
+                            {acc.account_nature}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4 sm:justify-end">
+                  </div>
+                  <div className="flex items-center gap-4 sm:justify-end">
+                    {!isTeller ? (
                       <div className="text-right">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                           Current balance
@@ -485,10 +486,34 @@ function AccountListBlock({
                           <StatusBadge status={acc.status} />
                         </div>
                       </div>
+                    ) : (
+                      <div className="text-right">
+                        <StatusBadge status={acc.status} />
+                      </div>
+                    )}
+                    {!isTeller && (
                       <ArrowRight className="h-5 w-5 text-muted-foreground transition-all group-hover:translate-x-1 group-hover:text-gold" />
-                    </div>
+                    )}
                   </div>
-                </Card>
+                </div>
+              </Card>
+            );
+            if (isTeller) {
+              return (
+                <div key={acc.id} id={`account-${acc.id}`} className="block scroll-mt-24">
+                  {cardInner}
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={acc.id}
+                to="/app/accounts/$id"
+                params={{ id: String(acc.id) }}
+                id={`account-${acc.id}`}
+                className="block scroll-mt-24"
+              >
+                {cardInner}
               </Link>
             );
           })
