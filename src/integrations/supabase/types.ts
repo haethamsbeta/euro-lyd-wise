@@ -1265,7 +1265,22 @@ export type Database = {
         Args: { p_new_email: string; p_target_user: string }
         Returns: undefined
       }
+      admin_list_push_status: {
+        Args: never
+        Returns: {
+          browser_push_enabled: boolean
+          full_name: string
+          has_prefs: boolean
+          last_subscription_at: string
+          subscription_count: number
+          user_id: string
+        }[]
+      }
       admin_reset_password: { Args: { p_target_user: string }; Returns: Json }
+      admin_send_test_notification: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       admin_set_holder_owner: {
         Args: { p_holder_id: number; p_owner: string }
         Returns: undefined
@@ -1429,6 +1444,7 @@ export type Database = {
         Args: { p_currency: string; p_dahab: string }
         Returns: string
       }
+      notif_self_test: { Args: never; Returns: string }
       notifications_mark_all_read: { Args: never; Returns: number }
       notifications_mark_read: { Args: { p_ids: string[] }; Returns: number }
       post_transaction: {
@@ -1541,6 +1557,7 @@ export type Database = {
         | "account_change"
         | "reminder_pending"
         | "reminder_shift"
+        | "test"
       notification_severity: "info" | "warning" | "critical"
       tx_direction: "deposit" | "withdraw"
       tx_status: "posted" | "pending" | "rejected" | "reversed"
@@ -1688,6 +1705,7 @@ export const Constants = {
         "account_change",
         "reminder_pending",
         "reminder_shift",
+        "test",
       ],
       notification_severity: ["info", "warning", "critical"],
       tx_direction: ["deposit", "withdraw"],

@@ -1,63 +1,78 @@
-## Goal
+# Push notifications: end-to-end test, tester, and indicator
 
-Redesign the Transactions module to match the Magic Patterns DAHAB mockup (premium dark + gold theme, Playfair display, KPI strip, status-rich rows, full detail page, polished wizard) while keeping every existing search, filter, edit, attachment, reversal and approval feature working against the current Supabase data model.
+## Goals
 
-## Scope (3 files)
+1. Verify the full notification pipeline works (DB insert → Realtime → in-app toast → browser Notification when tab hidden).
+2. Let an admin send a **test push** to any "Dahab family" staff user (admin / teller / auditor) and to themselves.
+3. Show a clear **indicator** next to each user telling whether their browser push is enabled, and why if not.
+4. Make a self-test button available in the user's own Notification settings.
 
-### 1. `src/routes/app.transactions.index.tsx` (rewrite presentation, keep logic)
+## What's already in place (verified)
 
-Keep as-is (no behavior change):
-- Supabase query (`transactions.list.v2` + `transactions.dahabmap`)
-- Search debounce, status / direction / date / files-only filters
-- `?q=` and `?focus=` URL sync
-- Edit dialog, reverse, approve/reject, attachments — all current mutations and dialogs
-- Role gating (admin / teller / auditor)
-- Existing exports (`ExportPdfButton`, `describeTx`)
+- Table `notifications` + Realtime subscription per user in `src/lib/notifications.tsx` → toasts and `new Notification(...)` (only when `document.visibilityState !== "visible"`).
+- `_notify_user(user_id, event, severity, title, body, data, tx)` security-definer RPC respects `notification_preferences.enabled[event]`.
+- `notification_preferences` (per-user, RLS = self only): holds `browser_push_enabled`, `daily_summary_*`, thresholds, quiet hours columns (currently unused by `_notify_user`).
+- `push_subscriptions` (per-user, self RLS): records per-device permission grants — currently written nowhere from the client.
 
-Replace presentation with mockup layout:
-- Header row: H1 "Transactions" (Playfair) + subtitle, right side `[Export]` secondary + `[+ New Transaction]` primary gold gradient button
-- KPI strip: 4 motion cards (Today / Pending / Completed / Failed) computed from current rows, clickable to set `statusFilter`
-- Quick-filter chip row (All / Today / Pending only / Over 25k / Cash / Bank / Deposits / Withdrawals) wired to existing filters
-- Toolbar Card: search input (gold focus ring), currency + direction selects, filter icon
-- Table Card: gold-hairline premium card, uppercase tracked thead, hover gold rows, motion stagger, amount cell colored ±, `CurrencyBadge` + `StatusBadge` reused
-- Row click → navigate to `/app/transactions/$id` (new route below) instead of opening side sheet; keep edit dialog accessible from detail page
+## Gaps to address
 
-### 2. NEW `src/routes/app.transactions.$id.tsx`
+- No way to send a test notification → no quick smoke test.
+- Admin can't see whether another user has push enabled (RLS hides their prefs).
+- Realtime publication for `notifications` is required; will confirm via migration if missing.
+- `push_subscriptions` is never populated by the settings page when permission is granted.
 
-Detail page per spec:
-- Breadcrumb `← Transactions / TXN-####`
-- Hero premium card: ID + StatusBadge + kind chip, big Playfair amount with sign + CurrencyBadge, action cluster (Approve/Reject when pending; Reverse/Download when posted; Retry when failed; Read-Only chip for auditor)
-- Left col: Status Timeline card (Initiated → Pending → Approved/Rejected → Completed with animated active halo), Audit Trail card from existing audit log query
-- Right col: From/To tile pair with center arrow disc, Amount Details card (amount/fee/total), Compliance & Documentation card (existing attachments), Reference Information card (description + internal notes)
-- Hooks reuse existing approve/reject/reverse mutations extracted from current list page
+## Plan
 
-### 3. `src/components/app/new-transaction-wizard.tsx` (visual polish only)
+### 1. Database (migration)
 
-Keep all existing step logic, validation, submit flow, deep-link `?type=`. Apply mockup styling pass:
-- Sticky stepper + context pill row with gold rings/halos
-- Step 1 type cards: emerald/red toned, keyboard D/W
-- Step 2 customer search + AccountTile grid with currency-colored top border
-- Step 3 vault cards (Cash gold / Bank sky)
-- Step 4 calculator hero (huge Playfair amount input, quick-amount chips, balance preview tiles, animated approval warning)
-- Step 5 review with hero amount + ReviewRow list + certify footer
-- Fixed bottom action bar
-- Result screen replaces wizard on success (spring-in disc, receipt card with serrated bottom edge, action buttons)
+- New event value `test` on `notification_event` enum (so test notifications don't pollute real categories).
+- `admin_send_test_notification(p_user_id uuid, p_channel text default 'browser')` — security definer, admin-only via `has_role`. Inserts a notification using `_notify_user` with event `test`, severity `info`, fixed title/body (i18n keys passed in), bypassing the `enabled` gate for `test`.
+- `admin_list_push_status()` — security definer, admin-only. Returns one row per profile: `user_id, full_name, role, browser_push_enabled, last_subscription_at, subscription_count`.
+- Update `_notify_user` so event `test` is never gated by `enabled` map.
+- Ensure `notifications` is in `supabase_realtime` publication (idempotent `ALTER PUBLICATION ... ADD TABLE`).
 
-## Shared primitives (reuse / extend existing)
+### 2. Client — Settings page (`src/routes/app.settings.notifications.tsx`)
 
-- `PremiumCard` (already exists, `variant="premium"`)
-- `StatusBadge`, `CurrencyBadge` (already exist) — extend StatusBadge to map "completed/posted/approved" → success, "pending" → warning, "rejected/failed/reversed" → destructive
-- New tiny helper: `KpiTile` extracted from current inline KPI
+- Add **"Send test notification to me"** button. Calls a tiny RPC `notif_self_test()` (or reuses `admin_send_test_notification` for own id without admin check via a separate `notif_self_test` rpc — preferred). Shows toast on success.
+- After permission is granted, write a row into `push_subscriptions` (label = browser/UA, granted = true) so the admin indicator reflects reality. Remove/flip the row when user disables `browser_push_enabled`.
+- Show current state pill: "Foreground delivery only" vs "Background notifications enabled".
 
-## Out of scope
+### 3. Client — Users page (`src/routes/app.users.tsx`)
 
-- No DB schema changes
-- No new mutations beyond what already exists
-- No changes to deposit/withdraw shortcut routes (`app.transactions.new.deposit.tsx`, `.withdraw.tsx`) — they already delegate to the wizard
+- Fetch `admin_list_push_status()` alongside profiles.
+- Per-row badge:
+  - green "Push on" if `browser_push_enabled && subscription_count>0`,
+  - amber "In-app only" if pref enabled but no granted device,
+  - grey "Off" otherwise.
+- Per-row **"Send test"** action (Bell icon button) → calls `admin_send_test_notification`. Toasts result; if target is offline, mention "delivered to inbox; will appear when they next open the app".
+- Tooltip explains rule: browser system notification only fires when their tab is hidden.
 
-## Technical notes
+### 4. In-app receive logic (`src/lib/notifications.tsx`)
 
-- All colors via existing CSS tokens in `src/styles.css` (`--gold`, `--surface`, `--success`, etc.) — no hardcoded hex in components
-- `framer-motion` is already a dependency
-- Row navigation switches from in-page Sheet to dedicated route; the Sheet code is removed from list and the equivalent info lives on the detail page
-- Currency formatter stays `formatMinor` from `src/lib/format.ts`
+- For event `test`, force the toast and (if permission granted) the browser `Notification` even when tab is visible — so the sender can confirm delivery without backgrounding the tab. All other events keep current behavior.
+- Mark test notifications visually (a small "Test" chip) in the bell list so they're easy to clear.
+
+### 5. End-to-end verification (post-implementation)
+
+Manual checklist run from the dev preview after deploy:
+
+1. Two browsers logged in as admin A and teller B.
+2. Admin A opens Users page → sees B's push status.
+3. A clicks "Send test" on B → B's tab (visible) shows toast + system notification (because event=test forces it) → bell badge increments → row appears in B's notification list.
+4. B hides their tab; A clicks again → system notification fires while tab hidden.
+5. B's settings page → "Send test to me" → self toast + system notification.
+6. B disables `browser_push_enabled` → A's Users page indicator flips to "In-app only" within one refresh.
+7. Confirm `_notify_user` still gates non-test events by `enabled[event]`.
+
+## Files touched
+
+- new `supabase/migrations/<ts>_push_test_and_status.sql`
+- `src/routes/app.settings.notifications.tsx` (self-test button, push_subscriptions write)
+- `src/routes/app.users.tsx` (status badge + test action)
+- `src/lib/notifications.tsx` (force foreground for `test` event, "Test" chip)
+- `src/lib/i18n/{en,ar}.ts` (strings)
+
+## Notes / decisions
+
+- This stays within the existing "browser foreground notifications" model — no Web Push / VAPID / service worker (PWA constraints in the editor preview). The "push enabled" indicator therefore tracks: (a) user's browser permission was granted on at least one device, and (b) they kept the toggle on.
+- Quiet hours columns exist on `notification_preferences` but `_notify_user` doesn't honor them yet; out of scope for this change unless you want it included — call it out and I'll add it.
