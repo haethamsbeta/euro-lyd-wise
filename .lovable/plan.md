@@ -1,78 +1,120 @@
-# Push notifications: end-to-end test, tester, and indicator
+## Goal
+Upgrade Dahab from in-browser foreground notifications to **real Web Push** (VAPID + service worker), modeled on your proven reference. Add a **per-device subscription list** on Settings → Notifications and a **per-user push status badge + tester** on the Users page. Keep all existing Dahab notification parameters (events, thresholds, reminders, quiet hours) untouched.
 
-## Goals
+## Architecture (mirrors the reference)
 
-1. Verify the full notification pipeline works (DB insert → Realtime → in-app toast → browser Notification when tab hidden).
-2. Let an admin send a **test push** to any "Dahab family" staff user (admin / teller / auditor) and to themselves.
-3. Show a clear **indicator** next to each user telling whether their browser push is enabled, and why if not.
-4. Make a self-test button available in the user's own Notification settings.
+```text
+Browser (PWA)              Lovable Cloud (Supabase)        Push service (FCM/APNs/Mozilla)
+   │                            │                                  │
+   │ permission + subscribe ───►│ push_subscriptions               │
+   │                            │   (endpoint, p256dh, auth, …)    │
+   │                            │                                  │
+  user/admin clicks "Send test" │                                  │
+   │                            │ server fn: sendPushToUsers ────► │
+   │                            │   - JWK-format VAPID JWT (ES256) │
+   │                            │   - AES-128-GCM payload (RFC8291)│
+   │                            │   - DELETE row on 404/410        │
+   │  SW "push" → showNotification ◄────────────────────────────── │
+```
 
-## What's already in place (verified)
+> No Supabase Edge Functions. We use TanStack Start `createServerFn` (project rule). All Web Push crypto runs in the Worker runtime via Web Crypto APIs (no Node-only deps).
 
-- Table `notifications` + Realtime subscription per user in `src/lib/notifications.tsx` → toasts and `new Notification(...)` (only when `document.visibilityState !== "visible"`).
-- `_notify_user(user_id, event, severity, title, body, data, tx)` security-definer RPC respects `notification_preferences.enabled[event]`.
-- `notification_preferences` (per-user, RLS = self only): holds `browser_push_enabled`, `daily_summary_*`, thresholds, quiet hours columns (currently unused by `_notify_user`).
-- `push_subscriptions` (per-user, self RLS): records per-device permission grants — currently written nowhere from the client.
+## Secrets (you'll add these on the next message — do not paste values in chat)
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (e.g. `mailto:ops@dahablibya.com`)
 
-## Gaps to address
+Frontend uses the public key via existing pattern (we'll expose it through a tiny server fn `getVapidPublicKey()` so we don't need a `VITE_*` rebuild step).
 
-- No way to send a test notification → no quick smoke test.
-- Admin can't see whether another user has push enabled (RLS hides their prefs).
-- Realtime publication for `notifications` is required; will confirm via migration if missing.
-- `push_subscriptions` is never populated by the settings page when permission is granted.
+Generation (once, locally or via a one-shot exec): `npx web-push generate-vapid-keys`.
 
-## Plan
+## Database migration
 
-### 1. Database (migration)
+`supabase/migrations/<ts>_web_push_devices.sql`
 
-- New event value `test` on `notification_event` enum (so test notifications don't pollute real categories).
-- `admin_send_test_notification(p_user_id uuid, p_channel text default 'browser')` — security definer, admin-only via `has_role`. Inserts a notification using `_notify_user` with event `test`, severity `info`, fixed title/body (i18n keys passed in), bypassing the `enabled` gate for `test`.
-- `admin_list_push_status()` — security definer, admin-only. Returns one row per profile: `user_id, full_name, role, browser_push_enabled, last_subscription_at, subscription_count`.
-- Update `_notify_user` so event `test` is never gated by `enabled` map.
-- Ensure `notifications` is in `supabase_realtime` publication (idempotent `ALTER PUBLICATION ... ADD TABLE`).
+1. Extend `push_subscriptions` to be a real Web Push subscription store:
+   - `endpoint text not null` (unique)
+   - `p256dh text not null`
+   - `auth text not null`
+   - `last_seen_at timestamptz not null default now()`
+   - `last_success_at timestamptz`
+   - `last_error text`
+   - Keep existing: `id, user_id, label, user_agent, granted, created_at`
+   - `unique (endpoint)` — same browser re-subscribing updates the row
+   - Backfill: existing "permission grant" rows without endpoint stay as legacy/foreground markers; cleaned up by a one-line `update granted=false where endpoint is null`.
+2. RLS already covers `push self all`. Add **admin-readonly** policy so `admin_list_push_status` / per-user device drill-down works without service role.
+3. Update `public.admin_list_push_status()`:
+   - Returns per user: `subscription_count` (granted + endpoint not null), `last_seen_at`, `last_success_at`.
+4. New RPC `public.admin_list_push_devices(p_user_id uuid)` — admin-only, returns per-device rows (no raw `auth`/`p256dh` exposed; only `id, label, user_agent, granted, created_at, last_seen_at, last_success_at, last_error`).
+5. Keep `notif_self_test()` and `admin_send_test_notification()` — they continue to write the in-app `notifications` row. The new server fn additionally fans out a real push to that user's devices.
 
-### 2. Client — Settings page (`src/routes/app.settings.notifications.tsx`)
+## Server functions (new — `src/lib/push.functions.ts`, client-safe path per project rule)
 
-- Add **"Send test notification to me"** button. Calls a tiny RPC `notif_self_test()` (or reuses `admin_send_test_notification` for own id without admin check via a separate `notif_self_test` rpc — preferred). Shows toast on success.
-- After permission is granted, write a row into `push_subscriptions` (label = browser/UA, granted = true) so the admin indicator reflects reality. Remove/flip the row when user disables `browser_push_enabled`.
-- Show current state pill: "Foreground delivery only" vs "Background notifications enabled".
+- `subscribeThisDevice({ endpoint, p256dh, auth, label, user_agent })` — middleware: `requireSupabaseAuth`. Upserts on `endpoint`, sets `granted=true`, `last_seen_at=now()`.
+- `unsubscribeThisDevice({ endpoint })` — flips `granted=false` (history kept) or deletes if user clicks Remove.
+- `revokeDevice({ id })` — same, by id (settings list).
+- `pingThisDevice({ endpoint })` — bump `last_seen_at`, called on settings page mount.
+- `sendTestPushToSelf()` — calls internal `_sendPushToUser(me, "Test notification", …)`.
+- `sendTestPushToUser({ user_id })` — middleware admin-only, calls `_sendPushToUser`.
+- `getVapidPublicKey()` — returns `process.env.VAPID_PUBLIC_KEY`.
 
-### 3. Client — Users page (`src/routes/app.users.tsx`)
+`src/lib/push.server.ts` (server-only, uses `supabaseAdmin`):
+- `_sendPushToUser(userId, payload)`:
+  1. Load all `granted=true` subs with non-null endpoint.
+  2. For each: build VAPID JWT (ES256, JWK-imported via `crypto.subtle.importKey('jwk', …)` — **the JWK detail from your reference**), encrypt payload AES-128-GCM (RFC 8291), `fetch(endpoint, { headers: { Authorization: 'vapid t=…, k=…', 'Content-Encoding': 'aes128gcm', TTL: '60' }, body })`.
+  3. On `404`/`410` → delete row. On other errors → store `last_error`. On `2xx` → set `last_success_at=now()`.
+- All crypto via Web Crypto (`crypto.subtle`) — Worker-compatible, no `node-web-push`.
 
-- Fetch `admin_list_push_status()` alongside profiles.
-- Per-row badge:
-  - green "Push on" if `browser_push_enabled && subscription_count>0`,
-  - amber "In-app only" if pref enabled but no granted device,
-  - grey "Off" otherwise.
-- Per-row **"Send test"** action (Bell icon button) → calls `admin_send_test_notification`. Toasts result; if target is offline, mention "delivered to inbox; will appear when they next open the app".
-- Tooltip explains rule: browser system notification only fires when their tab is hidden.
+## Service worker
 
-### 4. In-app receive logic (`src/lib/notifications.tsx`)
+- New `public/sw.js` (plain, no PWA plugin — keeps preview-iframe rules from the PWA knowledge note safe):
+  - `push` event → `event.waitUntil(self.registration.showNotification(title, { body, data: { url } }))`
+  - `notificationclick` → focus or open `data.url`
+- Registered from `src/lib/push-client.ts`:
+  - Skip registration if inside an iframe or on `id-preview--*` / `lovableproject.com` host (per PWA knowledge — preview-safe).
+  - On real domains: `navigator.serviceWorker.register('/sw.js')`, then `pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: <vapid public, base64url> })`.
 
-- For event `test`, force the toast and (if permission granted) the browser `Notification` even when tab is visible — so the sender can confirm delivery without backgrounding the tab. All other events keep current behavior.
-- Mark test notifications visually (a small "Test" chip) in the bell list so they're easy to clear.
+## UI
 
-### 5. End-to-end verification (post-implementation)
+### `src/routes/app.settings.notifications.tsx`
+Replace the single "This browser" pill block with two sub-sections inside the **Browser notifications** card:
 
-Manual checklist run from the dev preview after deploy:
+1. **Header row** (unchanged behavior): permission state pill, "Enable browser notifications" button. On click:
+   - request permission → on grant, register SW → create push subscription → call `subscribeThisDevice`.
+   - iOS-not-installed detection: show "Install to Home Screen first" banner, hide toggle (matches your reference).
+2. **Your devices** table:
+   ```text
+   Device                 Browser / OS         Status     Last seen   Last delivery   Actions
+   This browser  ●        Chrome on macOS      Granted    just now    1 min ago       [Revoke]
+   iPhone 15                Safari on iOS      Granted    2h ago      yesterday       [Revoke]
+   Old laptop             Firefox on Windows   Revoked    12d ago     —               [Remove]
+   ```
+   - Data: `select * from push_subscriptions where user_id = me order by last_seen_at desc`.
+   - Current device matched by endpoint stored in `localStorage["dahab.pushEndpoint"]` after subscribe.
+   - Realtime channel on `push_subscriptions` filtered by `user_id` so multi-tab stays in sync.
+3. **"Send test to me"** button (kept) now triggers BOTH the in-app row AND a real push (so the user sees the system notification with the tab closed too).
 
-1. Two browsers logged in as admin A and teller B.
-2. Admin A opens Users page → sees B's push status.
-3. A clicks "Send test" on B → B's tab (visible) shows toast + system notification (because event=test forces it) → bell badge increments → row appears in B's notification list.
-4. B hides their tab; A clicks again → system notification fires while tab hidden.
-5. B's settings page → "Send test to me" → self toast + system notification.
-6. B disables `browser_push_enabled` → A's Users page indicator flips to "In-app only" within one refresh.
-7. Confirm `_notify_user` still gates non-test events by `enabled[event]`.
+### `src/routes/app.users.tsx`
+- Push column already exists. Enrich tooltip with `subscription_count` + `last_seen_at` + `last_success_at` from updated `admin_list_push_status()`.
+- "Send test" action now invokes the new `sendTestPushToUser` server fn (which writes the in-app notification AND fans out push).
+- New "View devices" link per user (admin only) → small dialog calling `admin_list_push_devices(user_id)` so you can see whether a teller actually has any active device before chasing them.
 
-## Files touched
+### Diagnostics (small, admin-only)
+On the same Settings page, an admin-only **Diagnostics** card showing: SW registered?, permission, VAPID key loaded?, current endpoint, last test result. Mirrors your reference's `PushDiagnosticsPanel` but inline (no extra route).
 
-- new `supabase/migrations/<ts>_push_test_and_status.sql`
-- `src/routes/app.settings.notifications.tsx` (self-test button, push_subscriptions write)
-- `src/routes/app.users.tsx` (status badge + test action)
-- `src/lib/notifications.tsx` (force foreground for `test` event, "Test" chip)
-- `src/lib/i18n/{en,ar}.ts` (strings)
+## i18n
+Add to `src/lib/i18n/{en,ar}.ts`: "Your devices", "This browser", "Granted", "Revoked", "Last seen", "Last delivery", "Revoke", "Remove", "View devices", "Install app to home screen first to enable push", "VAPID key not configured".
 
-## Notes / decisions
+## Out of scope
+- Email channel.
+- Mobile native (FCM tokens) — Web Push covers Chrome/Edge/Firefox/Safari (iOS 16.4+ installed PWA).
+- Quiet hours enforcement on the server (existing columns remain unused; tracked separately).
 
-- This stays within the existing "browser foreground notifications" model — no Web Push / VAPID / service worker (PWA constraints in the editor preview). The "push enabled" indicator therefore tracks: (a) user's browser permission was granted on at least one device, and (b) they kept the toggle on.
-- Quiet hours columns exist on `notification_preferences` but `_notify_user` doesn't honor them yet; out of scope for this change unless you want it included — call it out and I'll add it.
+## Verification steps
+1. Add the three secrets, then `getVapidPublicKey()` returns the public key.
+2. Enable on Browser A → row appears, status Granted, endpoint stored locally.
+3. Click **Send test to me** with the tab in background → real OS notification fires; `last_success_at` updates.
+4. Open Browser B (different machine) → second row appears; A no longer carries the "This browser" chip on B.
+5. Revoke A from B → A's toggle flips off after the realtime event; next push to A returns 410 → row auto-deleted.
+6. Admin on Users page → Send test on a teller → teller (with tab closed) gets a system notification.
+7. `bunx tsc --noEmit` passes.
