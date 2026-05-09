@@ -232,8 +232,21 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             </div>
             <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance (LYD eq.)</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
-              <AnimatedNumber value={network} currency="LYD" />
+              {network !== null ? (
+                <AnimatedNumber value={network} currency="LYD" />
+              ) : (
+                <span className="text-muted-foreground text-2xl">—</span>
+              )}
             </div>
+            {missingRates.length > 0 && (
+              <div className="mt-2 text-xs text-amber-400">
+                FX rates missing for{" "}
+                {missingRates.map((r) => `${r.from}→${r.to}`).join(", ")}.{" "}
+                <Link to="/app/admin/fx-rates" className="underline hover:text-gold">
+                  Set rates
+                </Link>
+              </div>
+            )}
           </div>
           <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
