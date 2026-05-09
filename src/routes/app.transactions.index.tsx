@@ -55,10 +55,12 @@ import { useDebounced } from "@/hooks/use-debounced";
 
 export const Route = createFileRoute("/app/transactions/")({
   component: TxList,
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : undefined,
-    focus: typeof search.focus === "string" ? search.focus : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { q?: string; focus?: string } => {
+    const out: { q?: string; focus?: string } = {};
+    if (typeof search.q === "string") out.q = search.q;
+    if (typeof search.focus === "string") out.focus = search.focus;
+    return out;
+  },
 });
 
 type Tx = {
