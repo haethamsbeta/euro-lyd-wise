@@ -197,6 +197,45 @@ function ReportsPage() {
   const { data: topAccounts } = useTopAccounts();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
 
+  // Live report feeds — every chart below sources from the backend Lambda API.
+  // Empty arrays mean "no data yet"; charts render their natural empty state.
+  const { data: hourlyTraffic } = useReportFeed("hourly-traffic", () => api.reports.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
+  const { data: cashFlowApi } = useReportFeed("cash-flow", () => api.reports.cashFlow(), EMPTY_ARR as Array<{ d: string; deposits_minor: number; withdrawals_minor: number }>);
+  const cashFlow = cashFlowApi.map((r) => ({ d: r.d, deposits: r.deposits_minor / 100, withdrawals: r.withdrawals_minor / 100 }));
+  const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
+  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => ({ currency: r.currency, balance: r.balance_minor / 100, daysOfCover: r.days_of_cover ?? 0, health: r.health }));
+  const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
+  const tellers = tellersApi.map((t: any) => ({
+    id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
+    txnsToday: t.txns_today, volumeToday: t.volume_today_minor / 100,
+    avgValue: t.avg_value_minor / 100, accuracy: t.accuracy_pct,
+    avgTime: t.avg_time_seconds / 60, rank: t.rank,
+    trend: t.trend ?? [], streak: t.streak_days,
+  }));
+  const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => api.reports.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
+  const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => api.reports.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
+  const errorRateTrend = errorRateApi.map((r) => ({ d: r.d, rate: r.rate_pct }));
+  const { data: compliance } = useReportFeed("compliance-overview", () => api.reports.complianceOverview(), {
+    flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
+    typology: EMPTY_ARR as Array<{ name: string; value: number }>,
+    alert_volume: EMPTY_ARR as any[],
+    kyc: { target_pct: 0, current_pct: 0 },
+    aml: { target_pct: 0, current_pct: 0 },
+    doc_verification: { target_pct: 0, current_pct: 0 },
+    sanctions: { target_pct: 0, current_pct: 0 },
+  });
+  const riskMetrics = {
+    flaggedTxns: compliance.flagged_txns,
+    pendingReviews: compliance.pending_reviews,
+    resolvedToday: compliance.resolved_today,
+    highRiskHolders: compliance.high_risk_holders,
+  };
+  const TYPOLOGY_COLORS: Record<string, string> = {
+    Structuring: "#F59E0B", "High-Value Cash": "#EF4444",
+    Velocity: "#8B5CF6", "Watchlist Match": "#EC4899",
+  };
+  const riskTypology = compliance.typology.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
+
   const fmtN = (n: number) => n.toLocaleString();
   const volumeSummary = data
     ? Object.entries(data.volumeByCurrency).map(([ccy, v]) => formatMinor(v, ccy)).join(" · ") || "—"
