@@ -67,7 +67,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors",
-        "min-w-[56px] min-h-[44px] px-2 py-1 sm:px-3 sm:py-1.5",
+        "min-w-[48px] min-h-[44px] px-1.5 py-1 sm:min-w-[56px] sm:px-3 sm:py-1.5",
         active
           ? "text-gold"
           : "text-muted-foreground hover:text-foreground hover:bg-gold/10",
@@ -92,7 +92,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
           </span>
         ) : null}
       </div>
-      <span className="text-[11px] sm:text-[10px] font-medium tracking-wide truncate max-w-[68px]">{label}</span>
+      <span className="text-[10px] sm:text-[10px] font-medium tracking-wide truncate max-w-[58px] sm:max-w-[68px]">{label}</span>
     </Link>
   );
 }
