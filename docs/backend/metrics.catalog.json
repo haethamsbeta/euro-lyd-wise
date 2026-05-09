@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-05-09",
+  "currency_rules": {
+    "per_currency": "Always one value per currency code; never combined.",
+    "count": "Currency-agnostic integer.",
+    "percentage": "0-100 number computed by backend.",
+    "seconds": "Duration in seconds.",
+    "usd_equivalent_manual_rates": "USD-equivalent computed from admin-entered fx_rates; missing rates returned in missing_rates[]."
+  },
+  "metrics": [
+    { "id": "dash.totals.cash_by_currency", "label": "Cash totals", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "account_balances JOIN accounts ON kind='vault' AND channel='cash' GROUP BY currency", "currency_rule": "per_currency", "realtime": true },
+    { "id": "dash.totals.bank_by_currency", "label": "Bank totals", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "same with channel='bank'", "currency_rule": "per_currency", "realtime": true },
+    { "id": "dash.totals.customer_by_currency", "label": "Customer totals", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "account_balances JOIN accounts ON kind='customer' GROUP BY currency", "currency_rule": "per_currency", "realtime": true },
+    { "id": "dash.pending_count", "label": "Pending approvals", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "count(transactions WHERE status='pending')", "currency_rule": "count", "realtime": true },
+    { "id": "dash.holder_count", "label": "Total holders", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "count(account_holders)", "currency_rule": "count", "realtime": false, "needs_confirmation": "Q1" },
+    { "id": "dash.recent_transactions", "label": "Recent activity", "screen": "/app", "endpoint": "GET /api/dashboard/staff", "sql_source": "transactions ORDER BY created_at DESC LIMIT 8", "currency_rule": "per_currency", "realtime": true },
+
+    { "id": "vaults.balance_per_vault_currency", "label": "Vault balance", "screen": "/app/vaults", "endpoint": "GET /api/vaults", "sql_source": "account_balances JOIN accounts kind='vault'", "currency_rule": "per_currency", "realtime": true },
+    { "id": "vaults.total_consolidated_usd", "label": "Total Consolidated Balance (USD eq.)", "screen": "/app/vaults", "endpoint": "POST /api/vaults/consolidated-usd", "sql_source": "rpc:report_consolidated_usd()", "currency_rule": "usd_equivalent_manual_rates", "realtime": false },
+    { "id": "vaults.consolidated_breakdown", "label": "USD breakdown", "screen": "/app/vaults", "endpoint": "POST /api/vaults/consolidated-usd", "sql_source": "rpc:report_consolidated_usd().breakdown", "currency_rule": "per_currency", "realtime": false },
+    { "id": "vaults.consolidated_missing_rates", "label": "Missing FX rates", "screen": "/app/vaults", "endpoint": "POST /api/vaults/consolidated-usd", "sql_source": "rpc:report_consolidated_usd().missing_rates", "currency_rule": "array", "realtime": false },
+    { "id": "vaults.recent_activity", "label": "Recent vault activity", "screen": "/app/vaults", "endpoint": "GET /api/vaults/recent-activity", "sql_source": "transactions WHERE vault_account_id IS NOT NULL ORDER BY created_at DESC LIMIT 8", "currency_rule": "per_currency", "realtime": true },
+    { "id": "vaults.target_vs_actual", "label": "Target vs actual", "screen": "/app/vaults/$id", "endpoint": "GET /api/vaults/{id}", "sql_source": "vault_targets vs account_balances", "currency_rule": "per_currency", "realtime": true },
+    { "id": "vaults.days_of_cover", "label": "Days of cover", "screen": "/app/vaults/$id", "endpoint": "GET /api/vaults/{id}/liquidity", "sql_source": "view:report_liquidity_health.days_of_cover", "currency_rule": "per_currency", "realtime": false },
+    { "id": "vaults.minimum_threshold_breach", "label": "Below minimum", "screen": "/app/vaults/$id", "endpoint": "GET /api/vaults/{id}/liquidity", "sql_source": "balance_minor < vault_targets.min_minor", "currency_rule": "boolean", "realtime": true },
+
+    { "id": "rep.business.tx_total", "label": "Total transactions (period)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "count(transactions WHERE created_at >= now()-:days)", "currency_rule": "count" },
+    { "id": "rep.business.tx_posted", "label": "Posted (period)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "+ status='posted'", "currency_rule": "count" },
+    { "id": "rep.business.tx_rejected", "label": "Rejected (period)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "+ status='rejected'", "currency_rule": "count" },
+    { "id": "rep.business.rejection_rate", "label": "Rejection rate %", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "rejected / total * 100 (server-derived)", "currency_rule": "percentage" },
+    { "id": "rep.business.active_holders", "label": "Active holders", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "count(account_holders WHERE status='ACTIVE')", "currency_rule": "count", "needs_confirmation": "Q1" },
+    { "id": "rep.business.volume_by_currency_30d", "label": "Volume by currency (30d)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "view:report_volume_by_currency_30d", "currency_rule": "per_currency" },
+    { "id": "rep.business.daily_volume_7d", "label": "Daily volume sparkline (7d)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "view:report_daily_volume_7d", "currency_rule": "per_currency" },
+    { "id": "rep.business.currency_distribution", "label": "Currency distribution", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "view:report_currency_distribution", "currency_rule": "per_currency" },
+    { "id": "rep.business.customer_growth_7m", "label": "Customer growth (7m)", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "view:report_customer_growth_7m", "currency_rule": "count" },
+    { "id": "rep.business.avg_lyd_tx", "label": "Avg LYD txn value", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "volume_minor[LYD] / posted_count[LYD]", "currency_rule": "LYD_only" },
+    { "id": "rep.business.top_accounts", "label": "Top accounts by balance", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "view:report_top_accounts_by_balance", "currency_rule": "per_currency" },
+    { "id": "rep.business.cash_flow_daily", "label": "Cash flow (daily)", "screen": "/app/reports", "endpoint": "GET /api/reports/cash-flow", "sql_source": "view:report_cash_flow_daily", "currency_rule": "per_currency" },
+    { "id": "rep.business.approval_speed_median", "label": "Approval speed (median)", "screen": "/app/reports", "endpoint": "GET /api/reports/approval-speed", "sql_source": "view:report_approval_speed", "currency_rule": "seconds" },
+    { "id": "rep.business.tx_mix", "label": "Transaction mix", "screen": "/app/reports", "endpoint": "GET /api/reports/business/overview", "sql_source": "count(*) GROUP BY direction", "currency_rule": "count", "needs_confirmation": "Q2" },
+
+    { "id": "rep.tellers.leaderboard", "label": "Tellers leaderboard (today)", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "view:report_tellers_today", "currency_rule": "per_currency" },
+    { "id": "rep.tellers.txns_count_today", "label": "Tx count (teller, today)", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "teller_daily_stats.txns_count", "currency_rule": "count" },
+    { "id": "rep.tellers.posted_count_today", "label": "Posted count (teller)", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "teller_daily_stats.posted_count", "currency_rule": "count" },
+    { "id": "rep.tellers.rejected_count_today", "label": "Rejected count (teller)", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "teller_daily_stats.rejected_count", "currency_rule": "count" },
+    { "id": "rep.tellers.volume_today", "label": "Volume (teller, today)", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "teller_daily_stats.volume_minor", "currency_rule": "per_currency" },
+    { "id": "rep.tellers.avg_processing_seconds", "label": "Avg processing time", "screen": "/app/reports", "endpoint": "GET /api/reports/tellers/today", "sql_source": "teller_daily_stats.avg_processing_seconds", "currency_rule": "seconds" },
+    { "id": "rep.tellers.processing_time_dist", "label": "Processing time distribution", "screen": "/app/reports", "endpoint": "GET /api/reports/processing-time-distribution", "sql_source": "view:report_processing_time_dist", "currency_rule": "count" },
+    { "id": "rep.tellers.rejection_rate_trend", "label": "Rejection rate trend", "screen": "/app/reports", "endpoint": "GET /api/reports/rejection-rate-trend", "sql_source": "view:report_rejection_rate_trend", "currency_rule": "percentage" },
+    { "id": "rep.tellers.liquidity_health", "label": "Liquidity health", "screen": "/app/reports", "endpoint": "GET /api/reports/liquidity-health", "sql_source": "view:report_liquidity_health", "currency_rule": "per_currency" },
+    { "id": "rep.tellers.hourly_traffic", "label": "Hourly traffic", "screen": "/app/reports", "endpoint": "GET /api/reports/hourly-traffic", "sql_source": "view:report_hourly_traffic", "currency_rule": "count" },
+
+    { "id": "rep.compliance.flagged_today", "label": "Flagged today", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "count(compliance_alerts WHERE opened_at::date=CURRENT_DATE)", "currency_rule": "count", "needs_confirmation": "Q4" },
+    { "id": "rep.compliance.pending_reviews", "label": "Pending reviews", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "count(WHERE status IN ('open','reviewing'))", "currency_rule": "count" },
+    { "id": "rep.compliance.resolved_today", "label": "Resolved today", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "count(WHERE resolved_at::date=CURRENT_DATE)", "currency_rule": "count" },
+    { "id": "rep.compliance.high_risk_holders", "label": "High-risk holders", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "count(DISTINCT holder_id WHERE severity='high' AND status<>'closed')", "currency_rule": "count" },
+    { "id": "rep.compliance.typology", "label": "Risk typology", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "view:report_risk_typology", "currency_rule": "count" },
+    { "id": "rep.compliance.alert_volume_daily", "label": "Alert volume daily", "screen": "/app/reports", "endpoint": "GET /api/reports/compliance/overview", "sql_source": "view:report_alert_volume_daily", "currency_rule": "count" },
+
+    { "id": "audit.rows", "label": "Audit rows", "screen": "/app/audit", "endpoint": "GET /api/audit", "sql_source": "audit_log filtered", "currency_rule": "n/a" },
+    { "id": "audit.action_counts", "label": "Counts by action", "screen": "/app/audit", "endpoint": "GET /api/audit?facets=action", "sql_source": "count(*) GROUP BY action", "currency_rule": "count" },
+
+    { "id": "me.notifications.unread_count", "label": "Unread notifications", "screen": "(global bell)", "endpoint": "GET /api/me/notifications?unread=1", "sql_source": "count(notifications WHERE user_id=:me AND read_at IS NULL)", "currency_rule": "count", "realtime": true },
+    { "id": "me.notifications.severity_breakdown", "label": "Severity breakdown", "screen": "/app/me/activity", "endpoint": "GET /api/me/notifications", "sql_source": "count GROUP BY severity", "currency_rule": "count" },
+
+    { "id": "holders.totals_by_currency", "label": "Holder portfolio total", "screen": "/app/holders/$id", "endpoint": "GET /api/holders/{id}", "sql_source": "Σ balance_minor per currency for holder", "currency_rule": "per_currency" },
+    { "id": "holders.linked_account_count", "label": "Linked accounts", "screen": "/app/holders", "endpoint": "GET /api/holders", "sql_source": "count(holder_accounts)", "currency_rule": "count" },
+    { "id": "account.current_balance", "label": "Account balance", "screen": "/app/accounts/$id", "endpoint": "GET /api/accounts/{id}", "sql_source": "holder_accounts.current_balance_minor", "currency_rule": "per_currency" },
+    { "id": "account.withdraw_limit", "label": "Withdraw limit", "screen": "/app/accounts/$id", "endpoint": "GET /api/accounts/{id}", "sql_source": "holder_accounts.withdraw_limit_amount_minor", "currency_rule": "per_currency" },
+    { "id": "account.ledger", "label": "Ledger / statement", "screen": "/app/accounts/$id", "endpoint": "GET /api/accounts/{id}/ledger", "sql_source": "ledger_entries", "currency_rule": "per_currency" },
+
+    { "id": "approvals.queue_count", "label": "Approval queue size", "screen": "/app/approvals", "endpoint": "GET /api/approvals", "sql_source": "count(transactions status='pending')", "currency_rule": "count", "realtime": true },
+    { "id": "approvals.queue", "label": "Approval queue rows", "screen": "/app/approvals", "endpoint": "GET /api/approvals", "sql_source": "transactions WHERE status='pending'", "currency_rule": "per_currency", "realtime": true }
+  ]
+}
