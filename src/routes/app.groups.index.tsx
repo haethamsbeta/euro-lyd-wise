@@ -666,21 +666,21 @@ function GroupCard({
 
             {/* 30d activity strip */}
             <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gold/10 pt-3">
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Credits 30d</div>
-                <div className="mt-0.5 inline-flex items-center gap-1 font-mono text-sm tabular-nums text-emerald-400">
-                  <ArrowUp className="h-3 w-3" />{compactNum(totalCredits30d)}
+              <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/80">Credits 30d</div>
+                <div className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-semibold tabular-nums text-emerald-400">
+                  <ArrowUp className="h-4 w-4" />{compactNum(totalCredits30d)}
                 </div>
               </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Debits 30d</div>
-                <div className="mt-0.5 inline-flex items-center gap-1 font-mono text-sm tabular-nums text-rose-400">
-                  <ArrowDown className="h-3 w-3" />{compactNum(totalDebits30d)}
+              <div className="rounded-lg border border-rose-400/20 bg-rose-400/5 px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-300/80">Debits 30d</div>
+                <div className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-semibold tabular-nums text-rose-400">
+                  <ArrowDown className="h-4 w-4" />{compactNum(totalDebits30d)}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Txns</div>
-                <div className="mt-0.5 font-mono text-sm tabular-nums text-foreground">{compactNum(totalTx30d)}</div>
+              <div className="rounded-lg border border-gold/15 bg-gold/5 px-2.5 py-2 text-right">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Txns</div>
+                <div className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">{compactNum(totalTx30d)}</div>
               </div>
             </div>
           </div>
