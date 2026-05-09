@@ -280,12 +280,9 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
               <Sparkles className="h-3.5 w-3.5 text-gold" />
               <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-gold">New Transaction</span>
             </div>
-            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">
+          <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">
               {type ? (isDeposit ? "New Deposit" : "New Withdrawal") : "Create transaction"}
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Step {stepIdx + 1} of {STEPS.length} · {step.label}
-            </p>
           </div>
           {type ? (
             <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-gold/5 text-gold sm:flex">
@@ -293,8 +290,22 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             </div>
           ) : null}
         </div>
+      </div>
 
-        <Stepper stepIdx={stepIdx} onJump={goToStep} />
+      {/* Sticky stepper + context strip */}
+      <div className="sticky top-0 z-10 mb-2 border-b border-gold/15 bg-background/85 px-4 py-4 shadow-[0_8px_30px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <Stepper stepIdx={stepIdx} onJump={goToStep} />
+          <ContextPills
+            stepIdx={stepIdx}
+            type={type}
+            picked={picked}
+            channel={channel}
+            amountMinor={amountMinor}
+            currency={currency}
+            onJump={goToStep}
+          />
+        </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-4 pb-32 pt-6 md:px-8">
