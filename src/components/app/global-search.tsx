@@ -143,11 +143,11 @@ export function GlobalSearch() {
     setOpen(false);
     setQ("");
     if (r.kind === "holder") nav({ to: "/app/holders/$id", params: { id: r.id } });
-    else if (r.kind === "account") nav({ to: "/app/holders" });
+    else if (r.kind === "account")
+      nav({ to: "/app/accounts/$id", params: { id: r.id } });
     else if (r.kind === "vault")
       nav({ to: "/app/vaults/$id", params: { id: r.id }, search: {} });
-    else if (r.kind === "transaction")
-      nav({ to: "/app/transactions/$id", params: { id: r.id } });
+    else if (r.kind === "transaction") nav({ to: "/app/transactions" });
   };
 
   return (
