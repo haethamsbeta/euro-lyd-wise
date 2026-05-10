@@ -242,8 +242,18 @@ function ReportsPage() {
   })();
   const kpis = [
     { l: "Network Volume (30d)", v: networkVolumeStr, sub: !volByCcy ? "Backend pending" : "", icon: TrendingUp },
-    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), sub: "", icon: Users },
-    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), sub: "", icon: BarChart3 },
+    {
+      l: "Total Customers",
+      v: fmtTotal(overview?.active_holders ?? dashSummary?.holderCount ?? null),
+      sub: "",
+      icon: Users,
+    },
+    {
+      l: "Total Transactions",
+      v: fmtTotal(counts?.total ?? dashSummary?.transactionCount ?? null),
+      sub: "",
+      icon: BarChart3,
+    },
     {
       l: "Avg Txn Value (LYD)",
       v: isLoading ? "…" : avgLydMinor != null ? formatMinor(avgLydMinor, "LYD") : "—",
