@@ -200,6 +200,10 @@ function HoldersList() {
                       </div>
                       <Badge variant="secondary">{h.status}</Badge>
                     </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      {(h.holder_accounts ?? []).length} linked account
+                      {(h.holder_accounts ?? []).length === 1 ? "" : "s"}
+                    </div>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {(h.holder_accounts ?? []).map((a: any) => (
                         <Badge key={a.id} variant="outline" className="text-xs">{a.currency_code} · {a.account_number}</Badge>
