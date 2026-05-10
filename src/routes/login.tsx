@@ -18,6 +18,7 @@ import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { authService } from "@/lib/authService";
 import { setAccessToken } from "@/lib/dahabAuthToken";
 import { apiFetch } from "@/lib/dahabApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 type PortalKind = "staff" | "consumer";
 
@@ -133,6 +134,7 @@ function LoginPage() {
 function SignInForm({ portal }: { portal: PortalKind }) {
   const t = useT();
   const nav = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -159,17 +161,38 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       toast.error(error.message);
       return;
     }
-    // Also obtain a Lambda backend access_token so apiFetch can authenticate
-    // against AWS API Gateway. Non-blocking: if Lambda login fails we still
-    // continue with the Supabase session for legacy data paths.
+    // Obtain a Lambda backend access_token so apiFetch can authenticate
+    // against AWS API Gateway. apiFetch unwraps the envelope, so the result
+    // is the inner { access_token, refresh_token, user } object.
     try {
-      const lambdaRes = await apiFetch<{ access_token?: string; token?: string }>(
-        "/auth/login",
-        { method: "POST", body: JSON.stringify(parsed.data) },
-      );
+      const lambdaRes = await apiFetch<{
+        access_token?: string;
+        refresh_token?: string;
+        token?: string;
+        user?: { id: string; email?: string; role?: string; [k: string]: unknown };
+      }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(parsed.data),
+      });
       const token = lambdaRes?.access_token ?? lambdaRes?.token ?? null;
-      if (token) setAccessToken(token);
-      if (import.meta.env.DEV) console.log("[lambda login] token stored?", !!token);
+      const refresh = lambdaRes?.refresh_token ?? null;
+      if (token) {
+        setAccessToken(token);
+        if (refresh) localStorage.setItem("dahab.refresh_token", refresh);
+        if (lambdaRes?.user) localStorage.setItem("dahab.user", JSON.stringify(lambdaRes.user));
+      }
+      if (import.meta.env.DEV) {
+        console.log("[DAHAB login]", {
+          hasAccessToken: !!localStorage.getItem("dahab.access_token"),
+          userRole: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+        });
+      }
+      // Refetch all protected lists now that the Bearer token is stored.
+      await Promise.all(
+        ["dashboard", "holders", "vaults", "transactions", "users", "notifications"].map(
+          (key) => queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
     } catch (e) {
       if (import.meta.env.DEV) console.warn("[lambda login] failed", e);
     }
