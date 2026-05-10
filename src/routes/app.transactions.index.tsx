@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatMinor, formatDateTime, parseAmountToMinor } from "@/lib/format";
+import { formatMinor, formatMinorOrMissing, formatDateTime, parseAmountToMinor } from "@/lib/format";
 import {
   Paperclip,
   Search,
@@ -256,7 +256,7 @@ function TxList() {
     const term = debouncedQ.trim().toLowerCase();
     if (term) {
       rows = rows.filter((t) => {
-        const amountStr = formatMinor(t.amount_minor, t.currency).toLowerCase();
+        const amountStr = formatMinorOrMissing(t.amount_minor, t.currency).toLowerCase();
         return (
           t.tx_number.toLowerCase().includes(term) ||
           (t.customer_name ?? "").toLowerCase().includes(term) ||
@@ -409,7 +409,7 @@ function TxList() {
                       direction: r.direction,
                       status: r.status,
                       channel: r.channel ?? "cash",
-                      amount: formatMinor(amountMinor, currency),
+                       amount: formatMinorOrMissing(amountMinor, currency),
                       customerName: null,
                       comment: r.comment ?? r.description ?? "",
                       isReversal: !!r.reverses_tx_id,
@@ -421,7 +421,9 @@ function TxList() {
                       "—",
                       dir,
                       String(r.channel ?? "—"),
-                      `${formatMinor(amountMinor, currency)} ${currency}`,
+                       currency
+                         ? `${formatMinorOrMissing(amountMinor, currency)} ${currency}`
+                         : formatMinorOrMissing(amountMinor, currency),
                       String(r.status),
                       "—",
                       sentence,
@@ -452,7 +454,7 @@ function TxList() {
                     direction: r.direction,
                     status: r.status,
                     channel: r.channel,
-                    amount: formatMinor(r.amount_minor, r.currency),
+                     amount: formatMinorOrMissing(r.amount_minor, r.currency),
                     customerName: r.customer?.name ?? null,
                     comment: r.comment,
                     isReversal: !!r.reverses_tx_id,
@@ -464,7 +466,9 @@ function TxList() {
                     customer,
                     dir,
                     String(r.channel),
-                    `${formatMinor(r.amount_minor, r.currency)} ${r.currency}`,
+                     r.currency
+                       ? `${formatMinorOrMissing(r.amount_minor, r.currency)} ${r.currency}`
+                       : formatMinorOrMissing(r.amount_minor, r.currency),
                     String(r.status),
                     attCount > 0 ? String(attCount) : "—",
                     sentence,
@@ -741,7 +745,7 @@ function TxRow({
   const dt = new Date(tx.created_at);
   const dateStr = dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const timeStr = dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const amountStr = formatMinor(tx.amount_minor, tx.currency);
+  const amountStr = formatMinorOrMissing(tx.amount_minor, tx.currency);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const sentence = describeTx({
     direction: tx.direction,
@@ -969,7 +973,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
                 </div>
                 <div>
                   <div className="text-xs uppercase text-muted-foreground">Original</div>
-                  <div className="font-mono">{formatMinor(tx.amount_minor, tx.currency)}</div>
+                  <div className="font-mono">{formatMinorOrMissing(tx.amount_minor, tx.currency)}</div>
                 </div>
               </div>
             </div>
