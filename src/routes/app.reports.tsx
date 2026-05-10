@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
@@ -17,10 +17,10 @@ import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
-import { supabase } from "@/integrations/supabase/client";
 import { BackendPending } from "@/components/app/backend-pending";
-import { formatMinor } from "@/lib/format";
+import { formatMinor, formatMinorOrMissing } from "@/lib/format";
 import { api } from "@/lib/api";
+import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
@@ -42,8 +42,6 @@ const axisTick = { fill: "#8B8A85", fontSize: 11 };
 const CURRENCY_COLORS: Record<string, string> = {
   LYD: "#D4A857", USD: "#5FBE8A", EUR: "#7AA8E8", GBP: "#C394E0",
 };
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ───────────── Live report queries ─────────────
 // All business numbers below come from the backend Lambda API. Frontend
@@ -61,138 +59,16 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
   });
   return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
 }
-const approvalTrend = [
-  { d: "Mon", t: 18 }, { d: "Tue", t: 22 }, { d: "Wed", t: 16 }, { d: "Thu", t: 14 },
-  { d: "Fri", t: 19 }, { d: "Sat", t: 25 }, { d: "Sun", t: 21 },
-];
-const txnMix = [
-  { name: "Deposits", value: 52, count: 2000, color: "#34D399" },
-  { name: "Withdrawals", value: 38, count: 1462, color: "#F87171" },
-  { name: "Internal Transfers", value: 10, count: 385, color: GOLD },
-];
-const alertVolume = [
-  { d: "Mon", generated: 12, resolved: 14 }, { d: "Tue", generated: 15, resolved: 12 },
-  { d: "Wed", generated: 8, resolved: 10 }, { d: "Thu", generated: 18, resolved: 15 },
-  { d: "Fri", generated: 22, resolved: 18 }, { d: "Sat", generated: 9, resolved: 12 },
-  { d: "Sun", generated: 5, resolved: 8 },
-];
 
 // ───────────── Live data hook ─────────────
+// Lambda mode: every figure on this page MUST come from a /reports/* endpoint.
+// No Supabase fallback, no static demo arrays, no fabricated KPIs.
 function useReportsData() {
   return useQuery({
-    queryKey: ["reports", "overview"],
-    queryFn: async () => {
-      if (DATA_BACKEND === "lambda") {
-        // Lambda mode: do NOT compute KPIs on the frontend. Try the backend
-        // overview endpoint and pass through whatever it returns; if missing,
-        // render empty.
-        const overview = await api.reports
-          .liquidityHealth()
-          .catch(() => null as any);
-        return {
-          total: 0, posted: 0, rejected: 0, rejectionRate: 0,
-          holdersCount: 0,
-          volumeByCurrency: {} as Record<string, number>,
-          dailyVolume: [] as { d: string; date: string; v: number; n: number }[],
-          currencyDistribution: [] as Array<{ name: string; raw: number; value: number; color: string }>,
-          customerGrowth: [] as { m: string; key: string; v: number }[],
-          avgTxnValueLyd: 0,
-          __lambdaEmpty: !overview,
-        };
-      }
-      const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
-      const since7 = new Date(Date.now() - 6 * 86400_000);
-      since7.setHours(0, 0, 0, 0);
-
-      const [txRes, holdersRes, balancesRes, recentRes] = await Promise.all([
-        supabase.from("transactions")
-          .select("id, currency, amount_minor, status, created_at")
-          .gte("created_at", since30),
-        supabase.from("account_holders").select("id, created_at"),
-        supabase.from("account_balances").select("currency, balance_minor"),
-        supabase.from("transactions").select("created_at, amount_minor, status")
-          .gte("created_at", since7.toISOString()),
-      ]);
-
-      const tx = txRes.data ?? [];
-      const holders = holdersRes.data ?? [];
-      const balances = balancesRes.data ?? [];
-      const recent = recentRes.data ?? [];
-
-      const total = tx.length;
-      const posted = tx.filter((t) => t.status === "posted").length;
-      const rejected = tx.filter((t) => t.status === "rejected").length;
-      const rejectionRate = total ? (rejected / total) * 100 : 0;
-
-      const volumeByCurrency: Record<string, number> = {};
-      tx.filter((t) => t.status === "posted").forEach((t) => {
-        volumeByCurrency[t.currency] = (volumeByCurrency[t.currency] ?? 0) + Number(t.amount_minor ?? 0);
-      });
-
-      // 7-day volume
-      const dayBuckets: { d: string; date: string; v: number; n: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-        dayBuckets.push({ d: DAY_LABELS[d.getDay()], date: d.toISOString().slice(0, 10), v: 0, n: 0 });
-      }
-      recent.forEach((r: any) => {
-        const key = new Date(r.created_at).toISOString().slice(0, 10);
-        const b = dayBuckets.find((x) => x.date === key);
-        if (b) { b.n += 1; if (r.status === "posted") b.v += Number(r.amount_minor ?? 0) / 100; }
-      });
-
-      // Currency distribution from balances
-      const balByCcy: Record<string, number> = {};
-      balances.forEach((b) => { balByCcy[b.currency] = (balByCcy[b.currency] ?? 0) + Number(b.balance_minor ?? 0); });
-      const totalBal = Object.values(balByCcy).reduce((a, b) => a + b, 0);
-      const currencyDistribution = Object.entries(balByCcy)
-        .map(([name, raw]) => ({
-          name, raw,
-          value: totalBal ? Math.round((raw / totalBal) * 1000) / 10 : 0,
-          color: CURRENCY_COLORS[name] ?? "#A8842F",
-        }))
-        .sort((a, b) => b.raw - a.raw);
-
-      // Customer growth — last 7 months
-      const monthBuckets: { m: string; key: string; v: number }[] = [];
-      const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        monthBuckets.push({ m: MONTH_LABELS[d.getMonth()], key: `${d.getFullYear()}-${d.getMonth()}`, v: 0 });
-      }
-      holders.forEach((h: any) => {
-        const dt = new Date(h.created_at);
-        const k = `${dt.getFullYear()}-${dt.getMonth()}`;
-        const b = monthBuckets.find((x) => x.key === k);
-        if (b) b.v += 1;
-      });
-
-      const avgTxnValueLyd = posted
-        ? Math.round((volumeByCurrency["LYD"] ?? 0) / Math.max(1, tx.filter((t) => t.status === "posted" && t.currency === "LYD").length))
-        : 0;
-
-      return {
-        total, posted, rejected, rejectionRate, holdersCount: holders.length,
-        volumeByCurrency, dailyVolume: dayBuckets, currencyDistribution,
-        customerGrowth: monthBuckets, avgTxnValueLyd,
-      };
-    },
-    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
-  });
-}
-
-function useTopAccounts() {
-  return useQuery({
-    queryKey: ["reports", "top-accounts"],
-    enabled: DATA_BACKEND !== "lambda",
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("account_balances")
-        .select("balance_minor, currency, account_id, accounts(name)")
-        .order("balance_minor", { ascending: false })
-        .limit(5);
-      return data ?? [];
-    },
+    queryKey: ["reports", "business-overview"],
+    queryFn: () => api.reports.businessOverview(),
+    retry: false,
+    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
@@ -218,12 +94,42 @@ export const Route = createFileRoute("/app/reports")({
 });
 
 function ReportsPage() {
-  const { data, isLoading } = useReportsData();
-  const { data: topAccounts } = useTopAccounts();
+  const { data: overview, isLoading, isError: overviewIsError } = useReportsData();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
   const isLambda = DATA_BACKEND === "lambda";
-  const overviewPending = isLambda && (data as any)?.__lambdaEmpty;
+  const overviewPending = !overview && (overviewIsError || (!isLoading && isLambda));
+
+  // ── Business overview field projections (per-widget, never fabricated) ──
+  const counts = overview?.counts ?? null;
+  const volByCcy = overview?.volume_by_currency_30d ?? null;
+  const dailyVolume7d = useMemo(() => {
+    const rows = overview?.daily_volume_7d ?? [];
+    // LYD-only series for the chart (no FX summing across currencies).
+    return rows
+      .filter((r) => r.currency === "LYD")
+      .map((r) => ({ d: r.day, v: r.volume_minor / 100 }));
+  }, [overview]);
+  const currencyDistribution = useMemo(() => {
+    const rows = overview?.currency_distribution ?? [];
+    const total = rows.reduce((a, b) => a + b.balance_minor, 0);
+    return rows
+      .map((r) => {
+        const ccy = displayCurrency(r.currency);
+        return {
+          name: ccy.code,
+          valid: ccy.valid,
+          raw: r.balance_minor,
+          value: total ? Math.round((r.balance_minor / total) * 1000) / 10 : 0,
+          color: ccy.valid ? CURRENCY_COLORS[ccy.code] ?? "#A8842F" : "#6B7280",
+        };
+      })
+      .sort((a, b) => b.raw - a.raw);
+  }, [overview]);
+  const customerGrowth = useMemo(() => {
+    return (overview?.customer_growth_7m ?? []).map((r) => ({ m: r.month, v: r.new_holders }));
+  }, [overview]);
+  const topAccounts = overview?.top_accounts ?? null;
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
@@ -256,8 +162,33 @@ function ReportsPage() {
   const cashFlow = Array.from(cashFlowByDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([d, v]) => ({ d, deposits: v.deposits_minor / 100, withdrawals: v.withdrawals_minor / 100 }));
+  const cashFlowNet = cashFlow.reduce(
+    (acc, r) => ({ dep: acc.dep + r.deposits, wd: acc.wd + r.withdrawals }),
+    { dep: 0, wd: 0 },
+  );
+  const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
   const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
-  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => ({ currency: r.currency, balance: r.balance_minor / 100, daysOfCover: r.days_of_cover ?? 0, health: r.health }));
+  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
+    const ccy = displayCurrency(r.currency_code);
+    const breach = r.minimum_threshold_breach === true;
+    const dc = r.days_of_cover;
+    const health: "Healthy" | "Watch" | "Critical" = breach
+      ? "Critical"
+      : dc != null && dc < 7
+        ? "Watch"
+        : "Healthy";
+    return {
+      vaultName: r.vault_name ?? "—",
+      currency: ccy.code,
+      currencyValid: ccy.valid,
+      balanceMinor: Number(r.balance_minor ?? 0),
+      targetMinor: r.target_minor ?? null,
+      minMinor: r.min_minor ?? null,
+      daysOfCover: dc,
+      health,
+    };
+  });
+  const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
   const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
   const tellers = tellersApi.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
@@ -273,10 +204,10 @@ function ReportsPage() {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
     alert_volume: EMPTY_ARR as any[],
-    kyc: { target_pct: 0, current_pct: 0 },
-    aml: { target_pct: 0, current_pct: 0 },
-    doc_verification: { target_pct: 0, current_pct: 0 },
-    sanctions: { target_pct: 0, current_pct: 0 },
+    kyc: null,
+    aml: null,
+    doc_verification: null,
+    sanctions: null,
   });
   const riskMetrics = {
     flaggedTxns: compliance.flagged_txns,
@@ -290,19 +221,46 @@ function ReportsPage() {
   };
   const riskTypology = compliance.typology.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
 
-  const fmtN = (n: number) => n.toLocaleString();
-  const volumeSummary = data
-    ? Object.entries(data.volumeByCurrency).map(([ccy, v]) => formatMinor(v, ccy)).join(" · ") || "—"
-    : "—";
-  const lydVolume = data?.volumeByCurrency?.["LYD"] ?? 0;
-
+  // KPI strip — every cell sources from a real backend field. When a field
+  // is null/missing the cell renders "—" with `Backend pending` subtext.
+  const lydVol = volByCcy?.find((r) => r.currency === "LYD")?.volume_minor ?? null;
+  const lydPosted = volByCcy?.find((r) => r.currency === "LYD")?.posted_count ?? null;
+  const avgLydMinor =
+    lydVol != null && lydPosted != null && lydPosted > 0 ? Math.round(lydVol / lydPosted) : null;
+  const networkVolumeStr = (() => {
+    if (isLoading) return "…";
+    if (!volByCcy || volByCcy.length === 0) return "—";
+    return (
+      volByCcy
+        .map((r) => {
+          const c = displayCurrency(r.currency);
+          return c.valid ? formatMinor(r.volume_minor, c.code) : null;
+        })
+        .filter(Boolean)
+        .join(" · ") || "—"
+    );
+  })();
   const kpis = [
-    { l: "Network Volume (30d)", v: isLoading ? "…" : (lydVolume ? formatMinor(lydVolume, "LYD") : volumeSummary), chg: "", up: true, icon: TrendingUp },
-    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), chg: "", up: true, icon: Users },
-    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), chg: "", up: true, icon: BarChart3 },
-    { l: "Avg Txn Value (loaded)", v: isLoading ? "…" : formatMinor(data?.avgTxnValueLyd ?? 0, "LYD"), chg: "", up: true, icon: Target },
-    { l: "Approval Time", v: "—", chg: "", up: true, icon: Clock },
-    { l: "Rejection Rate (loaded)", v: isLoading ? "…" : ((data?.total ?? 0) > 0 ? `${(data?.rejectionRate ?? 0).toFixed(1)}%` : "—"), chg: "", up: true, icon: PieIcon },
+    { l: "Network Volume (30d)", v: networkVolumeStr, sub: !volByCcy ? "Backend pending" : "", icon: TrendingUp },
+    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), sub: "", icon: Users },
+    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), sub: "", icon: BarChart3 },
+    {
+      l: "Avg Txn Value (LYD)",
+      v: isLoading ? "…" : avgLydMinor != null ? formatMinor(avgLydMinor, "LYD") : "—",
+      sub: avgLydMinor == null && !isLoading ? "Backend pending" : "",
+      icon: Target,
+    },
+    { l: "Approval Time", v: "—", sub: "Backend pending", icon: Clock },
+    {
+      l: "Rejection Rate (30d)",
+      v: isLoading
+        ? "…"
+        : counts?.rejection_rate != null
+          ? `${counts.rejection_rate.toFixed(1)}%`
+          : "—",
+      sub: counts?.rejection_rate == null && !isLoading ? "Backend pending" : "",
+      icon: PieIcon,
+    },
   ];
 
   return (
@@ -362,9 +320,11 @@ function ReportsPage() {
                   <div className="p-1.5 rounded-md bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.20)]">
                     <k.icon className="w-3.5 h-3.5" />
                   </div>
-                  <span className={`flex items-center gap-1 text-[10px] font-semibold ${k.up ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
-                    {k.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />} {k.chg}
-                  </span>
+                  {k.sub && (
+                    <span className="text-[9px] tracking-wider uppercase text-text-tertiary">
+                      {k.sub}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[9px] tracking-[0.15em] uppercase text-text-secondary font-medium mb-1">{k.l}</p>
                 <p className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-tight">{k.v}</p>
@@ -386,51 +346,62 @@ function ReportsPage() {
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
                 </div>
-                <div className="h-64" style={{ minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-                    <AreaChart data={data?.dailyVolume ?? []}>
-                      <defs>
-                        <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} />
-                          <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Area type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2} fill="url(#rGold)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                {dailyVolume7d.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="daily_volume_7d not yet returned." />
+                ) : (
+                  <div className="h-64" style={{ minWidth: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+                      <AreaChart data={dailyVolume7d}>
+                        <defs>
+                          <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} />
+                            <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                        <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Area type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2} fill="url(#rGold)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
                 <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-                <div className="h-48" style={{ minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <PieChart>
-                      <Pie data={data?.currencyDistribution ?? []} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
-                        {(data?.currencyDistribution ?? []).map((e) => <Cell key={e.name} fill={e.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 mt-4">
-                  {(data?.currencyDistribution ?? []).map((c) => (
-                    <div key={c.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
-                        <CurrencyBadge currency={c.name} />
-                      </div>
-                      <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                {currencyDistribution.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="currency_distribution not yet returned." />
+                ) : (
+                  <>
+                    <div className="h-48" style={{ minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                        <PieChart>
+                          <Pie data={currencyDistribution.filter((e) => e.valid)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
+                            {currencyDistribution.filter((e) => e.valid).map((e) => <Cell key={e.name} fill={e.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle} />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
-                  ))}
-                  {(!data || data.currencyDistribution.length === 0) && !isLoading && (
-                    <p className="text-xs text-text-tertiary">No balance data yet.</p>
-                  )}
-                </div>
+                    <div className="space-y-2 mt-4">
+                      {currencyDistribution.map((c) => (
+                        <div key={c.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+                            {c.valid ? (
+                              <CurrencyBadge currency={c.name} />
+                            ) : (
+                              <span className="text-xs text-text-tertiary">Currency missing</span>
+                            )}
+                          </div>
+                          <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </PremiumCard>
             </div>
 
@@ -447,23 +418,31 @@ function ReportsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] uppercase tracking-wider text-text-secondary">Peak Hour</p>
-                    <p className="text-xl font-semibold text-gold tabular-nums">15:00</p>
+                    <p className="text-xl font-semibold text-gold tabular-nums">
+                      {hourlyTraffic.length === 0
+                        ? "—"
+                        : hourlyTraffic.reduce((a, b) => (b.v > a.v ? b : a)).h}
+                    </p>
                   </div>
                 </div>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <BarChart data={hourlyTraffic}>
-                      <XAxis dataKey="h" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
-                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
-                      <Bar dataKey="v" radius={[4, 4, 0, 0]}>
-                        {hourlyTraffic.map((entry, i) => (
-                          <Cell key={i} fill={entry.v > 70 ? GOLD : entry.v > 40 ? "#A8842F" : "#5C4A1F"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {hourlyTraffic.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/hourly-traffic" />
+                ) : (
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                      <BarChart data={hourlyTraffic}>
+                        <XAxis dataKey="h" axisLine={false} tickLine={false} tick={axisTick} />
+                        <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+                        <Bar dataKey="v" radius={[4, 4, 0, 0]}>
+                          {hourlyTraffic.map((entry, i) => (
+                            <Cell key={i} fill={entry.v > 70 ? GOLD : entry.v > 40 ? "#A8842F" : "#5C4A1F"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
@@ -472,30 +451,10 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Approval Speed</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">Avg turnaround per day (min)</p>
-                <div className="h-32">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={120}>
-                    <LineChart data={approvalTrend}>
-                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis hide />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Line type="monotone" dataKey="t" stroke={GOLD} strokeWidth={2} dot={{ fill: GOLD, r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Avg</p>
-                    <p className="text-sm font-semibold text-foreground tabular-nums">19 min</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Best</p>
-                    <p className="text-sm font-semibold text-[var(--success)] tabular-nums">14 min</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Target</p>
-                    <p className="text-sm font-semibold text-foreground tabular-nums">≤20 min</p>
-                  </div>
-                </div>
+                <BackendPending
+                  endpoint="GET /reports/approval-speed"
+                  note="Approval-speed endpoint not yet implemented."
+                />
               </PremiumCard>
             </div>
 
@@ -504,9 +463,12 @@ function ReportsPage() {
               <PremiumCard className="lg:col-span-2 p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
                 <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
+                {customerGrowth.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="customer_growth_7m not yet returned." />
+                ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <BarChart data={data?.customerGrowth ?? []}>
+                    <BarChart data={customerGrowth}>
                       <XAxis dataKey="m" axisLine={false} tickLine={false} tick={axisTick} />
                       <YAxis axisLine={false} tickLine={false} tick={axisTick} />
                       <Tooltip contentStyle={tooltipStyle} />
@@ -514,32 +476,38 @@ function ReportsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {isLambda && (!topAccounts || topAccounts.length === 0) ? (
-                  <BackendPending endpoint="GET /reports/top-accounts" />
-                ) : (!topAccounts || topAccounts.length === 0) ? (
-                  <p className="text-xs text-text-tertiary">No accounts yet.</p>
+                {!topAccounts || topAccounts.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="top_accounts not yet returned." />
                 ) : (
                   <ul className="space-y-3">
-                    {topAccounts.map((a: any, i) => (
-                      <li key={`${a.account_id}-${a.currency}`}
-                          className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{a.accounts?.name ?? "—"}</p>
-                            <CurrencyBadge currency={a.currency} className="mt-1" />
+                    {topAccounts.map((a, i) => {
+                      const ccy = displayCurrency(a.currency);
+                      return (
+                        <li key={`${a.account_id}-${a.currency}-${i}`}
+                            className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
+                              {ccy.valid ? (
+                                <CurrencyBadge currency={ccy.code} className="mt-1" />
+                              ) : (
+                                <span className="text-[10px] text-text-tertiary">Currency missing</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
-                          {formatMinor(Number(a.balance_minor), a.currency)}
-                        </span>
-                      </li>
-                    ))}
+                          <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
+                            {ccy.valid ? formatMinor(a.balance_minor, ccy.code) : "—"}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </PremiumCard>
@@ -553,14 +521,22 @@ function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-gold" />
                       <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
+                      <CurrencyBadge currency="LYD" />
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (7d)</p>
-                    <p className="text-lg font-semibold text-[var(--success)] tabular-nums">+12.4%</p>
+                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (LYD, 7d)</p>
+                    <p className={`text-lg font-semibold tabular-nums ${cashFlow.length === 0 ? "text-text-tertiary" : cashFlowNetMinor >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
+                      {cashFlow.length === 0
+                        ? "—"
+                        : `${cashFlowNetMinor >= 0 ? "+" : ""}${formatMinor(cashFlowNetMinor, "LYD")}`}
+                    </p>
                   </div>
                 </div>
+                {cashFlow.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/cash-flow" />
+                ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%" minHeight={220}>
                     <AreaChart data={cashFlow}>
@@ -583,41 +559,16 @@ function ReportsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Transaction Mix</h2>
                 <p className="text-sm text-text-secondary mb-5">Breakdown by type</p>
-                <div className="h-48 relative">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <PieChart>
-                      <Pie data={txnMix} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
-                        {txnMix.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-foreground tabular-nums">{fmtTotal(dashSummary?.transactionCount ?? null)}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-text-secondary">Total Txns</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2 mt-4">
-                  {txnMix.map((t) => (
-                    <div key={t.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
-                        <span className="text-text-secondary">{t.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground font-medium tabular-nums">{t.count.toLocaleString()}</span>
-                        <span className="text-text-tertiary text-xs">({t.value}%)</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <BackendPending
+                  endpoint="GET /reports/transaction-mix"
+                  note="Transaction-mix endpoint not yet implemented."
+                />
               </PremiumCard>
             </div>
 
@@ -629,24 +580,38 @@ function ReportsPage() {
               </div>
               <p className="text-sm text-text-secondary mb-5">Vault balances and days of cover by currency</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {liquidityHealth.map((liq) => {
+                {liquidityHealth.length === 0 && (
+                  <div className="md:col-span-2 lg:col-span-4">
+                    <BackendPending endpoint="GET /reports/liquidity-health" />
+                  </div>
+                )}
+                {liquidityHealth.map((liq, idx) => {
                   const healthColor = liq.health === "Healthy" ? "emerald" : liq.health === "Watch" ? "amber" : "red";
-                  const coverPct = Math.min((liq.daysOfCover / 30) * 100, 100);
+                  const coverPct = liq.daysOfCover != null ? Math.min((liq.daysOfCover / 30) * 100, 100) : 0;
                   return (
-                    <div key={liq.currency} className="p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                    <div key={`${liq.vaultName}-${liq.currency}-${idx}`} className="p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                      <p className="text-xs text-foreground font-medium truncate mb-1">{liq.vaultName}</p>
                       <div className="flex items-start justify-between mb-3">
-                        <CurrencyBadge currency={liq.currency} />
+                        {liq.currencyValid ? (
+                          <CurrencyBadge currency={liq.currency} />
+                        ) : (
+                          <span className="text-[10px] text-text-tertiary">Currency missing</span>
+                        )}
                         <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full font-medium ${healthColor === "emerald" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : healthColor === "amber" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>{liq.health}</span>
                       </div>
                       <div className="space-y-3">
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-text-secondary mb-1">Vault Balance</p>
-                          <p className="text-lg font-semibold text-foreground tabular-nums">{formatMinor(liq.balance * 100, liq.currency)}</p>
+                          <p className="text-lg font-semibold text-foreground tabular-nums">
+                            {liq.currencyValid ? formatMinor(liq.balanceMinor, liq.currency) : "—"}
+                          </p>
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
                             <p className="text-[10px] uppercase tracking-wider text-text-secondary">Days of Cover</p>
-                            <p className="text-sm font-semibold text-foreground tabular-nums">{liq.daysOfCover}d</p>
+                            <p className="text-sm font-semibold text-foreground tabular-nums">
+                              {liq.daysOfCover != null ? `${liq.daysOfCover}d` : "—"}
+                            </p>
                           </div>
                           <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
                             <div className={`h-full rounded-full transition-all ${healthColor === "emerald" ? "bg-emerald-400" : healthColor === "amber" ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${coverPct}%` }} />
@@ -657,6 +622,11 @@ function ReportsPage() {
                   );
                 })}
               </div>
+              {liquidityNetwork == null && liquidityHealth.length > 0 && (
+                <p className="mt-4 text-xs text-text-tertiary">
+                  FX/consolidated total pending — backend has not returned <code>network_total_lyd_minor</code>.
+                </p>
+              )}
             </PremiumCard>
           </motion.div>
         )}
@@ -870,23 +840,33 @@ function ReportsPage() {
               <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
               <div className="space-y-4">
                 {[
-                  { metric: "KYC Completion Rate", value: compliance.kyc.current_pct, target: compliance.kyc.target_pct },
-                  { metric: "Sanctions Screening", value: compliance.sanctions.current_pct, target: compliance.sanctions.target_pct },
-                  { metric: "Document Verification", value: compliance.doc_verification.current_pct, target: compliance.doc_verification.target_pct },
-                  { metric: "AML Alert Resolution", value: compliance.aml.current_pct, target: compliance.aml.target_pct },
+                  { metric: "KYC Completion Rate", g: compliance.kyc },
+                  { metric: "Sanctions Screening", g: compliance.sanctions },
+                  { metric: "Document Verification", g: compliance.doc_verification },
+                  { metric: "AML Alert Resolution", g: compliance.aml },
                 ].map((m) => {
-                  const meets = m.value >= m.target;
-                  const empty = !m.value && !m.target;
+                  if (m.g == null) {
+                    return (
+                      <div key={m.metric}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm text-foreground font-medium">{m.metric}</span>
+                          <span className="text-xs text-text-tertiary">Backend pending</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full" />
+                      </div>
+                    );
+                  }
+                  const meets = m.g.current_pct >= m.g.target_pct;
                   return (
                     <div key={m.metric}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm text-foreground font-medium">{m.metric}</span>
-                        <span className={`text-sm font-semibold tabular-nums ${empty ? "text-text-tertiary" : meets ? "text-[var(--success)]" : "text-amber-400"}`}>
-                          {empty ? "—" : `${m.value}%`} <span className="text-text-tertiary text-xs">/ {empty ? "—" : `${m.target}%`}</span>
+                        <span className={`text-sm font-semibold tabular-nums ${meets ? "text-[var(--success)]" : "text-amber-400"}`}>
+                          {`${m.g.current_pct}%`} <span className="text-text-tertiary text-xs">/ {`${m.g.target_pct}%`}</span>
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${meets ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${m.value}%` }} />
+                        <div className={`h-full rounded-full ${meets ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${m.g.current_pct}%` }} />
                       </div>
                     </div>
                   );
@@ -902,9 +882,12 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Alert Volume & Resolution</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
+                {(compliance.alert_volume ?? []).length === 0 ? (
+                  <BackendPending endpoint="GET /reports/compliance/overview" note="alert_volume_daily not yet returned." />
+                ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <AreaChart data={isLambda ? (compliance.alert_volume ?? []) : alertVolume}>
+                    <AreaChart data={compliance.alert_volume ?? []}>
                       <defs>
                         <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#F87171" stopOpacity={0.3} />
@@ -924,6 +907,7 @@ function ReportsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
