@@ -748,11 +748,16 @@ function RecentAuditEvents() {
 }
 
 function AnomalyWatchlist() {
-  const items = [
-    { id: 1, title: "Unusual Login Location", desc: "Admin account accessed from outside Libya", severity: "High" },
-    { id: 2, title: "Velocity Limit Exceeded", desc: "3 rapid transfers from HLD-10294", severity: "Medium" },
-    { id: 3, title: "After-hours Vault Access", desc: "Tripoli Main vault opened at 23:45", severity: "High" },
-  ];
+  // No backend endpoint for anomaly detection yet — render a backend-pending
+  // card instead of fabricating items.
+  return (
+    <BackendPending
+      endpoint="GET /reports/anomalies (proposed)"
+      note="Anomaly watchlist will populate once the backend exposes an anomaly detection endpoint."
+    />
+  );
+
+  // eslint-disable-next-line no-unreachable
   return (
     <PremiumCard className="p-5">
       <div className="flex items-center justify-between mb-4">
