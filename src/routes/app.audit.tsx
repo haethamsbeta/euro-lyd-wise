@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatDateTime, formatMinor } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { ExportPdfButton } from "@/components/app/export-pdf";
@@ -76,13 +78,16 @@ function describe(action: string, d: any, actorName: string): string {
 }
 
 function Audit() {
-  const { data, error } = useQuery({
-    queryKey: ["audit"],
+  const PAGE = 100;
+  const [offset, setOffset] = useState(0);
+  const [acc, setAcc] = useState<(AuditRow & { __actor_email?: string | null })[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const { data, error, isFetching } = useQuery({
+    queryKey: ["audit", offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.audit.list({ limit: 500 });
-        const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
-        return (list ?? []).map((r: any) => ({
+        const r = await api.audit.listPaged({ limit: PAGE, offset });
+        const items = (r.items ?? []).map((r: any) => ({
           id: String(r.id),
           action: r.action,
           target: r.entity_id ?? r.entity ?? null,
@@ -91,19 +96,32 @@ function Audit() {
           actor_user_id: r.user_id ?? null,
           __actor_email: r.user_email ?? null,
         })) as (AuditRow & { __actor_email?: string | null })[];
+        return { items, next_offset: r.next_offset };
       }
       const { data, error } = await supabase
         .from("audit_log")
         .select("id, action, target, details, created_at, actor_user_id")
-        .order("created_at", { ascending: false }).limit(500);
+        .order("created_at", { ascending: false })
+        .range(offset, offset + PAGE - 1);
       if (error) throw error;
-      return (data ?? []) as AuditRow[];
+      const items = (data ?? []) as AuditRow[];
+      return { items, next_offset: items.length === PAGE ? offset + PAGE : null };
     },
     retry: false,
   });
+  useEffect(() => {
+    if (!data) return;
+    setNextOffset(data.next_offset);
+    setAcc((prev) => {
+      const seen = new Set(prev.map((r) => r.id));
+      const additions = data.items.filter((r) => !seen.has(r.id));
+      return [...prev, ...additions];
+    });
+  }, [data]);
   const pending = isPendingError(error);
+  const rows = acc;
 
-  const actorIds = Array.from(new Set((data ?? []).map((r) => r.actor_user_id).filter(Boolean) as string[]));
+  const actorIds = Array.from(new Set(rows.map((r) => r.actor_user_id).filter(Boolean) as string[]));
   const { data: profiles } = useQuery({
     queryKey: ["audit-profiles", actorIds],
     enabled: actorIds.length > 0 && DATA_BACKEND !== "lambda",
@@ -188,7 +206,7 @@ function Audit() {
             }}
           />
         </div>
-        {!pending && data?.map((r) => {
+        {!pending && rows.map((r) => {
           const meta = actionLabel(r.action);
           const actor = nameOf(r.actor_user_id, r);
           const sentence = describe(r.action, r.details, actor);
@@ -216,8 +234,15 @@ function Audit() {
             </Card>
           );
         })}
-        {!pending && data && data.length === 0 && (
+        {!pending && rows.length === 0 && !isFetching && (
           <Card><CardContent className="p-6 text-sm text-muted-foreground">No audit entries yet.</CardContent></Card>
+        )}
+        {!pending && nextOffset != null && (
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => setOffset(nextOffset)}>
+              {isFetching ? "Loading…" : "Load more"}
+            </Button>
+          </div>
         )}
       </div>
     </div>
