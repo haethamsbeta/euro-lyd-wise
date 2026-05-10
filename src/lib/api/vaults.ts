@@ -34,8 +34,19 @@ export const vaultsApi = {
     return rows;
   },
   get: (id: string | number) => apiFetch<InternalAccount>(`/vaults/${id}`),
-  recentActivity: (id: string | number, params: { limit?: number } = {}) =>
-    apiFetch<VaultActivityRow[]>(`/vaults/${id}/activity${qs(params)}`),
+  recentActivity: (id: string | number, params: { limit?: number; offset?: number } = {}) =>
+    apiFetch<any>(`/vaults/${id}/activity${qs(params)}`).then((res) => {
+      if (Array.isArray(res)) {
+        return { items: res as VaultActivityRow[], total: res.length, limit: params.limit ?? res.length, offset: params.offset ?? 0, next_offset: null as number | null };
+      }
+      return {
+        items: (res?.items ?? []) as VaultActivityRow[],
+        total: typeof res?.total === "number" ? res.total : (res?.items?.length ?? 0),
+        limit: res?.limit ?? params.limit ?? 0,
+        offset: res?.offset ?? params.offset ?? 0,
+        next_offset: (res?.next_offset ?? null) as number | null,
+      };
+    }),
   consolidatedUsd: () =>
     apiFetch<{
       total_usd_minor: number;
