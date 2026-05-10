@@ -257,8 +257,14 @@ function VaultsPage() {
                             </span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                          {v.currency_code ?? "—"}
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] uppercase tracking-wider ${
+                            v.currency_code ? "" : "border-destructive/40 text-destructive"
+                          }`}
+                          title={v.currency_code ? "" : "Currency missing on backend row"}
+                        >
+                          {v.currency_code ?? "Currency missing"}
                         </Badge>
                       </div>
 
@@ -268,7 +274,9 @@ function VaultsPage() {
                             Balance
                           </div>
                           <div className="font-mono text-lg font-semibold tabular-nums text-foreground">
-                            {formatMinor(v.balance_minor, v.currency_code ?? "USD")}
+                            {v.currency_code
+                              ? formatMinor(v.balance_minor, v.currency_code)
+                              : "—"}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-gold">
@@ -366,8 +374,19 @@ function VaultsPage() {
                             intoVault ? "text-success" : "text-destructive"
                           }`}
                         >
-                          {intoVault ? "+" : "−"}
-                          {formatMinor(tx.amount_minor, tx.currency)}
+                          {tx.currency ? (
+                            <>
+                              {intoVault ? "+" : "−"}
+                              {formatMinor(tx.amount_minor, tx.currency)}
+                            </>
+                          ) : (
+                            <span
+                              className="text-destructive"
+                              title="Currency missing on backend row"
+                            >
+                              Currency missing
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3">
                           <Badge
