@@ -24,7 +24,7 @@ export const adminApi = {
   },
   branches: {
     list: () =>
-      apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/api/admin/branches"),
+      apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/admin/branches"),
     create: (name: string) =>
       apiFetch<{ id: string; name: string; is_active: boolean }>("/admin/branches", {
         method: "POST",

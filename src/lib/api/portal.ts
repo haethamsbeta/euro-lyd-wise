@@ -6,7 +6,7 @@ export const portalApi = {
   me: () => apiFetch<{ holder_id: string; holder_name: string }>("/portal/me"),
   accounts: () => apiFetch<HolderAccount[]>("/portal/accounts"),
   totals: () =>
-    apiFetch<Array<{ currency: string; total_minor: number }>>("/api/portal/totals"),
+    apiFetch<Array<{ currency: string; total_minor: number }>>("/portal/totals"),
   ledger: (
     accountId: string,
     currency: string,

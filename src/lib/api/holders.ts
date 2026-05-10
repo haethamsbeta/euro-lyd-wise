@@ -17,5 +17,5 @@ export const holdersApi = {
       body: JSON.stringify(body),
     }),
   totals: (id: string | number) =>
-    apiFetch<Array<{ currency: string; total_minor: number }>>(`/api/holders/${id}/totals`),
+    apiFetch<Array<{ currency: string; total_minor: number }>>(`/holders/${id}/totals`),
 };

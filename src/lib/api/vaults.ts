@@ -33,7 +33,7 @@ export const vaultsApi = {
       breakdown: Array<{ currency: Currency; amount_minor: number; usd_minor: number }>;
     }>("/api/vaults/consolidated-usd", { method: "POST" }),
   branches: () =>
-    apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/api/admin/branches"),
+    apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/admin/branches"),
   targets: () => apiFetch<VaultTarget[]>("/admin/vault-targets"),
   setTarget: (vault_id: string, currency: Currency, target_minor: number) =>
     apiFetch<VaultTarget>("/admin/vault-targets", {
