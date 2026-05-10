@@ -86,6 +86,7 @@ function TxDetail() {
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const qc = useQueryClient();
+  const isLambda = DATA_BACKEND === "lambda";
 
   const { data: tx, isLoading, error } = useQuery({
     queryKey: ["tx.detail", id],
@@ -314,14 +315,16 @@ function TxDetail() {
                       const reason = prompt("Reject reason?");
                       if (reason && reason.trim().length >= 3) reject.mutate(reason.trim());
                     }}
-                    disabled={reject.isPending}
+                    disabled={reject.isPending || isLambda}
+                    title={isLambda ? "Write endpoint pending" : undefined}
                   >
                     <XCircle className="mr-1.5 h-4 w-4" /> Reject
                   </Button>
                   <Button
                     variant="gold"
                     onClick={() => approve.mutate()}
-                    disabled={approve.isPending}
+                    disabled={approve.isPending || isLambda}
+                    title={isLambda ? "Write endpoint pending" : undefined}
                   >
                     <CheckCircle2 className="mr-1.5 h-4 w-4" />
                     {approve.isPending ? "Approving…" : "Approve"}
