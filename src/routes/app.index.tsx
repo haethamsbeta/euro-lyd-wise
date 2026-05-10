@@ -133,6 +133,13 @@ function useDashData() {
             net_balance_minor: number;
           }> | null,
           bankSplitAvailable: Boolean((adminRes as any)?.bank_split_available),
+          holderBalancesByCurrency:
+            ((adminRes as any)?.holder_balances_by_currency ?? null) as Array<{
+              currency: string;
+              balance_minor: number;
+              account_count: number | null;
+              holder_count: number | null;
+            }> | null,
         };
       }
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
@@ -155,6 +162,12 @@ function useDashData() {
         cashByCurrency: [] as Array<{ currency: string; net_balance_minor: number }>,
         bankByCurrency: null as Array<{ currency: string; net_balance_minor: number }> | null,
         bankSplitAvailable: false,
+        holderBalancesByCurrency: null as Array<{
+          currency: string;
+          balance_minor: number;
+          account_count: number | null;
+          holder_count: number | null;
+        }> | null,
       };
     },
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
