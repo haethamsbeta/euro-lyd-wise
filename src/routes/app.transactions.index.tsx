@@ -140,18 +140,14 @@ function TxList() {
 
   // Page size matches backend contract: GET /api/transactions?limit=50
   const PAGE_SIZE = 50;
-  // Reserved for future server-side pagination (limit=50&offset=N).
-  // Today the backend returns only the first 50 rows, so the "Next page"
-  // control is disabled until offset/cursor support lands.
-  const [offset] = useState(0);
-  const backendPaginationEnabled = false;
+  const [offset, setOffset] = useState(0);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v2", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.transactions.list({ limit: PAGE_SIZE, offset });
-        return rows.map<Tx>((r: any) => ({
+        const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
+        const items = (paged.items ?? []).map<Tx>((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
           direction: r.direction,
@@ -164,11 +160,16 @@ function TxList() {
           customer_account_id: String(r.customer_account_id ?? ""),
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
-          customer_name: null,
-          customer_account_number: null,
-          customer_dahab_number: null,
+          customer_name: r.holder_name ?? r.account_display_name ?? null,
+          customer_account_number: r.account_number ?? null,
+          customer_dahab_number: r.dahab_account_number ?? null,
           attachment_count: 0,
         }));
+        return {
+          rows: items,
+          total: paged.total ?? items.length,
+          nextOffset: paged.next_offset ?? null,
+        };
       }
       const { data, error } = await supabase
         .from("transactions")
@@ -181,7 +182,7 @@ function TxList() {
         .range(offset, offset + PAGE_SIZE - 1);
       if (error) throw error;
       const rows = (data ?? []) as any[];
-      return rows.map<Tx>((r) => ({
+      const items = rows.map<Tx>((r) => ({
         id: r.id,
         tx_number: r.tx_number,
         direction: r.direction,
@@ -201,10 +202,19 @@ function TxList() {
           ? Number(r.transaction_attachments[0]?.count ?? 0)
           : 0,
       }));
+      return { rows: items, total: items.length, nextOffset: null };
     },
     refetchInterval:
       REALTIME_MODE === "polling" ? POLL_INTERVALS.transactions : false,
   });
+
+  const txRows: Tx[] = (data?.rows as Tx[] | undefined) ?? [];
+  const totalCount: number | null =
+    typeof data?.total === "number"
+      ? (data!.total as number)
+      : (dashSummary?.transactionCount ?? null);
+  const nextOffset: number | null = (data?.nextOffset as number | null) ?? null;
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   const { data: dahabMap } = useQuery({
     queryKey: ["transactions.dahabmap"],
@@ -225,16 +235,16 @@ function TxList() {
 
   const byNumber = useMemo(() => {
     const m = new Map<string, Tx>();
-    (data ?? []).forEach((t) => m.set(t.id, t));
+    txRows.forEach((t) => m.set(t.id, t));
     return m;
-  }, [data]);
+  }, [txRows]);
 
   const filtered = useMemo(() => {
-    let rows = (data ?? []).map((t) => ({
+    let rows = txRows.map((t) => ({
       ...t,
       customer_dahab_number: t.customer_account_number
         ? (dahabMap?.get(t.customer_account_number) ?? null)
-        : null,
+        : (t.customer_dahab_number ?? null),
     }));
     if (statusFilter !== "all") rows = rows.filter((t) => t.status === statusFilter);
     if (directionFilter !== "all")
@@ -282,7 +292,7 @@ function TxList() {
     }
     return rows;
   }, [
-    data,
+    txRows,
     dahabMap,
     statusFilter,
     directionFilter,
@@ -297,7 +307,7 @@ function TxList() {
 
   // KPIs
   const kpis = useMemo(() => {
-    const rows = data ?? [];
+    const rows = txRows;
     const today = new Date();
     const isToday = (d: string) => {
       const x = new Date(d);
