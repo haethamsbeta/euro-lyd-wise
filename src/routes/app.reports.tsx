@@ -346,51 +346,62 @@ function ReportsPage() {
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
                 </div>
-                <div className="h-64" style={{ minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-                    <AreaChart data={data?.dailyVolume ?? []}>
-                      <defs>
-                        <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} />
-                          <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Area type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2} fill="url(#rGold)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                {dailyVolume7d.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="daily_volume_7d not yet returned." />
+                ) : (
+                  <div className="h-64" style={{ minWidth: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+                      <AreaChart data={dailyVolume7d}>
+                        <defs>
+                          <linearGradient id="rGold" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={GOLD} stopOpacity={0.4} />
+                            <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
+                        <YAxis axisLine={false} tickLine={false} tick={axisTick} tickFormatter={(v) => new Intl.NumberFormat("en", { notation: "compact" }).format(v as number)} />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Area type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2} fill="url(#rGold)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
                 <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-                <div className="h-48" style={{ minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <PieChart>
-                      <Pie data={data?.currencyDistribution ?? []} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
-                        {(data?.currencyDistribution ?? []).map((e) => <Cell key={e.name} fill={e.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 mt-4">
-                  {(data?.currencyDistribution ?? []).map((c) => (
-                    <div key={c.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
-                        <CurrencyBadge currency={c.name} />
-                      </div>
-                      <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                {currencyDistribution.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="currency_distribution not yet returned." />
+                ) : (
+                  <>
+                    <div className="h-48" style={{ minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                        <PieChart>
+                          <Pie data={currencyDistribution.filter((e) => e.valid)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
+                            {currencyDistribution.filter((e) => e.valid).map((e) => <Cell key={e.name} fill={e.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle} />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
-                  ))}
-                  {(!data || data.currencyDistribution.length === 0) && !isLoading && (
-                    <p className="text-xs text-text-tertiary">No balance data yet.</p>
-                  )}
-                </div>
+                    <div className="space-y-2 mt-4">
+                      {currencyDistribution.map((c) => (
+                        <div key={c.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+                            {c.valid ? (
+                              <CurrencyBadge currency={c.name} />
+                            ) : (
+                              <span className="text-xs text-text-tertiary">Currency missing</span>
+                            )}
+                          </div>
+                          <span className="text-foreground font-medium tabular-nums">{c.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </PremiumCard>
             </div>
 
