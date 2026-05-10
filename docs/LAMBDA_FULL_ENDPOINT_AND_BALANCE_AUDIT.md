@@ -175,4 +175,37 @@ No `"UNK"` or `"Unknown"` literal currency string was found in the codebase (ver
   - `RecentAuditEvents` reads from `api.audit.listPaged({ limit: 5 })` in lambda mode (mock array removed).
   - `AnomalyWatchlist` renders `<BackendPending>` (mock items removed) until backend exposes an anomaly endpoint.
 
+## Fixes applied in P0/P1 pass
+
+- `src/lib/format.ts` — added `formatMinorOrMissing` + `ALLOWED_CURRENCIES` (`LYD/USD/EUR/GBP`). Returns the literal `"Currency missing"` when currency is absent or out of allow-list. No silent USD/UNK fallback.
+- `src/routes/app.transactions.$id.tsx` — lambda branch consumes `GET /transactions/:id` and maps `tx_number, holder_name, account_number, dahab_account_number, account_display_name, amount_minor, currency_code, direction, channel, status, transaction_category, comment/description, posted_at, created_at` plus correction/reversal/vault fields. Approve/Reject buttons disabled in lambda mode (write endpoints not implemented).
+- `src/routes/m.dashboard.tsx` — lambda branch sources balances from `api.vaults.list()` (`balance_minor` only) and recent activity from `api.transactions.list()`. No Supabase reads in lambda mode.
+- `src/routes/portal.tsx` & `src/routes/portal.$accountId.$currency.tsx` — render `<BackendPending>` in lambda mode (portal namespace not exposed). No Supabase fallback.
+- `src/routes/app.index.tsx` — Network Pulse bank gauge renders `<BackendPending>` (no fake `0`); `TellerDashboard` "Txns Today" reads `summary.txns_today` and shows `—` if absent; `RecentTransactionsTable` reads `holder_name` / `account_number` / `dahab_account_number` straight from `/transactions` rows; `PinnedCustomers` renders `<BackendPending>` in lambda mode; recent-tx + urgent-approvals amounts use `formatMinorOrMissing`.
+- `src/lib/api/reports.ts` + `src/routes/app.reports.tsx` — cash-flow returns raw `{ day, currency_code, direction, transaction_count, volume_minor }` rows; route pivots by `day + currency_code` mapping `deposit → deposits_minor`, `withdraw → withdrawals_minor`. No frontend FX, no cross-currency summing.
+- `src/routes/app.me.activity.tsx` — calls `api.transactions.myRecent(50)` in lambda mode; renders `<BackendPending>` on 404. No Supabase fallback. Amounts use `formatMinorOrMissing`.
+- `src/routes/app.transactions.index.tsx` — all amount renders + CSV export rows + search filter use `formatMinorOrMissing`. TxRow suppresses the `+/−` sign when currency is missing. No USD/UNK fallback anywhere on the page.
+
+## Confirmed source-of-truth rules
+
+- Vault / cash balances → only `GET /vaults` `balance_minor`. Never summed from transactions.
+- Holder totals → only `GET /holders/:id/totals`. Never summed client-side.
+- Account balance → only `GET /accounts/:id` `balance_minor`. Never summed.
+- Dashboard KPIs → only `GET /dashboard/staff` `summary.*`. Missing fields render `—` or `<BackendPending>`.
+- Reports cash-flow → pivot per `currency_code`; never FX-converted in the frontend.
+
+## Remaining backend gaps
+
+- `GET /dashboard/staff` — still missing `txns_today`, `active_holders`, `cash_by_currency`, `bank_by_currency`. Frontend currently shows `—` / `<BackendPending>`.
+- `GET /transactions/me/recent` — not implemented; `app.me.activity` shows `<BackendPending>` on 404.
+- `GET /admin/branches` — not exposed; admin sections that need branch metadata stay `<BackendPending>`.
+- `GET /groups` — not exposed; group listings stay `<BackendPending>`.
+- Portal namespace (`GET /portal/...`) — not exposed; portal pages render `<BackendPending>` in lambda mode.
+- `GET /reports/anomalies` — proposed; AnomalyWatchlist `<BackendPending>`.
+- All write endpoints — `POST /transactions`, `POST /approvals/:id/approve|reject|partial`, `POST /admin/fx-rates`, `POST /holders`, correction/reversal mutations — not implemented; corresponding buttons stay disabled in lambda mode.
+
+## Remaining Supabase usage in lambda mode
+
+- None on the audited pages. Supabase code paths remain only behind the `DATA_BACKEND !== "lambda"` branch on dashboards, transactions, reports, holders, vaults, approvals, audit, transaction detail, mobile dashboard, portal, and `me/activity`.
+
 No section was redesigned or removed. No mock data was added. No Supabase fallback runs in lambda mode for the items above. No FX math is performed in the frontend.
