@@ -491,11 +491,7 @@ function AccountListBlock({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-serif text-lg font-semibold">
-          Linked Accounts ({
-            typeof (holder as any).linked_account_count === "number"
-              ? (holder as any).linked_account_count
-              : "—"
-          }) <span className="text-xs text-muted-foreground">· {accounts.length} loaded</span>
+          Linked Accounts <span className="text-xs text-muted-foreground">({accounts.length} loaded)</span>
         </h2>
         {!isReadOnly && isAdmin && <AddLinkedAccountDialog holderId={holderId} />}
       </div>
