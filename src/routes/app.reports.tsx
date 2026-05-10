@@ -640,10 +640,10 @@ function ReportsPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { l: "Active Tellers", v: "24", sub: "8 currently on shift", icon: Users },
-                { l: "Avg Txns / Teller / Day", v: "63", sub: "+8 from last week", icon: Activity },
-                { l: "Network Accuracy", v: "99.1%", sub: "Industry-leading", icon: Target },
-                { l: "Avg Time / Transaction", v: "2.5 min", sub: "-0.3 min from prior", icon: Clock },
+                { l: "Active Tellers", v: isLambda ? "—" : "24", sub: isLambda ? "Backend pending" : "8 currently on shift", icon: Users },
+                { l: "Avg Txns / Teller / Day", v: isLambda ? "—" : "63", sub: isLambda ? "Backend pending" : "+8 from last week", icon: Activity },
+                { l: "Network Accuracy", v: isLambda ? "—" : "99.1%", sub: isLambda ? "Backend pending" : "Industry-leading", icon: Target },
+                { l: "Avg Time / Transaction", v: isLambda ? "—" : "2.5 min", sub: isLambda ? "Backend pending" : "-0.3 min from prior", icon: Clock },
               ].map((k, i) => (
                 <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <PremiumCard className="p-5">
@@ -660,8 +660,12 @@ function ReportsPage() {
               ))}
             </div>
 
+            {isLambda && tellers.length === 0 && (
+              <BackendPending endpoint="GET /reports/tellers/today" />
+            )}
+
             {/* Top Performers Podium */}
-            <PremiumCard variant="premium" className="p-6">
+            {tellers.length > 0 && <PremiumCard variant="premium" className="p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-5 h-5 text-gold" />
                 <h2 className="text-lg font-serif font-semibold text-foreground">Top Performers — Today</h2>
