@@ -192,7 +192,28 @@ export const reportsApi = {
     apiFetch<CashFlowRow[] | { items: CashFlowRow[] }>(
       `/reports/cash-flow${range(p)}`,
     ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
-  tellersToday: () => apiFetch<TellerLeaderRow[]>("/reports/tellers/today"),
+  tellersToday: async (): Promise<TellerLeaderRow[]> => {
+    const res = await apiFetch<any>("/reports/tellers/today");
+    const items: any[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.items)
+        ? res.items
+        : [];
+    return items.map((t) => ({
+      id: String(t.id ?? ""),
+      name: t.name ?? "—",
+      branch: t.branch ?? null,
+      avatar: t.avatar ?? "",
+      txns_today: num(t.txns_today),
+      volume_today_minor: num(t.volume_today_minor),
+      avg_value_minor: num(t.avg_value_minor),
+      accuracy_pct: num(t.accuracy_pct),
+      avg_time_seconds: num(t.avg_time_seconds),
+      rank: num(t.rank),
+      trend: Array.isArray(t.trend) ? t.trend.map(num) : [],
+      streak_days: num(t.streak_days),
+    }));
+  },
   processingTimeDistribution: (p?: { from?: string; to?: string }) =>
     apiFetch<ProcessingTimeBucket[]>(`/reports/processing-time-distribution${range(p)}`),
   rejectionRateTrend: (p?: { from?: string; to?: string }) =>
@@ -220,7 +241,7 @@ export const reportsApi = {
           : [],
       kyc: normalizeGauge(r.kyc),
       aml: normalizeGauge(r.aml),
-      doc_verification: normalizeGauge(r.doc_verification),
+      doc_verification: normalizeGauge(r.document_verification ?? r.doc_verification),
       sanctions: normalizeGauge(r.sanctions),
     };
   },
