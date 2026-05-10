@@ -133,6 +133,13 @@ function useDashData() {
             net_balance_minor: number;
           }> | null,
           bankSplitAvailable: Boolean((adminRes as any)?.bank_split_available),
+          holderBalancesByCurrency:
+            ((adminRes as any)?.holder_balances_by_currency ?? null) as Array<{
+              currency: string;
+              balance_minor: number;
+              account_count: number | null;
+              holder_count: number | null;
+            }> | null,
         };
       }
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
@@ -155,6 +162,12 @@ function useDashData() {
         cashByCurrency: [] as Array<{ currency: string; net_balance_minor: number }>,
         bankByCurrency: null as Array<{ currency: string; net_balance_minor: number }> | null,
         bankSplitAvailable: false,
+        holderBalancesByCurrency: null as Array<{
+          currency: string;
+          balance_minor: number;
+          account_count: number | null;
+          holder_count: number | null;
+        }> | null,
       };
     },
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
@@ -467,7 +480,11 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
         {/* Holdings (desktop position) */}
         {prefs.showHoldings && data && (
           <div className="hidden lg:block lg:col-span-7">
-            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+            <HoldingsSummary
+              holderCount={data.holderCount}
+              customerByCur={totals.customerByCur}
+              holderBalancesByCurrency={data.holderBalancesByCurrency}
+            />
           </div>
         )}
 
@@ -479,7 +496,11 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
         {/* Holdings (mobile/tablet position) */}
         {prefs.showHoldings && data && (
           <div className="lg:hidden">
-            <HoldingsSummary holderCount={data.holderCount} customerByCur={totals.customerByCur} />
+            <HoldingsSummary
+              holderCount={data.holderCount}
+              customerByCur={totals.customerByCur}
+              holderBalancesByCurrency={data.holderBalancesByCurrency}
+            />
           </div>
         )}
       </div>
@@ -810,7 +831,32 @@ function AnomalyWatchlist() {
   );
 }
 
-function HoldingsSummary({ holderCount, customerByCur }: { holderCount: number; customerByCur: Map<string, number> }) {
+function HoldingsSummary({
+  holderCount,
+  customerByCur,
+  holderBalancesByCurrency,
+}: {
+  holderCount: number;
+  customerByCur: Map<string, number>;
+  holderBalancesByCurrency:
+    | Array<{ currency: string; balance_minor: number; account_count: number | null; holder_count: number | null }>
+    | null;
+}) {
+  // Source of truth for per-currency holder balances:
+  //   summary.holder_balances_by_currency from /dashboard/staff.
+  // Never derive from cash_by_currency or bank_by_currency. In Supabase
+  // fallback mode we keep the legacy customerByCur map.
+  const lambda = DATA_BACKEND === "lambda";
+  const balanceMap = useMemo(() => {
+    const m = new Map<string, number>();
+    if (holderBalancesByCurrency) {
+      for (const r of holderBalancesByCurrency) m.set(r.currency, r.balance_minor);
+      return m;
+    }
+    if (!lambda) return customerByCur;
+    return null; // backend pending in lambda mode
+  }, [holderBalancesByCurrency, customerByCur, lambda]);
+
   return (
     <PremiumCard className="p-5">
       <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Holdings Summary</h2>
@@ -823,10 +869,16 @@ function HoldingsSummary({ holderCount, customerByCur }: { holderCount: number; 
           <div className="text-sm text-muted-foreground">Total Active Holders</div>
         </div>
       </div>
+      {balanceMap === null ? (
+        <BackendPending
+          endpoint="GET /dashboard/staff → summary.holder_balances_by_currency"
+          note="Per-currency holder account totals will appear once the backend exposes this field."
+        />
+      ) : (
       <div className="space-y-3">
         {CURRENCIES.map((c) => {
-          const v = customerByCur.get(c) ?? 0;
-          const max = Math.max(...CURRENCIES.map((x) => customerByCur.get(x) ?? 0), 1);
+          const v = balanceMap.get(c) ?? 0;
+          const max = Math.max(...CURRENCIES.map((x) => balanceMap.get(x) ?? 0), 1);
           const pct = Math.round((v / max) * 100);
           return (
             <div key={c}>
@@ -841,6 +893,7 @@ function HoldingsSummary({ holderCount, customerByCur }: { holderCount: number; 
           );
         })}
       </div>
+      )}
     </PremiumCard>
   );
 }

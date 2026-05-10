@@ -26,6 +26,18 @@ export interface AdminDashboard {
    *  cash vs bank (bank_split_available=false). */
   bank_by_currency: Array<{ currency: Currency; net_balance_minor: number }> | null;
   bank_split_available: boolean;
+  /** Total holder account balances grouped by currency. Source of truth for
+   *  the dashboard "Holdings Summary" widget. Null when backend has not yet
+   *  exposed `summary.holder_balances_by_currency` — UI must render
+   *  <BackendPending /> rather than fall back to vault/cash totals or 0. */
+  holder_balances_by_currency:
+    | Array<{
+        currency: Currency;
+        balance_minor: number;
+        account_count: number | null;
+        holder_count: number | null;
+      }>
+    | null;
 }
 export interface TellerDashboard {
   txns_today: number;
@@ -66,6 +78,14 @@ export const dashboardApi = {
             net_balance_minor: Number(r.net_balance_minor ?? r.balance_minor ?? 0),
           }))
         : null;
+      const holderByCur = Array.isArray(s.holder_balances_by_currency)
+        ? s.holder_balances_by_currency.map((r: any) => ({
+            currency: r.currency ?? r.currency_code,
+            balance_minor: Number(r.balance_minor ?? 0),
+            account_count: r.account_count != null ? Number(r.account_count) : null,
+            holder_count: r.holder_count != null ? Number(r.holder_count) : null,
+          }))
+        : null;
       return {
         ...res,
         totals,
@@ -81,6 +101,7 @@ export const dashboardApi = {
         cash_by_currency: cashByCur,
         bank_by_currency: bankByCur,
         bank_split_available: bankSplit,
+        holder_balances_by_currency: holderByCur,
       } as AdminDashboard & Record<string, any>;
     }
     return res as AdminDashboard;
