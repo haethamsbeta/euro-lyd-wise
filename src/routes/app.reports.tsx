@@ -755,7 +755,7 @@ function ReportsPage() {
                   </tbody>
                 </table>
               </div>
-            </PremiumCard>
+            </PremiumCard>}
 
             {/* Volume by Teller */}
             <PremiumCard className="p-6">
