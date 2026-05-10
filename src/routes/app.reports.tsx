@@ -703,10 +703,10 @@ function ReportsPage() {
                   );
                 })}
               </div>
-            </PremiumCard>
+            </PremiumCard>}
 
             {/* Full Leaderboard */}
-            <PremiumCard className="p-0 overflow-hidden">
+            {tellers.length > 0 && <PremiumCard className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-gold" />
