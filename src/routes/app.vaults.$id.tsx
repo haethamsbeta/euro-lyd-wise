@@ -24,6 +24,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { RoleGate } from "@/components/app/app-shell";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 type VaultSearch = { currency?: "USD" | "EUR" | "LYD" };
 
@@ -73,6 +74,7 @@ function VaultDetail() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.vaultActivity : false,
   });
 
   const ChannelIcon = vault?.vault_channel === "cash" ? Banknote : Building2;

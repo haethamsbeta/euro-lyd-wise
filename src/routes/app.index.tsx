@@ -23,6 +23,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -91,6 +92,7 @@ function useDashData() {
         holderCount: holders.count ?? 0,
       };
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
   });
 }
 
@@ -184,6 +186,7 @@ function PendingApprovalsButton() {
         .eq("status", "pending");
       return count ?? 0;
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
   });
   if (!data) return null;
   return (
@@ -214,6 +217,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
     // "rates required" CTA instead of a number computed on the client.
     retry: false,
     enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
   const network = liquidity.data?.network_total_lyd_minor ?? null;
   const missingRates = liquidity.data?.missing_rates ?? [];
