@@ -1,60 +1,41 @@
-## Goal
+## P0/P1 Lambda fixes from `LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md`
 
-Produce a complete, evidence-based audit of every DAHAB Lambda-mode page, mapping each UI element (card, table, chart, KPI) to the **endpoint** and **DAHABDB field** it currently reads, the endpoint/field it *should* read, and the exact fix. Then apply only the safe frontend mapping fixes. No redesign, no removed sections, no mock data, no Supabase fallback in lambda mode, no fabricated values.
+Apply minimal, surgical wiring fixes — no redesign, no removed sections, no mock data, no Supabase fallback in lambda mode, no balances calculated from page rows.
 
-The deliverable is a single audit document plus a prioritized fix pass.
+### P0
 
-## Deliverable
+1. **`src/routes/app.transactions.$id.tsx`** — in lambda mode, drop the Supabase tx fetch + audit/profile/attachment side queries. Use `api.transactions.get(id)` and map: `tx_number, holder_name, account_number, dahab_account_number, account_display_name, amount_minor, currency_code, direction, channel, status, transaction_category, comment/description, posted_at, created_at`, plus correction/reversal and vault fields when present. Any missing field renders `—` or a `<BackendPending>` chip for that field only. Approve/reject/correct mutations stay disabled in lambda mode (no Supabase RPC). Attachment storage links remain Supabase-only and are hidden in lambda mode.
 
-`docs/LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md` containing six tables exactly as the brief specifies:
+2. **`src/routes/m.dashboard.tsx`** — in lambda mode, replace the Supabase `accounts` + `account_balances` + `transactions` queries with `api.dashboard.admin()` (KPIs from `summary` only), `api.vaults.list()` (balances from `balance_minor` only), and `api.transactions.list({ limit: 8 })` (amounts from `amount_minor` only). Supabase path kept for `DATA_BACKEND !== "lambda"`.
 
-1. Page endpoint matrix — `Page | Current endpoint | Correct endpoint | Status | Fix`
-2. Balance-source matrix — `UI element | Current field | Correct field | Correct endpoint | Status`
-3. Dashboard metric matrix — `Metric/card | Current source | Correct source | Backend returned? | Fix`
-4. Reports metric matrix — `Widget/chart | Endpoint | Fields | Current status | Fix`
-5. Currency audit — `Location | Current fallback | Correct behavior | Fix`
-6. Priority list — P0 wrong balances/totals, P1 wrong dashboard/report metrics, P2 missing details, P3 future write features
+3. **`src/routes/portal.tsx`** and **`src/routes/portal.$accountId.$currency.tsx`** — in lambda mode, short-circuit before any Supabase call and render `<BackendPending>` for the whole page (portal API not yet exposed). Supabase path untouched outside lambda mode.
 
-## Audit scope (every route enumerated)
+### P1
 
-`/app` (`app.index.tsx`), `/app/holders`, `/app/holders/$id`, `/app/holders/new`, `/app/accounts` (linked accounts list), `/app/accounts/$id`, `/app/transactions`, `/app/transactions/$id`, `/app/transactions/new/*`, `/app/vaults`, `/app/vaults/$id`, `/app/reports`, `/app/audit`, `/app/approvals`, `/app/users`, `/app/admin/fx-rates`, `/app/admin/branches`, `/app/settings/notifications`, `/app/settings/security`, `/app/me/activity`, `/app/portal-accounts`, `/app/groups`, `/portal`, `/portal/$accountId/$currency`, `/m`, `/m/dashboard`.
+4. **Dashboard Network Pulse (`src/routes/app.index.tsx`)** — keep the cash totals (clearly labelled "Vault / Cash"), but render the bank-side tile as `<BackendPending>` until the backend exposes `bank_by_currency`. No `0` placeholder.
 
-For each route I will list every section/card/table/chart, the current adapter call + field reads, the correct adapter call + field reads per the rules in section A of the brief, and the verdict (correct / wrong endpoint / wrong field / loaded-page-as-total / missing endpoint / mapping-only fix).
+5. **Dashboard Txns Today (TellerDashboard tile in `app.index.tsx`)** — stop counting `recentTx` filtered to today. Read `summary.txns_today`; if absent, render `—`.
 
-## Known issues already visible from a first pass (will be confirmed and itemised in the doc)
+6. **`RecentTransactionsTable` (in `app.index.tsx`)** — remove the Supabase holder/account lookup branch in lambda mode and read `holder_name`, `account_number`, `dahab_account_number` straight from the row (already propagated by `useDashData`).
 
-- `m.dashboard.tsx`, `portal.tsx`, `portal.$accountId.$currency.tsx`, `app.transactions.$id.tsx`, `app.me.activity.tsx`, `app.audit.tsx`, `app.approvals.tsx`, parts of `app.reports.tsx` and `app.index.tsx` still query Supabase directly with no `DATA_BACKEND === "lambda"` branch — Supabase fallback in lambda mode, must be replaced with the corresponding Lambda adapter call and a backend-pending state when the endpoint is missing.
-- Vault detail (`app.vaults.$id.tsx`) already follows the cash_vault_effect_minor → amount_minor rule and uses backend `balance_minor` for the summary — verify and confirm.
-- Vault list (`app.vaults.index.tsx`) — confirm it shows all 10 single-currency vault accounts from `/vaults` (not 3 design cards) and uses `balance_minor` directly.
-- Holder list / holder detail — confirm `/holders/:id/totals` is the source for holder totals and `summary.linked_account_count` is used for the linked account chip (recent fix, re-verify).
-- Holder accounts global page — confirm `/holder-accounts?limit=&offset=` paged envelope (`total`, `next_offset`) is used and `current_balance` is the row balance.
-- Transactions list/detail — confirm `amount_minor` is used as the transaction amount everywhere and never confused with `current_balance`/`balance_after`/`cash_vault_effect_minor`.
-- Dashboard KPI cards (`app.index.tsx`) — confirm they read `summary.holder_count`, `holder_account_count`, `transaction_count`, `vault_count`, `pending_count` from `/dashboard/staff` and not from page-row counts; flag any KPI (active_holders, txns_today, cash/bank split, recent activity holder names) that the backend does not return as "backend extension needed".
-- Reports — confirm every widget maps to a `/reports/*` endpoint and that cash-flow rows are pivoted in the frontend by day+currency+direction; no static arrays used as live data; no FX math in the frontend; compliance/teller gauges show backend-pending when fields are absent.
-- Currency fallbacks — `rg` already shows no `"UNK"` literal; full audit will still grep for `|| "UNK"`, `|| "Unknown"`, `currency_code ||`, hard-coded `"USD"` defaults (e.g. `app.vaults.index.tsx:271` uses `v.currency_code ?? "USD"` — that is a fabricated currency fallback and must become "Currency missing").
+7. **`PinnedCustomers` (in `app.index.tsx`)** — in lambda mode, replace the Supabase `holder_accounts` query with `api.accounts.get(id)` + `api.holders.totals(holderId)` per pinned id. If any required field is missing, render `<BackendPending>` for that pin instead of falling back to Supabase or mock.
 
-## Process
+8. **Reports cash-flow pivot (`src/lib/api/reports.ts` + `src/routes/app.reports.tsx`)** — backend now returns `{ day, currency_code, direction, transaction_count, volume_minor }`. Update the adapter to return raw rows; pivot in the route by `day + currency_code` mapping `direction=deposit → deposits_minor`, `direction=withdraw → withdrawals_minor`. Do not sum across currencies; do not perform FX. Existing chart shape (`{ d, deposits, withdrawals }`) is preserved per currency series.
 
-1. Read every route file and adapter listed above (parallel reads).
-2. For each section/card/table, record current endpoint+field and compare to the rules in brief section A. Record the verdict.
-3. Write the six tables into `docs/LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md`.
-4. Apply only **safe frontend mapping fixes** where the backend already returns the correct field. Examples expected:
-   - replace remaining Supabase queries in lambda mode with Lambda adapter calls + `BackendPending` for missing endpoints (`m.dashboard`, `portal.*`, `app.transactions.$id`, `app.me.activity`, `app.audit` already-fixed verify, `app.reports` Supabase branches, etc.)
-   - remove any `currency_code ?? "USD"` / `?? "UNK"` style fallbacks and replace with a "Currency missing" badge
-   - ensure transaction rows never display `balance_after` / `current_balance` / `cash_vault_effect_minor` as the transaction amount
-   - ensure holder-accounts list uses paged envelope `total` instead of `items.length`
-   - ensure dashboard KPI cards never derive totals from the loaded `recent_transactions` / first holder page
-5. For backend gaps, list the exact endpoint and exact fields the backend must add (no UI removal, render `BackendPending` until live).
-6. Re-run `bunx tsc --noEmit` and update `docs/NEXT_BACKEND_ENDPOINTS_WIRING.md` cross-reference.
+9. **`src/routes/app.me.activity.tsx`** — in lambda mode, call `api.transactions.myRecent(50)`. If the endpoint 404s, render `<BackendPending>`. Supabase path untouched outside lambda mode.
 
-## Out of scope
+10. **Currency guards** in `src/routes/app.transactions.index.tsx` and `src/routes/app.index.tsx` (`RecentTransactionsTable`): wrap each `formatMinor(amount, currency)` call with a guard — when `currency` is missing/not in `LYD/USD/EUR/GBP`, render the literal "Currency missing" badge instead of falling back to USD/UNK.
 
-- No redesigns, no removed sections, no new mock data.
-- No write endpoints wired (approve/reject/post stay disabled in lambda mode until backend confirms).
-- No FX math in the frontend.
-- No Supabase reads in lambda mode after the fix pass.
+### Documentation
 
-## Risks / open questions
+Update `docs/LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md`:
+- Add a "Fixes applied in this pass (P0/P1)" section listing each edited file and the new wiring.
+- Mark fixed rows ✅ in the matrices.
+- Restate remaining backend gaps: `summary.txns_today`, `summary.cash_by_currency`/`bank_by_currency`, portal API, `/admin/users`, `/reports/anomalies`, write endpoints (POST tx/approval/fx/holder).
+- List remaining Supabase usage in lambda mode (should be: none of the items above; storage attachments in tx detail are hidden, not used). Confirm balance source-of-truth rules: vault balances ← `/vaults.balance_minor`; account balances ← `/holder-accounts.current_balance`; ledger running balance ← `balance_after`; transaction amounts ← `amount_minor`; vault activity ← `cash_vault_effect_minor ?? amount_minor`.
 
-- A few routes (portal, m.dashboard, app.audit, app.me.activity) currently *only* support Supabase. If the corresponding Lambda endpoints don't exist yet, the lambda-mode behavior will be a `BackendPending` card for those sections — please confirm that's acceptable rather than leaving the Supabase path active in lambda mode.
-- `app.reports.tsx` has a large Supabase branch behind `enabled: DATA_BACKEND !== "lambda"` — that branch is fine to keep for non-lambda mode; the audit only flags lambda-mode behavior.
+### Out of scope
+
+- No UI redesign, no section removal.
+- Write endpoints (POST tx/approval/fx/holder) stay disabled.
+- P2/P3 items (`/app/users`, `/app/admin/branches`, `/app/groups`, `/app/portal-accounts`, anomaly feed) untouched.
