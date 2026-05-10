@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +62,8 @@ function fmt(n: number, c?: string) {
 
 function AccountDetail() {
   const { id } = Route.useParams();
-  const accountId = Number(id);
+  const accountIdNum = Number(id);
+  const accountId: number | string = Number.isFinite(accountIdNum) ? accountIdNum : id;
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isTeller = hasAnyRole(roles, ["teller"]);
@@ -68,12 +71,42 @@ function AccountDetail() {
 
   const accountQ = useQuery({
     queryKey: ["account.detail", accountId],
-    enabled: Number.isFinite(accountId),
+    enabled: !!accountId,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r: any = await api.accounts.get(accountId);
+        return {
+          id: r.id,
+          account_number: r.account_number,
+          dahab_account_number: r.dahab_account_number ?? null,
+          currency_code: r.currency_code,
+          account_nature: r.account_nature ?? null,
+          account_display_name: r.account_display_name ?? null,
+          account_alias_name: r.account_alias_name ?? null,
+          current_balance: Number(r.current_balance ?? 0),
+          status: r.status ?? "ACTIVE",
+          credit_limit: Number(r.credit_limit ?? 0),
+          debit_limit: Number(r.debit_limit ?? 0),
+          withdraw_limit_enabled: !!r.withdraw_limit_enabled,
+          withdraw_limit_amount: Number(r.withdraw_limit_amount ?? 0),
+          available_to_withdraw: r.available_to_withdraw_amount != null
+            ? Number(r.available_to_withdraw_amount)
+            : null,
+          linked_ledger_count: r.linked_ledger_count ?? null,
+          account_holder_id: r.account_holder_id ?? r.holder_id ?? null,
+          account_holders: {
+            id: r.account_holder_id ?? r.holder_id ?? null,
+            canonical_name: r.holder_name ?? r.canonical_name ?? "",
+            dahab_account_number: r.holder_dahab_account_number ?? null,
+            holder_type: r.holder_type ?? null,
+            phone: r.holder_phone ?? null,
+          },
+        };
+      }
       const { data, error } = await supabase
         .from("holder_accounts")
         .select("id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit,withdraw_limit_enabled,withdraw_limit_amount,account_holder_id,account_holders!inner(id,canonical_name,dahab_account_number,holder_type,phone)")
-        .eq("id", accountId)
+        .eq("id", accountIdNum)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -82,12 +115,33 @@ function AccountDetail() {
 
   const ledgerQ = useQuery({
     queryKey: ["account.ledger", accountId],
-    enabled: Number.isFinite(accountId),
+    enabled: !!accountId,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const res: any = await api.accounts.ledger(accountId, { limit: 500, offset: 0 });
+        const items: any[] = Array.isArray(res) ? res : (res?.items ?? []);
+        return items.map((e: any) => ({
+          id: e.id,
+          tx_number: e.tx_number,
+          posted_at: e.posted_at,
+          description: e.description ?? "",
+          // Backend returns minor units; convert for the existing display helpers.
+          debit_amount: e.debit_amount != null
+            ? Number(e.debit_amount)
+            : Number(e.debit_minor ?? 0) / 100,
+          credit_amount: e.credit_amount != null
+            ? Number(e.credit_amount)
+            : Number(e.credit_minor ?? 0) / 100,
+          balance_after: e.balance_after != null
+            ? Number(e.balance_after)
+            : Number(e.balance_after_minor ?? 0) / 100,
+          currency_code: e.currency_code,
+        }));
+      }
       const { data, error } = await supabase
         .from("holder_ledger_entries")
         .select("id,tx_number,posted_at,description,debit_amount,credit_amount,balance_after,currency_code")
-        .eq("account_id", accountId)
+        .eq("account_id", accountIdNum)
         .order("posted_at", { ascending: false })
         .limit(500);
       if (error) throw error;
