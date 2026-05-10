@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime, formatMinor } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { ExportPdfButton } from "@/components/app/export-pdf";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/app/audit")({
   component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
@@ -75,6 +77,23 @@ function Audit() {
   const { data } = useQuery({
     queryKey: ["audit"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        try {
+          const rows = await api.audit.list({ limit: 500 });
+          const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
+          return (list ?? []).map((r: any) => ({
+            id: String(r.id),
+            action: r.action,
+            target: r.entity_id ?? r.entity ?? null,
+            details: r.meta ?? {},
+            created_at: r.ts ?? r.created_at,
+            actor_user_id: r.user_id ?? null,
+            __actor_email: r.user_email ?? null,
+          })) as (AuditRow & { __actor_email?: string | null })[];
+        } catch {
+          return [] as AuditRow[];
+        }
+      }
       const { data, error } = await supabase
         .from("audit_log")
         .select("id, action, target, details, created_at, actor_user_id")
@@ -87,15 +106,17 @@ function Audit() {
   const actorIds = Array.from(new Set((data ?? []).map((r) => r.actor_user_id).filter(Boolean) as string[]));
   const { data: profiles } = useQuery({
     queryKey: ["audit-profiles", actorIds],
-    enabled: actorIds.length > 0,
+    enabled: actorIds.length > 0 && DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", actorIds);
       if (error) throw error;
       return data ?? [];
     },
   });
-  const nameOf = (id: string | null) =>
-    (id && profiles?.find((p) => p.id === id)?.full_name) || "";
+  const nameOf = (id: string | null, row?: any) => {
+    if (DATA_BACKEND === "lambda") return row?.__actor_email || "";
+    return (id && profiles?.find((p) => p.id === id)?.full_name) || "";
+  };
 
   return (
     <div>
@@ -113,6 +134,28 @@ function Audit() {
               { header: "Description" },
             ]}
             buildRows={async (from, to) => {
+              if (DATA_BACKEND === "lambda") {
+                try {
+                  const res = await api.audit.list({
+                    from: from.toISOString(),
+                    to: to.toISOString(),
+                    limit: 5000,
+                  });
+                  const list = Array.isArray(res) ? res : ((res as any)?.items ?? []);
+                  return (list ?? []).map((r: any) => {
+                    const actor = r.user_email || "";
+                    return [
+                      formatDateTime(r.ts ?? r.created_at),
+                      actionLabel(r.action).label,
+                      actor || "—",
+                      r.entity_id || r.entity || "—",
+                      describe(r.action, r.meta ?? {}, actor),
+                    ];
+                  });
+                } catch {
+                  return [];
+                }
+              }
               const { data: rows, error } = await supabase
                 .from("audit_log")
                 .select("id, action, target, details, created_at, actor_user_id")
@@ -145,7 +188,7 @@ function Audit() {
         </div>
         {data?.map((r) => {
           const meta = actionLabel(r.action);
-          const actor = nameOf(r.actor_user_id);
+          const actor = nameOf(r.actor_user_id, r);
           const sentence = describe(r.action, r.details, actor);
           return (
             <Card key={r.id} className="overflow-hidden">

@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/app/me/activity")({ component: MyActivity });
 
@@ -17,6 +19,24 @@ function MyActivity() {
     queryKey: ["my.activity", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        try {
+          const rows = await api.transactions.myRecent(200);
+          return (rows ?? []).map((r: any) => ({
+            id: String(r.id ?? r.transaction_id ?? crypto.randomUUID()),
+            tx_number: r.tx_number ?? r.reference ?? String(r.id ?? ""),
+            direction: (r.direction ?? (r.credit_minor ? "deposit" : "withdraw")) as "deposit" | "withdraw",
+            channel: r.channel ?? r.transaction_category ?? "—",
+            currency: r.currency ?? r.currency_code ?? "USD",
+            amount_minor: r.amount_minor ?? r.credit_minor ?? r.debit_minor ?? 0,
+            status: r.status ?? "posted",
+            comment: r.comment ?? r.description ?? null,
+            created_at: r.created_at ?? r.posted_at ?? r.ts ?? new Date().toISOString(),
+          }));
+        } catch {
+          return [];
+        }
+      }
       const { data, error } = await supabase.from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
         .eq("created_by_user_id", user!.id)
