@@ -84,6 +84,15 @@ export type HolderStatus = "active" | "inactive" | "frozen" | string;
 export type TransactionCategory = "cash" | "discount" | "general";
 export type InternalAccountKind = "vault" | "discount";
 
+/** Paged envelope inside `data` for list endpoints. */
+export interface PagedResult<T> {
+  items: T[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  next_cursor?: string | null;
+}
+
 export interface Holder {
   id: number | string;
   dahab_account_number: string;

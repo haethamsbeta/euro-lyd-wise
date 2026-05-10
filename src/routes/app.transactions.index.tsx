@@ -53,6 +53,8 @@ import { cn } from "@/lib/utils";
 import { ExportPdfButton } from "@/components/app/export-pdf";
 import { describeTx } from "@/lib/tx-describe";
 import { useDebounced } from "@/hooks/use-debounced";
+import { api } from "@/lib/api";
+import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/transactions/")({
   component: TxList,
@@ -137,6 +139,27 @@ function TxList() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v2", debouncedQ],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const rows = await api.transactions.list({ limit: 10 });
+        return rows.map<Tx>((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          channel: r.channel ?? "cash",
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          status: r.status,
+          comment: r.comment ?? r.description ?? "",
+          created_at: r.created_at ?? r.posted_at,
+          customer_account_id: String(r.customer_account_id ?? ""),
+          reverses_tx_id: r.reverses_tx_id ?? null,
+          corrected_by_tx_id: r.corrected_by_tx_id ?? null,
+          customer_name: null,
+          customer_account_number: null,
+          customer_dahab_number: null,
+          attachment_count: 0,
+        }));
+      }
       const { data, error } = await supabase
         .from("transactions")
         .select(
@@ -169,10 +192,13 @@ function TxList() {
           : 0,
       }));
     },
+    refetchInterval:
+      REALTIME_MODE === "polling" ? POLL_INTERVALS.notifications : false,
   });
 
   const { data: dahabMap } = useQuery({
     queryKey: ["transactions.dahabmap"],
+    enabled: DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("holder_accounts")
@@ -348,6 +374,39 @@ function TxList() {
                 { header: "Description" },
               ]}
               buildRows={async (from, to) => {
+                if (DATA_BACKEND === "lambda") {
+                  const rows = await api.transactions.list({
+                    from: from.toISOString(),
+                    to: to.toISOString(),
+                    limit: 5000,
+                  });
+                  return rows.map((r: any) => {
+                    const dir = r.direction === "deposit" ? "Deposit" : "Withdraw";
+                    const currency = r.currency ?? r.currency_code;
+                    const amountMinor = Number(r.amount_minor ?? 0);
+                    const sentence = describeTx({
+                      direction: r.direction,
+                      status: r.status,
+                      channel: r.channel ?? "cash",
+                      amount: formatMinor(amountMinor, currency),
+                      customerName: null,
+                      comment: r.comment ?? r.description ?? "",
+                      isReversal: !!r.reverses_tx_id,
+                      isCorrected: !!r.corrected_by_tx_id,
+                    });
+                    return [
+                      r.tx_number,
+                      formatDateTime(r.created_at ?? r.posted_at),
+                      "—",
+                      dir,
+                      String(r.channel ?? "—"),
+                      `${formatMinor(amountMinor, currency)} ${currency}`,
+                      String(r.status),
+                      "—",
+                      sentence,
+                    ];
+                  });
+                }
                 const { data, error } = await supabase
                   .from("transactions")
                   .select(
