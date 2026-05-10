@@ -55,6 +55,7 @@ import { describeTx } from "@/lib/tx-describe";
 import { useDebounced } from "@/hooks/use-debounced";
 import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 export const Route = createFileRoute("/app/transactions/")({
   component: TxList,
@@ -110,6 +111,7 @@ function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
 function TxList() {
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
+  const { data: dashSummary } = useDashboardSummary();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [q, setQ] = useState(search.q ?? "");
@@ -315,10 +317,10 @@ function TxList() {
   }, [data]);
 
   const kpiData = [
-    { label: "Transactions today", value: kpis.today, icon: TrendingUp, tone: "gold" as const, onClick: () => setDatePreset("today") },
-    { label: "Pending", value: kpis.pending, icon: Clock, tone: "amber" as const, onClick: () => setStatusFilter("pending") },
-    { label: "Completed", value: kpis.posted, icon: CheckCircle2, tone: "emerald" as const, onClick: () => setStatusFilter("posted") },
-    { label: "Failed / reversed", value: kpis.rejected, icon: XCircle, tone: "red" as const, onClick: () => setStatusFilter("rejected") },
+    { label: "Today (loaded window)", value: kpis.today, icon: TrendingUp, tone: "gold" as const, onClick: () => setDatePreset("today") },
+    { label: "Pending (loaded)", value: kpis.pending, icon: Clock, tone: "amber" as const, onClick: () => setStatusFilter("pending") },
+    { label: "Completed (loaded)", value: kpis.posted, icon: CheckCircle2, tone: "emerald" as const, onClick: () => setStatusFilter("posted") },
+    { label: "Failed / reversed (loaded)", value: kpis.rejected, icon: XCircle, tone: "red" as const, onClick: () => setStatusFilter("rejected") },
   ];
 
   const chips: Array<{ key: string; label: string; active: boolean; onClick: () => void }> = [
@@ -653,7 +655,7 @@ function TxList() {
           {/* Footer strip — pagination */}
           <div className="border-t border-border bg-[color:var(--surface-2)]/30 px-4 py-3 flex items-center justify-between gap-3 text-xs text-text-secondary">
             <span>
-              Showing {filtered.length} of {(data ?? []).length} on this page
+              Showing latest {filtered.length} of {fmtTotal(dashSummary?.transactionCount ?? null)} transactions
               <span className="font-mono ml-2">· {PAGE_SIZE} per page</span>
             </span>
             <div className="flex items-center gap-2">

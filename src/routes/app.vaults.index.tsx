@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { RoleGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { useDashboardSummary } from "@/lib/useDashboardSummary";
 import {
   Landmark,
   Banknote,
@@ -36,6 +37,7 @@ const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 
 function VaultsPage() {
   const t = useT();
+  const { data: dashSummary } = useDashboardSummary();
 
   const { data: vaults = [] } = useQuery({
     queryKey: ["vaults.list"],
@@ -185,8 +187,14 @@ function VaultsPage() {
             </p>
             <ShieldCheck className="h-4 w-4 text-success" />
           </div>
-          <div className="text-2xl font-semibold tabular-nums text-foreground">{vaults.length}</div>
-          <p className="mt-1 text-xs text-muted-foreground">All systems operational</p>
+          <div className="text-2xl font-semibold tabular-nums text-foreground">
+            {dashSummary?.vaultCount ?? vaults.length}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {dashSummary?.vaultCount != null && dashSummary.vaultCount !== vaults.length
+              ? `Showing ${vaults.length} of ${dashSummary.vaultCount}`
+              : "All systems operational"}
+          </p>
         </Card>
       </motion.div>
 

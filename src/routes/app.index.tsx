@@ -24,6 +24,7 @@ import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -116,7 +117,9 @@ function useDashData() {
           balances,
           recentTx,
           pendingCount: Number((adminRes as any)?.pending_approvals ?? 0),
-          holderCount: Number((adminRes as any)?.active_holders ?? 0),
+          holderCount: Number(
+            (adminRes as any)?.holder_count ?? (adminRes as any)?.active_holders ?? 0,
+          ),
         };
       }
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
@@ -255,6 +258,7 @@ function PendingApprovalsButton() {
 function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashPrefs) => void }) {
   const { data, isLoading } = useDashData();
   const totals = useTotals(data);
+  const { data: dashSummary } = useDashboardSummary();
 
   // Network total expressed in LYD-equivalent. Frontend MUST NOT compute FX
   // — the backend report applies admin-entered fx_rates and returns either a
@@ -339,6 +343,29 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                 <a.icon className="w-5 h-5 lg:w-4 lg:h-4 text-gold" />
               </div>
               <span className="text-sm font-semibold text-foreground">{a.label}</span>
+            </PremiumCard>
+          </Link>
+        ))}
+      </div>
+
+      {/* DAHABDB totals strip — sourced from /dashboard/staff summary, never
+          from limited list endpoints. Renders "—" when a field is missing. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Holders", value: dashSummary?.holderCount, to: "/app/holders" as const },
+          { label: "Linked accounts", value: dashSummary?.holderAccountCount, to: "/app/holders" as const },
+          { label: "Transactions", value: dashSummary?.transactionCount, to: "/app/transactions" as const },
+          { label: "Vaults", value: dashSummary?.vaultCount, to: "/app/vaults" as const },
+        ].map((k) => (
+          <Link key={k.label} to={k.to} className="block">
+            <PremiumCard className="p-4 hover:border-gold/40 transition-colors">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-1.5">
+                {k.label}
+              </div>
+              <div className="font-serif text-2xl font-bold text-foreground tabular-nums">
+                {fmtTotal(k.value ?? null)}
+              </div>
+              <div className="mt-1 text-[10px] text-muted-foreground">DAHABDB total</div>
             </PremiumCard>
           </Link>
         ))}

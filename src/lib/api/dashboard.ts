@@ -12,6 +12,12 @@ export interface AdminDashboard {
   pending_approvals: number;
   active_holders: number;
   txns_today: number;
+  /** True DB totals from /dashboard/staff summary. Null when backend has not
+   *  exposed the field yet — callers must render "—" rather than fabricating. */
+  holder_count: number | null;
+  holder_account_count: number | null;
+  transaction_count: number | null;
+  vault_count: number | null;
 }
 export interface TellerDashboard {
   txns_today: number;
@@ -45,6 +51,12 @@ export const dashboardApi = {
         pending_approvals: Number(s.pending_approvals ?? 0),
         active_holders: Number(s.active_holders ?? s.holders ?? 0),
         txns_today: Number(s.txns_today ?? 0),
+        holder_count: s.holder_count != null ? Number(s.holder_count) : null,
+        holder_account_count:
+          s.holder_account_count != null ? Number(s.holder_account_count) : null,
+        transaction_count:
+          s.transaction_count != null ? Number(s.transaction_count) : null,
+        vault_count: s.vault_count != null ? Number(s.vault_count) : null,
       } as AdminDashboard & Record<string, any>;
     }
     return res as AdminDashboard;

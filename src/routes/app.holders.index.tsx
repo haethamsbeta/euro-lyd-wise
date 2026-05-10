@@ -13,6 +13,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
 
@@ -22,6 +23,7 @@ function HoldersList() {
   const [curFilter, setCurFilter] = useState<string | null>(null);
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
+  const { data: dashSummary } = useDashboardSummary();
 
   const { data: summary } = useQuery({
     queryKey: ["holders.summary"],
@@ -136,8 +138,15 @@ function HoldersList() {
         {summary && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Badge variant="secondary" className="text-sm">
-              {summary.holders} holders · {summary.accts} linked accounts
+              Total holders: {fmtTotal(dashSummary?.holderCount ?? null)} ·
+              Linked accounts: {fmtTotal(dashSummary?.holderAccountCount ?? null)} ·
+              Showing first {summary.holders}
             </Badge>
+            {dashSummary?.holderCount != null && summary.holders < dashSummary.holderCount && (
+              <span className="text-[11px] text-muted-foreground italic">
+                Pagination coming soon
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setCurFilter(null)}
@@ -154,7 +163,7 @@ function HoldersList() {
                   onClick={() => setCurFilter(curFilter === c ? null : c)}
                   className={`rounded-full border px-2.5 py-0.5 text-xs ${curFilter === c ? "border-gold text-gold" : "text-muted-foreground"}`}
                 >
-                  {c} · {n}
+                  {c} · {n} <span className="opacity-60">(loaded)</span>
                 </button>
               ))}
           </div>
