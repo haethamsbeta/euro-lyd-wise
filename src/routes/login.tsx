@@ -16,6 +16,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
 import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { authService } from "@/lib/authService";
+import { setAccessToken } from "@/lib/dahabAuthToken";
+import { apiFetch } from "@/lib/dahabApi";
 
 type PortalKind = "staff" | "consumer";
 
@@ -156,6 +158,20 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       setBusy(false);
       toast.error(error.message);
       return;
+    }
+    // Also obtain a Lambda backend access_token so apiFetch can authenticate
+    // against AWS API Gateway. Non-blocking: if Lambda login fails we still
+    // continue with the Supabase session for legacy data paths.
+    try {
+      const lambdaRes = await apiFetch<{ access_token?: string; token?: string }>(
+        "/auth/login",
+        { method: "POST", body: JSON.stringify(parsed.data) },
+      );
+      const token = lambdaRes?.access_token ?? lambdaRes?.token ?? null;
+      if (token) setAccessToken(token);
+      if (import.meta.env.DEV) console.log("[lambda login] token stored?", !!token);
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn("[lambda login] failed", e);
     }
     // Enforce portal/credential separation by checking roles.
     const uid = data.user?.id;
