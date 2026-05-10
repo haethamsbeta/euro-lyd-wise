@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { supabase } from "@/integrations/supabase/client";
+import { BackendPending } from "@/components/app/backend-pending";
 import { formatMinor } from "@/lib/format";
 import { api } from "@/lib/api";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
