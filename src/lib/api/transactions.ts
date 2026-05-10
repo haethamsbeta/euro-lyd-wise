@@ -1,6 +1,6 @@
 // Transactions adapter — list, get, post, correct.
 import { apiFetch, qs } from "./_shared";
-import type { Transaction, TransactionCategory } from "@/lib/dahabApi";
+import type { PagedResult, Transaction, TransactionCategory } from "@/lib/dahabApi";
 
 export interface PostTransactionInput {
   holder_account_id?: string | number | null;
@@ -21,10 +21,15 @@ export const transactionsApi = {
       category?: TransactionCategory; status?: string;
       limit?: number; offset?: number;
     } = {},
-  ) => apiFetch<Transaction[]>(`/api/transactions${qs(params)}`),
+  ) =>
+    apiFetch<PagedResult<Transaction> | Transaction[]>(
+      `/api/transactions${qs(params)}`,
+    ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   get: (id: string | number) => apiFetch<Transaction>(`/api/transactions/${id}`),
   myRecent: (limit = 10) =>
-    apiFetch<Transaction[]>(`/api/transactions/me/recent${qs({ limit })}`),
+    apiFetch<PagedResult<Transaction> | Transaction[]>(
+      `/api/transactions/me/recent${qs({ limit })}`,
+    ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   post: (body: PostTransactionInput) =>
     apiFetch<Transaction>("/api/transactions", {
       method: "POST",
