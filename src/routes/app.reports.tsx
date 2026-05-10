@@ -418,23 +418,31 @@ function ReportsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] uppercase tracking-wider text-text-secondary">Peak Hour</p>
-                    <p className="text-xl font-semibold text-gold tabular-nums">15:00</p>
+                    <p className="text-xl font-semibold text-gold tabular-nums">
+                      {hourlyTraffic.length === 0
+                        ? "—"
+                        : hourlyTraffic.reduce((a, b) => (b.v > a.v ? b : a)).h}
+                    </p>
                   </div>
                 </div>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <BarChart data={hourlyTraffic}>
-                      <XAxis dataKey="h" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis axisLine={false} tickLine={false} tick={axisTick} />
-                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
-                      <Bar dataKey="v" radius={[4, 4, 0, 0]}>
-                        {hourlyTraffic.map((entry, i) => (
-                          <Cell key={i} fill={entry.v > 70 ? GOLD : entry.v > 40 ? "#A8842F" : "#5C4A1F"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                {hourlyTraffic.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/hourly-traffic" />
+                ) : (
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                      <BarChart data={hourlyTraffic}>
+                        <XAxis dataKey="h" axisLine={false} tickLine={false} tick={axisTick} />
+                        <YAxis axisLine={false} tickLine={false} tick={axisTick} />
+                        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+                        <Bar dataKey="v" radius={[4, 4, 0, 0]}>
+                          {hourlyTraffic.map((entry, i) => (
+                            <Cell key={i} fill={entry.v > 70 ? GOLD : entry.v > 40 ? "#A8842F" : "#5C4A1F"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
@@ -443,30 +451,10 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Approval Speed</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">Avg turnaround per day (min)</p>
-                <div className="h-32">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={120}>
-                    <LineChart data={approvalTrend}>
-                      <XAxis dataKey="d" axisLine={false} tickLine={false} tick={axisTick} />
-                      <YAxis hide />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Line type="monotone" dataKey="t" stroke={GOLD} strokeWidth={2} dot={{ fill: GOLD, r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Avg</p>
-                    <p className="text-sm font-semibold text-foreground tabular-nums">19 min</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Best</p>
-                    <p className="text-sm font-semibold text-[var(--success)] tabular-nums">14 min</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-text-secondary">Target</p>
-                    <p className="text-sm font-semibold text-foreground tabular-nums">≤20 min</p>
-                  </div>
-                </div>
+                <BackendPending
+                  endpoint="GET /reports/approval-speed"
+                  note="Approval-speed endpoint not yet implemented."
+                />
               </PremiumCard>
             </div>
 
@@ -475,9 +463,12 @@ function ReportsPage() {
               <PremiumCard className="lg:col-span-2 p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
                 <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
+                {customerGrowth.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="customer_growth_7m not yet returned." />
+                ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <BarChart data={data?.customerGrowth ?? []}>
+                    <BarChart data={customerGrowth}>
                       <XAxis dataKey="m" axisLine={false} tickLine={false} tick={axisTick} />
                       <YAxis axisLine={false} tickLine={false} tick={axisTick} />
                       <Tooltip contentStyle={tooltipStyle} />
@@ -485,32 +476,38 @@ function ReportsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {isLambda && (!topAccounts || topAccounts.length === 0) ? (
-                  <BackendPending endpoint="GET /reports/top-accounts" />
-                ) : (!topAccounts || topAccounts.length === 0) ? (
-                  <p className="text-xs text-text-tertiary">No accounts yet.</p>
+                {!topAccounts || topAccounts.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/business/overview" note="top_accounts not yet returned." />
                 ) : (
                   <ul className="space-y-3">
-                    {topAccounts.map((a: any, i) => (
-                      <li key={`${a.account_id}-${a.currency}`}
-                          className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{a.accounts?.name ?? "—"}</p>
-                            <CurrencyBadge currency={a.currency} className="mt-1" />
+                    {topAccounts.map((a, i) => {
+                      const ccy = displayCurrency(a.currency);
+                      return (
+                        <li key={`${a.account_id}-${a.currency}-${i}`}
+                            className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
+                              {ccy.valid ? (
+                                <CurrencyBadge currency={ccy.code} className="mt-1" />
+                              ) : (
+                                <span className="text-[10px] text-text-tertiary">Currency missing</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
-                          {formatMinor(Number(a.balance_minor), a.currency)}
-                        </span>
-                      </li>
-                    ))}
+                          <span className="text-sm font-semibold tabular-nums text-gold whitespace-nowrap">
+                            {ccy.valid ? formatMinor(a.balance_minor, ccy.code) : "—"}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </PremiumCard>
