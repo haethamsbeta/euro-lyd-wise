@@ -628,7 +628,7 @@ function AccountListBlock({
   );
 }
 
-function TransactionsTab({ entries, accounts }: { entries: any[]; accounts: any[] }) {
+function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { entries: any[]; accounts: any[]; hasMore?: boolean; loading?: boolean; onLoadMore?: () => void }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Credit" | "Debit">("All");
   const accountMap = useMemo(() => {
@@ -735,6 +735,13 @@ function TransactionsTab({ entries, accounts }: { entries: any[]; accounts: any[
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" disabled={loading} onClick={onLoadMore}>
+            {loading ? "Loading…" : "Load more"}
+          </Button>
         </div>
       )}
     </Card>
