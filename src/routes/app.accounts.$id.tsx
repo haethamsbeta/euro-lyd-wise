@@ -186,7 +186,10 @@ function AccountDetail() {
   const balance = Number(a.current_balance ?? 0);
   const wlEnabled = !!a.withdraw_limit_enabled;
   const wlAmount = Number(a.withdraw_limit_amount ?? 0);
-  const available = balance + (wlEnabled ? wlAmount : 0);
+  const backendAvailable = (a as any).available_to_withdraw;
+  const available = backendAvailable != null
+    ? Number(backendAvailable)
+    : balance + (wlEnabled ? wlAmount : 0);
   const utilRaw = balance < 0 && wlEnabled && wlAmount > 0 ? Math.min(1, Math.abs(balance) / wlAmount) : 0;
   const utilPct = Math.round(utilRaw * 100);
   const utilTone = utilPct >= 90 ? "bg-destructive" : utilPct >= 70 ? "bg-amber-500" : "bg-[var(--success)]";
