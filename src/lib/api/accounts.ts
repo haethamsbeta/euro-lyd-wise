@@ -3,7 +3,15 @@ import { apiFetch, qs } from "./_shared";
 import type { HolderAccount, LedgerEntry, PagedResult } from "@/lib/dahabApi";
 
 export const accountsApi = {
-  list: (params: { limit?: number; offset?: number; q?: string } = {}) =>
+  list: (
+    params: {
+      limit?: number;
+      offset?: number;
+      q?: string;
+      currency?: string;
+      status?: string;
+    } = {},
+  ) =>
     apiFetch<PagedResult<HolderAccount> | HolderAccount[]>(`/holder-accounts${qs(params)}`).then(
       (res) => {
         if (Array.isArray(res)) {
