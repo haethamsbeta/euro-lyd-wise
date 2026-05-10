@@ -779,6 +779,9 @@ function TxRow({
         {tx.customer_account_number ? (
           <div className="text-[11px] font-mono text-text-secondary mt-0.5">
             #{tx.customer_account_number}
+            {tx.customer_dahab_number ? (
+              <span className="ml-2 text-gold">· {tx.customer_dahab_number}</span>
+            ) : null}
           </div>
         ) : null}
       </td>
