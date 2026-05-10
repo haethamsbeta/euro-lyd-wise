@@ -308,7 +308,7 @@ function ReportsPage() {
         {/* TOP KPI STRIP */}
         {overviewPending && (
           <BackendPending
-            endpoint="GET /reports/overview"
+            endpoint="GET /reports/business/overview"
             note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
           />
         )}
