@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { REALTIME_MODE, POLL_INTERVALS, DATA_BACKEND } from "@/lib/runtimeConfig";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
+import { BackendPending } from "@/components/app/backend-pending";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,26 @@ type Prefs = {
 function NotifSettingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  if (DATA_BACKEND === "lambda") {
+    return (
+      <>
+        <PageHeader
+          title="Notifications"
+          description="Choose what to be notified about and customize reminders."
+        />
+        <div className="grid gap-6 p-6 lg:grid-cols-2">
+          <BackendPending
+            endpoint="GET /notifications/prefs"
+            note="Notification preferences will load once the backend prefs endpoint is available."
+          />
+          <BackendPending
+            endpoint="GET /admin/push/status"
+            note="Web Push (VAPID) status and per-user device list pending backend wiring."
+          />
+        </div>
+      </>
+    );
+  }
   const [perm, setPerm] = useState<string>("default");
   const [testing, setTesting] = useState(false);
   const [enabling, setEnabling] = useState(false);
