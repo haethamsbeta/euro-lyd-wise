@@ -41,4 +41,26 @@ export const holdersApi = {
     }),
   totals: (id: string | number) =>
     apiFetch<Array<{ currency: string; total_minor: number }>>(`/holders/${id}/totals`),
+  transactions: (
+    id: string | number,
+    params: { limit?: number; offset?: number } = {},
+  ) =>
+    apiFetch<any>(`/holders/${id}/transactions${qs(params)}`).then((res) => {
+      if (Array.isArray(res)) {
+        return {
+          items: res,
+          total: res.length,
+          limit: params.limit ?? res.length,
+          offset: params.offset ?? 0,
+          next_offset: null as number | null,
+        };
+      }
+      return {
+        items: res?.items ?? [],
+        total: typeof res?.total === "number" ? res.total : (res?.items?.length ?? 0),
+        limit: res?.limit ?? params.limit ?? 50,
+        offset: res?.offset ?? params.offset ?? 0,
+        next_offset: (res?.next_offset ?? null) as number | null,
+      };
+    }),
 };

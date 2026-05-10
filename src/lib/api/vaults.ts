@@ -64,7 +64,10 @@ export const vaultsApi = {
 };
 
 export const fxRatesApi = {
-  list: () => apiFetch<FxRate[]>("/admin/fx-rates"),
+  list: () =>
+    apiFetch<FxRate[] | { items: FxRate[] }>("/admin/fx-rates").then((res) =>
+      Array.isArray(res) ? res : (res?.items ?? []),
+    ),
   set: (base: Currency, quote: Currency, rate: number) =>
     apiFetch<FxRate>("/admin/fx-rates", {
       method: "POST",

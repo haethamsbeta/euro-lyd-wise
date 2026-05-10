@@ -134,43 +134,58 @@ function HolderDetail() {
     [holder],
   );
 
-  const { data: ledger } = useQuery({
-    queryKey: ["holder-ledger", holderId, accountIds.join(",")],
-    enabled: accountIds.length > 0,
+  const [ledgerOffset, setLedgerOffset] = useState(0);
+  const [ledgerAcc, setLedgerAcc] = useState<any[]>([]);
+  // Reset accumulator when holder changes
+  useEffect(() => {
+    setLedgerAcc([]);
+    setLedgerOffset(0);
+  }, [holderId]);
+
+  const LEDGER_PAGE = 50;
+  const { data: ledgerPage, isFetching: ledgerLoading } = useQuery({
+    queryKey: ["holder-ledger", holderId, ledgerOffset],
+    enabled: !!holderId && (DATA_BACKEND === "lambda" || accountIds.length > 0),
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        // Aggregate ledgers from each linked holder account.
-        const lists = await Promise.all(
-          accountIds.map(async (aid: any) => {
-            const r: any = await api.accounts.ledger(aid, { limit: 100, offset: 0 }).catch(() => []);
-            const items: any[] = Array.isArray(r) ? r : (r?.items ?? []);
-            return items.map((e: any) => ({
-              id: e.id,
-              account_id: aid,
-              currency_code: e.currency_code,
-              credit_amount: e.credit_amount != null ? Number(e.credit_amount) : Number(e.credit_minor ?? 0) / 100,
-              debit_amount: e.debit_amount != null ? Number(e.debit_amount) : Number(e.debit_minor ?? 0) / 100,
-              description: e.description ?? "",
-              posted_at: e.posted_at,
-              tx_number: e.tx_number,
-              balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
-            }));
-          }),
-        );
-        const flat = lists.flat();
-        flat.sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
-        return flat.slice(0, 200);
+        const r = await api.holders.transactions(id, { limit: LEDGER_PAGE, offset: ledgerOffset });
+        const items = (r.items ?? []).map((e: any) => ({
+          id: e.id,
+          account_id: e.account_id ?? e.holder_account_id ?? null,
+          currency_code: e.currency_code ?? e.currency,
+          credit_amount: e.credit_amount != null ? Number(e.credit_amount) : Number(e.credit_minor ?? 0) / 100,
+          debit_amount: e.debit_amount != null ? Number(e.debit_amount) : Number(e.debit_minor ?? 0) / 100,
+          description: e.description ?? "",
+          posted_at: e.posted_at ?? e.created_at,
+          tx_number: e.tx_number,
+          balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
+        }));
+        return { items, next_offset: r.next_offset, total: r.total };
       }
       const { data, error } = await supabase
         .from("holder_ledger_entries")
         .select("id,account_id,currency_code,credit_amount,debit_amount,description,posted_at,tx_number,balance_after")
         .in("account_id", accountIds)
         .order("posted_at", { ascending: false })
-        .limit(200);
+        .range(ledgerOffset, ledgerOffset + LEDGER_PAGE - 1);
       if (error) throw error;
-      return data ?? [];
+      return { items: data ?? [], next_offset: (data?.length ?? 0) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
     },
   });
+  // Append page items to accumulator when new page arrives.
+  useEffect(() => {
+    if (!ledgerPage) return;
+    setLedgerAcc((prev) => {
+      const seen = new Set(prev.map((e) => String(e.id)));
+      const additions = ledgerPage.items.filter((e: any) => !seen.has(String(e.id)));
+      return [...prev, ...additions];
+    });
+  }, [ledgerPage]);
+  const ledger = ledgerAcc;
+  const ledgerNextOffset = ledgerPage?.next_offset ?? null;
+  const loadMoreLedger = () => {
+    if (ledgerNextOffset != null) setLedgerOffset(ledgerNextOffset);
+  };
 
   function copy(value?: string | null) {
     if (!value) return;
@@ -328,7 +343,13 @@ function HolderDetail() {
             />
           )}
           {activeTab === "Transactions" && (
-            <TransactionsTab entries={ledger ?? []} accounts={accounts} />
+            <TransactionsTab
+              entries={ledger ?? []}
+              accounts={accounts}
+              hasMore={ledgerNextOffset != null}
+              loading={ledgerLoading}
+              onLoadMore={loadMoreLedger}
+            />
           )}
           {activeTab === "Activity" && <ActivityTab entries={ledger ?? []} />}
           {activeTab === "Notes" && <NotesTab isReadOnly={isReadOnly} />}
@@ -607,7 +628,7 @@ function AccountListBlock({
   );
 }
 
-function TransactionsTab({ entries, accounts }: { entries: any[]; accounts: any[] }) {
+function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { entries: any[]; accounts: any[]; hasMore?: boolean; loading?: boolean; onLoadMore?: () => void }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Credit" | "Debit">("All");
   const accountMap = useMemo(() => {
@@ -714,6 +735,13 @@ function TransactionsTab({ entries, accounts }: { entries: any[]; accounts: any[
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {hasMore && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" disabled={loading} onClick={onLoadMore}>
+            {loading ? "Loading…" : "Load more"}
+          </Button>
         </div>
       )}
     </Card>

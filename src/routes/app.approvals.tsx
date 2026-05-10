@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,20 +40,26 @@ function Approvals() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [partialTarget, setPartialTarget] = useState<any | null>(null);
   const [partialAmount, setPartialAmount] = useState("");
+  const PAGE = 100;
+  const [offset, setOffset] = useState(0);
+  const [acc, setAcc] = useState<any[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["approvals"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     qc.invalidateQueries({ queryKey: ["transactions.list.v2"] });
+    setAcc([]);
+    setOffset(0);
+    setNextOffset(null);
   }
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["approvals"],
+  const { data, isLoading, error, isFetching } = useQuery({
+    queryKey: ["approvals", offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.approvals.pending({ limit: 100 });
-        const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
-        return (list ?? []).map((r: any) => ({
+        const r = await api.approvals.pendingPaged({ limit: PAGE, offset });
+        const items = (r.items ?? []).map((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
           direction: r.direction,
@@ -66,19 +72,32 @@ function Approvals() {
           created_at: r.created_at,
           customer_account_id: r.customer_account_id ?? null,
         }));
+        return { items, next_offset: r.next_offset };
       }
       const { data, error } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, requested_amount_minor, review_reason, comment, created_at, customer_account_id")
-        .eq("status", "pending").order("created_at", { ascending: false });
+        .eq("status", "pending").order("created_at", { ascending: false })
+        .range(offset, offset + PAGE - 1);
       if (error) throw error;
-      return data ?? [];
+      const items = data ?? [];
+      return { items, next_offset: items.length === PAGE ? offset + PAGE : null };
     },
     retry: false,
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.approvals : false,
     refetchOnWindowFocus: true,
   });
+  useEffect(() => {
+    if (!data) return;
+    setNextOffset(data.next_offset);
+    setAcc((prev) => {
+      const seen = new Set(prev.map((r) => r.id));
+      const additions = data.items.filter((r: any) => !seen.has(r.id));
+      return [...prev, ...additions];
+    });
+  }, [data]);
   const pending = isPendingError(error);
+  const rows = acc;
   const isLambda = DATA_BACKEND === "lambda";
   const writesDisabled = isLambda; // POST endpoints not confirmed live yet
   const approve = useMutation({
@@ -119,11 +138,11 @@ function Approvals() {
         ) : (
         <Card>
           <CardContent className="p-0">
-            {isLoading ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
-              : data && data.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
+            {isLoading && rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
+              : rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
               : (
               <ul className="divide-y">
-                {data!.map((row: any) => (
+                {rows.map((row: any) => (
                   <li key={row.id} className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                       <div className="min-w-0 space-y-1">
@@ -179,6 +198,13 @@ function Approvals() {
             )}
           </CardContent>
         </Card>
+        )}
+        {!pending && nextOffset != null && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => setOffset(nextOffset)}>
+              {isFetching ? "Loading…" : "Load more"}
+            </Button>
+          </div>
         )}
       </div>
 
