@@ -76,6 +76,10 @@ export async function apiFetch<T>(
     if (!res.ok) throw new ApiError(res.statusText || "Request failed", res.status);
     throw new ApiError("Invalid JSON response", res.status);
   }
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log("[apiFetch]", res.status, url, envelope);
+  }
 
   if (!res.ok || !envelope?.success) {
     throw new ApiError(envelope?.message ?? res.statusText, res.status);
