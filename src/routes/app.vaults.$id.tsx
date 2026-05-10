@@ -80,22 +80,24 @@ function VaultDetail() {
     queryKey: ["vault.tx", id],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.vaults
-          .recentActivity(id, { limit: 200 })
+        const res = await api.vaults
+          .recentActivity(id, { limit: 200, offset: 0 })
           .catch(() => null);
-        if (!Array.isArray(rows)) return null; // treat as endpoint pending
+        if (!res) return null;
+        const rows: any[] = Array.isArray((res as any).items) ? (res as any).items : [];
         return rows.map((r: any) => ({
           id: r.id,
           tx_number: r.tx_number,
-          created_at: r.posted_at,
-          comment: r.description,
+          created_at: r.posted_at ?? r.created_at,
+          comment: r.description ?? r.comment ?? "",
+          holder_name: r.holder_name ?? null,
           debit_minor: Number(r.debit_minor ?? 0),
           credit_minor: Number(r.credit_minor ?? 0),
           balance_after: Number(r.balance_after_minor ?? 0),
-          currency: vault?.currency_code,
-          status: "posted",
+          currency: r.currency_code ?? vault?.currency_code,
+          status: r.status ?? "posted",
           direction: Number(r.debit_minor ?? 0) > 0 ? "deposit" : "withdraw",
-          accounts: null,
+          accounts: r.holder_name ? { name: r.holder_name, account_number: r.account_number ?? "" } : null,
         }));
       }
       const { data, error } = await supabase
