@@ -1,85 +1,60 @@
 ## Goal
 
-Wire FX Rates, Audit, Approvals, Reports gaps, and Notifications to the Lambda backend without removing UI sections. When an endpoint is missing/404, show a clear "Backend endpoint pending" empty state — never invent data, never fall back to Supabase in lambda mode. Document the wiring status in `docs/NEXT_BACKEND_ENDPOINTS_WIRING.md`.
+Produce a complete, evidence-based audit of every DAHAB Lambda-mode page, mapping each UI element (card, table, chart, KPI) to the **endpoint** and **DAHABDB field** it currently reads, the endpoint/field it *should* read, and the exact fix. Then apply only the safe frontend mapping fixes. No redesign, no removed sections, no mock data, no Supabase fallback in lambda mode, no fabricated values.
 
-## Cross-cutting helpers
+The deliverable is a single audit document plus a prioritized fix pass.
 
-### 1. Detect "endpoint missing" vs real errors
-- `apiFetch` already throws `ApiError` with `.status`. Treat `status === 404` (or status `0`/network when DEV) as "pending" → render the pending state. All other errors → render normal error message.
-- Add a tiny shared helper file `src/components/app/backend-pending.tsx` exporting:
-  - `<BackendPending endpoint="GET /admin/fx-rates" note="..." />` — neutral card with monospace endpoint + short explanation.
-  - `isPendingError(err)` → returns true if `ApiError.status === 404`.
+## Deliverable
 
-No changes to `_shared.ts` or `dahabApi.ts`.
+`docs/LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md` containing six tables exactly as the brief specifies:
 
-## Page changes (lambda mode only — Supabase branches stay untouched for non-lambda dev)
+1. Page endpoint matrix — `Page | Current endpoint | Correct endpoint | Status | Fix`
+2. Balance-source matrix — `UI element | Current field | Correct field | Correct endpoint | Status`
+3. Dashboard metric matrix — `Metric/card | Current source | Correct source | Backend returned? | Fix`
+4. Reports metric matrix — `Widget/chart | Endpoint | Fields | Current status | Fix`
+5. Currency audit — `Location | Current fallback | Correct behavior | Fix`
+6. Priority list — P0 wrong balances/totals, P1 wrong dashboard/report metrics, P2 missing details, P3 future write features
 
-### 2. `src/routes/app.admin.fx-rates.tsx`
-- Replace the Supabase query with a `DATA_BACKEND === "lambda"` branch calling `api.fxRates.list()`.
-- Map backend `FxRate { base, quote, rate, effective_at, set_by_user_id }` into the existing card/history shape (currency = `base` when `quote === 'USD'`, `usd_rate = rate`, `as_of_date = effective_at`).
-- On 404 → render `<BackendPending endpoint="GET /admin/fx-rates" />` for both the rate cards row and the history table; keep the "Add rate" button visible but disable it with a tooltip "Backend write endpoint pending".
-- Keep existing dialog UI; in lambda mode, the Save mutation calls `api.fxRates.set(...)`. If 404, surface `toast.error("Backend endpoint pending: POST /admin/fx-rates")` and don't call Supabase.
-- Do NOT calculate consolidated USD anywhere on this page.
+## Audit scope (every route enumerated)
 
-### 3. `src/routes/app.audit.tsx`
-- Already calls `api.audit.list()` in lambda mode but swallows errors with `catch → []`. Replace the `try/catch` with a real error path:
-  - On 404 → render `<BackendPending endpoint="GET /audit" />` instead of cards.
-  - On other errors → small error card with message.
-- Keep PDF export builder; on 404 also surface a toast "Backend endpoint pending: GET /audit".
-- Remove the lambda-mode `catch → []` so empty list ≠ "no data" (real empty result still renders the existing "No audit entries yet." card).
+`/app` (`app.index.tsx`), `/app/holders`, `/app/holders/$id`, `/app/holders/new`, `/app/accounts` (linked accounts list), `/app/accounts/$id`, `/app/transactions`, `/app/transactions/$id`, `/app/transactions/new/*`, `/app/vaults`, `/app/vaults/$id`, `/app/reports`, `/app/audit`, `/app/approvals`, `/app/users`, `/app/admin/fx-rates`, `/app/admin/branches`, `/app/settings/notifications`, `/app/settings/security`, `/app/me/activity`, `/app/portal-accounts`, `/app/groups`, `/portal`, `/portal/$accountId/$currency`, `/m`, `/m/dashboard`.
 
-### 4. `src/routes/app.approvals.tsx`
-- Currently 100% Supabase. Add a `DATA_BACKEND === "lambda"` branch that:
-  - Lists via `api.approvals.pending({ limit: 100 })`.
-  - On 404 → `<BackendPending endpoint="GET /approvals/pending" />` and **disable** Approve / Reject / Partial buttons with a title attribute "Backend write endpoints pending".
-  - When list works but write endpoints aren't ready, keep the buttons disabled in lambda mode for now (we don't have status detection for writes until the user clicks). Simpler: in lambda mode, render the Approve/Reject/Partial buttons disabled with tooltip "Approval write endpoints not enabled yet"; we'll re-enable in a follow-up once `POST /approvals/:id/approve` is confirmed live.
-- Map backend `Transaction` shape into the row shape used by the JSX (tx_number, direction, channel, currency, amount_minor, requested_amount_minor, review_reason, comment, created_at).
-- Supabase branch stays as-is for non-lambda dev.
+For each route I will list every section/card/table/chart, the current adapter call + field reads, the correct adapter call + field reads per the rules in section A of the brief, and the verdict (correct / wrong endpoint / wrong field / loaded-page-as-total / missing endpoint / mapping-only fix).
 
-### 5. `src/routes/app.reports.tsx` — gaps
-- Lambda branch in `useReportsData` already returns zeros — leave as-is (no fabrication). Add a small `<BackendPending endpoint="GET /reports/overview" />` ribbon above the Business KPI strip when `__lambdaEmpty` is true so the empty zeros aren't mistaken for real numbers.
-- `useTopAccounts` is gated `enabled: DATA_BACKEND !== "lambda"` — leave gated; in the Top Accounts card, when in lambda mode and array is empty, show `<BackendPending endpoint="GET /reports/top-accounts" />` inside the card body. Do NOT remove the card.
-- For Tellers lens: when `tellers.length === 0` in lambda mode → `<BackendPending endpoint="GET /reports/tellers/today" />` inside the existing leaderboard card (keep card chrome).
-- For Compliance lens: when `compliance.flagged_txns === 0 && typology.length === 0 && alert_volume.length === 0`, show pending state inside the compliance section with `endpoint="GET /reports/compliance/overview"`. Do NOT fabricate KYC/AML targets — already zeroed when backend missing.
-- Remove the unused module-scope `approvalTrend`, `txnMix`, `alertVolume` mock arrays in lambda mode by gating their usage behind `DATA_BACKEND !== "lambda"` (keep arrays for legacy dev mode). Where these arrays feed charts, swap to `compliance.alert_volume` / empty in lambda mode and render the pending state when empty.
+## Known issues already visible from a first pass (will be confirmed and itemised in the doc)
 
-### 6. `src/routes/app.settings.notifications.tsx`
-- Add a lambda-mode branch for `prefs` query: call `api.notifications.prefs()`. On 404 → render `<BackendPending endpoint="GET /notifications/prefs" />` inside the preferences card; disable the Save button.
-- Devices list (`push_subscriptions`): in lambda mode call `api.push.adminStatus()` for VAPID configured + counts. If 404 → `<BackendPending endpoint="GET /admin/push/status" />` inside the devices card. Per-device list endpoint isn't available yet → show pending state for the per-user device table only in lambda mode.
-- Push enable/disable buttons: keep functional only when `vapid_configured === true`; otherwise disable with tooltip.
+- `m.dashboard.tsx`, `portal.tsx`, `portal.$accountId.$currency.tsx`, `app.transactions.$id.tsx`, `app.me.activity.tsx`, `app.audit.tsx`, `app.approvals.tsx`, parts of `app.reports.tsx` and `app.index.tsx` still query Supabase directly with no `DATA_BACKEND === "lambda"` branch — Supabase fallback in lambda mode, must be replaced with the corresponding Lambda adapter call and a backend-pending state when the endpoint is missing.
+- Vault detail (`app.vaults.$id.tsx`) already follows the cash_vault_effect_minor → amount_minor rule and uses backend `balance_minor` for the summary — verify and confirm.
+- Vault list (`app.vaults.index.tsx`) — confirm it shows all 10 single-currency vault accounts from `/vaults` (not 3 design cards) and uses `balance_minor` directly.
+- Holder list / holder detail — confirm `/holders/:id/totals` is the source for holder totals and `summary.linked_account_count` is used for the linked account chip (recent fix, re-verify).
+- Holder accounts global page — confirm `/holder-accounts?limit=&offset=` paged envelope (`total`, `next_offset`) is used and `current_balance` is the row balance.
+- Transactions list/detail — confirm `amount_minor` is used as the transaction amount everywhere and never confused with `current_balance`/`balance_after`/`cash_vault_effect_minor`.
+- Dashboard KPI cards (`app.index.tsx`) — confirm they read `summary.holder_count`, `holder_account_count`, `transaction_count`, `vault_count`, `pending_count` from `/dashboard/staff` and not from page-row counts; flag any KPI (active_holders, txns_today, cash/bank split, recent activity holder names) that the backend does not return as "backend extension needed".
+- Reports — confirm every widget maps to a `/reports/*` endpoint and that cash-flow rows are pivoted in the frontend by day+currency+direction; no static arrays used as live data; no FX math in the frontend; compliance/teller gauges show backend-pending when fields are absent.
+- Currency fallbacks — `rg` already shows no `"UNK"` literal; full audit will still grep for `|| "UNK"`, `|| "Unknown"`, `currency_code ||`, hard-coded `"USD"` defaults (e.g. `app.vaults.index.tsx:271` uses `v.currency_code ?? "USD"` — that is a fabricated currency fallback and must become "Currency missing").
 
-## Documentation
+## Process
 
-### 7. Create `docs/NEXT_BACKEND_ENDPOINTS_WIRING.md`
-Markdown table with columns: `Page | Expected endpoint | Adapter call | Current status | Frontend behavior until live`. Rows for each item above:
-
-```
-| /app/admin/fx-rates | GET /admin/fx-rates | api.fxRates.list() | pending | BackendPending card; Add Rate disabled |
-| /app/admin/fx-rates | POST /admin/fx-rates | api.fxRates.set() | pending | toast on submit; no Supabase fallback |
-| /app/audit | GET /audit | api.audit.list() | pending | BackendPending card; export disabled |
-| /app/approvals | GET /approvals/pending | api.approvals.pending() | pending | BackendPending; write buttons disabled |
-| /app/approvals | POST /approvals/:id/approve|reject | api.approvals.approve/reject() | pending | buttons disabled with tooltip |
-| /app/reports | GET /reports/overview | (none yet) | pending | KPI ribbon shows pending |
-| /app/reports | GET /reports/top-accounts | (none yet) | pending | top accounts card empty-state |
-| /app/reports | GET /reports/tellers/today | api.reports.tellersToday() | live (may be empty) | empty → BackendPending |
-| /app/reports | GET /reports/compliance/overview | api.reports.complianceOverview() | live (may be empty) | empty → BackendPending |
-| /app/settings/notifications | GET /notifications/prefs | api.notifications.prefs() | pending | BackendPending; save disabled |
-| /app/settings/notifications | GET /admin/push/status | api.push.adminStatus() | pending | BackendPending; enable disabled if VAPID missing |
-```
-
-Plus a short "Conventions" section describing `BackendPending` and the "404 = pending" rule.
+1. Read every route file and adapter listed above (parallel reads).
+2. For each section/card/table, record current endpoint+field and compare to the rules in brief section A. Record the verdict.
+3. Write the six tables into `docs/LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md`.
+4. Apply only **safe frontend mapping fixes** where the backend already returns the correct field. Examples expected:
+   - replace remaining Supabase queries in lambda mode with Lambda adapter calls + `BackendPending` for missing endpoints (`m.dashboard`, `portal.*`, `app.transactions.$id`, `app.me.activity`, `app.audit` already-fixed verify, `app.reports` Supabase branches, etc.)
+   - remove any `currency_code ?? "USD"` / `?? "UNK"` style fallbacks and replace with a "Currency missing" badge
+   - ensure transaction rows never display `balance_after` / `current_balance` / `cash_vault_effect_minor` as the transaction amount
+   - ensure holder-accounts list uses paged envelope `total` instead of `items.length`
+   - ensure dashboard KPI cards never derive totals from the loaded `recent_transactions` / first holder page
+5. For backend gaps, list the exact endpoint and exact fields the backend must add (no UI removal, render `BackendPending` until live).
+6. Re-run `bunx tsc --noEmit` and update `docs/NEXT_BACKEND_ENDPOINTS_WIRING.md` cross-reference.
 
 ## Out of scope
 
-- No backend changes.
-- No redesign of cards or page layouts.
-- No mock data, no Supabase fallback in lambda mode.
-- Approval write endpoints (`approve`/`reject`) stay disabled in lambda mode until backend confirms — covered in follow-up turn.
-- No realtime/poll changes.
+- No redesigns, no removed sections, no new mock data.
+- No write endpoints wired (approve/reject/post stay disabled in lambda mode until backend confirms).
+- No FX math in the frontend.
+- No Supabase reads in lambda mode after the fix pass.
 
-## Acceptance verification
+## Risks / open questions
 
-- With Lambda configured but the four pending endpoints missing, every page renders without console errors and shows `BackendPending` cards naming the exact endpoint.
-- No "fake" rates / audit rows / approvals / charts appear in lambda mode.
-- `bunx tsc --noEmit` passes.
-- `docs/NEXT_BACKEND_ENDPOINTS_WIRING.md` exists with the table above.
+- A few routes (portal, m.dashboard, app.audit, app.me.activity) currently *only* support Supabase. If the corresponding Lambda endpoints don't exist yet, the lambda-mode behavior will be a `BackendPending` card for those sections — please confirm that's acceptable rather than leaving the Supabase path active in lambda mode.
+- `app.reports.tsx` has a large Supabase branch behind `enabled: DATA_BACKEND !== "lambda"` — that branch is fine to keep for non-lambda mode; the audit only flags lambda-mode behavior.

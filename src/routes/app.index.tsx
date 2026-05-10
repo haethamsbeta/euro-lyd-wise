@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import { BackendPending } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -111,6 +112,8 @@ function useDashData() {
           created_at: r.created_at ?? r.posted_at,
           comment: r.comment ?? r.description ?? "",
           customer_account_id: String(r.customer_account_id ?? ""),
+          holder_name: r.holder_name ?? null,
+          account_number: r.account_number ?? r.dahab_account_number ?? null,
         }));
         return {
           accounts,
@@ -616,6 +619,17 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
   const { data } = useQuery({
     queryKey: ["dash.urgent.approvals"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const res = await api.approvals.pendingPaged({ limit: 4 }).catch(() => null);
+        return (res?.items ?? []).map((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          created_at: r.created_at ?? r.posted_at,
+        }));
+      }
       const { data } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment")
@@ -663,13 +677,44 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
 }
 
 function RecentAuditEvents() {
-  const events = [
-    { id: 1, action: "Transaction approved", user: "admin", details: "TXN-9921 cleared", status: "Success", at: new Date() },
-    { id: 2, action: "Vault threshold check", user: "system", details: "Bank EUR reserves below 15%", status: "Warning", at: new Date(Date.now() - 600000) },
-    { id: 3, action: "Holder created", user: "teller01", details: "Al-Madina Trading onboarded", status: "Success", at: new Date(Date.now() - 1200000) },
-    { id: 4, action: "Login attempt", user: "unknown", details: "Failed MFA from 41.252.x.x", status: "Failed", at: new Date(Date.now() - 3600000) },
-    { id: 5, action: "Backup snapshot", user: "system", details: "Nightly snapshot completed", status: "Success", at: new Date(Date.now() - 7200000) },
-  ];
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["dash.recent.audit"],
+    queryFn: async () => {
+      const res = await api.audit.listPaged({ limit: 5 });
+      return res.items ?? [];
+    },
+    retry: false,
+    enabled: DATA_BACKEND === "lambda",
+  });
+  if (DATA_BACKEND !== "lambda") {
+    return (
+      <BackendPending
+        endpoint="GET /audit"
+        note="Recent audit events are sourced from the audit log endpoint."
+      />
+    );
+  }
+  if (error) {
+    return (
+      <BackendPending
+        endpoint="GET /audit"
+        note={(error as Error).message}
+      />
+    );
+  }
+  const events = (data ?? []).map((e: any, i: number) => ({
+    id: e.id ?? i,
+    action: e.action ?? e.event_type ?? "Audit event",
+    user: e.actor_user_name ?? e.actor ?? e.actor_user_id ?? "system",
+    details: e.summary ?? e.description ?? "",
+    status:
+      e.severity === "high" || e.status === "failed"
+        ? "Failed"
+        : e.severity === "warning"
+        ? "Warning"
+        : "Success",
+    at: new Date(e.created_at ?? e.posted_at ?? Date.now()),
+  }));
   return (
     <PremiumCard className="p-0 overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex justify-between items-center">
@@ -677,6 +722,11 @@ function RecentAuditEvents() {
         <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">View Full Log →</Link>
       </div>
       <div className="divide-y divide-border">
+        {isLoading && events.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
+        ) : events.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">No audit events yet.</div>
+        ) : null}
         {events.map((log) => (
           <div key={log.id} className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors">
             <div>
@@ -698,31 +748,13 @@ function RecentAuditEvents() {
 }
 
 function AnomalyWatchlist() {
-  const items = [
-    { id: 1, title: "Unusual Login Location", desc: "Admin account accessed from outside Libya", severity: "High" },
-    { id: 2, title: "Velocity Limit Exceeded", desc: "3 rapid transfers from HLD-10294", severity: "Medium" },
-    { id: 3, title: "After-hours Vault Access", desc: "Tripoli Main vault opened at 23:45", severity: "High" },
-  ];
+  // No backend endpoint for anomaly detection yet — render a backend-pending
+  // card instead of fabricating items.
   return (
-    <PremiumCard className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Anomaly Watchlist</h3>
-        <ShieldAlert className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div className="space-y-3">
-        {items.map((a) => (
-          <div key={a.id} className="p-3 rounded-lg bg-surface-2/50 border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold text-foreground">{a.title}</span>
-              <span className={cn("text-[10px] uppercase tracking-wider font-bold", a.severity === "High" ? "text-red-400" : "text-amber-400")}>
-                {a.severity}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">{a.desc}</div>
-          </div>
-        ))}
-      </div>
-    </PremiumCard>
+    <BackendPending
+      endpoint="GET /reports/anomalies (proposed)"
+      note="Anomaly watchlist will populate once the backend exposes an anomaly detection endpoint."
+    />
   );
 }
 
