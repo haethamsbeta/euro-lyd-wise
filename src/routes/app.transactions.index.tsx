@@ -650,12 +650,39 @@ function TxList() {
               </tbody>
             </table>
           </div>
-          {/* Footer strip */}
-          <div className="border-t border-border bg-[color:var(--surface-2)]/30 px-4 py-3 flex items-center justify-between text-xs text-text-secondary">
+          {/* Footer strip — pagination */}
+          <div className="border-t border-border bg-[color:var(--surface-2)]/30 px-4 py-3 flex items-center justify-between gap-3 text-xs text-text-secondary">
             <span>
-              {filtered.length} of {(data ?? []).length}
+              Showing {filtered.length} of {(data ?? []).length} on this page
+              <span className="font-mono ml-2">· {PAGE_SIZE} per page</span>
             </span>
-            <span className="font-mono">Last 200 transactions</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono">Page 1</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0}>
+                    <Button variant="outline" size="sm" disabled>
+                      Previous
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>You are on the first page.</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0}>
+                    <Button variant="outline" size="sm" disabled={!backendPaginationEnabled}>
+                      Next page
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {backendPaginationEnabled
+                    ? "Load the next 50 transactions"
+                    : "Pagination coming soon — backend offset support pending."}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </PremiumCard>
       </div>
