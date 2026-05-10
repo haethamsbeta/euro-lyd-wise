@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { REALTIME_MODE, POLL_INTERVAL_MS } from "@/lib/runtimeConfig";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { toast } from "sonner";
 
 export type NotifEvent =
@@ -79,7 +79,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     refresh();
     if (REALTIME_MODE === "off") return;
     if (REALTIME_MODE === "polling") {
-      const id = window.setInterval(refresh, POLL_INTERVAL_MS);
+      const id = window.setInterval(refresh, POLL_INTERVALS.notifications);
       const onVis = () => {
         if (document.visibilityState === "visible") refresh();
       };
