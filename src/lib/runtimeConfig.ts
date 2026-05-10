@@ -26,6 +26,7 @@ export const POLL_INTERVALS = {
   pushStatus: 30_000,
   dashboard: 60_000,
   vaultActivity: 60_000,
+  transactions: 60_000,
   reports: 120_000,
 } as const;
 
