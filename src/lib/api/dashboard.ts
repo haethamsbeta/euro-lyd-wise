@@ -25,7 +25,30 @@ export interface AuditorDashboard {
 }
 
 export const dashboardApi = {
-  admin: () => apiFetch<AdminDashboard>("/dashboard/admin"),
+  admin: async () => {
+    const res = await apiFetch<any>("/dashboard/staff");
+    if (import.meta.env.DEV) console.log("dashboard payload", res);
+    // Normalize new contract { summary, vault_balances_by_currency,
+    // recent_transactions } into the legacy AdminDashboard shape so
+    // existing call sites keep working without a sweeping refactor.
+    if (res && (res.summary || res.vault_balances_by_currency)) {
+      const s = res.summary ?? {};
+      const vb: any[] = res.vault_balances_by_currency ?? [];
+      const totals = vb.map((row) => ({
+        currency: row.currency,
+        cash_minor: Number(row.cash_minor ?? row.cash ?? 0),
+        bank_minor: Number(row.bank_minor ?? row.bank ?? 0),
+      }));
+      return {
+        ...res,
+        totals,
+        pending_approvals: Number(s.pending_approvals ?? 0),
+        active_holders: Number(s.active_holders ?? s.holders ?? 0),
+        txns_today: Number(s.txns_today ?? 0),
+      } as AdminDashboard & Record<string, any>;
+    }
+    return res as AdminDashboard;
+  },
   teller: () => apiFetch<TellerDashboard>("/dashboard/teller"),
   auditor: () => apiFetch<AuditorDashboard>("/dashboard/auditor"),
 };
