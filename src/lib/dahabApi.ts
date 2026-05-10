@@ -38,6 +38,14 @@ export function setAuthTokenProvider(provider: TokenProvider) {
 }
 
 // --- Core fetch -----------------------------------------------------------
+function normalizeApiPath(path: string): string {
+  let p = path || "/";
+  if (!p.startsWith("/")) p = "/" + p;
+  if (p.startsWith("/api/")) p = p.slice(4); // "/api/health" -> "/health"
+  if (p === "/api") p = "/";
+  return p;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -52,18 +60,13 @@ export async function apiFetch<T>(
   const token = await tokenProvider();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  // Defensive normalization: if API_BASE_URL already ends with /api and the
-  // caller also passed a path starting with /api/, strip the duplicate prefix
-  // so we never produce /api/api/... URLs.
-  const baseEndsWithApi = /\/api\/?$/.test(API_BASE_URL);
-  let normalizedPath = path;
-  if (baseEndsWithApi && normalizedPath.startsWith("/")) {
-    normalizedPath = normalizedPath.slice(4); // remove leading "/api"
-  } else if (baseEndsWithApi && normalizedPath === "/api") {
-    normalizedPath = "/";
+  const normalizedPath = normalizeApiPath(path);
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  const url = `${base}${normalizedPath.startsWith("/") ? normalizedPath : "/" + normalizedPath}`;
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log("[apiFetch]", init.method ?? "GET", url);
   }
-  const base = API_BASE_URL.replace(/\/$/, "");
-  const url = `${base}${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
   const res = await fetch(url, { ...init, headers });
 
   let envelope: ApiEnvelope<T> | null = null;
