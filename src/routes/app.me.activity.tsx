@@ -5,37 +5,35 @@ import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinor, formatDateTime, formatMinorOrMissing } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
+import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/me/activity")({ component: MyActivity });
 
 function MyActivity() {
   const t = useT();
   const { user } = useAuth();
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ["my.activity", user?.id],
     enabled: !!user?.id,
+    retry: false,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        try {
-          const rows = await api.transactions.myRecent(200);
-          return (rows ?? []).map((r: any) => ({
+        const rows = await api.transactions.myRecent(200);
+        return (rows ?? []).map((r: any) => ({
             id: String(r.id ?? r.transaction_id ?? crypto.randomUUID()),
             tx_number: r.tx_number ?? r.reference ?? String(r.id ?? ""),
             direction: (r.direction ?? (r.credit_minor ? "deposit" : "withdraw")) as "deposit" | "withdraw",
             channel: r.channel ?? r.transaction_category ?? "—",
-            currency: r.currency ?? r.currency_code ?? "USD",
+            currency: (r.currency ?? r.currency_code ?? null) as string | null,
             amount_minor: r.amount_minor ?? r.credit_minor ?? r.debit_minor ?? 0,
             status: r.status ?? "posted",
             comment: r.comment ?? r.description ?? null,
             created_at: r.created_at ?? r.posted_at ?? r.ts ?? new Date().toISOString(),
           }));
-        } catch {
-          return [];
-        }
       }
       const { data, error } = await supabase.from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
@@ -46,8 +44,10 @@ function MyActivity() {
     },
   });
 
+  const lambdaPending = DATA_BACKEND === "lambda" && error && isPendingError(error);
   const totals = (data ?? []).reduce((acc, t) => {
     if (t.status !== "posted") return acc;
+    if (!t.currency) return acc;
     const k = `${t.direction}-${t.currency}` as const;
     acc[k] = (acc[k] ?? 0) + t.amount_minor;
     return acc;
@@ -57,6 +57,12 @@ function MyActivity() {
     <div>
       <PageHeader title={t("activity.title")} description={t("activity.subtitle")} />
       <div className="space-y-4 p-4 sm:p-6">
+        {lambdaPending ? (
+          <BackendPending
+            endpoint="GET /transactions/me/recent"
+            note="My recent activity will populate once the backend exposes this endpoint. No Supabase fallback is used in lambda mode."
+          />
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(["USD", "EUR", "LYD"] as const).map((c) => (
             <Card key={c}>
@@ -82,7 +88,7 @@ function MyActivity() {
                     <td className="px-4 py-2 text-muted-foreground">{formatDateTime(row.created_at)}</td>
                     <td className="px-4 py-2">{t(`tx.direction.${row.direction}`)}</td>
                     <td className="px-4 py-2">{t(`tx.channel.${row.channel}`)}</td>
-                    <td className="px-4 py-2 text-end font-mono">{formatMinor(row.amount_minor, row.currency)}</td>
+                    <td className="px-4 py-2 text-end font-mono">{formatMinorOrMissing(row.amount_minor, row.currency)}</td>
                     <td className="px-4 py-2"><Badge variant={row.status === "posted" ? "secondary" : row.status === "pending" ? "outline" : "destructive"}>{t(`tx.status.${row.status}`)}</Badge></td>
                   </tr>
                 ))}
