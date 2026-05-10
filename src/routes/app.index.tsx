@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import { BackendPending } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -111,6 +112,8 @@ function useDashData() {
           created_at: r.created_at ?? r.posted_at,
           comment: r.comment ?? r.description ?? "",
           customer_account_id: String(r.customer_account_id ?? ""),
+          holder_name: r.holder_name ?? null,
+          account_number: r.account_number ?? r.dahab_account_number ?? null,
         }));
         return {
           accounts,
