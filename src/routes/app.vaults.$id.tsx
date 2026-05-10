@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   ArrowDownToLine,
   ArrowUpFromLine,
-  ArrowRightLeft,
   Search,
   Download,
   TrendingUp,
@@ -77,7 +76,7 @@ function VaultDetail() {
     },
   });
 
-  const { data: tx, isError: txError } = useQuery({
+  const { data: tx } = useQuery({
     queryKey: ["vault.tx", id],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
