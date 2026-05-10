@@ -374,6 +374,39 @@ function TxList() {
                 { header: "Description" },
               ]}
               buildRows={async (from, to) => {
+                if (DATA_BACKEND === "lambda") {
+                  const rows = await api.transactions.list({
+                    from: from.toISOString(),
+                    to: to.toISOString(),
+                    limit: 5000,
+                  });
+                  return rows.map((r: any) => {
+                    const dir = r.direction === "deposit" ? "Deposit" : "Withdraw";
+                    const currency = r.currency ?? r.currency_code;
+                    const amountMinor = Number(r.amount_minor ?? 0);
+                    const sentence = describeTx({
+                      direction: r.direction,
+                      status: r.status,
+                      channel: r.channel ?? "cash",
+                      amount: formatMinor(amountMinor, currency),
+                      customerName: null,
+                      comment: r.comment ?? r.description ?? "",
+                      isReversal: !!r.reverses_tx_id,
+                      isCorrected: !!r.corrected_by_tx_id,
+                    });
+                    return [
+                      r.tx_number,
+                      formatDateTime(r.created_at ?? r.posted_at),
+                      "—",
+                      dir,
+                      String(r.channel ?? "—"),
+                      `${formatMinor(amountMinor, currency)} ${currency}`,
+                      String(r.status),
+                      "—",
+                      sentence,
+                    ];
+                  });
+                }
                 const { data, error } = await supabase
                   .from("transactions")
                   .select(
