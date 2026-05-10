@@ -921,6 +921,10 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
                 <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
+                {isLambda && riskTypology.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/compliance/overview" note="risk_typology not yet returned." />
+                ) : (
+                <>
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%" minHeight={150}>
                     <PieChart>
@@ -942,6 +946,8 @@ function ReportsPage() {
                     </div>
                   ))}
                 </div>
+                </>
+                )}
               </PremiumCard>
             </div>
           </motion.div>
