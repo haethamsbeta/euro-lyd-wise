@@ -136,11 +136,19 @@ function TxList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.focus]);
 
+  // Page size matches backend contract: GET /api/transactions?limit=50
+  const PAGE_SIZE = 50;
+  // Reserved for future server-side pagination (limit=50&offset=N).
+  // Today the backend returns only the first 50 rows, so the "Next page"
+  // control is disabled until offset/cursor support lands.
+  const [offset] = useState(0);
+  const backendPaginationEnabled = false;
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["transactions.list.v2", debouncedQ],
+    queryKey: ["transactions.list.v2", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.transactions.list({ limit: 200 });
+        const rows = await api.transactions.list({ limit: PAGE_SIZE, offset });
         return rows.map<Tx>((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
@@ -168,7 +176,7 @@ function TxList() {
            transaction_attachments(count)`,
         )
         .order("created_at", { ascending: false })
-        .limit(200);
+        .range(offset, offset + PAGE_SIZE - 1);
       if (error) throw error;
       const rows = (data ?? []) as any[];
       return rows.map<Tx>((r) => ({
