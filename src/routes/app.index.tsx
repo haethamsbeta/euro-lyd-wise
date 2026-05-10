@@ -321,7 +321,6 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
   const network = liquidity.data?.network_total_lyd_minor ?? null;
-  const missingRates = liquidity.data?.missing_rates ?? [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -341,26 +340,10 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                 <AnimatedNumber value={network} currency="LYD" />
               ) : (
                 <span className="text-muted-foreground text-2xl">
-                  {missingRates.length > 0 || liquidity.isError
-                    ? "FX rates missing"
-                    : liquidity.isLoading
-                      ? "…"
-                      : "Set FX rates to calculate consolidated balance"}
+                  {liquidity.isLoading ? "…" : "FX/consolidated total pending"}
                 </span>
               )}
             </div>
-            {(missingRates.length > 0 || (network === null && !liquidity.isLoading)) && (
-              <div className="mt-2 text-xs text-amber-400">
-                {missingRates.length > 0 ? (
-                  <>FX rates missing for {missingRates.map((r) => `${r.from}→${r.to}`).join(", ")}. </>
-                ) : (
-                  <>Backend has not returned a consolidated total. </>
-                )}
-                <Link to="/app/admin/fx-rates" className="underline hover:text-gold">
-                  Set rates
-                </Link>
-              </div>
-            )}
           </div>
           <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
