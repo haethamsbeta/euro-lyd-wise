@@ -58,8 +58,12 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
   const token = typeof localStorage === "undefined" ? null : localStorage.getItem("dahab.access_token");
-  const authToken = token ?? (await tokenProvider());
-  if (authToken) headers.set("Authorization", `Bearer ${authToken}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  } else {
+    const providerToken = await tokenProvider();
+    if (providerToken) headers.set("Authorization", `Bearer ${providerToken}`);
+  }
 
   const normalizedPath = normalizeApiPath(path);
   const base = API_BASE_URL.replace(/\/+$/, "");
