@@ -619,6 +619,17 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
   const { data } = useQuery({
     queryKey: ["dash.urgent.approvals"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const res = await api.approvals.pendingPaged({ limit: 4 }).catch(() => null);
+        return (res?.items ?? []).map((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          created_at: r.created_at ?? r.posted_at,
+        }));
+      }
       const { data } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, created_at, comment")
