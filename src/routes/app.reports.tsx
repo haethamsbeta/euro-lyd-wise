@@ -505,6 +505,11 @@ function ReportsPage() {
                             <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
+                              {(a.dahab_account_number ?? a.account_number) && (
+                                <p className="text-[10px] text-text-tertiary tabular-nums truncate">
+                                  {a.dahab_account_number ?? a.account_number}
+                                </p>
+                              )}
                               {ccy.valid ? (
                                 <CurrencyBadge currency={ccy.code} className="mt-1" />
                               ) : (
