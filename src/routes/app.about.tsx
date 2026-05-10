@@ -82,7 +82,7 @@ function BackendDiagnostics() {
   async function test() {
     setState({ kind: "loading" });
     try {
-      const data = await apiFetch<any>("/api/health");
+      const data = await apiFetch<any>("/health");
       setState({
         kind: "ok",
         message: data?.message ?? "OK",
