@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { REALTIME_MODE, POLL_INTERVAL_MS } from "@/lib/runtimeConfig";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -123,7 +123,7 @@ function NotifSettingsPage() {
     if (!user) return;
     if (REALTIME_MODE === "off") return;
     if (REALTIME_MODE === "polling") {
-      const id = window.setInterval(() => refetchDevices(), POLL_INTERVAL_MS);
+      const id = window.setInterval(() => refetchDevices(), POLL_INTERVALS.pushStatus);
       return () => window.clearInterval(id);
     }
     const ch = supabase
