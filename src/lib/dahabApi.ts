@@ -7,8 +7,9 @@
  * Until then, all pages continue to use the existing Supabase client.
  */
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+import { API_BASE_URL as RUNTIME_API_BASE_URL } from "@/lib/runtimeConfig";
+
+export const API_BASE_URL = RUNTIME_API_BASE_URL;
 
 export type ApiEnvelope<T> = {
   success: boolean;
