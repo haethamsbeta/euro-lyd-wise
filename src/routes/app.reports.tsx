@@ -222,6 +222,8 @@ function ReportsPage() {
   const { data: topAccounts } = useTopAccounts();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
+  const isLambda = DATA_BACKEND === "lambda";
+  const overviewPending = isLambda && (data as any)?.__lambdaEmpty;
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
@@ -320,6 +322,12 @@ function ReportsPage() {
         </div>
 
         {/* TOP KPI STRIP */}
+        {overviewPending && (
+          <BackendPending
+            endpoint="GET /reports/overview"
+            note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
+          />
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map((k, i) => (
             <motion.div key={k.l} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
