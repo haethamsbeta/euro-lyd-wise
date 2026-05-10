@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinor, formatMinorOrMissing, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { RoleGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
@@ -36,6 +36,25 @@ export const Route = createFileRoute("/app/vaults/")({
 function VaultsPage() {
   const t = useT();
   const { data: dashSummary } = useDashboardSummary();
+
+  // Currency Cash Vault Summary — net per currency from /dashboard/staff
+  // (already net of receivable + payable). Backend is the only allowed
+  // source; do not sum vault rows on the client.
+  const { data: dashAdmin } = useQuery({
+    queryKey: ["vaults.cashByCurrency"],
+    enabled: DATA_BACKEND === "lambda",
+    queryFn: () => api.dashboard.admin().catch(() => null),
+  });
+  const cashByCurrency =
+    DATA_BACKEND === "lambda"
+      ? ((dashAdmin as any)?.cash_by_currency ?? []) as Array<{
+          currency: string;
+          net_balance_minor: number;
+          total_inflow_minor?: number;
+          total_outflow_minor?: number;
+          transaction_rows?: number;
+        }>
+      : [];
 
   const { data: vaults = [] } = useQuery({
     queryKey: ["vaults.list"],
@@ -125,8 +144,27 @@ function VaultsPage() {
       };
     },
   });
-  const consolidatedUsd = Number(consolidated?.total_usd_minor ?? 0);
-  const missingRates = consolidated?.missing_rates ?? [];
+  // Lambda mode: use /reports/liquidity-health (LYD eq.). Backend applies
+  // admin fx_rates — frontend never converts FX.
+  const { data: liquidity } = useQuery({
+    queryKey: ["vaults.liquidityHealth"],
+    enabled: DATA_BACKEND === "lambda",
+    queryFn: () => api.reports.liquidityHealth().catch(() => null),
+    retry: false,
+  });
+  const consolidatedAmount =
+    DATA_BACKEND === "lambda"
+      ? Number(liquidity?.network_total_lyd_minor ?? 0)
+      : Number(consolidated?.total_usd_minor ?? 0);
+  const consolidatedCurrency: "LYD" | "USD" = DATA_BACKEND === "lambda" ? "LYD" : "USD";
+  const consolidatedAvailable =
+    DATA_BACKEND === "lambda"
+      ? liquidity?.network_total_lyd_minor != null
+      : consolidated?.total_usd_minor != null;
+  const missingRates =
+    DATA_BACKEND === "lambda"
+      ? (liquidity?.missing_rates ?? []).map((r: any) => `${r.from}→${r.to}`)
+      : consolidated?.missing_rates ?? [];
 
   return (
     <div className="space-y-8 p-4 pb-12 sm:p-6">
@@ -154,10 +192,10 @@ function VaultsPage() {
           </div>
           <div className="relative z-10">
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Consolidated Reserves (USD eq.)
+              Consolidated Reserves ({consolidatedCurrency} eq.)
             </p>
             <div className="font-serif text-3xl font-semibold tabular-nums text-foreground">
-              {formatMinor(consolidatedUsd, "USD")}
+              {consolidatedAvailable ? formatMinor(consolidatedAmount, consolidatedCurrency) : "—"}
             </div>
             <div className="mt-2 flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" /> Across {vaults.length} vaults
@@ -204,10 +242,86 @@ function VaultsPage() {
         </Card>
       </motion.div>
 
+      {/* Currency Cash Vault Summary — net per currency from backend.
+          Receivable + payable are grouped by currency_code. The underlying
+          official vault accounts still appear in the grid below. */}
+      {cashByCurrency.length > 0 && (
+        <div>
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Currency Cash Vault Summary
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {cashByCurrency.map((row) => {
+              const ccy = row.currency;
+              const receivableCount = vaults.filter(
+                (v: any) =>
+                  v.currency_code === ccy && /receiv/i.test(String(v.internal_role ?? "")),
+              ).length;
+              const payableCount = vaults.filter(
+                (v: any) =>
+                  v.currency_code === ccy && /pay/i.test(String(v.internal_role ?? "")),
+              ).length;
+              return (
+                <Card key={ccy} className="p-5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                      {ccy || "Currency missing"}
+                    </Badge>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Currency cash vault
+                    </span>
+                  </div>
+                  <div className="font-mono text-xl font-semibold tabular-nums text-foreground">
+                    {formatMinorOrMissing(Number(row.net_balance_minor) || 0, ccy)}
+                  </div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">
+                    Net balance (receivable + payable)
+                  </div>
+                  {(row.total_inflow_minor != null ||
+                    row.total_outflow_minor != null ||
+                    row.transaction_rows != null) && (
+                    <div className="mt-3 space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                      {row.total_inflow_minor != null && (
+                        <div className="flex justify-between">
+                          <span>Inflow</span>
+                          <span className="tabular-nums text-foreground">
+                            {formatMinorOrMissing(Number(row.total_inflow_minor), ccy)}
+                          </span>
+                        </div>
+                      )}
+                      {row.total_outflow_minor != null && (
+                        <div className="flex justify-between">
+                          <span>Outflow</span>
+                          <span className="tabular-nums text-foreground">
+                            {formatMinorOrMissing(Number(row.total_outflow_minor), ccy)}
+                          </span>
+                        </div>
+                      )}
+                      {row.transaction_rows != null && (
+                        <div className="flex justify-between">
+                          <span>Transactions</span>
+                          <span className="tabular-nums text-foreground">
+                            {row.transaction_rows}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">
+                    <span>Receivable accounts: {receivableCount}</span>
+                    <span>Payable accounts: {payableCount}</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Vault grid — one card per single-currency official vault account */}
       <div>
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Reserve Vaults
+          Official Vault Accounts
           {dashSummary?.vaultCount != null && (
             <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">
               · Showing {vaults.length} of {dashSummary.vaultCount}
