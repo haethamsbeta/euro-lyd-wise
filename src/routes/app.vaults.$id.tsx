@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +19,6 @@ import {
   ShieldCheck,
   ArrowDownToLine,
   ArrowUpFromLine,
-  ArrowRightLeft,
   Search,
   Download,
   TrendingUp,
@@ -26,90 +27,128 @@ import {
 import { RoleGate } from "@/components/app/app-shell";
 import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
-type VaultSearch = { currency?: "USD" | "EUR" | "LYD" };
-
 export const Route = createFileRoute("/app/vaults/$id")({
   component: () => (
     <RoleGate allow={["admin", "auditor"]}>
       <VaultDetail />
     </RoleGate>
   ),
-  validateSearch: (search: Record<string, unknown>): VaultSearch => {
-    const c = search.currency;
-    if (c === "USD" || c === "EUR" || c === "LYD") return { currency: c };
-    return {};
-  },
+  validateSearch: (_search: Record<string, unknown>) => ({}),
 });
 
 function VaultDetail() {
   const t = useT();
   const { id } = Route.useParams();
-  const { currency } = Route.useSearch();
   const [search, setSearch] = useState("");
 
   const { data: vault } = useQuery({
     queryKey: ["vault.detail", id],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const v: any = await api.vaults.get(id).catch(() => null);
+        if (!v) return null;
+        return {
+          id: v.id,
+          name: v.name,
+          vault_channel: v.vault_channel ?? v.channel ?? v.kind ?? "cash",
+          status: v.status ?? (v.is_active === false ? "inactive" : "active"),
+          currency_code: v.currency_code,
+          internal_role: v.internal_role ?? null,
+          balance_minor: Number(v.current_balance ?? 0),
+        };
+      }
       const { data, error } = await supabase
         .from("accounts")
         .select("id, name, vault_channel, status, account_balances(currency, balance_minor)")
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data;
+      const first = (data as any)?.account_balances?.[0];
+      return {
+        id: (data as any).id,
+        name: (data as any).name,
+        vault_channel: (data as any).vault_channel,
+        status: (data as any).status,
+        currency_code: first?.currency ?? null,
+        internal_role: null,
+        balance_minor: first?.balance_minor ?? 0,
+      };
     },
   });
 
   const { data: tx } = useQuery({
-    queryKey: ["vault.tx", id, currency ?? "all"],
+    queryKey: ["vault.tx", id],
     queryFn: async () => {
-      let q = supabase
+      if (DATA_BACKEND === "lambda") {
+        const rows = await api.vaults
+          .recentActivity(id, { limit: 200 })
+          .catch(() => null);
+        if (!Array.isArray(rows)) return null; // treat as endpoint pending
+        return rows.map((r: any) => ({
+          id: r.id,
+          tx_number: r.tx_number,
+          created_at: r.posted_at,
+          comment: r.description,
+          debit_minor: Number(r.debit_minor ?? 0),
+          credit_minor: Number(r.credit_minor ?? 0),
+          balance_after: Number(r.balance_after_minor ?? 0),
+          currency: vault?.currency_code,
+          status: "posted",
+          direction: Number(r.debit_minor ?? 0) > 0 ? "deposit" : "withdraw",
+          accounts: null,
+        }));
+      }
+      const { data, error } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, accounts:customer_account_id(name, account_number)")
         .eq("vault_account_id", id)
         .order("created_at", { ascending: false })
         .limit(200);
-      if (currency) q = q.eq("currency", currency);
-      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.vaultActivity : false,
+    enabled: !!vault,
   });
 
   const ChannelIcon = vault?.vault_channel === "cash" ? Banknote : Building2;
+  const currency = vault?.currency_code ?? "USD";
+  const activityPending = tx === null;
 
-  // 30-day inflow / outflow for selected currency (or all)
+  // 30-day inflow / outflow
   const flow = useMemo(() => {
-    const list = (tx ?? []) as any[];
+    const list = (Array.isArray(tx) ? tx : []) as any[];
     const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
     let inMinor = 0;
     let outMinor = 0;
     for (const r of list) {
       if (new Date(r.created_at).getTime() < cutoff) continue;
-      if (r.status !== "posted") continue;
-      if (r.direction === "withdraw") inMinor += r.amount_minor;
-      else if (r.direction === "deposit") outMinor += r.amount_minor;
+      if (r.status && r.status !== "posted") continue;
+      const debit = Number(r.debit_minor ?? (r.direction === "deposit" ? r.amount_minor : 0)) || 0;
+      const credit = Number(r.credit_minor ?? (r.direction === "withdraw" ? r.amount_minor : 0)) || 0;
+      inMinor += debit;
+      outMinor += credit;
     }
     return { inMinor, outMinor };
   }, [tx]);
 
-  // Compute running vault balance per currency (oldest -> newest), then
-  // display newest -> oldest. Vault is debit-nature: customer deposits add
-  // cash to the vault (+), customer withdrawals remove cash (−). Only
-  // `posted` rows contribute to the running balance.
+  // Single-currency vault — prefer backend-provided balance_after; fall back
+  // to running compute if missing.
   const txWithBalance = useMemo(() => {
-    const list = ((tx ?? []) as any[]).slice().sort(
+    const list = (Array.isArray(tx) ? tx : []).slice() as any[];
+    if (list.length && list[0].balance_after != null) {
+      return list.map((r) => ({ ...r, _counted: true }));
+    }
+    const sorted = list.sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
-    const running: Record<string, number> = {};
-    const enriched = list.map((r) => {
-      const counts = r.status === "posted";
-      const signed = r.direction === "deposit" ? r.amount_minor : -r.amount_minor;
-      if (counts) {
-        running[r.currency] = (running[r.currency] ?? 0) + signed;
-      }
-      return { ...r, balance_after: running[r.currency] ?? 0, _counted: counts };
+    let running = 0;
+    const enriched = sorted.map((r) => {
+      const counts = !r.status || r.status === "posted";
+      const debit = Number(r.debit_minor ?? (r.direction === "deposit" ? r.amount_minor : 0)) || 0;
+      const credit = Number(r.credit_minor ?? (r.direction === "withdraw" ? r.amount_minor : 0)) || 0;
+      if (counts) running += debit - credit;
+      return { ...r, balance_after: running, _counted: counts };
     });
     return enriched.reverse();
   }, [tx]);
@@ -126,9 +165,8 @@ function VaultDetail() {
     );
   }, [txWithBalance, search]);
 
-  const totalBalanceMinor =
-    vault?.account_balances?.find((x: any) => x.currency === currency)?.balance_minor ?? 0;
-  const heroCurrency = currency ?? "USD";
+  const totalBalanceMinor = vault?.balance_minor ?? 0;
+  const heroCurrency = currency;
 
   return (
     <div className="space-y-6 p-4 pb-12 sm:p-6">
@@ -150,21 +188,20 @@ function VaultDetail() {
               </div>
               <h1 className="font-serif text-2xl font-semibold text-foreground md:text-3xl">
                 {vault?.name ?? "Vault"}
-                {currency ? <span className="text-muted-foreground"> · {currency}</span> : null}
+              {vault?.currency_code ? (
+                <span className="text-muted-foreground"> · {vault.currency_code}</span>
+              ) : null}
               </h1>
             </div>
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-gold" />
-              Secure {vault?.vault_channel} reserve · {vault?.status}
+            {vault?.internal_role ? `${vault.internal_role} · ` : ""}
+            Secure {vault?.vault_channel} reserve · {vault?.status}
             </p>
           </div>
-          {currency ? (
-            <Button asChild variant="outline" size="sm">
-              <Link to="/app/vaults/$id" params={{ id }} search={{}}>
-                {t("vaults.viewAllCurrencies")}
-              </Link>
-            </Button>
-          ) : null}
+        <Button asChild variant="outline" size="sm">
+          <Link to="/app/vaults">Back to all vaults</Link>
+        </Button>
         </div>
       </div>
 
@@ -181,35 +218,11 @@ function VaultDetail() {
             </div>
             <div className="relative z-10">
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {currency ? `Reserve Balance · ${currency}` : "Reserve Balances"}
+              Reserve Balance · {currency}
               </p>
-              {currency ? (
-                <div className="mb-4 font-serif text-4xl font-semibold tabular-nums tracking-tight text-foreground md:text-5xl">
-                  {formatMinor(totalBalanceMinor, currency)}
-                </div>
-              ) : (
-                <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                  {(["USD", "EUR", "LYD"] as const).map((c) => {
-                    const b = vault?.account_balances?.find((x: any) => x.currency === c)?.balance_minor ?? 0;
-                    return (
-                      <Link
-                        key={c}
-                        to="/app/vaults/$id"
-                        params={{ id }}
-                        search={{ currency: c }}
-                        className="rounded-lg border border-border bg-background/50 p-4 transition-all hover:border-gold/50 hover:bg-gold/5"
-                      >
-                        <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                          {c}
-                        </div>
-                        <div className="mt-1 font-mono text-lg font-semibold tabular-nums">
-                          {formatMinor(b, c)}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="mb-4 font-serif text-4xl font-semibold tabular-nums tracking-tight text-foreground md:text-5xl">
+              {formatMinor(totalBalanceMinor, currency)}
+            </div>
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-gold" />
@@ -294,7 +307,13 @@ function VaultDetail() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredTx.length === 0 ? (
+                {activityPending ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
+                      Backend endpoint pending — vault activity will appear once the API is live.
+                    </td>
+                  </tr>
+                ) : filteredTx.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
                       No transactions found.
@@ -302,13 +321,12 @@ function VaultDetail() {
                   </tr>
                 ) : (
                   filteredTx.map((r: any) => {
-                    const intoVault = r.direction === "deposit";
+                    const debit = Number(r.debit_minor ?? 0);
+                    const credit = Number(r.credit_minor ?? 0);
+                    const intoVault = debit >= credit;
                     const Icon =
-                      r.direction === "deposit"
-                        ? ArrowDownToLine
-                        : r.direction === "withdraw"
-                        ? ArrowUpFromLine
-                        : ArrowRightLeft;
+                      intoVault ? ArrowDownToLine : ArrowUpFromLine;
+                    const amountMinor = intoVault ? debit || r.amount_minor : credit || r.amount_minor;
                     return (
                       <tr key={r.id} className="transition-colors hover:bg-muted/40">
                         <td className="px-5 py-3 text-xs text-muted-foreground">
@@ -320,13 +338,11 @@ function VaultDetail() {
                             className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-[10px] font-medium uppercase tracking-wider ${
                               intoVault
                                 ? "border-success/30 bg-success/10 text-success"
-                                : r.direction === "deposit"
-                                ? "border-destructive/30 bg-destructive/10 text-destructive"
-                                : "border-border bg-muted text-muted-foreground"
+                                : "border-destructive/30 bg-destructive/10 text-destructive"
                             }`}
                           >
                             <Icon className="h-3 w-3" />
-                            {r.direction}
+                            {intoVault ? "in" : "out"}
                           </span>
                         </td>
                         <td className="px-5 py-3">
@@ -347,7 +363,7 @@ function VaultDetail() {
                           }`}
                         >
                           {intoVault ? "+" : "−"}
-                          {formatMinor(r.amount_minor, r.currency)}
+                          {formatMinor(amountMinor, r.currency ?? currency)}
                         </td>
                         <td className="px-5 py-3">
                           <Badge
@@ -359,11 +375,13 @@ function VaultDetail() {
                                 : "destructive"
                             }
                           >
-                            {r.status}
+                            {r.status ?? "posted"}
                           </Badge>
                         </td>
                         <td className="px-5 py-3 text-right font-mono font-semibold tabular-nums">
-                          {r._counted ? formatMinor(r.balance_after, r.currency) : "—"}
+                          {r._counted
+                            ? formatMinor(r.balance_after, r.currency ?? currency)
+                            : "—"}
                         </td>
                         <td className="max-w-sm truncate px-5 py-3 text-muted-foreground">
                           {r.comment}
