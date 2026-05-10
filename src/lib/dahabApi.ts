@@ -38,6 +38,14 @@ export function setAuthTokenProvider(provider: TokenProvider) {
 }
 
 // --- Core fetch -----------------------------------------------------------
+function normalizeApiPath(path: string): string {
+  let p = path || "/";
+  if (!p.startsWith("/")) p = "/" + p;
+  if (p.startsWith("/api/")) p = p.slice(4); // "/api/health" -> "/health"
+  if (p === "/api") p = "/";
+  return p;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
