@@ -138,6 +138,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tokenStoredMessage, setTokenStoredMessage] = useState<string | null>(null);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioOk, setBioOk] = useState(false);
   useEffect(() => { passkeysSupported().then(setBioOk); }, []);
@@ -155,35 +156,35 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       return;
     }
     setBusy(true);
+    setTokenStoredMessage(null);
     if (DATA_BACKEND === "lambda") {
       try {
-        const loginResult = await api.auth.login(parsed.data);
-        console.log("[DAHAB Lambda login raw]", loginResult);
-        const payload = loginResult?.data?.access_token ? loginResult.data : loginResult;
-        const accessToken = payload?.access_token ?? payload?.token;
+        const raw = await api.auth.login(parsed.data);
+        console.log("[LOGIN RAW]", raw);
+        const payload = raw?.data?.access_token ? raw.data : raw;
+        const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
         const user = payload?.user;
 
         if (!accessToken) {
-          console.error("[DAHAB login] Missing Lambda access token", loginResult);
-          throw new Error("Lambda login did not return access_token.");
+          console.error("[LOGIN ERROR] Missing access_token", raw);
+          setTokenStoredMessage("Lambda token stored: false");
+          throw new Error("Lambda login did not return access_token");
         }
 
         localStorage.setItem("dahab.access_token", accessToken);
-        if (refreshToken) {
-          localStorage.setItem("dahab.refresh_token", refreshToken);
-        }
-        if (user) {
-          localStorage.setItem("dahab.user", JSON.stringify(user));
-        }
+        localStorage.setItem("dahab.refresh_token", refreshToken || "");
+        localStorage.setItem("dahab.user", JSON.stringify(user || {}));
         localStorage.setItem("dahab.signed_in_at", String(Date.now()));
 
-        console.log("[DAHAB login stored]", {
-          hasAccessToken: !!localStorage.getItem("dahab.access_token"),
-          hasRefreshToken: !!localStorage.getItem("dahab.refresh_token"),
-          userRole: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+        const hasToken = !!localStorage.getItem("dahab.access_token");
+        console.log("[LOGIN STORED]", {
+          hasToken,
           keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
+          role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
         });
+        setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
+        if (!hasToken) throw new Error("Lambda token storage failed");
 
         window.dispatchEvent(new Event("dahab.auth.changed"));
         await Promise.all(
@@ -196,6 +197,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         nav({ to: portal === "staff" ? "/app" : "/portal" });
       } catch (e: any) {
         setBusy(false);
+        setTokenStoredMessage("Lambda token stored: false");
         toast.error(e?.message ?? "Lambda login failed.");
       }
       return;
@@ -295,6 +297,9 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           {bioBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
           Sign in with Face ID
         </Button>
+      ) : null}
+      {tokenStoredMessage ? (
+        <p className="text-center text-xs font-medium text-gold-deep">{tokenStoredMessage}</p>
       ) : null}
     </form>
   );
