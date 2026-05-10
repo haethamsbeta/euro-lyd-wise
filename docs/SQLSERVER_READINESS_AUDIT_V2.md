@@ -193,3 +193,37 @@ references it.
 hardcoded business numbers, no demo creds, seed disabled in prod, FX cannot
 be invented client-side). Cutover to the Lambda backend remains pending the
 follow-up adapter-migration PRs in §4 and the live API endpoints.
+
+---
+
+## Env Cutover (Build Secrets)
+
+Set in **Workspace Settings → Build Secrets** (must exist at Vite build time):
+
+| Var | Value | Purpose |
+|---|---|---|
+| `VITE_DATA_BACKEND` | `lambda` | Routes `apiFetch` adapters at the Lambda/API Gateway backend; flips VAPID key resolution to env-only. |
+| `VITE_API_BASE_URL` | `https://YOUR_API_GATEWAY_URL/api` | Base URL used by `src/lib/dahabApi.ts` `apiFetch`. |
+| `VITE_REALTIME_MODE` | `polling` | Replaces Supabase Realtime channels with 15s polling + `visibilitychange` refresh. |
+| `VITE_VAPID_PUBLIC_KEY` | `<public key>` | Web push subscription key; read by `src/lib/push-client.ts`. |
+
+**Forbidden in the frontend bundle / build secrets** (Lambda runtime env only):
+`VAPID_PRIVATE_KEY`, `SQLSERVER_SECRET_ID`, SQL username/password,
+`INTERNAL_WEBHOOK_SECRET`, `JWT_SECRET`.
+
+### Realtime mode matrix
+
+| `VITE_REALTIME_MODE` | Behavior | Affected sites |
+|---|---|---|
+| `channels` (default) | Supabase Realtime websockets (legacy / preview). | `src/lib/notifications.tsx`, `src/routes/app.settings.notifications.tsx` |
+| `polling` | `setInterval(refresh, 15s)` + tab-focus refresh; toasts fire only for newly-seen ids. | same |
+| `off` | No subscription, no polling — manual refresh only. | same |
+
+### VAPID resolution matrix
+
+| `VITE_DATA_BACKEND` | `VITE_VAPID_PUBLIC_KEY` set? | Resolution |
+|---|---|---|
+| `lambda` | yes | Use env value; never call `getVapidPublicKey` server fn. |
+| `lambda` | no | Throw `"VITE_VAPID_PUBLIC_KEY not configured"` (loud misconfig). |
+| `supabase` | yes | Use env value. |
+| `supabase` | no | Fall back to `getVapidPublicKey` server fn. |
