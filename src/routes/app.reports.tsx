@@ -98,7 +98,19 @@ function ReportsPage() {
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
   const isLambda = DATA_BACKEND === "lambda";
-  const overviewPending = !overview && (overviewIsError || (!isLoading && isLambda));
+  // Banner only when the response truly carries nothing — never when the
+  // backend has returned counts or any of the documented arrays.
+  const hasOverviewPayload = Boolean(
+    overview &&
+      (overview.counts ||
+        (overview.daily_volume_7d?.length ?? 0) > 0 ||
+        (overview.currency_distribution?.length ?? 0) > 0 ||
+        (overview.customer_growth_7m?.length ?? 0) > 0 ||
+        (overview.top_accounts?.length ?? 0) > 0 ||
+        (overview.volume_by_currency_30d?.length ?? 0) > 0),
+  );
+  const overviewPending =
+    !hasOverviewPayload && (overviewIsError || (!isLoading && isLambda));
 
   // ── Business overview field projections (per-widget, never fabricated) ──
   const counts = overview?.counts ?? null;
@@ -334,6 +346,16 @@ function ReportsPage() {
             endpoint="GET /reports/business/overview"
             note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
           />
+        )}
+        {import.meta.env.DEV && overview && (
+          <div className="text-[10px] font-mono text-text-tertiary border border-border rounded px-2 py-1">
+            Business overview loaded — counts: {String(Boolean(overview.counts))}
+            {" · "}daily_volume_7d: {overview.daily_volume_7d?.length ?? 0}
+            {" · "}currency_distribution: {overview.currency_distribution?.length ?? 0}
+            {" · "}customer_growth_7m: {overview.customer_growth_7m?.length ?? 0}
+            {" · "}top_accounts: {overview.top_accounts?.length ?? 0}
+            {" · "}volume_by_currency_30d: {overview.volume_by_currency_30d?.length ?? 0}
+          </div>
         )}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map((k, i) => (
