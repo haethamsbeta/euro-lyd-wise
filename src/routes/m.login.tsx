@@ -8,6 +8,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/m/login")({
   component: MobileLogin,
@@ -19,14 +22,61 @@ function MobileLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tokenStoredMessage, setTokenStoredMessage] = useState<string | null>(null);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioOk, setBioOk] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   useEffect(() => { passkeysSupported().then(setBioOk); }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setTokenStoredMessage(null);
+    if (DATA_BACKEND === "lambda") {
+      try {
+        const raw = await api.auth.login({ email: email.trim(), password });
+        console.log("[LOGIN RAW]", raw);
+        const payload = raw?.data?.access_token ? raw.data : raw;
+        const accessToken = payload?.access_token;
+        const refreshToken = payload?.refresh_token;
+        const user = payload?.user;
+
+        if (!accessToken) {
+          console.error("[LOGIN ERROR] Missing access_token", raw);
+          setTokenStoredMessage("Lambda token stored: false");
+          throw new Error("Lambda login did not return access_token");
+        }
+
+        localStorage.setItem("dahab.access_token", accessToken);
+        localStorage.setItem("dahab.refresh_token", refreshToken || "");
+        localStorage.setItem("dahab.user", JSON.stringify(user || {}));
+        localStorage.setItem("dahab.signed_in_at", String(Date.now()));
+
+        const hasToken = !!localStorage.getItem("dahab.access_token");
+        console.log("[LOGIN STORED]", {
+          hasToken,
+          keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
+          role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+        });
+        setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
+        if (!hasToken) throw new Error("Lambda token storage failed");
+
+        window.dispatchEvent(new Event("dahab.auth.changed"));
+        await Promise.all(
+          ["dashboard", "holders", "vaults", "transactions", "users", "notifications"].map(
+            (key) => queryClient.invalidateQueries({ queryKey: [key] }),
+          ),
+        );
+        setBusy(false);
+        navigate({ to: "/m/dashboard" });
+      } catch (e: any) {
+        setBusy(false);
+        setTokenStoredMessage("Lambda token stored: false");
+        toast.error(e?.message ?? "Lambda login failed.");
+      }
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
@@ -105,6 +155,9 @@ function MobileLogin() {
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
           </Button>
+          {tokenStoredMessage ? (
+            <p className="text-center text-xs font-medium text-gold-deep">{tokenStoredMessage}</p>
+          ) : null}
         </form>
 
         <div className="my-5 flex items-center gap-3">
