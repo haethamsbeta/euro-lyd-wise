@@ -666,33 +666,45 @@ function TxList() {
           {/* Footer strip — pagination */}
           <div className="border-t border-border bg-[color:var(--surface-2)]/30 px-4 py-3 flex items-center justify-between gap-3 text-xs text-text-secondary">
             <span>
-              Showing latest {filtered.length} of {fmtTotal(dashSummary?.transactionCount ?? null)} transactions
+              Showing {offset + 1}–{offset + txRows.length} of {fmtTotal(totalCount)} transactions
               <span className="font-mono ml-2">· {PAGE_SIZE} per page</span>
             </span>
             <div className="flex items-center gap-2">
-              <span className="font-mono">Page 1</span>
+              <span className="font-mono">Page {currentPage}</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span tabIndex={0}>
-                    <Button variant="outline" size="sm" disabled>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={offset === 0}
+                      onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                    >
                       Previous
                     </Button>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>You are on the first page.</TooltipContent>
+                <TooltipContent>
+                  {offset === 0 ? "You are on the first page." : "Load the previous page"}
+                </TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span tabIndex={0}>
-                    <Button variant="outline" size="sm" disabled={!backendPaginationEnabled}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={nextOffset == null}
+                      onClick={() => nextOffset != null && setOffset(nextOffset)}
+                    >
                       Next page
                     </Button>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {backendPaginationEnabled
+                  {nextOffset != null
                     ? "Load the next 50 transactions"
-                    : "Pagination coming soon — backend offset support pending."}
+                    : "No more transactions."}
                 </TooltipContent>
               </Tooltip>
             </div>
