@@ -817,6 +817,9 @@ function ReportsPage() {
         {/* ═════════════ COMPLIANCE LENS ═════════════ */}
         {lens === "compliance" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            {isLambda && riskMetrics.flaggedTxns === 0 && riskMetrics.pendingReviews === 0 && riskMetrics.resolvedToday === 0 && riskMetrics.highRiskHolders === 0 && riskTypology.length === 0 && (compliance.alert_volume?.length ?? 0) === 0 && (
+              <BackendPending endpoint="GET /reports/compliance/overview" />
+            )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { l: "Flagged Transactions", v: riskMetrics.flaggedTxns, icon: AlertCircle, color: "amber" },
@@ -841,18 +844,19 @@ function ReportsPage() {
               <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
               <div className="space-y-4">
                 {[
-                  { metric: "KYC Completion Rate", value: 96.2, target: 95 },
-                  { metric: "Sanctions Screening", value: 100, target: 100 },
-                  { metric: "Document Verification", value: 92.8, target: 90 },
-                  { metric: "AML Alert Resolution", value: 88.4, target: 85 },
+                  { metric: "KYC Completion Rate", value: compliance.kyc.current_pct, target: compliance.kyc.target_pct },
+                  { metric: "Sanctions Screening", value: compliance.sanctions.current_pct, target: compliance.sanctions.target_pct },
+                  { metric: "Document Verification", value: compliance.doc_verification.current_pct, target: compliance.doc_verification.target_pct },
+                  { metric: "AML Alert Resolution", value: compliance.aml.current_pct, target: compliance.aml.target_pct },
                 ].map((m) => {
                   const meets = m.value >= m.target;
+                  const empty = !m.value && !m.target;
                   return (
                     <div key={m.metric}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm text-foreground font-medium">{m.metric}</span>
-                        <span className={`text-sm font-semibold tabular-nums ${meets ? "text-[var(--success)]" : "text-amber-400"}`}>
-                          {m.value}% <span className="text-text-tertiary text-xs">/ {m.target}%</span>
+                        <span className={`text-sm font-semibold tabular-nums ${empty ? "text-text-tertiary" : meets ? "text-[var(--success)]" : "text-amber-400"}`}>
+                          {empty ? "—" : `${m.value}%`} <span className="text-text-tertiary text-xs">/ {empty ? "—" : `${m.target}%`}</span>
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
@@ -874,7 +878,7 @@ function ReportsPage() {
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <AreaChart data={alertVolume}>
+                    <AreaChart data={isLambda ? (compliance.alert_volume ?? []) : alertVolume}>
                       <defs>
                         <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#F87171" stopOpacity={0.3} />
