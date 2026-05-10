@@ -11,6 +11,8 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { Button } from "@/components/ui/button";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
 
@@ -24,6 +26,22 @@ function HoldersList() {
   const { data: summary } = useQuery({
     queryKey: ["holders.summary"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Derive from /api/holders. No Supabase calls in lambda mode.
+        const list = await api.holders.list({ limit: 1000 }).catch(() => [] as any[]);
+        const rows = Array.isArray(list) ? list : [];
+        const counts: Record<string, number> = {};
+        let acctTotal = 0;
+        for (const h of rows) {
+          const accs = (h as any).holder_accounts ?? (h as any).accounts ?? [];
+          for (const a of accs) {
+            const c = a.currency_code ?? a.currency;
+            if (c) counts[c] = (counts[c] ?? 0) + 1;
+            acctTotal += 1;
+          }
+        }
+        return { holders: rows.length, accts: acctTotal, counts };
+      }
       const [{ count: holders }, { count: accts }, byCur] = await Promise.all([
         supabase.from("account_holders").select("id", { count: "exact", head: true }),
         supabase.from("holder_accounts").select("id", { count: "exact", head: true }),
@@ -37,6 +55,28 @@ function HoldersList() {
   const { data, isLoading } = useQuery({
     queryKey: ["holders.list", dq],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const list = await api.holders.list({ q: dq.trim() || undefined, limit: 200 }).catch(
+          () => [] as any[],
+        );
+        const rows = Array.isArray(list) ? list : [];
+        return rows.map((h: any) => ({
+          id: h.id,
+          dahab_account_number: h.dahab_account_number,
+          canonical_name: h.holder_name ?? h.canonical_name,
+          normalized_name: h.normalized_name ?? null,
+          status: h.status ?? "active",
+          phone: h.phone ?? null,
+          email: h.email ?? null,
+          created_at: h.created_at ?? null,
+          holder_accounts: (h.holder_accounts ?? h.accounts ?? []).map((a: any) => ({
+            id: a.id,
+            currency_code: a.currency_code ?? a.currency,
+            account_number: a.account_number,
+            account_display_name: a.account_display_name ?? a.alias_name ?? "",
+          })),
+        }));
+      }
       const term = dq.trim();
       if (term) {
         // Search across holders + linked accounts

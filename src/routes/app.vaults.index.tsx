@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { RoleGate } from "@/components/app/app-shell";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import {
   Landmark,
   Banknote,
@@ -38,6 +40,31 @@ function VaultsPage() {
   const { data: vaults = [] } = useQuery({
     queryKey: ["vaults.list"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const list = await api.vaults.list().catch(() => [] as any[]);
+        const rows = Array.isArray(list) ? list : [];
+        // Group by vault id; backend may return one row per (vault, currency).
+        const byId = new Map<string, any>();
+        for (const r of rows) {
+          const key = String(r.id);
+          if (!byId.has(key)) {
+            byId.set(key, {
+              id: r.id,
+              name: r.name,
+              vault_channel: r.vault_channel ?? r.channel ?? r.kind ?? "cash",
+              status: r.status ?? (r.is_active === false ? "inactive" : "active"),
+              account_balances: [] as Array<{ currency: string; balance_minor: number }>,
+            });
+          }
+          if (r.currency_code != null && r.current_balance != null) {
+            byId.get(key).account_balances.push({
+              currency: r.currency_code,
+              balance_minor: Number(r.current_balance) || 0,
+            });
+          }
+        }
+        return Array.from(byId.values());
+      }
       const { data, error } = await supabase
         .from("accounts")
         .select("id, name, vault_channel, status, account_balances(currency, balance_minor)")
@@ -50,6 +77,20 @@ function VaultsPage() {
   const { data: recentTx = [] } = useQuery({
     queryKey: ["vaults.recentActivity"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const list = await api.transactions.list({ limit: 8 }).catch(() => [] as any[]);
+        return (Array.isArray(list) ? list : []).map((r: any) => ({
+          id: r.id,
+          tx_number: r.tx_number,
+          direction: r.direction,
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          status: r.status,
+          created_at: r.created_at ?? r.posted_at,
+          vault_account_id: r.vault_account_id ?? null,
+          accounts: null,
+        }));
+      }
       const { data, error } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, currency, amount_minor, status, created_at, vault_account_id, accounts:vault_account_id(name, vault_channel)")
@@ -64,6 +105,7 @@ function VaultsPage() {
   // Consolidated USD-equivalent reserves — sourced from the database (fx_rates).
   const { data: consolidated } = useQuery({
     queryKey: ["vaults.consolidatedUsd"],
+    enabled: DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("report_consolidated_usd");
       if (error) throw error;
