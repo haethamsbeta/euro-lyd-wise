@@ -40,6 +40,15 @@ hit, and no Supabase tables are queried for report data:
 
 ### Business Lens
 
+**Status: live & mapped.** `/reports/business/overview` returns real data and the
+frontend adapter accepts the actual backend keys via aliases:
+
+- `counts.tx_total ↔ total`, `counts.tx_posted ↔ posted`, `counts.tx_rejected ↔ rejected`, `counts.tx_pending ↔ pending`
+- `active_holders` is read from either `r.active_holders` or `counts.active_holders`
+- `top_accounts[]`: `account_id ?? holder_account_id ?? account_number ?? dahab_account_number`; `name ?? canonical_name ?? account_display_name`; `currency ?? currency_code`; `dahab_account_number` / `account_number` surfaced for display
+- `volume_by_currency_30d[]`, `daily_volume_7d[]`, `currency_distribution[]`: `currency_code ↔ currency`; `count ↔ posted_count` / `tx_count`; `date ↔ day`
+- `customer_growth_7m[]`: `new_customers ↔ new_holders`
+
 | Widget                    | Endpoint                              | Fields used                                          | Mapping fixed | Backend gap |
 |---------------------------|---------------------------------------|------------------------------------------------------|---------------|-------------|
 | Network Volume (KPI)      | `GET /reports/business/overview`      | `volume_by_currency_30d[*]`                          | yes           | —           |
