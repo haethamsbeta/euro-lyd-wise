@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -56,6 +58,13 @@ type TxFull = {
   created_by_user_id: string;
   customer_account_id: string;
   reverses_tx_id: string | null;
+  corrected_by_tx_id?: string | null;
+  holder_name?: string | null;
+  account_number?: string | null;
+  dahab_account_number?: string | null;
+  account_display_name?: string | null;
+  description?: string | null;
+  transaction_category?: string | null;
   customer: { name: string; account_number: string } | null;
   vault: { name: string; vault_channel: string | null } | null;
 };
@@ -81,6 +90,40 @@ function TxDetail() {
   const { data: tx, isLoading, error } = useQuery({
     queryKey: ["tx.detail", id],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r: any = await api.transactions.get(id);
+        const mapped: TxFull = {
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          channel: r.channel ?? "cash",
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          status: r.status,
+          comment: r.comment ?? r.description ?? "",
+          created_at: r.created_at ?? r.posted_at,
+          posted_at: r.posted_at ?? null,
+          reject_reason: r.reject_reason ?? null,
+          correction_reason: r.correction_reason ?? null,
+          approved_by_user_id: r.approved_by_user_id ?? null,
+          created_by_user_id: r.created_by_user_id ?? "",
+          customer_account_id: String(r.customer_account_id ?? r.holder_account_id ?? ""),
+          reverses_tx_id: r.reverses_tx_id ?? null,
+          corrected_by_tx_id: r.corrected_by_tx_id ?? null,
+          holder_name: r.holder_name ?? null,
+          account_number: r.account_number ?? null,
+          dahab_account_number: r.dahab_account_number ?? null,
+          account_display_name: r.account_display_name ?? null,
+          description: r.description ?? null,
+          transaction_category: r.transaction_category ?? null,
+          customer: r.holder_name || r.account_number ? {
+            name: r.holder_name ?? r.account_display_name ?? "",
+            account_number: r.account_number ?? "",
+          } : null,
+          vault: r.vault_name ? { name: r.vault_name, vault_channel: r.vault_channel ?? null } : null,
+        };
+        return mapped;
+      }
       const { data, error } = await supabase
         .from("transactions")
         .select(
@@ -97,6 +140,7 @@ function TxDetail() {
 
   const { data: attachments } = useQuery({
     queryKey: ["tx.attachments", id],
+    enabled: DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transaction_attachments")
@@ -110,7 +154,7 @@ function TxDetail() {
 
   const { data: profileMap } = useQuery({
     queryKey: ["tx.profiles", id, tx?.created_by_user_id, tx?.approved_by_user_id],
-    enabled: !!tx,
+    enabled: !!tx && DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const ids = [tx!.created_by_user_id, tx!.approved_by_user_id].filter(Boolean) as string[];
       if (!ids.length) return new Map<string, string>();
@@ -123,7 +167,7 @@ function TxDetail() {
 
   const { data: audit } = useQuery({
     queryKey: ["tx.audit", id],
-    enabled: !!tx,
+    enabled: !!tx && DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data } = await supabase
         .from("audit_log")
@@ -400,7 +444,9 @@ function TxDetail() {
                     ? `${tx.vault?.vault_channel ?? tx.channel} vault`
                     : tx.customer?.account_number
                       ? `#${tx.customer.account_number}`
-                      : ""
+                      : tx.account_number
+                        ? `#${tx.account_number}${tx.dahab_account_number ? ` · ${tx.dahab_account_number}` : ""}`
+                        : ""
                 }
                 icon={
                   isDeposit ? (
@@ -430,7 +476,9 @@ function TxDetail() {
                   isDeposit
                     ? tx.customer?.account_number
                       ? `#${tx.customer.account_number}`
-                      : ""
+                      : tx.account_number
+                        ? `#${tx.account_number}${tx.dahab_account_number ? ` · ${tx.dahab_account_number}` : ""}`
+                        : ""
                     : `${tx.vault?.vault_channel ?? tx.channel} vault`
                 }
                 icon={
