@@ -756,29 +756,6 @@ function AnomalyWatchlist() {
       note="Anomaly watchlist will populate once the backend exposes an anomaly detection endpoint."
     />
   );
-
-  // eslint-disable-next-line no-unreachable
-  return (
-    <PremiumCard className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Anomaly Watchlist</h3>
-        <ShieldAlert className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div className="space-y-3">
-        {items.map((a) => (
-          <div key={a.id} className="p-3 rounded-lg bg-surface-2/50 border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold text-foreground">{a.title}</span>
-              <span className={cn("text-[10px] uppercase tracking-wider font-bold", a.severity === "High" ? "text-red-400" : "text-amber-400")}>
-                {a.severity}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">{a.desc}</div>
-          </div>
-        ))}
-      </div>
-    </PremiumCard>
-  );
 }
 
 function HoldingsSummary({ holderCount, customerByCur }: { holderCount: number; customerByCur: Map<string, number> }) {
