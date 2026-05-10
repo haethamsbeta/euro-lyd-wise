@@ -12,7 +12,7 @@ export const groupsApi = {
   get: (id: string) => apiFetch<HolderGroup>(`/groups/${id}`),
   members: (id: string) =>
     apiFetch<Array<{ holder_id: string; holder_name: string; added_at: string }>>(
-      `/api/groups/${id}/members`,
+      `/groups/${id}/members`,
     ),
   addMember: (id: string, holder_id: string) =>
     apiFetch<{ ok: true }>(`/groups/${id}/members`, {

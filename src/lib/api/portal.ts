@@ -13,10 +13,10 @@ export const portalApi = {
     range: { from?: string; to?: string; limit?: number; offset?: number } = {},
   ) =>
     apiFetch<LedgerEntry[]>(
-      `/api/portal/accounts/${accountId}/${currency}/ledger${qs(range)}`,
+      `/portal/accounts/${accountId}/${currency}/ledger${qs(range)}`,
     ),
   statement: (accountId: string, currency: string, range: { from?: string; to?: string } = {}) =>
     apiFetch<{ url: string; expires_at: string }>(
-      `/api/portal/accounts/${accountId}/${currency}/statement.pdf${qs(range)}`,
+      `/portal/accounts/${accountId}/${currency}/statement.pdf${qs(range)}`,
     ),
 };

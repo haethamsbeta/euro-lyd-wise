@@ -49,7 +49,7 @@ export const pushApi = {
     }),
   adminStatus: () =>
     apiFetch<{ vapid_configured: boolean; total_subscriptions: number; revoked: number }>(
-      "/api/admin/push/status",
+      "/admin/push/status",
     ),
   adminUserDevices: (user_id: string) =>
     apiFetch<PushAdminUserDevice[]>(`/admin/push/users/${user_id}/devices`),

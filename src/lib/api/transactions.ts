@@ -23,12 +23,12 @@ export const transactionsApi = {
     } = {},
   ) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(
-      `/api/transactions${qs(params)}`,
+      `/transactions${qs(params)}`,
     ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   get: (id: string | number) => apiFetch<Transaction>(`/transactions/${id}`),
   myRecent: (limit = 10) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(
-      `/api/transactions/me/recent${qs({ limit })}`,
+      `/transactions/me/recent${qs({ limit })}`,
     ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   post: (body: PostTransactionInput) =>
     apiFetch<Transaction>("/transactions", {

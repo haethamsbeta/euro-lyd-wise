@@ -57,7 +57,7 @@ export async function apiFetch<T>(
   // so we never produce /api/api/... URLs.
   const baseEndsWithApi = /\/api\/?$/.test(API_BASE_URL);
   let normalizedPath = path;
-  if (baseEndsWithApi && normalizedPath.startsWith("/api/")) {
+  if (baseEndsWithApi && normalizedPath.startsWith("/")) {
     normalizedPath = normalizedPath.slice(4); // remove leading "/api"
   } else if (baseEndsWithApi && normalizedPath === "/api") {
     normalizedPath = "/";
@@ -195,7 +195,7 @@ export const dahabApi = {
       range: { from?: string; to?: string } = {},
     ) =>
       apiFetch<LedgerEntry[]>(
-        `/api/holder-accounts/${holderAccountId}/ledger${qs(range)}`,
+        `/holder-accounts/${holderAccountId}/ledger${qs(range)}`,
       ),
   },
   transactions: {

@@ -31,7 +31,7 @@ export const vaultsApi = {
       total_usd_minor: number;
       missing_rates: Array<{ from: Currency; to: Currency }>;
       breakdown: Array<{ currency: Currency; amount_minor: number; usd_minor: number }>;
-    }>("/api/vaults/consolidated-usd", { method: "POST" }),
+    }>("/vaults/consolidated-usd", { method: "POST" }),
   branches: () =>
     apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/admin/branches"),
   targets: () => apiFetch<VaultTarget[]>("/admin/vault-targets"),

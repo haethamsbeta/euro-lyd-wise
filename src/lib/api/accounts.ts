@@ -15,6 +15,6 @@ export const accountsApi = {
     }),
   statementPdfUrl: (id: string | number, range: { from?: string; to?: string } = {}) =>
     apiFetch<{ url: string; expires_at: string }>(
-      `/api/holder-accounts/${id}/statement.pdf${qs(range)}`,
+      `/holder-accounts/${id}/statement.pdf${qs(range)}`,
     ),
 };
