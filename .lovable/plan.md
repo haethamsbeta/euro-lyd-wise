@@ -1,32 +1,48 @@
-## Remaining Reports cleanup
+## Goal
+`/reports/business/overview` is live but the FE adapter expects `counts.{total,posted,rejected}` while backend returns `counts.{tx_total, tx_posted, tx_rejected, active_holders}`. Active holders also lives inside `counts` (not at root). Fix mapping with alias support so widgets render. No redesign, no mock data, no FX, no Supabase.
+
+## Changes
 
 ### 1. `src/lib/api/reports.ts`
-- `tellersToday()`: tolerate both raw array and `{ items: [...] }` envelope so the route's `items[].*` fields land correctly. Coerce numeric minor-unit fields and default `trend: []`, `branch: null`.
-- `complianceOverview()`: also accept `document_verification` key in addition to `doc_verification` (spec uses `document_verification`); keep current null-aware gauge normalization.
-- Liquidity `Watch` threshold left at `< 7` days in UI to match the audit doc text — update audit doc to `< 7` (single source of truth).
+
+**`BusinessOverviewResponse`**
+- Move `active_holders` into the optional surfaced fields (keep root accessor for back-compat).
+- Add optional `dahab_account_number` and `account_number` on `top_accounts` row.
+
+**`businessOverview()` mapping**
+- `counts`:
+  - `total`     ← `c.total ?? c.tx_total`
+  - `posted`    ← `c.posted ?? c.tx_posted`
+  - `rejected`  ← `c.rejected ?? c.tx_rejected`
+  - `pending`   ← `c.pending ?? c.tx_pending` (nullable)
+  - `rejection_rate` ← unchanged, nullable
+- `active_holders`: read from `r.active_holders ?? r.counts?.active_holders` and expose at top level.
+- `top_accounts[]` row aliases:
+  - `account_id`  ← `account_id ?? holder_account_id ?? account_number ?? dahab_account_number`
+  - `name`        ← `name ?? canonical_name ?? account_display_name`
+  - `currency`    ← `currency ?? currency_code`
+  - keep `balance_minor`
+  - surface `dahab_account_number` and `account_number` for optional display.
+- `currency_distribution[]`, `daily_volume_7d[]`, `volume_by_currency_30d[]`: already alias `currency_code` — keep, plus accept `date` for `day` and `count` for `tx_count`/`posted_count`.
+- `customer_growth_7m[]`: accept `new_customers ?? new_holders`.
 
 ### 2. `src/routes/app.reports.tsx`
-- **Volume by Teller**: wrap chart in `tellers.length === 0 ? <BackendPending endpoint="GET /reports/tellers/today" /> : <chart>` so it does not render an empty bar chart in lambda mode.
-- **Tellers podium / leaderboard**: already gated; verify avatar fallback uses real `t.avatar` only (no static initials computed in FE) — if `avatar` missing, render `—`.
-- **Compliance KPI tiles**: keep current values (already from real endpoint). Top-level `BackendPending` already shown when all-zero + empty arrays.
-- **Saved Reports** static list: keep buttons (UI labels for "Coming soon" cards are presentation, not report data) — confirmed not mock report values.
-- Remove leftover stale comment on lines 29–31 mentioning "illustrative demo data" — replace with note that lambda mode is fully wired.
-- Confirm no `Math.random`, `supabase`, hardcoded chart arrays remain (grep already clean).
+
+- Top KPI strip BackendPending banner (line ~310): change `endpoint="GET /reports/overview"` → `"GET /reports/business/overview"`.
+- KPI strip: confirm tiles read from normalized `counts.total/posted/rejected` and `overview.active_holders` (already wired through adapter once aliases land).
+- Top Accounts (~line 488): keep current layout. Optionally show `a.dahab_account_number ?? a.account_number` as a small muted line under the name when present. No style/layout changes.
+- All `BackendPending` guards stay as `array.length === 0` — they will simply stop firing once the adapter returns mapped rows.
 
 ### 3. `docs/LAMBDA_REPORTS_WIRING_AUDIT.md`
-Finalize with:
-- Full per-widget table (Business / Liquidity / Tellers / Compliance) including Volume-by-Teller and Saved Reports rows.
-- Endpoint allow-list: only the 8 `/reports/*` endpoints listed by user.
-- Confirmations block:
-  - no Supabase report queries in lambda mode
-  - no frontend FX math
-  - no mock/static report values remain
-  - Business, Teller, Compliance fully audited
-- Outstanding `BackendPending` widgets with exact missing fields.
+- Mark Business Overview section as **Live & mapped**.
+- Note the accepted alias pairs:
+  - counts: `tx_total↔total`, `tx_posted↔posted`, `tx_rejected↔rejected`, `active_holders` lives under `counts`.
+  - top_accounts: `holder_account_id`, `canonical_name`/`account_display_name`, `dahab_account_number`/`account_number`, `currency_code`.
+  - daily_volume / volume_by_currency / currency_distribution: `currency_code`.
+- Update "remaining gaps" to drop Business Overview rows.
 
 ### 4. Verify
-- Run `bunx tsc --noEmit` (typecheck only, build runs automatically).
-- Report changed files.
+Run `bunx tsc --noEmit`. Report changed files.
 
-### Out of scope
-No design changes, no section removals, no new endpoints, no mock data, no Supabase fallbacks, no FX calculation.
+## Out of scope
+No redesign, no new endpoints, no mock data, no Supabase fallback, no frontend FX, no removal of report sections.
