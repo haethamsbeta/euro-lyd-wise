@@ -818,8 +818,7 @@ function TxRow({
             isDeposit ? "text-[var(--success)]" : "text-[var(--destructive)]",
           )}
         >
-          {isDeposit ? "+" : "−"}
-          {amountStr}
+          {amountStr === "Currency missing" ? amountStr : (isDeposit ? "+" : "−") + amountStr}
         </div>
         <div className="mt-1 flex justify-end">
           <CurrencyBadge currency={tx.currency} />
