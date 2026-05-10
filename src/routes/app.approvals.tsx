@@ -20,6 +20,7 @@ import { Loader2 } from "lucide-react";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/approvals")({
   component: () => (
@@ -54,6 +55,8 @@ function Approvals() {
       if (error) throw error;
       return data ?? [];
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.approvals : false,
+    refetchOnWindowFocus: true,
   });
   const approve = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount?: number }) => {
