@@ -1,35 +1,64 @@
-Fix vault activity amount mapping in `src/routes/app.vaults.$id.tsx` (lambda mode):
 
-1. Update the `recentActivity` mapper so each activity row preserves the raw backend fields instead of coercing to debit/credit:
-   - Keep `amount_minor`, `cash_vault_effect_minor`, `cash_vault_direction`, `direction`, `currency_code`, `tx_number`, `holder_name`, `description`, `posted_at`, `balance_after_minor` as-is on the row object.
-   - Stop pre-deriving `debit_minor`/`credit_minor` from `amount_minor` and stop forcing `direction` from those derived values.
+## Goal
 
-2. Replace amount/direction logic in the activity table render with:
-   ```ts
-   const rawVaultAmountMinor =
-     row.cash_vault_effect_minor !== null &&
-     row.cash_vault_effect_minor !== undefined &&
-     Number(row.cash_vault_effect_minor) !== 0
-       ? row.cash_vault_effect_minor
-       : row.amount_minor;
-   const displayAmountMinor = Math.abs(Number(rawVaultAmountMinor || 0));
-   const displayDirection = row.cash_vault_direction || row.direction;
-   const displayCurrency = row.currency_code || vault.currency_code;
-   ```
-   Use `displayDirection` (string compare against "deposit"/"withdraw") to choose the in/out icon, color, and +/− sign. Render `formatMinor(displayAmountMinor, displayCurrency)`.
+Make Holder Accounts a first-class, paginated, searchable browse page backed by `GET /holder-accounts`, with correct row navigation to `/app/accounts/:id`, while keeping the existing design and the holder-detail "linked accounts" summary section intact. Additionally, surface the linked-account count on holder cards.
 
-3. Remove the 30-day inflow/outflow recompute and balance-after running compute in lambda mode for the vault summary cards. Use backend-provided values from `api.vaults.get(id)`:
-   - `balance_minor`, `inflow_minor`, `outflow_minor`, `transaction_rows`, `last_transaction_date`.
-   Map these on the `vault` query and bind the hero/30-day cards to them. Keep visual layout untouched. The Balance-after column shows `balance_after_minor` if present, else `—` (no frontend recompute).
+## Scope of changes (frontend only)
 
-4. Add a one-time dev console log for the first activity row:
-   ```ts
-   if (import.meta.env.DEV && rows[0]) {
-     const r = rows[0];
-     console.log("[vault activity amount debug]", { tx_number: r.tx_number, amount_minor: r.amount_minor, cash_vault_effect_minor: r.cash_vault_effect_minor, rawVaultAmountMinor: ..., displayAmountMinor: ..., displayDirection: ..., displayCurrency: ... });
-   }
-   ```
+### 1. Adapter — `src/lib/api/accounts.ts` + alias `holderAccounts`
 
-5. Do not change the design, do not remove sections, do not add mock data, do not touch Supabase fallback path.
+- Update `accountsApi.list(params)` to:
+  - Forward `q`, `currency`, `status`, `limit`, `offset` via `qs(params)`.
+  - Always return `{ items, total, limit, offset, next_offset }`.
+  - **Do not swallow errors.** No `.catch(() => [])` upstream.
+- Keep `accountsApi.get(id)` and `accountsApi.ledger(id, { limit, offset, from, to })` as-is.
+- In `src/lib/api/index.ts`, alias the same object as `holderAccounts` so `api.holderAccounts.list(...)` works.
 
-Validation: load `/app/vaults/:id`, confirm row `ALM-7463-175D474E` shows 23,000.00 USD with withdraw direction, and the summary cards reflect `/vaults/:id` totals (not recomputed).
+### 2. Holder Accounts page — `src/routes/app.accounts.index.tsx`
+
+Keep existing visual structure; rewrite logic to add server-driven pagination, search, and filters:
+
+- State: `q` (debounced 300 ms), `currency` (LYD/USD/EUR/GBP/null), `status` (active/closed/null), `pageSize` (50 default; allow 50 and 100), `offset` (resets to 0 when q/currency/status/pageSize change).
+- Query: `api.holderAccounts.list({ limit: pageSize, offset, q, currency, status })` with `keepPreviousData`. Show errors inline.
+- Filter UI inside existing layout: search input, currency chips, status chips, page-size selector.
+- Pager: `Showing X–Y of {total}` using backend `total` + `next_offset`. Remove "Pagination coming soon" copy.
+- Rows link to `/app/accounts/$id` using `account.id` (never `account_holder_id`).
+- Currency: render `CurrencyBadge` only for LYD/USD/EUR/GBP; otherwise show "Currency missing".
+- Row fields: holder_name, holder_dahab_account_number, account_number, dahab_account_number, account_display_name, currency_code, account_nature, current_balance, available_to_withdraw, withdraw_limit_enabled flag, linked_ledger_count (when present), status.
+
+### 3. Holder cards — `src/routes/app.holders.index.tsx`
+
+- On each holder card, add a small badge/line showing the number of linked accounts for that holder, e.g. `{h.holder_accounts.length} linked accounts`. Use the count already available in the holders list payload (`holder_accounts` / `accounts` array length); no extra fetch.
+- No layout redesign — slot the count under the existing currency-chip row or next to the status badge.
+
+### 4. Holder detail — `src/routes/app.holders.$id.tsx`
+
+- Keep linked-accounts section (design unchanged).
+- Add small "View all linked accounts" link → `/app/accounts?q={holder_dahab_account_number}`.
+- Verify each linked-account card links to `/app/accounts/$id` with `account.id`.
+
+### 5. Account detail — `src/routes/app.accounts.$id.tsx`
+
+- No changes beyond confirming `api.accounts.get(id)` + `api.accounts.ledger(id, ...)` and the "No ledger activity for this account." empty state already work.
+
+### 6. Sidebar / navigation
+
+- "Linked Accounts" entry already added in a previous turn; leave intact.
+
+## Out of scope
+
+- No backend changes.
+- No Supabase fallback in lambda mode for the list query.
+- No redesign of cards, hero, or holder detail.
+- No mock data, no removed sections.
+
+## Acceptance verification
+
+In preview after changes:
+- `/app/accounts` shows 50 rows, "Showing 1–50 of 659", Next → 51–100.
+- Search "ahmed" sends `q=ahmed`, total updates, offset resets to 0.
+- Currency LYD and Status Active filter server-side.
+- Row click opens `/app/accounts/:holderAccountId`.
+- Account detail loads + ledger renders, or shows empty-state message.
+- Holder cards show linked-account count.
+- `bunx tsc --noEmit` passes.
