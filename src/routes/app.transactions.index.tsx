@@ -147,7 +147,8 @@ function TxList() {
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
-        const items = (paged.items ?? []).map<Tx>((r: any) => ({
+        const rawItems: any[] = Array.isArray(paged.items) ? paged.items : [];
+        const items: Tx[] = rawItems.map((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
           direction: r.direction,
