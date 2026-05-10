@@ -499,7 +499,7 @@ function LimitsCard({ account }: { account: any }) {
 
 type SortKey = "date" | "credit" | "debit" | "balance";
 
-function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]; loading: boolean; currency: string; accountId: number }) {
+function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]; loading: boolean; currency: string; accountId: string | number }) {
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 200);
   const [from, setFrom] = useState("");
