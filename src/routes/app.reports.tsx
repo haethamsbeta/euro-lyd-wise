@@ -521,14 +521,22 @@ function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-gold" />
                       <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
+                      <CurrencyBadge currency="LYD" />
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (7d)</p>
-                    <p className="text-lg font-semibold text-[var(--success)] tabular-nums">+12.4%</p>
+                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (LYD, 7d)</p>
+                    <p className={`text-lg font-semibold tabular-nums ${cashFlow.length === 0 ? "text-text-tertiary" : cashFlowNetMinor >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
+                      {cashFlow.length === 0
+                        ? "—"
+                        : `${cashFlowNetMinor >= 0 ? "+" : ""}${formatMinor(cashFlowNetMinor, "LYD")}`}
+                    </p>
                   </div>
                 </div>
+                {cashFlow.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/cash-flow" />
+                ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%" minHeight={220}>
                     <AreaChart data={cashFlow}>
@@ -551,41 +559,16 @@ function ReportsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Transaction Mix</h2>
                 <p className="text-sm text-text-secondary mb-5">Breakdown by type</p>
-                <div className="h-48 relative">
-                  <ResponsiveContainer width="100%" height="100%" minHeight={180}>
-                    <PieChart>
-                      <Pie data={txnMix} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="#161B22" strokeWidth={2}>
-                        {txnMix.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-foreground tabular-nums">{fmtTotal(dashSummary?.transactionCount ?? null)}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-text-secondary">Total Txns</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2 mt-4">
-                  {txnMix.map((t) => (
-                    <div key={t.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
-                        <span className="text-text-secondary">{t.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground font-medium tabular-nums">{t.count.toLocaleString()}</span>
-                        <span className="text-text-tertiary text-xs">({t.value}%)</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <BackendPending
+                  endpoint="GET /reports/transaction-mix"
+                  note="Transaction-mix endpoint not yet implemented."
+                />
               </PremiumCard>
             </div>
 
@@ -597,24 +580,38 @@ function ReportsPage() {
               </div>
               <p className="text-sm text-text-secondary mb-5">Vault balances and days of cover by currency</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {liquidityHealth.map((liq) => {
+                {liquidityHealth.length === 0 && (
+                  <div className="md:col-span-2 lg:col-span-4">
+                    <BackendPending endpoint="GET /reports/liquidity-health" />
+                  </div>
+                )}
+                {liquidityHealth.map((liq, idx) => {
                   const healthColor = liq.health === "Healthy" ? "emerald" : liq.health === "Watch" ? "amber" : "red";
-                  const coverPct = Math.min((liq.daysOfCover / 30) * 100, 100);
+                  const coverPct = liq.daysOfCover != null ? Math.min((liq.daysOfCover / 30) * 100, 100) : 0;
                   return (
-                    <div key={liq.currency} className="p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                    <div key={`${liq.vaultName}-${liq.currency}-${idx}`} className="p-4 rounded-xl border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] hover:border-[oklch(from_var(--gold)_l_c_h/0.30)] transition-colors">
+                      <p className="text-xs text-foreground font-medium truncate mb-1">{liq.vaultName}</p>
                       <div className="flex items-start justify-between mb-3">
-                        <CurrencyBadge currency={liq.currency} />
+                        {liq.currencyValid ? (
+                          <CurrencyBadge currency={liq.currency} />
+                        ) : (
+                          <span className="text-[10px] text-text-tertiary">Currency missing</span>
+                        )}
                         <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full font-medium ${healthColor === "emerald" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : healthColor === "amber" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>{liq.health}</span>
                       </div>
                       <div className="space-y-3">
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-text-secondary mb-1">Vault Balance</p>
-                          <p className="text-lg font-semibold text-foreground tabular-nums">{formatMinor(liq.balance * 100, liq.currency)}</p>
+                          <p className="text-lg font-semibold text-foreground tabular-nums">
+                            {liq.currencyValid ? formatMinor(liq.balanceMinor, liq.currency) : "—"}
+                          </p>
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
                             <p className="text-[10px] uppercase tracking-wider text-text-secondary">Days of Cover</p>
-                            <p className="text-sm font-semibold text-foreground tabular-nums">{liq.daysOfCover}d</p>
+                            <p className="text-sm font-semibold text-foreground tabular-nums">
+                              {liq.daysOfCover != null ? `${liq.daysOfCover}d` : "—"}
+                            </p>
                           </div>
                           <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
                             <div className={`h-full rounded-full transition-all ${healthColor === "emerald" ? "bg-emerald-400" : healthColor === "amber" ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${coverPct}%` }} />
@@ -625,6 +622,11 @@ function ReportsPage() {
                   );
                 })}
               </div>
+              {liquidityNetwork == null && liquidityHealth.length > 0 && (
+                <p className="mt-4 text-xs text-text-tertiary">
+                  FX/consolidated total pending — backend has not returned <code>network_total_lyd_minor</code>.
+                </p>
+              )}
             </PremiumCard>
           </motion.div>
         )}
