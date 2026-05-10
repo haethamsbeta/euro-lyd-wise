@@ -20,6 +20,7 @@ import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig
 import { supabase } from "@/integrations/supabase/client";
 import { formatMinor } from "@/lib/format";
 import { api } from "@/lib/api";
+import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
@@ -218,6 +219,7 @@ export const Route = createFileRoute("/app/reports")({
 function ReportsPage() {
   const { data, isLoading } = useReportsData();
   const { data: topAccounts } = useTopAccounts();
+  const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
 
   // Live report feeds — every chart below sources from the backend Lambda API.
@@ -266,12 +268,12 @@ function ReportsPage() {
   const lydVolume = data?.volumeByCurrency?.["LYD"] ?? 0;
 
   const kpis = [
-    { l: "Network Volume (30d)", v: isLoading ? "…" : (lydVolume ? formatMinor(lydVolume, "LYD") : volumeSummary), chg: "+18.2%", up: true, icon: TrendingUp },
-    { l: "Active Customers", v: isLoading ? "…" : fmtN(data?.holdersCount ?? 0), chg: "+5.4%", up: true, icon: Users },
-    { l: "Approved Txns", v: isLoading ? "…" : fmtN(data?.posted ?? 0), chg: "+12.1%", up: true, icon: BarChart3 },
-    { l: "Avg Txn Value", v: isLoading ? "…" : formatMinor(data?.avgTxnValueLyd ?? 0, "LYD"), chg: "+3.2%", up: true, icon: Target },
-    { l: "Approval Time", v: "19 min", chg: "-2.1 min", up: true, icon: Clock },
-    { l: "Rejection Rate", v: isLoading ? "…" : `${(data?.rejectionRate ?? 0).toFixed(1)}%`, chg: "-0.3%", up: true, icon: PieIcon },
+    { l: "Network Volume (30d)", v: isLoading ? "…" : (lydVolume ? formatMinor(lydVolume, "LYD") : volumeSummary), chg: "", up: true, icon: TrendingUp },
+    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), chg: "", up: true, icon: Users },
+    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), chg: "", up: true, icon: BarChart3 },
+    { l: "Avg Txn Value (loaded)", v: isLoading ? "…" : formatMinor(data?.avgTxnValueLyd ?? 0, "LYD"), chg: "", up: true, icon: Target },
+    { l: "Approval Time", v: "—", chg: "", up: true, icon: Clock },
+    { l: "Rejection Rate (loaded)", v: isLoading ? "…" : ((data?.total ?? 0) > 0 ? `${(data?.rejectionRate ?? 0).toFixed(1)}%` : "—"), chg: "", up: true, icon: PieIcon },
   ];
 
   return (
