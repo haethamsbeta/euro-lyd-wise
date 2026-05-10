@@ -20,7 +20,9 @@ import { Loader2 } from "lucide-react";
 import { formatMinor, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
-import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { REALTIME_MODE, POLL_INTERVALS, DATA_BACKEND } from "@/lib/runtimeConfig";
+import { api } from "@/lib/api";
+import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/approvals")({
   component: () => (
@@ -45,9 +47,26 @@ function Approvals() {
     qc.invalidateQueries({ queryKey: ["transactions.list.v2"] });
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["approvals"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const rows = await api.approvals.pending({ limit: 100 });
+        const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
+        return (list ?? []).map((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          channel: r.channel,
+          currency: r.currency,
+          amount_minor: Number(r.amount_minor ?? 0),
+          requested_amount_minor: r.requested_amount_minor ?? null,
+          review_reason: r.review_reason ?? null,
+          comment: r.comment ?? "",
+          created_at: r.created_at,
+          customer_account_id: r.customer_account_id ?? null,
+        }));
+      }
       const { data, error } = await supabase
         .from("transactions")
         .select("id, tx_number, direction, channel, currency, amount_minor, requested_amount_minor, review_reason, comment, created_at, customer_account_id")
@@ -55,9 +74,13 @@ function Approvals() {
       if (error) throw error;
       return data ?? [];
     },
+    retry: false,
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.approvals : false,
     refetchOnWindowFocus: true,
   });
+  const pending = isPendingError(error);
+  const isLambda = DATA_BACKEND === "lambda";
+  const writesDisabled = isLambda; // POST endpoints not confirmed live yet
   const approve = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount?: number }) => {
       const { error } = await supabase.rpc("approve_transaction", {
@@ -91,13 +114,16 @@ function Approvals() {
     <div>
       <PageHeader title={t("approvals.title")} description={t("approvals.subtitle")} />
       <div className="p-4 sm:p-6">
+        {pending ? (
+          <BackendPending endpoint="GET /approvals/pending" />
+        ) : (
         <Card>
           <CardContent className="p-0">
             {isLoading ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
               : data && data.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
               : (
               <ul className="divide-y">
-                {data!.map((row) => (
+                {data!.map((row: any) => (
                   <li key={row.id} className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                       <div className="min-w-0 space-y-1">
@@ -125,18 +151,21 @@ function Approvals() {
                         <Button
                           variant="outline"
                           className="flex-1 sm:flex-none"
-                          disabled={busyId === row.id}
+                          disabled={busyId === row.id || writesDisabled}
+                          title={writesDisabled ? "Approval write endpoints not enabled yet" : undefined}
                           onClick={() => { setRejectReason(""); setRejectTarget({ id: row.id, tx_number: row.tx_number }); }}
                         >{t("approvals.reject")}</Button>
                         <Button
                           variant="outline"
                           className="flex-1 sm:flex-none"
-                          disabled={busyId === row.id}
+                          disabled={busyId === row.id || writesDisabled}
+                          title={writesDisabled ? "Approval write endpoints not enabled yet" : undefined}
                           onClick={() => { setPartialTarget(row); setPartialAmount(String((row.amount_minor / 100).toFixed(2))); }}
                         >Partial…</Button>
                         <Button
                           className="flex-1 sm:flex-none"
-                          disabled={busyId === row.id}
+                          disabled={busyId === row.id || writesDisabled}
+                          title={writesDisabled ? "Approval write endpoints not enabled yet" : undefined}
                           onClick={() => approve.mutate({ id: row.id })}
                         >
                           {busyId === row.id && approve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -150,6 +179,7 @@ function Approvals() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>

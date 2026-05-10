@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { supabase } from "@/integrations/supabase/client";
+import { BackendPending } from "@/components/app/backend-pending";
 import { formatMinor } from "@/lib/format";
 import { api } from "@/lib/api";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
@@ -221,6 +222,8 @@ function ReportsPage() {
   const { data: topAccounts } = useTopAccounts();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
+  const isLambda = DATA_BACKEND === "lambda";
+  const overviewPending = isLambda && (data as any)?.__lambdaEmpty;
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
@@ -319,6 +322,12 @@ function ReportsPage() {
         </div>
 
         {/* TOP KPI STRIP */}
+        {overviewPending && (
+          <BackendPending
+            endpoint="GET /reports/overview"
+            note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
+          />
+        )}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map((k, i) => (
             <motion.div key={k.l} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
@@ -484,7 +493,9 @@ function ReportsPage() {
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {(!topAccounts || topAccounts.length === 0) ? (
+                {isLambda && (!topAccounts || topAccounts.length === 0) ? (
+                  <BackendPending endpoint="GET /reports/top-accounts" />
+                ) : (!topAccounts || topAccounts.length === 0) ? (
                   <p className="text-xs text-text-tertiary">No accounts yet.</p>
                 ) : (
                   <ul className="space-y-3">
@@ -629,10 +640,10 @@ function ReportsPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { l: "Active Tellers", v: "24", sub: "8 currently on shift", icon: Users },
-                { l: "Avg Txns / Teller / Day", v: "63", sub: "+8 from last week", icon: Activity },
-                { l: "Network Accuracy", v: "99.1%", sub: "Industry-leading", icon: Target },
-                { l: "Avg Time / Transaction", v: "2.5 min", sub: "-0.3 min from prior", icon: Clock },
+                { l: "Active Tellers", v: isLambda ? "—" : "24", sub: isLambda ? "Backend pending" : "8 currently on shift", icon: Users },
+                { l: "Avg Txns / Teller / Day", v: isLambda ? "—" : "63", sub: isLambda ? "Backend pending" : "+8 from last week", icon: Activity },
+                { l: "Network Accuracy", v: isLambda ? "—" : "99.1%", sub: isLambda ? "Backend pending" : "Industry-leading", icon: Target },
+                { l: "Avg Time / Transaction", v: isLambda ? "—" : "2.5 min", sub: isLambda ? "Backend pending" : "-0.3 min from prior", icon: Clock },
               ].map((k, i) => (
                 <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <PremiumCard className="p-5">
@@ -649,8 +660,12 @@ function ReportsPage() {
               ))}
             </div>
 
+            {isLambda && tellers.length === 0 && (
+              <BackendPending endpoint="GET /reports/tellers/today" />
+            )}
+
             {/* Top Performers Podium */}
-            <PremiumCard variant="premium" className="p-6">
+            {tellers.length > 0 && <PremiumCard variant="premium" className="p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-5 h-5 text-gold" />
                 <h2 className="text-lg font-serif font-semibold text-foreground">Top Performers — Today</h2>
@@ -688,10 +703,10 @@ function ReportsPage() {
                   );
                 })}
               </div>
-            </PremiumCard>
+            </PremiumCard>}
 
             {/* Full Leaderboard */}
-            <PremiumCard className="p-0 overflow-hidden">
+            {tellers.length > 0 && <PremiumCard className="p-0 overflow-hidden">
               <div className="p-5 border-b border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-gold" />
@@ -740,7 +755,7 @@ function ReportsPage() {
                   </tbody>
                 </table>
               </div>
-            </PremiumCard>
+            </PremiumCard>}
 
             {/* Volume by Teller */}
             <PremiumCard className="p-6">
@@ -802,6 +817,9 @@ function ReportsPage() {
         {/* ═════════════ COMPLIANCE LENS ═════════════ */}
         {lens === "compliance" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            {isLambda && riskMetrics.flaggedTxns === 0 && riskMetrics.pendingReviews === 0 && riskMetrics.resolvedToday === 0 && riskMetrics.highRiskHolders === 0 && riskTypology.length === 0 && (compliance.alert_volume?.length ?? 0) === 0 && (
+              <BackendPending endpoint="GET /reports/compliance/overview" />
+            )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { l: "Flagged Transactions", v: riskMetrics.flaggedTxns, icon: AlertCircle, color: "amber" },
@@ -826,18 +844,19 @@ function ReportsPage() {
               <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
               <div className="space-y-4">
                 {[
-                  { metric: "KYC Completion Rate", value: 96.2, target: 95 },
-                  { metric: "Sanctions Screening", value: 100, target: 100 },
-                  { metric: "Document Verification", value: 92.8, target: 90 },
-                  { metric: "AML Alert Resolution", value: 88.4, target: 85 },
+                  { metric: "KYC Completion Rate", value: compliance.kyc.current_pct, target: compliance.kyc.target_pct },
+                  { metric: "Sanctions Screening", value: compliance.sanctions.current_pct, target: compliance.sanctions.target_pct },
+                  { metric: "Document Verification", value: compliance.doc_verification.current_pct, target: compliance.doc_verification.target_pct },
+                  { metric: "AML Alert Resolution", value: compliance.aml.current_pct, target: compliance.aml.target_pct },
                 ].map((m) => {
                   const meets = m.value >= m.target;
+                  const empty = !m.value && !m.target;
                   return (
                     <div key={m.metric}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm text-foreground font-medium">{m.metric}</span>
-                        <span className={`text-sm font-semibold tabular-nums ${meets ? "text-[var(--success)]" : "text-amber-400"}`}>
-                          {m.value}% <span className="text-text-tertiary text-xs">/ {m.target}%</span>
+                        <span className={`text-sm font-semibold tabular-nums ${empty ? "text-text-tertiary" : meets ? "text-[var(--success)]" : "text-amber-400"}`}>
+                          {empty ? "—" : `${m.value}%`} <span className="text-text-tertiary text-xs">/ {empty ? "—" : `${m.target}%`}</span>
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
@@ -859,7 +878,7 @@ function ReportsPage() {
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <AreaChart data={alertVolume}>
+                    <AreaChart data={isLambda ? (compliance.alert_volume ?? []) : alertVolume}>
                       <defs>
                         <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#F87171" stopOpacity={0.3} />

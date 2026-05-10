@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { ExportPdfButton } from "@/components/app/export-pdf";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
+import { BackendPending, isPendingError } from "@/components/app/backend-pending";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/audit")({
   component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
@@ -74,25 +76,21 @@ function describe(action: string, d: any, actorName: string): string {
 }
 
 function Audit() {
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ["audit"],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        try {
-          const rows = await api.audit.list({ limit: 500 });
-          const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
-          return (list ?? []).map((r: any) => ({
-            id: String(r.id),
-            action: r.action,
-            target: r.entity_id ?? r.entity ?? null,
-            details: r.meta ?? {},
-            created_at: r.ts ?? r.created_at,
-            actor_user_id: r.user_id ?? null,
-            __actor_email: r.user_email ?? null,
-          })) as (AuditRow & { __actor_email?: string | null })[];
-        } catch {
-          return [] as AuditRow[];
-        }
+        const rows = await api.audit.list({ limit: 500 });
+        const list = Array.isArray(rows) ? rows : ((rows as any)?.items ?? []);
+        return (list ?? []).map((r: any) => ({
+          id: String(r.id),
+          action: r.action,
+          target: r.entity_id ?? r.entity ?? null,
+          details: r.meta ?? {},
+          created_at: r.ts ?? r.created_at,
+          actor_user_id: r.user_id ?? null,
+          __actor_email: r.user_email ?? null,
+        })) as (AuditRow & { __actor_email?: string | null })[];
       }
       const { data, error } = await supabase
         .from("audit_log")
@@ -101,7 +99,9 @@ function Audit() {
       if (error) throw error;
       return (data ?? []) as AuditRow[];
     },
+    retry: false,
   });
+  const pending = isPendingError(error);
 
   const actorIds = Array.from(new Set((data ?? []).map((r) => r.actor_user_id).filter(Boolean) as string[]));
   const { data: profiles } = useQuery({
@@ -122,6 +122,7 @@ function Audit() {
     <div>
       <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
       <div className="p-4 sm:p-6 space-y-3">
+        {pending && <BackendPending endpoint="GET /audit" />}
         <div className="flex justify-end">
           <ExportPdfButton
             title="Audit Log"
@@ -152,7 +153,8 @@ function Audit() {
                       describe(r.action, r.meta ?? {}, actor),
                     ];
                   });
-                } catch {
+                } catch (e) {
+                  if (isPendingError(e)) toast.error("Backend endpoint pending: GET /audit");
                   return [];
                 }
               }
@@ -186,7 +188,7 @@ function Audit() {
             }}
           />
         </div>
-        {data?.map((r) => {
+        {!pending && data?.map((r) => {
           const meta = actionLabel(r.action);
           const actor = nameOf(r.actor_user_id, r);
           const sentence = describe(r.action, r.details, actor);
@@ -214,7 +216,7 @@ function Audit() {
             </Card>
           );
         })}
-        {data && data.length === 0 && (
+        {!pending && data && data.length === 0 && (
           <Card><CardContent className="p-6 text-sm text-muted-foreground">No audit entries yet.</CardContent></Card>
         )}
       </div>
