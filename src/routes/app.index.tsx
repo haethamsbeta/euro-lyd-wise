@@ -847,13 +847,23 @@ function HoldingsSummary({
   // Never derive from cash_by_currency or bank_by_currency. In Supabase
   // fallback mode we keep the legacy customerByCur map.
   const lambda = DATA_BACKEND === "lambda";
-  const balanceMap = useMemo(() => {
-    const m = new Map<string, number>();
+  // Build rows directly from backend payload so any currency the backend
+  // returns (incl. GBP) is shown — no hard-coded currency list.
+  const rows = useMemo(() => {
     if (holderBalancesByCurrency) {
-      for (const r of holderBalancesByCurrency) m.set(r.currency, r.balance_minor);
-      return m;
+      const order = ["LYD", "USD", "EUR", "GBP"];
+      return [...holderBalancesByCurrency].sort(
+        (a, b) => order.indexOf(a.currency) - order.indexOf(b.currency),
+      );
     }
-    if (!lambda) return customerByCur;
+    if (!lambda) {
+      return Array.from(customerByCur.entries()).map(([currency, balance_minor]) => ({
+        currency,
+        balance_minor,
+        account_count: null as number | null,
+        holder_count: null as number | null,
+      }));
+    }
     return null; // backend pending in lambda mode
   }, [holderBalancesByCurrency, customerByCur, lambda]);
 
@@ -869,29 +879,40 @@ function HoldingsSummary({
           <div className="text-sm text-muted-foreground">Total Active Holders</div>
         </div>
       </div>
-      {balanceMap === null ? (
+      {rows === null ? (
         <BackendPending
           endpoint="GET /dashboard/staff → summary.holder_balances_by_currency"
           note="Per-currency holder account totals will appear once the backend exposes this field."
         />
       ) : (
       <div className="space-y-3">
-        {CURRENCIES.map((c) => {
-          const v = balanceMap.get(c) ?? 0;
-          const max = Math.max(...CURRENCIES.map((x) => balanceMap.get(x) ?? 0), 1);
-          const pct = Math.round((v / max) * 100);
-          return (
-            <div key={c}>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-muted-foreground">{c}</span>
-                <span className="text-foreground font-medium tabular-nums">{formatMinor(v, c)}</span>
+        {(() => {
+          const max = Math.max(...rows.map((r) => r.balance_minor), 1);
+          return rows.map((r) => {
+            const pct = Math.round((r.balance_minor / max) * 100);
+            const counts: string[] = [];
+            if (r.account_count != null) counts.push(`${r.account_count.toLocaleString()} accounts`);
+            if (r.holder_count != null) counts.push(`${r.holder_count.toLocaleString()} holders`);
+            return (
+              <div key={r.currency}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">
+                    {r.currency}
+                    {counts.length > 0 && (
+                      <span className="ml-2 text-[10px] text-muted-foreground/70">{counts.join(" · ")}</span>
+                    )}
+                  </span>
+                  <span className="text-foreground font-medium tabular-nums">
+                    {formatMinorOrMissing(r.balance_minor, r.currency)}
+                  </span>
+                </div>
+                <div className="w-full bg-surface-2 rounded-full h-1.5">
+                  <div className="bg-gradient-gold h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
               </div>
-              <div className="w-full bg-surface-2 rounded-full h-1.5">
-                <div className="bg-gradient-gold h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
       )}
     </PremiumCard>
