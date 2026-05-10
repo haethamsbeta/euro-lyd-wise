@@ -16,8 +16,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
 import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { authService } from "@/lib/authService";
-import { setAccessToken } from "@/lib/dahabAuthToken";
-import { apiFetch } from "@/lib/dahabApi";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
 
 type PortalKind = "staff" | "consumer";
@@ -155,46 +155,56 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       return;
     }
     setBusy(true);
+    if (DATA_BACKEND === "lambda") {
+      try {
+        const loginResult = await api.auth.login(parsed.data);
+        console.log("[DAHAB Lambda login raw]", loginResult);
+        const payload = loginResult?.data?.access_token ? loginResult.data : loginResult;
+        const accessToken = payload?.access_token ?? payload?.token;
+        const refreshToken = payload?.refresh_token;
+        const user = payload?.user;
+
+        if (!accessToken) {
+          console.error("[DAHAB login] Missing Lambda access token", loginResult);
+          throw new Error("Lambda login did not return access_token.");
+        }
+
+        localStorage.setItem("dahab.access_token", accessToken);
+        if (refreshToken) {
+          localStorage.setItem("dahab.refresh_token", refreshToken);
+        }
+        if (user) {
+          localStorage.setItem("dahab.user", JSON.stringify(user));
+        }
+        localStorage.setItem("dahab.signed_in_at", String(Date.now()));
+
+        console.log("[DAHAB login stored]", {
+          hasAccessToken: !!localStorage.getItem("dahab.access_token"),
+          hasRefreshToken: !!localStorage.getItem("dahab.refresh_token"),
+          userRole: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+          keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
+        });
+
+        window.dispatchEvent(new Event("dahab.auth.changed"));
+        await Promise.all(
+          ["dashboard", "holders", "vaults", "transactions", "users", "notifications"].map(
+            (key) => queryClient.invalidateQueries({ queryKey: [key] }),
+          ),
+        );
+        setBusy(false);
+        toast.success(t("login.welcomeToast"));
+        nav({ to: portal === "staff" ? "/app" : "/portal" });
+      } catch (e: any) {
+        setBusy(false);
+        toast.error(e?.message ?? "Lambda login failed.");
+      }
+      return;
+    }
     const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
     if (error) {
       setBusy(false);
       toast.error(error.message);
       return;
-    }
-    // Obtain a Lambda backend access_token so apiFetch can authenticate
-    // against AWS API Gateway. apiFetch unwraps the envelope, so the result
-    // is the inner { access_token, refresh_token, user } object.
-    try {
-      const lambdaRes = await apiFetch<{
-        access_token?: string;
-        refresh_token?: string;
-        token?: string;
-        user?: { id: string; email?: string; role?: string; [k: string]: unknown };
-      }>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify(parsed.data),
-      });
-      const token = lambdaRes?.access_token ?? lambdaRes?.token ?? null;
-      const refresh = lambdaRes?.refresh_token ?? null;
-      if (token) {
-        setAccessToken(token);
-        if (refresh) localStorage.setItem("dahab.refresh_token", refresh);
-        if (lambdaRes?.user) localStorage.setItem("dahab.user", JSON.stringify(lambdaRes.user));
-      }
-      if (import.meta.env.DEV) {
-        console.log("[DAHAB login]", {
-          hasAccessToken: !!localStorage.getItem("dahab.access_token"),
-          userRole: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
-        });
-      }
-      // Refetch all protected lists now that the Bearer token is stored.
-      await Promise.all(
-        ["dashboard", "holders", "vaults", "transactions", "users", "notifications"].map(
-          (key) => queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      );
-    } catch (e) {
-      if (import.meta.env.DEV) console.warn("[lambda login] failed", e);
     }
     // Enforce portal/credential separation by checking roles.
     const uid = data.user?.id;

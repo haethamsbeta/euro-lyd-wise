@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { setAccessToken, getAccessToken } from "@/lib/dahabAuthToken";
+import { clearDahabAuthStorage, getAccessToken } from "@/lib/dahabAuthToken";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export type AppRole = "admin" | "teller" | "auditor" | "consumer";
+
+const APP_ROLES: AppRole[] = ["admin", "teller", "auditor", "consumer"];
 
 type AuthState = {
   session: Session | null;
@@ -52,6 +55,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
 
+  function readLambdaUser() {
+    if (typeof localStorage === "undefined") return null;
+    try {
+      return JSON.parse(localStorage.getItem("dahab.user") || "null") as { id?: string; email?: string; role?: string } | null;
+    } catch {
+      return null;
+    }
+  }
+
+  function applyLambdaAuthState() {
+    const lambdaUser = readLambdaUser();
+    const token = getAccessToken();
+    if (!token || !lambdaUser?.id) return false;
+    setSession({ user: { id: lambdaUser.id, email: lambdaUser.email ?? "" } } as Session);
+    setRoles(lambdaUser.role && APP_ROLES.includes(lambdaUser.role as AppRole) ? [lambdaUser.role as AppRole] : []);
+    setLoading(false);
+    setRolesLoading(false);
+    return true;
+  }
+
   async function loadRoles(uid: string | undefined) {
     if (!uid) {
       setRoles([]);
@@ -65,9 +88,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    if (DATA_BACKEND === "lambda") {
+      if (!applyLambdaAuthState()) {
+        setSession(null);
+        setRoles([]);
+        setLoading(false);
+        setRolesLoading(false);
+      }
+      window.addEventListener("dahab.auth.changed", applyLambdaAuthState);
+      return () => window.removeEventListener("dahab.auth.changed", applyLambdaAuthState);
+    }
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (event === "SIGNED_OUT") setAccessToken(null);
+      if (event === "SIGNED_OUT") clearDahabAuthStorage();
       // defer to avoid deadlocks
       setTimeout(() => loadRoles(s?.user.id), 0);
     });
@@ -103,7 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     rolesLoading,
     signOut: async () => {
-      setAccessToken(null);
+      clearDahabAuthStorage();
+      setSession(null);
+      setRoles([]);
+      setLoading(false);
+      setRolesLoading(false);
       await supabase.auth.signOut();
     },
     refreshRoles: async () => loadRoles(session?.user.id),

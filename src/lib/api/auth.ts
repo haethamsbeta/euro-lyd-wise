@@ -4,10 +4,16 @@
 import { apiFetch } from "./_shared";
 
 export interface LoginResponse {
-  userId: string;
-  email: string | null;
-  mustChangePassword: boolean;
-  token: string;
+  access_token?: string;
+  refresh_token?: string;
+  token?: string;
+  user?: { id: string; email?: string; role?: string; [key: string]: unknown };
+  data?: {
+    access_token?: string;
+    refresh_token?: string;
+    token?: string;
+    user?: { id: string; email?: string; role?: string; [key: string]: unknown };
+  };
 }
 export interface MeResponse {
   userId: string;
@@ -18,7 +24,7 @@ export interface MeResponse {
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
+  login: ({ email, password }: { email: string; password: string }) =>
     apiFetch<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
