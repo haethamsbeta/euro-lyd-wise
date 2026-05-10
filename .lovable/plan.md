@@ -1,38 +1,35 @@
 ## Goal
 
-Holding Summary already reads `summary.holder_balances_by_currency` via the adapter. Two small gaps remain vs. the confirmed backend payload:
+Backend `/reports/liquidity-health` now returns only per-vault rows — no top-level `network_total_lyd_minor` and no `missing_rates`. The Dashboard "Total Consolidated Balance" hero card must therefore never display a number, never compute FX, and stop showing the misleading "FX rates missing" / "Set FX rates" copy that implies the user can fix it locally. It should simply show a pending state.
 
-1. UI iterates a hard-coded `CURRENCIES = ["USD","EUR","LYD"]` list, so `GBP` rows returned by the backend are silently dropped.
-2. UI only displays `balance_minor`. The backend also returns `account_count` and `holder_count` per currency, which the user explicitly wants visible.
+## Change — `src/routes/app.index.tsx` (Hero card, lines ~338–363)
 
-No design change beyond inlining the two extra numbers as small subtext under each currency row, and rendering whatever currencies the backend returns (still in allow-list order).
+Keep label, layout, typography, gold styling. Only change the fallback branch:
 
-## Changes — `src/routes/app.index.tsx`
+1. `network !== null` → render `<AnimatedNumber value={network} currency="LYD" />` (unchanged).
+2. `network === null` → render the muted text:
+   - "…" while `liquidity.isLoading`
+   - otherwise "FX/consolidated total pending" (single message, replaces the three current variants: "FX rates missing", "Set FX rates to calculate consolidated balance", and the empty error state).
+3. Remove the amber sub-block (lines 352–363) entirely:
+   - No "FX rates missing for X→Y" line (backend no longer returns `missing_rates`).
+   - No "Backend has not returned a consolidated total" line.
+   - No "Set rates" link to `/app/admin/fx-rates` from this card. (The FX-rates admin page is still reachable from the sidebar; the dashboard card just stops pretending the user can fix the missing total here.)
+4. `missingRates` local can stay (still typed) but is no longer read in JSX. Safe to drop the variable to keep the file clean.
 
-### `HoldingsSummary` component (lines 834–899)
-
-- Build the row list from `holderBalancesByCurrency` itself in lambda mode (preserve allow-list ordering: LYD, USD, EUR, GBP), instead of looping over the fixed `CURRENCIES` constant. Supabase fallback path keeps current `customerByCur` behaviour.
-- For each row, render alongside the existing `formatMinor(balance_minor, currency)`:
-  - `account_count` (e.g. `"104 accounts"`)
-  - `holder_count` (e.g. `"104 holders"`)
-  - Use small muted subtext under the currency label. No layout/colour change.
-- Use `formatMinorOrMissing` for balance to keep the currency-allow-list guard.
-- Keep `BackendPending` only when `holder_balances_by_currency` is truly absent (lambda + null). Once the field exists (even with empty array), render the rows section without `BackendPending`.
-- Drop the dependency on `CURRENCIES` inside this component; max-bar calc derives from the rows.
-
-### Adapter
-
-`src/lib/api/dashboard.ts` already maps `currency_code → currency`, coerces stringified numbers via `Number(...)`, and exposes `account_count` / `holder_count`. No change needed.
+No changes to:
+- `src/lib/api/reports.ts` — `LiquidityHealthResponse` already marks both fields optional/null, so the adapter remains correct for when the backend eventually adds them.
+- The per-currency tiles to the right of the hero (those read `cashSource`/`bankSource`, a separate concern).
+- Any other dashboard widget.
 
 ## Out of scope
 
-- No design redesign, no removal of sections.
-- No changes to other widgets (Network Pulse, Vault gauges, Reports).
-- No FX math, no fallbacks to `cash_by_currency` / `bank_by_currency` for holder totals.
-- No mock data, no fabricated zeros — a currency missing from the backend list simply does not render.
+- No FX math in the frontend.
+- No fallback to `cash_by_currency` or `holder_balances_by_currency` for this card.
+- No relabeling of the card.
+- No design or layout changes.
 
 ## Verification
 
 - Typecheck.
-- Visually confirm Dashboard Holding Summary shows EUR / GBP / LYD / USD rows with their `balance_minor`, `account_count`, `holder_count` from the live payload (e.g. LYD 12,716,400,384 minor, 367 accounts / 347 holders).
-- Confirm `BackendPending` no longer appears for Holding Summary in lambda mode.
+- Visually confirm the hero shows "FX/consolidated total pending" in muted text (no amber row, no "Set rates" link) while `/reports/liquidity-health` returns rows without `network_total_lyd_minor`.
+- Once backend adds `network_total_lyd_minor`, the same card automatically renders the LYD-equivalent number with no further code change.
