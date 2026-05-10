@@ -677,13 +677,44 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
 }
 
 function RecentAuditEvents() {
-  const events = [
-    { id: 1, action: "Transaction approved", user: "admin", details: "TXN-9921 cleared", status: "Success", at: new Date() },
-    { id: 2, action: "Vault threshold check", user: "system", details: "Bank EUR reserves below 15%", status: "Warning", at: new Date(Date.now() - 600000) },
-    { id: 3, action: "Holder created", user: "teller01", details: "Al-Madina Trading onboarded", status: "Success", at: new Date(Date.now() - 1200000) },
-    { id: 4, action: "Login attempt", user: "unknown", details: "Failed MFA from 41.252.x.x", status: "Failed", at: new Date(Date.now() - 3600000) },
-    { id: 5, action: "Backup snapshot", user: "system", details: "Nightly snapshot completed", status: "Success", at: new Date(Date.now() - 7200000) },
-  ];
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["dash.recent.audit"],
+    queryFn: async () => {
+      const res = await api.audit.listPaged({ limit: 5 });
+      return res.items ?? [];
+    },
+    retry: false,
+    enabled: DATA_BACKEND === "lambda",
+  });
+  if (DATA_BACKEND !== "lambda") {
+    return (
+      <BackendPending
+        endpoint="GET /audit"
+        note="Recent audit events are sourced from the audit log endpoint."
+      />
+    );
+  }
+  if (error) {
+    return (
+      <BackendPending
+        endpoint="GET /audit"
+        note={(error as Error).message}
+      />
+    );
+  }
+  const events = (data ?? []).map((e: any, i: number) => ({
+    id: e.id ?? i,
+    action: e.action ?? e.event_type ?? "Audit event",
+    user: e.actor_user_name ?? e.actor ?? e.actor_user_id ?? "system",
+    details: e.summary ?? e.description ?? "",
+    status:
+      e.severity === "high" || e.status === "failed"
+        ? "Failed"
+        : e.severity === "warning"
+        ? "Warning"
+        : "Success",
+    at: new Date(e.created_at ?? e.posted_at ?? Date.now()),
+  }));
   return (
     <PremiumCard className="p-0 overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex justify-between items-center">
@@ -691,6 +722,11 @@ function RecentAuditEvents() {
         <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">View Full Log →</Link>
       </div>
       <div className="divide-y divide-border">
+        {isLoading && events.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
+        ) : events.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">No audit events yet.</div>
+        ) : null}
         {events.map((log) => (
           <div key={log.id} className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors">
             <div>
