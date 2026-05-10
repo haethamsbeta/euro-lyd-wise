@@ -113,6 +113,7 @@ export const ar: Dict = {
   "nav.about": "حول التطبيق",
   "nav.more": "المزيد",
   "nav.holders": "أصحاب حسابات دهب",
+  "nav.linkedAccounts": "الحسابات المرتبطة",
   "nav.groups": "المجموعات",
   "nav.reports": "التقارير",
   "nav.portalAccounts": "حسابات بوابة العملاء",

@@ -112,6 +112,7 @@ export const en = {
   "nav.about": "About",
   "nav.more": "More",
   "nav.holders": "DAHAB holders",
+  "nav.linkedAccounts": "Linked accounts",
   "nav.groups": "Groups",
   "nav.reports": "Reports",
   "nav.portalAccounts": "Customer Portal Accounts",

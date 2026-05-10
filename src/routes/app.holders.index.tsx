@@ -142,11 +142,12 @@ function HoldersList() {
               Linked accounts: {fmtTotal(dashSummary?.holderAccountCount ?? null)} ·
               Showing first {summary.holders}
             </Badge>
-            {dashSummary?.holderCount != null && summary.holders < dashSummary.holderCount && (
-              <span className="text-[11px] text-muted-foreground italic">
-                Pagination coming soon
-              </span>
-            )}
+            <Link
+              to="/app/accounts"
+              className="text-[11px] text-gold underline-offset-2 hover:underline"
+            >
+              View all linked accounts →
+            </Link>
             <button
               type="button"
               onClick={() => setCurFilter(null)}

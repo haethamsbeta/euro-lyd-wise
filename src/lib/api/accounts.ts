@@ -1,8 +1,29 @@
 // Holder-account adapter (single account view + ledger).
 import { apiFetch, qs } from "./_shared";
-import type { HolderAccount, LedgerEntry } from "@/lib/dahabApi";
+import type { HolderAccount, LedgerEntry, PagedResult } from "@/lib/dahabApi";
 
 export const accountsApi = {
+  list: (params: { limit?: number; offset?: number; q?: string } = {}) =>
+    apiFetch<PagedResult<HolderAccount> | HolderAccount[]>(`/holder-accounts${qs(params)}`).then(
+      (res) => {
+        if (Array.isArray(res)) {
+          return {
+            items: res,
+            total: res.length,
+            limit: params.limit ?? res.length,
+            offset: params.offset ?? 0,
+            next_offset: null as number | null,
+          };
+        }
+        return {
+          items: res?.items ?? [],
+          total: (res as any)?.total ?? 0,
+          limit: (res as any)?.limit ?? params.limit ?? 0,
+          offset: (res as any)?.offset ?? params.offset ?? 0,
+          next_offset: (res as any)?.next_offset ?? null,
+        };
+      },
+    ),
   get: (id: string | number) => apiFetch<HolderAccount>(`/holder-accounts/${id}`),
   ledger: (
     id: string | number,
