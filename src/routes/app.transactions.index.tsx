@@ -140,7 +140,7 @@ function TxList() {
     queryKey: ["transactions.list.v2", debouncedQ],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const rows = await api.transactions.list({ limit: 10 });
+        const rows = await api.transactions.list({ limit: 50 });
         return rows.map<Tx>((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
