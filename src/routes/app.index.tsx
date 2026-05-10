@@ -277,6 +277,23 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
   const { data: dashSummary } = useDashboardSummary();
   const isLambda = DATA_BACKEND === "lambda";
 
+  // Source-of-truth currency cash vault balances (net of receivable+payable
+  // per currency). Backend already returns the net — never sum or subtract
+  // again on the client.
+  const cashByCurBackend = new Map<string, number>(
+    (data?.cashByCurrency ?? []).map((r) => [r.currency, Number(r.net_balance_minor) || 0]),
+  );
+  const bankByCurBackend = data?.bankByCurrency
+    ? new Map<string, number>(
+        data.bankByCurrency.map((r) => [r.currency, Number(r.net_balance_minor) || 0]),
+      )
+    : null;
+  const cashSource = isLambda ? cashByCurBackend : totals.cashByCur;
+  const bankSource = isLambda
+    ? bankByCurBackend // null means split not available
+    : totals.bankByCur;
+  const hasCashSource = isLambda ? data?.cashByCurrency != null && data.cashByCurrency.length > 0 : true;
+
   // Network total expressed in LYD-equivalent. Frontend MUST NOT compute FX
   // — the backend report applies admin-entered fx_rates and returns either a
   // single LYD-minor total or the list of missing rate pairs. See
@@ -325,7 +342,11 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
           </div>
           <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
-              const amt = (totals.cashByCur.get(c) ?? 0) + (totals.bankByCur.get(c) ?? 0);
+              const cashAmt = cashSource?.get(c) ?? 0;
+              const bankAmt = bankSource?.get(c) ?? 0;
+              // When bank split is unavailable, show the currency cash vault
+              // net balance only — never fabricate a combined cash+bank.
+              const amt = bankSource ? cashAmt + bankAmt : cashAmt;
               const seed = c === "LYD" ? [30, 35, 40, 45, 60, 75, 80] : c === "USD" ? [40, 45, 42, 50, 48, 55, 60] : [60, 58, 55, 52, 54, 50, 48];
               const trendUp = seed[seed.length - 1] >= seed[0];
               return (
@@ -337,7 +358,10 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                     </span>
                   </div>
                   <div className="text-base font-semibold text-foreground tabular-nums mb-2 truncate">
-                    {formatMinor(amt, c)}
+                    {formatMinorOrMissing(amt, c)}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    {c} currency cash vault
                   </div>
                   <Sparkline data={seed} color={trendUp ? "#34d399" : "#f87171"} />
                 </div>
@@ -394,28 +418,34 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
         {/* Vaults — full width on desktop */}
         {(prefs.showCash || prefs.showBank) && (
           <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {prefs.showCash && (
+            {prefs.showCash && (isLambda && !hasCashSource ? (
+              <BackendPending
+                endpoint="GET /dashboard/staff (summary.cash_by_currency)"
+                note="Currency cash vault totals will populate once summary.cash_by_currency is returned."
+              />
+            ) : (
               <VaultGaugeCard
                 icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                 title="Cash Vaults"
-                percent={vaultUtilization(totals.cashByCur)}
+                percent={vaultUtilization(cashSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
-                  label: c, value: formatMinor(totals.cashByCur.get(c) ?? 0, c),
+                  label: `${c} currency cash vault`,
+                  value: formatMinorOrMissing(cashSource?.get(c) ?? 0, c),
                 }))}
               />
-            )}
-            {prefs.showBank && (isLambda ? (
+            ))}
+            {prefs.showBank && (isLambda && !bankSource ? (
               <BackendPending
-                endpoint="GET /dashboard/staff (bank_by_currency)"
-                note="Cash vs bank split is not yet returned by the backend. Bank vault totals will populate once summary.bank_by_currency (or per-vault internal_role) is exposed. No fabricated zeros are shown."
+                endpoint="GET /dashboard/staff (summary.bank_by_currency)"
+                note="Cash vs bank split is not yet returned by the backend. Bank vault totals will populate once summary.bank_by_currency is exposed (bank_split_available=true). No fabricated zeros are shown."
               />
             ) : (
               <VaultGaugeCard
                 icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                 title="Bank Vaults"
-                percent={vaultUtilization(totals.bankByCur)}
+                percent={vaultUtilization(bankSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
-                  label: c, value: formatMinor(totals.bankByCur.get(c) ?? 0, c),
+                  label: c, value: formatMinorOrMissing(bankSource?.get(c) ?? 0, c),
                 }))}
               />
             ))}
