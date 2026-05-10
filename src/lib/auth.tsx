@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { setAccessToken } from "@/lib/dahabAuthToken";
+import { setAccessToken, getAccessToken } from "@/lib/dahabAuthToken";
 
 export type AppRole = "admin" | "teller" | "auditor" | "consumer";
 
@@ -65,12 +65,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
+      if (event === "SIGNED_OUT") setAccessToken(null);
       // defer to avoid deadlocks
       setTimeout(() => loadRoles(s?.user.id), 0);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      // If a Supabase session exists but the Lambda backend access token is
+      // missing (e.g. the user signed in before token storage was wired up,
+      // or the token was cleared), force a re-login so apiFetch can attach
+      // a Bearer token. Without this, every backend call returns 401.
+      if (data.session && !getAccessToken()) {
+        if (import.meta.env.DEV) {
+          console.warn("[auth] Supabase session present but no Lambda access_token — signing out to force re-login");
+        }
+        await supabase.auth.signOut();
+        setSession(null);
+        setLoading(false);
+        setRolesLoading(false);
+        return;
+      }
       setSession(data.session);
       // Unblock the UI as soon as we know the session — load roles in the
       // background. Routes that require a specific role gate on `roles`
