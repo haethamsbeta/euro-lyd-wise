@@ -209,3 +209,27 @@ No `"UNK"` or `"Unknown"` literal currency string was found in the codebase (ver
 - None on the audited pages. Supabase code paths remain only behind the `DATA_BACKEND !== "lambda"` branch on dashboards, transactions, reports, holders, vaults, approvals, audit, transaction detail, mobile dashboard, portal, and `me/activity`.
 
 No section was redesigned or removed. No mock data was added. No Supabase fallback runs in lambda mode for the items above. No FX math is performed in the frontend.
+## Cash vault grouping correction pass
+
+Terminology now consistent across the UI:
+
+- **Official vault account** — one receivable OR payable account, single currency, single role.
+- **Currency cash vault** — receivable + payable pair grouped by `currency_code`.
+- **Currency cash vault balance** — `Σ balance_minor` for that currency. Backend already returns the net (payable rows are negative); the frontend never subtracts again.
+
+### Source of truth
+- Dashboard currency cash totals: `GET /dashboard/staff` → `summary.cash_by_currency[].net_balance_minor` (or `balance_minor`). Backend value is consumed verbatim.
+- Bank totals: `summary.bank_by_currency` only when `summary.bank_split_available=true`. Otherwise the Bank Vaults gauge renders `<BackendPending>`.
+- Liquidity / consolidated reserves (Vaults page): `GET /reports/liquidity-health` → `network_total_lyd_minor`. No FE FX math.
+- Official vault accounts list: `GET /vaults`. One row per receivable/payable account; never merged.
+- Vault detail: `GET /vaults/:id`. Single account view only.
+
+### Fixes applied
+- `src/lib/api/dashboard.ts` — adapter surfaces `cash_by_currency`, `bank_by_currency`, `bank_split_available` from `summary.*` directly.
+- `src/routes/app.index.tsx` — Network Pulse currency tiles + Cash Vaults gauge in lambda mode read `summary.cash_by_currency` net values; no `cash + bank` addition when bank split unavailable; tiles labelled `{CCY} currency cash vault`. Cash gauge falls back to `<BackendPending>` if backend has not exposed `cash_by_currency`. Bank gauge stays `<BackendPending>` until `bank_split_available=true`.
+- `src/routes/app.vaults.index.tsx` — added a "Currency Cash Vault Summary" section (one card per currency) that consumes `summary.cash_by_currency`. Existing 10-account official vault grid is preserved verbatim. Grid heading renamed "Official Vault Accounts". Consolidated reserves tile in lambda mode now reads `liquidity-health.network_total_lyd_minor` (LYD eq.) — no FE FX.
+- `src/routes/app.vaults.$id.tsx` — header subtitle now reads `Official vault account · {role} · {channel} · {status}`. No grouping changes.
+
+### Remaining backend gaps for cash vault grouping
+- `summary.bank_by_currency[]` + `summary.bank_split_available` on `/dashboard/staff` — required to populate the Bank Vaults gauge.
+- Optional fields on `summary.cash_by_currency[]` to enrich the grouped summary card: `total_inflow_minor`, `total_outflow_minor`, `transaction_rows`. UI omits these lines when absent (no zeros).
