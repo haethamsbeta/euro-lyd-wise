@@ -579,7 +579,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
               {loading ? (
                 <tr><td colSpan={6} className="p-8 text-center text-base text-muted-foreground">Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-base text-muted-foreground">No matching transactions.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-base text-muted-foreground">{rows.length === 0 ? "No ledger activity for this account." : "No matching transactions."}</td></tr>
               ) : filtered.map((e) => (
                 <tr key={e.id} className="border-t border-gold/10 hover:bg-gold/5">
                   <td className="p-4 text-sm whitespace-nowrap">{new Date(e.posted_at).toLocaleString()}</td>
