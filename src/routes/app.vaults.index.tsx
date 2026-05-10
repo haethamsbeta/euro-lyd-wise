@@ -223,10 +223,86 @@ function VaultsPage() {
         </Card>
       </motion.div>
 
+      {/* Currency Cash Vault Summary — net per currency from backend.
+          Receivable + payable are grouped by currency_code. The underlying
+          official vault accounts still appear in the grid below. */}
+      {cashByCurrency.length > 0 && (
+        <div>
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Currency Cash Vault Summary
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {cashByCurrency.map((row) => {
+              const ccy = row.currency;
+              const receivableCount = vaults.filter(
+                (v: any) =>
+                  v.currency_code === ccy && /receiv/i.test(String(v.internal_role ?? "")),
+              ).length;
+              const payableCount = vaults.filter(
+                (v: any) =>
+                  v.currency_code === ccy && /pay/i.test(String(v.internal_role ?? "")),
+              ).length;
+              return (
+                <Card key={ccy} className="p-5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                      {ccy || "Currency missing"}
+                    </Badge>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Currency cash vault
+                    </span>
+                  </div>
+                  <div className="font-mono text-xl font-semibold tabular-nums text-foreground">
+                    {formatMinorOrMissing(Number(row.net_balance_minor) || 0, ccy)}
+                  </div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">
+                    Net balance (receivable + payable)
+                  </div>
+                  {(row.total_inflow_minor != null ||
+                    row.total_outflow_minor != null ||
+                    row.transaction_rows != null) && (
+                    <div className="mt-3 space-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                      {row.total_inflow_minor != null && (
+                        <div className="flex justify-between">
+                          <span>Inflow</span>
+                          <span className="tabular-nums text-foreground">
+                            {formatMinorOrMissing(Number(row.total_inflow_minor), ccy)}
+                          </span>
+                        </div>
+                      )}
+                      {row.total_outflow_minor != null && (
+                        <div className="flex justify-between">
+                          <span>Outflow</span>
+                          <span className="tabular-nums text-foreground">
+                            {formatMinorOrMissing(Number(row.total_outflow_minor), ccy)}
+                          </span>
+                        </div>
+                      )}
+                      {row.transaction_rows != null && (
+                        <div className="flex justify-between">
+                          <span>Transactions</span>
+                          <span className="tabular-nums text-foreground">
+                            {row.transaction_rows}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">
+                    <span>Receivable accounts: {receivableCount}</span>
+                    <span>Payable accounts: {payableCount}</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Vault grid — one card per single-currency official vault account */}
       <div>
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Reserve Vaults
+          Official Vault Accounts
           {dashSummary?.vaultCount != null && (
             <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">
               · Showing {vaults.length} of {dashSummary.vaultCount}
