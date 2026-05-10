@@ -46,37 +46,34 @@ function UsersPage() {
     enabled: !!user,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode: try /api/users; if not implemented yet show empty
-        // state instead of fake users. No Supabase fallback.
-        try {
-          const list = await api.users.list();
-          const rows = Array.isArray(list) ? list : [];
-          return {
-            profiles: rows.map((u: any) => ({
-              id: u.id,
-              full_name: u.full_name ?? u.email ?? "—",
-              created_at: u.created_at,
+        // Lambda mode: GET /users?limit=&offset= → { items, total, limit, offset, next_offset }
+        const res: any = await api.users.list({ limit: 100, offset: 0 });
+        const rows: any[] = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+        const rolesFor = (u: any): string[] => {
+          if (Array.isArray(u.roles) && u.roles.length) return u.roles;
+          if (u.role) return [u.role];
+          return [];
+        };
+        return {
+          profiles: rows.map((u: any) => ({
+            id: u.id,
+            full_name: u.display_name ?? u.full_name ?? u.username ?? u.email ?? "—",
+            created_at: u.created_at,
+            status: u.status ?? (u.is_active === false ? "disabled" : "active"),
+            last_login_at: u.last_login_at ?? null,
+          })),
+          roles: rows.flatMap((u: any) =>
+            rolesFor(u).map((role: string) => ({
+              user_id: u.id,
+              role,
+              id: `${u.id}:${role}`,
             })),
-            roles: rows.flatMap((u: any) =>
-              (u.roles ?? []).map((role: string) => ({
-                user_id: u.id,
-                role,
-                id: `${u.id}:${role}`,
-              })),
-            ),
-            emailMap: new Map(rows.map((u: any) => [u.id, u.email ?? null])),
-            pushMap: new Map<string, any>(),
-            __notConnected: false as boolean,
-          };
-        } catch {
-          return {
-            profiles: [] as any[],
-            roles: [] as any[],
-            emailMap: new Map<string, string | null>(),
-            pushMap: new Map<string, any>(),
-            __notConnected: true as boolean,
-          };
-        }
+          ),
+          emailMap: new Map(rows.map((u: any) => [u.id, u.email ?? null])),
+          pushMap: new Map<string, any>(),
+          total: typeof res?.total === "number" ? res.total : rows.length,
+          nextOffset: res?.next_offset ?? null,
+        };
       }
       const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails, pushRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, created_at"),
