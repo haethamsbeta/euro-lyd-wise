@@ -46,37 +46,34 @@ function UsersPage() {
     enabled: !!user,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode: try /api/users; if not implemented yet show empty
-        // state instead of fake users. No Supabase fallback.
-        try {
-          const list = await api.users.list();
-          const rows = Array.isArray(list) ? list : [];
-          return {
-            profiles: rows.map((u: any) => ({
-              id: u.id,
-              full_name: u.full_name ?? u.email ?? "—",
-              created_at: u.created_at,
+        // Lambda mode: GET /users?limit=&offset= → { items, total, limit, offset, next_offset }
+        const res: any = await api.users.list({ limit: 100, offset: 0 });
+        const rows: any[] = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+        const rolesFor = (u: any): string[] => {
+          if (Array.isArray(u.roles) && u.roles.length) return u.roles;
+          if (u.role) return [u.role];
+          return [];
+        };
+        return {
+          profiles: rows.map((u: any) => ({
+            id: u.id,
+            full_name: u.display_name ?? u.full_name ?? u.username ?? u.email ?? "—",
+            created_at: u.created_at,
+            status: u.status ?? (u.is_active === false ? "disabled" : "active"),
+            last_login_at: u.last_login_at ?? null,
+          })),
+          roles: rows.flatMap((u: any) =>
+            rolesFor(u).map((role: string) => ({
+              user_id: u.id,
+              role,
+              id: `${u.id}:${role}`,
             })),
-            roles: rows.flatMap((u: any) =>
-              (u.roles ?? []).map((role: string) => ({
-                user_id: u.id,
-                role,
-                id: `${u.id}:${role}`,
-              })),
-            ),
-            emailMap: new Map(rows.map((u: any) => [u.id, u.email ?? null])),
-            pushMap: new Map<string, any>(),
-            __notConnected: false as boolean,
-          };
-        } catch {
-          return {
-            profiles: [] as any[],
-            roles: [] as any[],
-            emailMap: new Map<string, string | null>(),
-            pushMap: new Map<string, any>(),
-            __notConnected: true as boolean,
-          };
-        }
+          ),
+          emailMap: new Map(rows.map((u: any) => [u.id, u.email ?? null])),
+          pushMap: new Map<string, any>(),
+          total: typeof res?.total === "number" ? res.total : rows.length,
+          nextOffset: res?.next_offset ?? null,
+        };
       }
       const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails, pushRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, created_at"),
@@ -188,7 +185,14 @@ function UsersPage() {
       <PageHeader title={t("users.title")} description={t("users.subtitle")} />
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Input placeholder={t("users.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+          <div className="flex items-center gap-3">
+            <Input placeholder={t("users.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+            {typeof (data as any)?.total === "number" ? (
+              <span className="text-xs text-muted-foreground">
+                Showing {(data?.profiles ?? []).length} of {(data as any).total}
+              </span>
+            ) : null}
+          </div>
           <Button asChild size="sm">
             <Link to="/app/users/new-consumer">
               <UserPlus className="me-1 h-4 w-4" /> Add consumer account
@@ -204,6 +208,8 @@ function UsersPage() {
                   <th className="px-4 py-2 text-start">{t("users.col.user")}</th>
                   <th className="px-4 py-2 text-start">Email</th>
                   <th className="px-4 py-2 text-start">{t("users.col.roles")}</th>
+                  <th className="px-4 py-2 text-start">Status</th>
+                  <th className="px-4 py-2 text-start">Last login</th>
                   <th className="px-4 py-2 text-start">Push</th>
                   <th className="px-4 py-2 text-start">Test push</th>
                   <th className="px-4 py-2 text-start">{t("users.col.grant")}</th>
@@ -253,6 +259,27 @@ function UsersPage() {
                             </Badge>
                           ))}
                         </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        {(() => {
+                          const status = (p as any).status as string | undefined;
+                          if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+                          const active = /^active$/i.test(status);
+                          return (
+                            <Badge variant={active ? "default" : "outline"} className="capitalize">
+                              {status}
+                            </Badge>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-2">
+                        {(p as any).last_login_at ? (
+                          <span className="text-xs">
+                            {formatDistanceToNow(new Date((p as any).last_login_at), { addSuffix: true })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Never</span>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <TooltipProvider delayDuration={150}>
