@@ -196,8 +196,8 @@ function VaultDetail() {
             </div>
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-gold" />
-            {vault?.internal_role ? `${vault.internal_role} · ` : ""}
-            Secure {vault?.vault_channel} reserve · {vault?.status}
+            Official vault account · {vault?.internal_role ? `${vault.internal_role} · ` : ""}
+            {vault?.vault_channel} · {vault?.status}
             </p>
           </div>
         <Button asChild variant="outline" size="sm">
