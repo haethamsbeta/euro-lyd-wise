@@ -33,8 +33,6 @@ export const Route = createFileRoute("/app/vaults/")({
   ),
 });
 
-const CURRENCIES = ["USD", "EUR", "LYD"] as const;
-
 function VaultsPage() {
   const t = useT();
   const { data: dashSummary } = useDashboardSummary();
@@ -45,34 +43,42 @@ function VaultsPage() {
       if (DATA_BACKEND === "lambda") {
         const list = await api.vaults.list().catch(() => [] as any[]);
         const rows = Array.isArray(list) ? list : [];
-        // Group by vault id; backend may return one row per (vault, currency).
-        const byId = new Map<string, any>();
-        for (const r of rows) {
-          const key = String(r.id);
-          if (!byId.has(key)) {
-            byId.set(key, {
-              id: r.id,
-              name: r.name,
-              vault_channel: r.vault_channel ?? r.channel ?? r.kind ?? "cash",
-              status: r.status ?? (r.is_active === false ? "inactive" : "active"),
-              account_balances: [] as Array<{ currency: string; balance_minor: number }>,
-            });
-          }
-          if (r.currency_code != null && r.current_balance != null) {
-            byId.get(key).account_balances.push({
-              currency: r.currency_code,
-              balance_minor: Number(r.current_balance) || 0,
-            });
-          }
-        }
-        return Array.from(byId.values());
+        // Each official vault account is single-currency. Render 1 row per
+        // vault account exactly as the backend returns. Do NOT merge across
+        // currencies — Cash Receivable LYD / Cash Payable LYD / etc. are
+        // separate vault accounts.
+        return rows.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          vault_channel: r.vault_channel ?? r.channel ?? r.kind ?? "cash",
+          status: r.status ?? (r.is_active === false ? "inactive" : "active"),
+          currency_code: r.currency_code,
+          internal_role: r.internal_role ?? null,
+          balance_minor: Number(r.current_balance ?? 0),
+        }));
       }
       const { data, error } = await supabase
         .from("accounts")
         .select("id, name, vault_channel, status, account_balances(currency, balance_minor)")
         .eq("kind", "vault");
       if (error) throw error;
-      return data ?? [];
+      // Supabase fallback path: flatten balances → one row per (vault, currency).
+      const out: any[] = [];
+      for (const v of data ?? []) {
+        for (const b of (v as any).account_balances ?? []) {
+          out.push({
+            id: `${v.id}:${b.currency}`,
+            _vaultId: v.id,
+            name: v.name,
+            vault_channel: (v as any).vault_channel,
+            status: (v as any).status,
+            currency_code: b.currency,
+            internal_role: null,
+            balance_minor: b.balance_minor,
+          });
+        }
+      }
+      return out;
     },
   });
 
@@ -198,73 +204,81 @@ function VaultsPage() {
         </Card>
       </motion.div>
 
-      {/* Vault grid */}
+      {/* Vault grid — one card per single-currency official vault account */}
       <div>
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Reserve Vaults
+          {dashSummary?.vaultCount != null && (
+            <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">
+              · Showing {vaults.length} of {dashSummary.vaultCount}
+            </span>
+          )}
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {vaults.map((v: any, i: number) => {
             const Icon = v.vault_channel === "cash" ? Banknote : Building2;
+            const role = (v.internal_role ?? "").toString();
+            const isReceivable = /receiv/i.test(role);
+            const isPayable = /pay/i.test(role);
+            const roleLabel = isReceivable
+              ? "Cash Receivable"
+              : isPayable
+              ? "Cash Payable"
+              : role || "Vault";
             return (
               <motion.div
                 key={v.id}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: i * 0.03 }}
               >
-                <Card className="group relative h-full overflow-hidden p-5 transition-all hover:border-gold/50 hover:shadow-lg">
-                  <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06] transition-all duration-500 group-hover:scale-110 group-hover:opacity-10">
-                    <Landmark className="h-28 w-28 text-gold" />
-                  </div>
-                  <div className="relative z-10 flex h-full flex-col">
-                    <div className="mb-5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/30 bg-gold/10">
-                          <Icon className="h-5 w-5 text-gold" />
+                <Link
+                  to="/app/vaults/$id"
+                  params={{ id: String(v._vaultId ?? v.id) }}
+                  search={{}}
+                  className="block h-full"
+                >
+                  <Card className="group relative h-full overflow-hidden p-5 transition-all hover:border-gold/50 hover:shadow-lg">
+                    <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06] transition-all duration-500 group-hover:scale-110 group-hover:opacity-10">
+                      <Landmark className="h-28 w-28 text-gold" />
+                    </div>
+                    <div className="relative z-10 flex h-full flex-col">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/30 bg-gold/10">
+                            <Icon className="h-5 w-5 text-gold" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-foreground">
+                              {v.name}
+                            </span>
+                            <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {roleLabel} · {v.vault_channel}
+                            </span>
+                          </div>
                         </div>
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                          {v.currency_code ?? "—"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-auto flex items-end justify-between border-t border-border pt-4">
                         <div>
-                          <span className="block truncate text-sm font-medium text-foreground">
-                            {v.name}
-                          </span>
-                          <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
-                            {v.vault_channel} reserve
-                          </span>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Balance
+                          </div>
+                          <div className="font-mono text-lg font-semibold tabular-nums text-foreground">
+                            {formatMinor(v.balance_minor, v.currency_code ?? "USD")}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-gold">
+                          {t("vaults.viewTx")}
+                          <ArrowRight className="h-4 w-4" />
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                        {v.status}
-                      </Badge>
                     </div>
-
-                    <ul className="mt-auto divide-y divide-border">
-                      {CURRENCIES.map((c) => {
-                        const b = v.account_balances?.find((x: any) => x.currency === c)?.balance_minor ?? 0;
-                        return (
-                          <li key={c}>
-                            <Link
-                              to="/app/vaults/$id"
-                              params={{ id: v.id }}
-                              search={{ currency: c }}
-                              className="flex items-center gap-3 py-2.5 text-sm transition-colors hover:text-gold"
-                            >
-                              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/50 text-[10px] font-semibold uppercase tracking-wider">
-                                {c}
-                              </span>
-                              <span className="flex-1 text-xs text-muted-foreground">
-                                {t("vaults.viewTx")}
-                              </span>
-                              <span className="font-mono font-semibold tabular-nums">
-                                {formatMinor(b, c)}
-                              </span>
-                              <ArrowRight className="h-4 w-4 text-muted-foreground transition-all group-hover:text-gold" />
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </Card>
+                  </Card>
+                </Link>
               </motion.div>
             );
           })}
