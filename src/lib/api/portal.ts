@@ -3,8 +3,8 @@ import { apiFetch, qs } from "./_shared";
 import type { LedgerEntry, HolderAccount } from "@/lib/dahabApi";
 
 export const portalApi = {
-  me: () => apiFetch<{ holder_id: string; holder_name: string }>("/api/portal/me"),
-  accounts: () => apiFetch<HolderAccount[]>("/api/portal/accounts"),
+  me: () => apiFetch<{ holder_id: string; holder_name: string }>("/portal/me"),
+  accounts: () => apiFetch<HolderAccount[]>("/portal/accounts"),
   totals: () =>
     apiFetch<Array<{ currency: string; total_minor: number }>>("/api/portal/totals"),
   ledger: (

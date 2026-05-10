@@ -25,7 +25,7 @@ export interface AuditorDashboard {
 }
 
 export const dashboardApi = {
-  admin: () => apiFetch<AdminDashboard>("/api/dashboard/admin"),
-  teller: () => apiFetch<TellerDashboard>("/api/dashboard/teller"),
-  auditor: () => apiFetch<AuditorDashboard>("/api/dashboard/auditor"),
+  admin: () => apiFetch<AdminDashboard>("/dashboard/admin"),
+  teller: () => apiFetch<TellerDashboard>("/dashboard/teller"),
+  auditor: () => apiFetch<AuditorDashboard>("/dashboard/auditor"),
 };

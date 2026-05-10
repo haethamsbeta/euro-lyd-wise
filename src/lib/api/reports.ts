@@ -42,15 +42,15 @@ export interface ComplianceOverview {
 const range = (params: { from?: string; to?: string } = {}) => qs(params);
 
 export const reportsApi = {
-  liquidityHealth: () => apiFetch<LiquidityHealthResponse>("/api/reports/liquidity-health"),
+  liquidityHealth: () => apiFetch<LiquidityHealthResponse>("/reports/liquidity-health"),
   hourlyTraffic: (p?: { from?: string; to?: string }) =>
-    apiFetch<HourlyTrafficPoint[]>(`/api/reports/hourly-traffic${range(p)}`),
+    apiFetch<HourlyTrafficPoint[]>(`/reports/hourly-traffic${range(p)}`),
   cashFlow: (p?: { from?: string; to?: string }) =>
-    apiFetch<CashFlowPoint[]>(`/api/reports/cash-flow${range(p)}`),
-  tellersToday: () => apiFetch<TellerLeaderRow[]>("/api/reports/tellers/today"),
+    apiFetch<CashFlowPoint[]>(`/reports/cash-flow${range(p)}`),
+  tellersToday: () => apiFetch<TellerLeaderRow[]>("/reports/tellers/today"),
   processingTimeDistribution: (p?: { from?: string; to?: string }) =>
-    apiFetch<ProcessingTimeBucket[]>(`/api/reports/processing-time-distribution${range(p)}`),
+    apiFetch<ProcessingTimeBucket[]>(`/reports/processing-time-distribution${range(p)}`),
   rejectionRateTrend: (p?: { from?: string; to?: string }) =>
-    apiFetch<RejectionRatePoint[]>(`/api/reports/rejection-rate-trend${range(p)}`),
-  complianceOverview: () => apiFetch<ComplianceOverview>("/api/reports/compliance/overview"),
+    apiFetch<RejectionRatePoint[]>(`/reports/rejection-rate-trend${range(p)}`),
+  complianceOverview: () => apiFetch<ComplianceOverview>("/reports/compliance/overview"),
 };

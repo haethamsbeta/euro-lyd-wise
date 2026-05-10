@@ -14,24 +14,24 @@ export interface ImportRow {
 export const adminApi = {
   imports: {
     list: (params: { limit?: number } = {}) =>
-      apiFetch<ImportBatch[]>(`/api/admin/imports${qs(params)}`),
+      apiFetch<ImportBatch[]>(`/admin/imports${qs(params)}`),
     rows: (batch_id: string, params: { only_invalid?: boolean } = {}) =>
-      apiFetch<ImportRow[]>(`/api/admin/imports/${batch_id}/rows${qs(params)}`),
+      apiFetch<ImportRow[]>(`/admin/imports/${batch_id}/rows${qs(params)}`),
     upload: (formData: FormData) =>
-      apiFetch<ImportBatch>("/api/admin/imports", { method: "POST", body: formData as any }),
+      apiFetch<ImportBatch>("/admin/imports", { method: "POST", body: formData as any }),
     post: (batch_id: string) =>
-      apiFetch<{ posted: number }>(`/api/admin/imports/${batch_id}/post`, { method: "POST" }),
+      apiFetch<{ posted: number }>(`/admin/imports/${batch_id}/post`, { method: "POST" }),
   },
   branches: {
     list: () =>
       apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/api/admin/branches"),
     create: (name: string) =>
-      apiFetch<{ id: string; name: string; is_active: boolean }>("/api/admin/branches", {
+      apiFetch<{ id: string; name: string; is_active: boolean }>("/admin/branches", {
         method: "POST",
         body: JSON.stringify({ name }),
       }),
     setActive: (id: string, is_active: boolean) =>
-      apiFetch<{ ok: true }>(`/api/admin/branches/${id}/active`, {
+      apiFetch<{ ok: true }>(`/admin/branches/${id}/active`, {
         method: "PUT",
         body: JSON.stringify({ is_active }),
       }),

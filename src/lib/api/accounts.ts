@@ -3,13 +3,13 @@ import { apiFetch, qs } from "./_shared";
 import type { HolderAccount, LedgerEntry } from "@/lib/dahabApi";
 
 export const accountsApi = {
-  get: (id: string | number) => apiFetch<HolderAccount>(`/api/holder-accounts/${id}`),
+  get: (id: string | number) => apiFetch<HolderAccount>(`/holder-accounts/${id}`),
   ledger: (
     id: string | number,
     range: { from?: string; to?: string; limit?: number; offset?: number } = {},
-  ) => apiFetch<LedgerEntry[]>(`/api/holder-accounts/${id}/ledger${qs(range)}`),
+  ) => apiFetch<LedgerEntry[]>(`/holder-accounts/${id}/ledger${qs(range)}`),
   setWithdrawLimit: (id: string | number, limit_minor: number) =>
-    apiFetch<{ ok: true }>(`/api/holder-accounts/${id}/withdraw-limit`, {
+    apiFetch<{ ok: true }>(`/holder-accounts/${id}/withdraw-limit`, {
       method: "POST",
       body: JSON.stringify({ limit_minor }),
     }),

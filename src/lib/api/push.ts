@@ -25,25 +25,25 @@ export interface PushAdminUserDevice {
 }
 
 export const pushApi = {
-  vapidPublicKey: () => apiFetch<{ key: string }>("/api/push/vapid-public-key"),
+  vapidPublicKey: () => apiFetch<{ key: string }>("/push/vapid-public-key"),
   subscribe: (sub: PushSubscriptionInput) =>
-    apiFetch<PushSubscriptionRow>("/api/push/subscriptions", {
+    apiFetch<PushSubscriptionRow>("/push/subscriptions", {
       method: "POST",
       body: JSON.stringify(sub),
     }),
   unsubscribe: (endpoint: string) =>
-    apiFetch<{ ok: true }>("/api/push/subscriptions/unsubscribe", {
+    apiFetch<{ ok: true }>("/push/subscriptions/unsubscribe", {
       method: "POST",
       body: JSON.stringify({ endpoint }),
     }),
   revoke: (id: string) =>
-    apiFetch<{ ok: true }>(`/api/push/subscriptions/${id}/revoke`, { method: "POST" }),
+    apiFetch<{ ok: true }>(`/push/subscriptions/${id}/revoke`, { method: "POST" }),
   delete: (id: string) =>
-    apiFetch<{ ok: true }>(`/api/push/subscriptions/${id}`, { method: "DELETE" }),
-  ping: () => apiFetch<{ ok: true }>("/api/push/subscriptions/ping", { method: "POST" }),
-  testSelf: () => apiFetch<{ ok: true }>("/api/push/test/self", { method: "POST" }),
+    apiFetch<{ ok: true }>(`/push/subscriptions/${id}`, { method: "DELETE" }),
+  ping: () => apiFetch<{ ok: true }>("/push/subscriptions/ping", { method: "POST" }),
+  testSelf: () => apiFetch<{ ok: true }>("/push/test/self", { method: "POST" }),
   testUser: (user_id: string) =>
-    apiFetch<{ ok: true }>("/api/push/test/user", {
+    apiFetch<{ ok: true }>("/push/test/user", {
       method: "POST",
       body: JSON.stringify({ user_id }),
     }),
@@ -52,5 +52,5 @@ export const pushApi = {
       "/api/admin/push/status",
     ),
   adminUserDevices: (user_id: string) =>
-    apiFetch<PushAdminUserDevice[]>(`/api/admin/push/users/${user_id}/devices`),
+    apiFetch<PushAdminUserDevice[]>(`/admin/push/users/${user_id}/devices`),
 };
