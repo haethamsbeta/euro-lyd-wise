@@ -187,8 +187,14 @@ function VaultsPage() {
             </p>
             <ShieldCheck className="h-4 w-4 text-success" />
           </div>
-          <div className="text-2xl font-semibold tabular-nums text-foreground">{vaults.length}</div>
-          <p className="mt-1 text-xs text-muted-foreground">All systems operational</p>
+          <div className="text-2xl font-semibold tabular-nums text-foreground">
+            {dashSummary?.vaultCount ?? vaults.length}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {dashSummary?.vaultCount != null && dashSummary.vaultCount !== vaults.length
+              ? `Showing ${vaults.length} of ${dashSummary.vaultCount}`
+              : "All systems operational"}
+          </p>
         </Card>
       </motion.div>
 
