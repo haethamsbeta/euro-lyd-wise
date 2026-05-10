@@ -24,7 +24,11 @@ export const transactionsApi = {
   ) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(
       `/transactions${qs(params)}`,
-    ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
+    ).then((res) => {
+      const rows = Array.isArray(res) ? res : (res?.items ?? []);
+      if (import.meta.env.DEV) console.log("transaction rows", rows.length);
+      return rows;
+    }),
   get: (id: string | number) => apiFetch<Transaction>(`/transactions/${id}`),
   myRecent: (limit = 10) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(

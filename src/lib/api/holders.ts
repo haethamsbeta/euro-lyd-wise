@@ -1,10 +1,14 @@
 // Holders adapter.
 import { apiFetch, qs } from "./_shared";
-import type { Holder, HolderAccount } from "@/lib/dahabApi";
+import type { Holder, HolderAccount, PagedResult } from "@/lib/dahabApi";
 
 export const holdersApi = {
   list: (params: { q?: string; status?: string; limit?: number; offset?: number } = {}) =>
-    apiFetch<Holder[]>(`/holders${qs(params)}`),
+    apiFetch<PagedResult<Holder> | Holder[]>(`/holders${qs(params)}`).then((res) => {
+      const rows = Array.isArray(res) ? res : (res?.items ?? []);
+      if (import.meta.env.DEV) console.log("holder rows", rows.length);
+      return rows;
+    }),
   get: (id: string | number) => apiFetch<Holder>(`/holders/${id}`),
   create: (body: Partial<Holder>) =>
     apiFetch<Holder>("/holders", { method: "POST", body: JSON.stringify(body) }),
