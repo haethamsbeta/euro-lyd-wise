@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { REALTIME_MODE, POLL_INTERVAL_MS } from "@/lib/runtimeConfig";
 import { toast } from "sonner";
 
 export type NotifEvent =
@@ -52,7 +53,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
-    setItems((data ?? []) as Notification[]);
+    const next = (data ?? []) as Notification[];
+    setItems((prev) => {
+      // In polling mode, surface toasts/notifications for newly arrived rows.
+      if (REALTIME_MODE === "polling" && prev.length > 0) {
+        const seen = new Set(prev.map((p) => p.id));
+        for (const n of next) {
+          if (!seen.has(n.id)) {
+            const variant =
+              n.severity === "critical" ? toast.error : n.severity === "warning" ? toast.warning : toast;
+            variant(n.title, { description: n.body });
+            maybeBrowserNotify(n);
+          }
+        }
+      }
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -61,6 +77,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       return;
     }
     refresh();
+    if (REALTIME_MODE === "off") return;
+    if (REALTIME_MODE === "polling") {
+      const id = window.setInterval(refresh, POLL_INTERVAL_MS);
+      const onVis = () => {
+        if (document.visibilityState === "visible") refresh();
+      };
+      document.addEventListener("visibilitychange", onVis);
+      return () => {
+        window.clearInterval(id);
+        document.removeEventListener("visibilitychange", onVis);
+      };
+    }
     const channel = supabase
       .channel(`notif:${user?.id}`)
       .on(
