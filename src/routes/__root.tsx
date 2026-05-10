@@ -5,6 +5,8 @@ import { AuthProvider } from "@/lib/auth";
 import { LanguageProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
 import appCss from "../styles.css?url";
+import { useEffect } from "react";
+import { clearFrontendBusinessCacheForLambdaMode } from "@/lib/clearFrontendBusinessCache";
 
 function NotFoundComponent() {
   return (
@@ -92,6 +94,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    clearFrontendBusinessCacheForLambdaMode();
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

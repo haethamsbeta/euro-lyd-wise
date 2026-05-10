@@ -16,7 +16,7 @@ import { PremiumCard } from "@/components/ui/premium-card";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMinor } from "@/lib/format";
 import { api } from "@/lib/api";
@@ -80,6 +80,24 @@ function useReportsData() {
   return useQuery({
     queryKey: ["reports", "overview"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Lambda mode: do NOT compute KPIs on the frontend. Try the backend
+        // overview endpoint and pass through whatever it returns; if missing,
+        // render empty.
+        const overview = await api.reports
+          .liquidityHealth()
+          .catch(() => null as any);
+        return {
+          total: 0, posted: 0, rejected: 0, rejectionRate: 0,
+          holdersCount: 0,
+          volumeByCurrency: {} as Record<string, number>,
+          dailyVolume: [] as { d: string; date: string; v: number; n: number }[],
+          currencyDistribution: [] as Array<{ name: string; raw: number; value: number; color: string }>,
+          customerGrowth: [] as { m: string; key: string; v: number }[],
+          avgTxnValueLyd: 0,
+          __lambdaEmpty: !overview,
+        };
+      }
       const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
       const since7 = new Date(Date.now() - 6 * 86400_000);
       since7.setHours(0, 0, 0, 0);
@@ -164,6 +182,7 @@ function useReportsData() {
 function useTopAccounts() {
   return useQuery({
     queryKey: ["reports", "top-accounts"],
+    enabled: DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data } = await supabase
         .from("account_balances")

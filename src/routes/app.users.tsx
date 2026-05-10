@@ -19,6 +19,8 @@ import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send } from "lucide-react"
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/users")({
   component: () => <RoleGate allow={["admin"]}><UsersPage /></RoleGate>,
@@ -43,6 +45,39 @@ function UsersPage() {
     queryKey: ["users.profiles"],
     enabled: !!user,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Lambda mode: try /api/users; if not implemented yet show empty
+        // state instead of fake users. No Supabase fallback.
+        try {
+          const list = await api.users.list();
+          const rows = Array.isArray(list) ? list : [];
+          return {
+            profiles: rows.map((u: any) => ({
+              id: u.id,
+              full_name: u.full_name ?? u.email ?? "—",
+              created_at: u.created_at,
+            })),
+            roles: rows.flatMap((u: any) =>
+              (u.roles ?? []).map((role: string) => ({
+                user_id: u.id,
+                role,
+                id: `${u.id}:${role}`,
+              })),
+            ),
+            emailMap: new Map(rows.map((u: any) => [u.id, u.email ?? null])),
+            pushMap: new Map<string, any>(),
+            __notConnected: false as boolean,
+          };
+        } catch {
+          return {
+            profiles: [] as any[],
+            roles: [] as any[],
+            emailMap: new Map<string, string | null>(),
+            pushMap: new Map<string, any>(),
+            __notConnected: true as boolean,
+          };
+        }
+      }
       const [{ data: profiles, error: e1 }, { data: roles, error: e2 }, emails, pushRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, created_at"),
         supabase.from("user_roles").select("user_id, role, id"),

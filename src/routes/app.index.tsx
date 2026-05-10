@@ -23,7 +23,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -73,6 +73,52 @@ function useDashData() {
   return useQuery({
     queryKey: ["dashboard.v3"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Lambda mode: read everything from the AWS API. We only synthesize
+        // the legacy {accounts, balances} shape from /api/vaults so existing
+        // computations keep working. No Supabase, no mock fallback.
+        const [adminRes, vaultsRes, recentRes] = await Promise.all([
+          api.dashboard.admin().catch(() => null),
+          api.vaults.list().catch(() => [] as any[]),
+          api.transactions.list({ limit: 8 }).catch(() => [] as any[]),
+        ]);
+        const accounts = (vaultsRes ?? []).map((v: any) => ({
+          id: v.id,
+          kind: "vault" as const,
+          name: v.name,
+          // Heuristic: mark all backend-returned vaults as cash unless API
+          // exposes a channel field. UI shows 0 in any unmapped channel.
+          vault_channel: (v.vault_channel ?? v.channel ?? "cash") as string,
+        }));
+        const balances = (vaultsRes ?? []).flatMap((v: any) =>
+          v.current_balance != null && v.currency_code
+            ? [{
+                account_id: v.id,
+                currency: v.currency_code,
+                balance_minor: Number(v.current_balance) || 0,
+              }]
+            : [],
+        );
+        const recentTx = (recentRes ?? []).map((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          channel: r.channel ?? "cash",
+          currency: r.currency ?? r.currency_code,
+          amount_minor: Number(r.amount_minor ?? 0),
+          status: r.status,
+          created_at: r.created_at ?? r.posted_at,
+          comment: r.comment ?? r.description ?? "",
+          customer_account_id: String(r.customer_account_id ?? ""),
+        }));
+        return {
+          accounts,
+          balances,
+          recentTx,
+          pendingCount: Number((adminRes as any)?.pending_approvals ?? 0),
+          holderCount: Number((adminRes as any)?.active_holders ?? 0),
+        };
+      }
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
         supabase.from("accounts").select("id, kind, name, vault_channel"),
         supabase.from("account_balances").select("account_id, currency, balance_minor"),
@@ -180,6 +226,10 @@ function PendingApprovalsButton() {
   const { data } = useQuery({
     queryKey: ["dash.pending.count"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r = await api.dashboard.admin().catch(() => null);
+        return Number((r as any)?.pending_approvals ?? 0);
+      }
       const { count } = await supabase
         .from("transactions")
         .select("id", { count: "exact", head: true })
