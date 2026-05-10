@@ -19,6 +19,8 @@ import { useEffectiveRoles } from "@/lib/role-view";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 const CURRENCY_TINT: Record<string, { ring: string; text: string; gradient: string }> = {
   LYD: { ring: "border-[oklch(0.82_0.14_85/0.4)]", text: "text-gold", gradient: "from-[oklch(0.82_0.14_85/0.18)] via-transparent to-transparent" },
@@ -49,6 +51,35 @@ function HolderDetail() {
   const { data: holder, isLoading } = useQuery({
     queryKey: ["holder", holderId],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r: any = await api.holders.get(id);
+        const accts = (r.holder_accounts ?? r.accounts ?? []).map((a: any) => ({
+          id: a.id,
+          account_number: a.account_number,
+          dahab_account_number: a.dahab_account_number ?? null,
+          currency_code: a.currency_code ?? a.currency,
+          account_nature: a.account_nature ?? null,
+          account_display_name: a.account_display_name ?? a.alias_name ?? "",
+          account_alias_name: a.account_alias_name ?? null,
+          current_balance: Number(a.current_balance ?? 0),
+          status: a.status ?? "ACTIVE",
+          credit_limit: Number(a.credit_limit ?? 0),
+          debit_limit: Number(a.debit_limit ?? 0),
+          withdraw_limit_enabled: !!a.withdraw_limit_enabled,
+          withdraw_limit_amount: Number(a.withdraw_limit_amount ?? 0),
+        }));
+        return {
+          id: r.id,
+          dahab_account_number: r.dahab_account_number,
+          canonical_name: r.holder_name ?? r.canonical_name,
+          status: r.status ?? "active",
+          holder_type: r.holder_type ?? null,
+          phone: r.phone ?? null,
+          email: r.email ?? null,
+          created_at: r.created_at ?? null,
+          holder_accounts: accts,
+        } as any;
+      }
       const { data, error } = await supabase
         .from("account_holders")
         .select("id,dahab_account_number,canonical_name,status,holder_type,phone,email,created_at,holder_accounts(id,account_number,dahab_account_number,currency_code,account_nature,account_display_name,account_alias_name,current_balance,status,credit_limit,debit_limit,withdraw_limit_enabled,withdraw_limit_amount)")
@@ -63,6 +94,17 @@ function HolderDetail() {
     queryKey: ["holder-totals", holderId],
     enabled: !!holderId,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const t: any = await api.holders.totals(id).catch(() => []);
+        const rows = Array.isArray(t) ? t : [];
+        return rows.map((row: any) => ({
+          currency: row.currency ?? row.currency_code,
+          total_balance: row.total_minor != null ? Number(row.total_minor) / 100 : Number(row.total_balance ?? 0),
+          account_count: Number(row.account_count ?? 0),
+          total_debits: Number(row.total_debits ?? 0),
+          total_credits: Number(row.total_credits ?? 0),
+        }));
+      }
       const { data, error } = await supabase.rpc("get_holder_currency_totals", { p_holder_id: holderId });
       if (error) throw error;
       return (data ?? []) as Array<{ currency: string; total_balance: number; account_count: number; total_debits: number; total_credits: number }>;
@@ -94,6 +136,29 @@ function HolderDetail() {
     queryKey: ["holder-ledger", holderId, accountIds.join(",")],
     enabled: accountIds.length > 0,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Aggregate ledgers from each linked holder account.
+        const lists = await Promise.all(
+          accountIds.map(async (aid: any) => {
+            const r: any = await api.accounts.ledger(aid, { limit: 100, offset: 0 }).catch(() => []);
+            const items: any[] = Array.isArray(r) ? r : (r?.items ?? []);
+            return items.map((e: any) => ({
+              id: e.id,
+              account_id: aid,
+              currency_code: e.currency_code,
+              credit_amount: e.credit_amount != null ? Number(e.credit_amount) : Number(e.credit_minor ?? 0) / 100,
+              debit_amount: e.debit_amount != null ? Number(e.debit_amount) : Number(e.debit_minor ?? 0) / 100,
+              description: e.description ?? "",
+              posted_at: e.posted_at,
+              tx_number: e.tx_number,
+              balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
+            }));
+          }),
+        );
+        const flat = lists.flat();
+        flat.sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
+        return flat.slice(0, 200);
+      }
       const { data, error } = await supabase
         .from("holder_ledger_entries")
         .select("id,account_id,currency_code,credit_amount,debit_amount,description,posted_at,tx_number,balance_after")
@@ -513,6 +578,15 @@ function AccountListBlock({
                 params={{ id: String(acc.id) }}
                 id={`account-${acc.id}`}
                 className="block scroll-mt-24"
+                onClick={() => {
+                  if (import.meta.env.DEV) {
+                    console.log("[account click]", {
+                      holderAccountId: acc.id,
+                      parentHolderId: acc.account_holder_id,
+                      route: `/app/accounts/${acc.id}`,
+                    });
+                  }
+                }}
               >
                 {cardInner}
               </Link>
