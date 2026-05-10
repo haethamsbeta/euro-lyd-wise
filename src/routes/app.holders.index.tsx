@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDebounced } from "@/hooks/use-debounced";
 import { Button } from "@/components/ui/button";
 import { useAuth, hasAnyRole } from "@/lib/auth";
@@ -21,9 +21,13 @@ function HoldersList() {
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 250);
   const [curFilter, setCurFilter] = useState<string | null>(null);
+  const PAGE_SIZE = 50;
+  const [offset, setOffset] = useState(0);
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const { data: dashSummary } = useDashboardSummary();
+
+  useEffect(() => { setOffset(0); }, [dq, curFilter]);
 
   const { data: summary } = useQuery({
     queryKey: ["holders.summary"],
@@ -55,14 +59,20 @@ function HoldersList() {
     },
   });
   const { data, isLoading } = useQuery({
-    queryKey: ["holders.list", dq],
+    queryKey: ["holders.list", dq, offset, PAGE_SIZE],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const list = await api.holders.list({ q: dq.trim() || undefined, limit: 200 }).catch(
-          () => [] as any[],
-        );
-        const rows = Array.isArray(list) ? list : [];
-        return rows.map((h: any) => ({
+        const paged = await api.holders.listPaged({
+          q: dq.trim() || undefined,
+          limit: PAGE_SIZE,
+          offset,
+        });
+        const rows = paged.items ?? [];
+        return {
+          total: paged.total ?? rows.length,
+          next_offset: paged.next_offset ?? null,
+          items: rows.map((h: any) => ({
           id: h.id,
           dahab_account_number: h.dahab_account_number,
           canonical_name: h.holder_name ?? h.canonical_name,
@@ -77,7 +87,8 @@ function HoldersList() {
             account_number: a.account_number,
             account_display_name: a.account_display_name ?? a.alias_name ?? "",
           })),
-        }));
+          })),
+        };
       }
       const term = dq.trim();
       if (term) {
@@ -87,12 +98,12 @@ function HoldersList() {
             .from("account_holders")
             .select("id,dahab_account_number,canonical_name,normalized_name,status,phone,email,created_at,holder_accounts(id,currency_code,account_number,account_display_name)")
             .or(`canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%,dahab_account_number.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`)
-            .limit(100),
+            .range(offset, offset + PAGE_SIZE - 1),
           supabase
             .from("holder_accounts")
             .select("account_holder_id, account_holders!inner(id,dahab_account_number,canonical_name,normalized_name,status,phone,email,created_at,holder_accounts(id,currency_code,account_number,account_display_name))")
             .or(`account_number.ilike.%${term}%,account_display_name.ilike.%${term}%`)
-            .limit(100),
+            .limit(PAGE_SIZE),
         ]);
         if (byHolder.error) throw byHolder.error;
         if (byAccount.error) throw byAccount.error;
@@ -102,22 +113,30 @@ function HoldersList() {
           const h: any = (a as any).account_holders;
           if (h) map.set(h.id, h);
         }
-        return Array.from(map.values());
+        const items = Array.from(map.values());
+        return { items, total: items.length, next_offset: null as number | null };
       }
-      let qb = supabase
+      const { data, error, count } = await supabase
         .from("account_holders")
-        .select("id,dahab_account_number,canonical_name,normalized_name,status,phone,email,created_at,holder_accounts(id,currency_code,account_number,account_display_name)")
+        .select("id,dahab_account_number,canonical_name,normalized_name,status,phone,email,created_at,holder_accounts(id,currency_code,account_number,account_display_name)", { count: "exact" })
         .order("created_at", { ascending: false })
-        .limit(200);
-      const { data, error } = await qb;
+        .range(offset, offset + PAGE_SIZE - 1);
       if (error) throw error;
-      return data ?? [];
+      return { items: data ?? [], total: count ?? (data?.length ?? 0), next_offset: null as number | null };
     },
   });
 
-  const filtered = (data ?? []).filter((h: any) =>
+  const items = (data?.items ?? []) as any[];
+  const total = data?.total ?? 0;
+  const filtered = items.filter((h: any) =>
     !curFilter || (h.holder_accounts ?? []).some((a: any) => a.currency_code === curFilter),
   );
+  const start = total === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + items.length, total);
+  const canPrev = offset > 0;
+  const canNext = data?.next_offset != null
+    ? true
+    : items.length === PAGE_SIZE && end < total;
 
   return (
     <div>
@@ -178,6 +197,7 @@ function HoldersList() {
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">No holders yet. Use Account Import to load accounts from Excel.</p>
         ) : (
+          <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((h: any) => (
               <Link key={h.id} to="/app/holders/$id" params={{ id: String(h.id) }}>
@@ -214,6 +234,30 @@ function HoldersList() {
               </Link>
             ))}
           </div>
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="text-xs text-muted-foreground">
+              Showing {start}–{end} of {total} holders
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!canPrev}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!canNext}
+                onClick={() => setOffset(data?.next_offset ?? offset + PAGE_SIZE)}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          </>
         )}
       </div>
     </div>
