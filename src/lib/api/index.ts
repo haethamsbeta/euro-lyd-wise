@@ -3,6 +3,7 @@ export { authApi as auth } from "./auth";
 export { dashboardApi as dashboard } from "./dashboard";
 export { holdersApi as holders } from "./holders";
 export { accountsApi as accounts } from "./accounts";
+export { accountsApi as holderAccounts } from "./accounts";
 export { transactionsApi as transactions } from "./transactions";
 export { approvalsApi as approvals } from "./approvals";
 export { vaultsApi as vaults, fxRatesApi as fxRates } from "./vaults";
@@ -36,6 +37,7 @@ export const api = {
   dashboard: dashboardApi,
   holders: holdersApi,
   accounts: accountsApi,
+  holderAccounts: accountsApi,
   transactions: transactionsApi,
   approvals: approvalsApi,
   vaults: vaultsApi,
