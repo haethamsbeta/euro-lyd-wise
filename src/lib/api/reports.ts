@@ -119,7 +119,26 @@ function normalizeGauge(g: any): Gauge {
 export const reportsApi = {
   businessOverview: async (): Promise<BusinessOverviewResponse> => {
     const res = await apiFetch<any>("/reports/business/overview");
-    const r = res ?? {};
+    // Defensive: tolerate either a direct `data` payload or a re-wrapped
+    // `{ data: {...} }` / `{ overview: {...} }` shape — read the first object
+    // that actually contains the documented keys.
+    const candidates = [res, res?.data, res?.overview, res?.business].filter(
+      (x) => x && typeof x === "object",
+    );
+    const r =
+      candidates.find(
+        (x: any) =>
+          x.counts ||
+          x.top_accounts ||
+          x.daily_volume_7d ||
+          x.currency_distribution ||
+          x.volume_by_currency_30d ||
+          x.customer_growth_7m,
+      ) ?? res ?? {};
+    if (typeof window !== "undefined") {
+      // eslint-disable-next-line no-console
+      console.log("[reports business overview] root keys:", Object.keys(r ?? {}));
+    }
     const c = r.counts ?? {};
     return {
       counts: r.counts
