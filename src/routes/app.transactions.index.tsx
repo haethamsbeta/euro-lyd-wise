@@ -193,7 +193,7 @@ function TxList() {
       }));
     },
     refetchInterval:
-      REALTIME_MODE === "polling" ? POLL_INTERVALS.notifications : false,
+      REALTIME_MODE === "polling" ? POLL_INTERVALS.transactions : false,
   });
 
   const { data: dahabMap } = useQuery({
