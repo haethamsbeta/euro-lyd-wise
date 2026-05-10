@@ -16,8 +16,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n";
 import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { authService } from "@/lib/authService";
-import { api } from "@/lib/api";
-import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { DATA_BACKEND, API_BASE_URL } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
 
 type PortalKind = "staff" | "consumer";
@@ -138,7 +137,11 @@ function SignInForm({ portal }: { portal: PortalKind }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [tokenStoredMessage, setTokenStoredMessage] = useState<string | null>(null);
+  const [debug, setDebug] = useState<{
+    called: boolean;
+    returned: boolean;
+    stored: boolean;
+  } | null>(null);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioOk, setBioOk] = useState(false);
   useEffect(() => { passkeysSupported().then(setBioOk); }, []);
@@ -156,20 +159,30 @@ function SignInForm({ portal }: { portal: PortalKind }) {
       return;
     }
     setBusy(true);
-    setTokenStoredMessage(null);
+    setDebug(null);
     if (DATA_BACKEND === "lambda") {
+      let called = false;
+      let returned = false;
+      let stored = false;
       try {
-        const raw = await api.auth.login(parsed.data);
-        console.log("[LOGIN RAW]", raw);
-        const payload = raw?.data?.access_token ? raw.data : raw;
+        called = true;
+        const base = API_BASE_URL.replace(/\/+$/, "");
+        const res = await fetch(`${base}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(parsed.data),
+        });
+        const envelope = await res.json();
+        console.log("[LOGIN RAW]", envelope);
+        const payload = envelope?.data ?? envelope;
         const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
         const user = payload?.user;
+        returned = !!accessToken;
 
-        if (!accessToken) {
-          console.error("[LOGIN ERROR] Missing access_token", raw);
-          setTokenStoredMessage("Lambda token stored: false");
-          throw new Error("Lambda login did not return access_token");
+        if (!res.ok || !accessToken) {
+          setDebug({ called, returned, stored: false });
+          throw new Error(envelope?.message || "Lambda login did not return access_token");
         }
 
         localStorage.setItem("dahab.access_token", accessToken);
@@ -177,14 +190,14 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         localStorage.setItem("dahab.user", JSON.stringify(user || {}));
         localStorage.setItem("dahab.signed_in_at", String(Date.now()));
 
-        const hasToken = !!localStorage.getItem("dahab.access_token");
+        stored = !!localStorage.getItem("dahab.access_token");
         console.log("[LOGIN STORED]", {
-          hasToken,
+          hasToken: stored,
           keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
-          role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+          role: user?.role,
         });
-        setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
-        if (!hasToken) throw new Error("Lambda token storage failed");
+        setDebug({ called, returned, stored });
+        if (!stored) throw new Error("Lambda token storage failed");
 
         window.dispatchEvent(new Event("dahab.auth.changed"));
         await Promise.all(
@@ -197,7 +210,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         nav({ to: portal === "staff" ? "/app" : "/portal" });
       } catch (e: any) {
         setBusy(false);
-        setTokenStoredMessage("Lambda token stored: false");
+        setDebug({ called, returned, stored });
         toast.error(e?.message ?? "Lambda login failed.");
       }
       return;
@@ -298,8 +311,13 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           Sign in with Face ID
         </Button>
       ) : null}
-      {tokenStoredMessage ? (
-        <p className="text-center text-xs font-medium text-gold-deep">{tokenStoredMessage}</p>
+      {debug ? (
+        <div className="rounded-md border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.05)] p-2 text-center text-[11px] font-mono text-foreground/80 space-y-0.5">
+          <div>Lambda login called: {String(debug.called)}</div>
+          <div>Lambda token returned: {String(debug.returned)}</div>
+          <div>Lambda token stored: {String(debug.stored)}</div>
+          <div>DATA_BACKEND value: {DATA_BACKEND}</div>
+        </div>
       ) : null}
     </form>
   );
