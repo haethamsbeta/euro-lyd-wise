@@ -7,6 +7,11 @@ import { ThemeProvider } from "@/lib/theme";
 import appCss from "../styles.css?url";
 import { useEffect } from "react";
 import { clearFrontendBusinessCacheForLambdaMode } from "@/lib/clearFrontendBusinessCache";
+import { installLambdaAuthTokenProvider } from "@/lib/dahabAuthToken";
+
+// Install the Lambda Bearer-token provider as early as possible so every
+// apiFetch made during initial render attaches Authorization.
+if (typeof window !== "undefined") installLambdaAuthTokenProvider();
 
 function NotFoundComponent() {
   return (
@@ -95,6 +100,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   useEffect(() => {
+    installLambdaAuthTokenProvider();
     clearFrontendBusinessCacheForLambdaMode();
   }, []);
   return (
