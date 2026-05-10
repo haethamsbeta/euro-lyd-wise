@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { RoleGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { useDashboardSummary } from "@/lib/useDashboardSummary";
 import {
   Landmark,
   Banknote,
@@ -36,6 +37,7 @@ const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 
 function VaultsPage() {
   const t = useT();
+  const { data: dashSummary } = useDashboardSummary();
 
   const { data: vaults = [] } = useQuery({
     queryKey: ["vaults.list"],
