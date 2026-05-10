@@ -185,7 +185,14 @@ function UsersPage() {
       <PageHeader title={t("users.title")} description={t("users.subtitle")} />
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Input placeholder={t("users.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+          <div className="flex items-center gap-3">
+            <Input placeholder={t("users.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+            {typeof (data as any)?.total === "number" ? (
+              <span className="text-xs text-muted-foreground">
+                Showing {(data?.profiles ?? []).length} of {(data as any).total}
+              </span>
+            ) : null}
+          </div>
           <Button asChild size="sm">
             <Link to="/app/users/new-consumer">
               <UserPlus className="me-1 h-4 w-4" /> Add consumer account
@@ -201,6 +208,8 @@ function UsersPage() {
                   <th className="px-4 py-2 text-start">{t("users.col.user")}</th>
                   <th className="px-4 py-2 text-start">Email</th>
                   <th className="px-4 py-2 text-start">{t("users.col.roles")}</th>
+                  <th className="px-4 py-2 text-start">Status</th>
+                  <th className="px-4 py-2 text-start">Last login</th>
                   <th className="px-4 py-2 text-start">Push</th>
                   <th className="px-4 py-2 text-start">Test push</th>
                   <th className="px-4 py-2 text-start">{t("users.col.grant")}</th>
@@ -250,6 +259,27 @@ function UsersPage() {
                             </Badge>
                           ))}
                         </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        {(() => {
+                          const status = (p as any).status as string | undefined;
+                          if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+                          const active = /^active$/i.test(status);
+                          return (
+                            <Badge variant={active ? "default" : "outline"} className="capitalize">
+                              {status}
+                            </Badge>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-2">
+                        {(p as any).last_login_at ? (
+                          <span className="text-xs">
+                            {formatDistanceToNow(new Date((p as any).last_login_at), { addSuffix: true })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Never</span>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <TooltipProvider delayDuration={150}>
