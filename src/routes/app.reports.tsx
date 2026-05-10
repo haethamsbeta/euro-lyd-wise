@@ -16,6 +16,7 @@ import { PremiumCard } from "@/components/ui/premium-card";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMinor } from "@/lib/format";
 import { api } from "@/lib/api";
@@ -54,6 +55,7 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
     queryFn: fn,
     retry: false,
     enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
   return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
 }
@@ -155,6 +157,7 @@ function useReportsData() {
         customerGrowth: monthBuckets, avgTxnValueLyd,
       };
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
 
@@ -169,6 +172,7 @@ function useTopAccounts() {
         .limit(5);
       return data ?? [];
     },
+    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
 
