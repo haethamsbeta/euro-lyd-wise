@@ -144,8 +144,27 @@ function VaultsPage() {
       };
     },
   });
-  const consolidatedUsd = Number(consolidated?.total_usd_minor ?? 0);
-  const missingRates = consolidated?.missing_rates ?? [];
+  // Lambda mode: use /reports/liquidity-health (LYD eq.). Backend applies
+  // admin fx_rates — frontend never converts FX.
+  const { data: liquidity } = useQuery({
+    queryKey: ["vaults.liquidityHealth"],
+    enabled: DATA_BACKEND === "lambda",
+    queryFn: () => api.reports.liquidityHealth().catch(() => null),
+    retry: false,
+  });
+  const consolidatedAmount =
+    DATA_BACKEND === "lambda"
+      ? Number(liquidity?.network_total_lyd_minor ?? 0)
+      : Number(consolidated?.total_usd_minor ?? 0);
+  const consolidatedCurrency: "LYD" | "USD" = DATA_BACKEND === "lambda" ? "LYD" : "USD";
+  const consolidatedAvailable =
+    DATA_BACKEND === "lambda"
+      ? liquidity?.network_total_lyd_minor != null
+      : consolidated?.total_usd_minor != null;
+  const missingRates =
+    DATA_BACKEND === "lambda"
+      ? (liquidity?.missing_rates ?? []).map((r: any) => `${r.from}→${r.to}`)
+      : consolidated?.missing_rates ?? [];
 
   return (
     <div className="space-y-8 p-4 pb-12 sm:p-6">
@@ -173,10 +192,10 @@ function VaultsPage() {
           </div>
           <div className="relative z-10">
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Consolidated Reserves (USD eq.)
+              Consolidated Reserves ({consolidatedCurrency} eq.)
             </p>
             <div className="font-serif text-3xl font-semibold tabular-nums text-foreground">
-              {formatMinor(consolidatedUsd, "USD")}
+              {consolidatedAvailable ? formatMinor(consolidatedAmount, consolidatedCurrency) : "—"}
             </div>
             <div className="mt-2 flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" /> Across {vaults.length} vaults
