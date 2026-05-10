@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (event === "SIGNED_OUT") setAccessToken(null);
+      if (event === "SIGNED_OUT") clearDahabAuthStorage();
       // defer to avoid deadlocks
       setTimeout(() => loadRoles(s?.user.id), 0);
     });
