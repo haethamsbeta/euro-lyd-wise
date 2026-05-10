@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinor, formatDateTime, formatMinorOrMissing } from "@/lib/format";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/m/dashboard")({
   component: MobileDashboard,
@@ -22,6 +24,36 @@ function MobileDashboard() {
     queryKey: ["m.dashboard", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        // Lambda mode: vault balances ← /vaults.balance_minor only;
+        // recent tx amounts ← /transactions.amount_minor only. No
+        // Supabase, no balances aggregated from page rows.
+        const [vaults, tx] = await Promise.all([
+          api.vaults.list().catch(() => [] as any[]),
+          api.transactions.list({ limit: 8 }).catch(() => [] as any[]),
+        ]);
+        const accounts = (vaults ?? []).map((v: any) => ({
+          id: String(v.id),
+          name: v.name,
+          account_number: v.account_number ?? null,
+          account_balances:
+            v.balance_minor != null && v.currency_code
+              ? [{ currency: v.currency_code, balance_minor: Number(v.balance_minor) || 0 }]
+              : [],
+        }));
+        const txRows = (tx ?? []).map((r: any) => ({
+          id: String(r.id),
+          tx_number: r.tx_number,
+          direction: r.direction,
+          channel: r.channel ?? "—",
+          currency: r.currency ?? r.currency_code ?? null,
+          amount_minor: Number(r.amount_minor ?? 0),
+          status: r.status,
+          comment: r.comment ?? r.description ?? "",
+          created_at: r.created_at ?? r.posted_at,
+        }));
+        return { accounts, tx: txRows };
+      }
       const { data: accs, error: e1 } = await supabase
         .from("accounts")
         .select("id, name, account_number, account_balances(currency, balance_minor)")
@@ -141,7 +173,7 @@ function MobileDashboard() {
                     icon={positive ? <ArrowDownToLine className="h-4 w-4" /> : <ArrowUpFromLine className="h-4 w-4" />}
                     title={t.comment || t.tx_number}
                     sub={`${t.direction} · ${t.channel}`}
-                    amount={`${positive ? "+ " : "- "}${formatMinor(t.amount_minor, t.currency)}`}
+                    amount={`${positive ? "+ " : "- "}${formatMinorOrMissing(t.amount_minor, t.currency)}`}
                     time={formatDateTime(t.created_at)}
                     positive={positive}
                   />

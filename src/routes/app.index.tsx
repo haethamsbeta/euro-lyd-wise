@@ -13,6 +13,7 @@ import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinorOrMissing } from "@/lib/format";
 import {
   TrendingUp, Users, ShieldCheck, ArrowDownRight, ArrowUpRight,
   Landmark, Wallet, Settings, Star, Plus, X, Search, ChevronRight,
@@ -262,6 +263,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
   const { data, isLoading } = useDashData();
   const totals = useTotals(data);
   const { data: dashSummary } = useDashboardSummary();
+  const isLambda = DATA_BACKEND === "lambda";
 
   // Network total expressed in LYD-equivalent. Frontend MUST NOT compute FX
   // — the backend report applies admin-entered fx_rates and returns either a
@@ -390,7 +392,12 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                 }))}
               />
             )}
-            {prefs.showBank && (
+            {prefs.showBank && (isLambda ? (
+              <BackendPending
+                endpoint="GET /dashboard/staff (bank_by_currency)"
+                note="Cash vs bank split is not yet returned by the backend. Bank vault totals will populate once summary.bank_by_currency (or per-vault internal_role) is exposed. No fabricated zeros are shown."
+              />
+            ) : (
               <VaultGaugeCard
                 icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
                 title="Bank Vaults"
@@ -399,7 +406,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                   label: c, value: formatMinor(totals.bankByCur.get(c) ?? 0, c),
                 }))}
               />
-            )}
+            ))}
           </div>
         )}
 
@@ -443,11 +450,10 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
 // ─── TELLER DASHBOARD ────────────────────────────────────────────────────────
 function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
   const { data, isLoading } = useDashData();
-  const todayCount = useMemo(() => {
-    if (!data) return 0;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return data.recentTx.filter((t) => new Date(t.created_at) >= today).length;
-  }, [data]);
+  const { data: dashSummary } = useDashboardSummary();
+  // Source-of-truth: summary.txns_today from /dashboard/staff. Never count
+  // loaded recent rows as a global total.
+  const todayCount = dashSummary?.txnsToday ?? null;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -462,7 +468,11 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
             </div>
             <div className="text-sm text-muted-foreground mb-1">Transactions Processed</div>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
-              <AnimatedNumber value={todayCount} />
+              {todayCount === null ? (
+                <span className="text-muted-foreground text-2xl">—</span>
+              ) : (
+                <AnimatedNumber value={todayCount} />
+              )}
             </div>
           </div>
           <div className="flex gap-4">
@@ -663,7 +673,7 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
                     <span className="text-[10px] text-muted-foreground">{ageMin}m ago</span>
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {tx.tx_number} • {formatMinor(tx.amount_minor, tx.currency)}
+                    {tx.tx_number} • {formatMinorOrMissing(tx.amount_minor, tx.currency)}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition-transform" />
@@ -834,7 +844,7 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
                       ) : (
                         <>
                           <span className={cn("font-semibold tabular-nums text-sm", cls)}>
-                            {sign}{formatMinor(tx.amount_minor, tx.currency)}
+                            {sign}{formatMinorOrMissing(tx.amount_minor, tx.currency)}
                           </span>
                           <div className="mt-0.5 flex justify-end"><CurrencyBadge currency={tx.currency} /></div>
                           <div className="mt-0.5 text-[10px] text-muted-foreground">{formatDateTime(tx.created_at)}</div>
@@ -856,9 +866,10 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  const isLambda = DATA_BACKEND === "lambda";
   const { data, isLoading } = useQuery({
     queryKey: ["dash.pinned.holders.v3", ids.slice().sort().join(",")],
-    enabled: numericIds.length > 0,
+    enabled: numericIds.length > 0 && !isLambda,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
@@ -868,6 +879,14 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
       return data ?? [];
     },
   });
+  if (isLambda) {
+    return (
+      <BackendPending
+        endpoint="GET /holder-accounts/:id + GET /holders/:id/totals (per-pin batched lookup)"
+        note="Pinned customer cards require a per-id lookup batch. The Supabase fallback is disabled in lambda mode; this section will populate once a backend batch endpoint or the per-id calls are wired."
+      />
+    );
+  }
   return (
     <PremiumCard className="p-5 border-gold/40 bg-[linear-gradient(135deg,oklch(0.74_0.135_82/0.10),transparent_60%)] shadow-[0_10px_40px_-20px_var(--gold)]">
       <div className="flex items-center justify-between mb-4">

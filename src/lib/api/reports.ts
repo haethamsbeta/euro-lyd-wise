@@ -19,7 +19,18 @@ export interface LiquidityHealthResponse {
 }
 
 export interface HourlyTrafficPoint { h: string; v: number }
-export interface CashFlowPoint { d: string; deposits_minor: number; withdrawals_minor: number }
+/**
+ * Raw cash-flow row as returned by `/reports/cash-flow`. Backend returns one
+ * row per (day, currency_code, direction). Frontend MUST pivot — never sum
+ * across currencies without an explicit label, and never apply FX in the FE.
+ */
+export interface CashFlowRow {
+  day: string;
+  currency_code: string;
+  direction: "deposit" | "withdraw" | string;
+  transaction_count: number;
+  volume_minor: number;
+}
 export interface TellerLeaderRow {
   id: string; name: string; branch: string | null; avatar: string;
   txns_today: number; volume_today_minor: number; avg_value_minor: number;
@@ -46,7 +57,9 @@ export const reportsApi = {
   hourlyTraffic: (p?: { from?: string; to?: string }) =>
     apiFetch<HourlyTrafficPoint[]>(`/reports/hourly-traffic${range(p)}`),
   cashFlow: (p?: { from?: string; to?: string }) =>
-    apiFetch<CashFlowPoint[]>(`/reports/cash-flow${range(p)}`),
+    apiFetch<CashFlowRow[] | { items: CashFlowRow[] }>(
+      `/reports/cash-flow${range(p)}`,
+    ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   tellersToday: () => apiFetch<TellerLeaderRow[]>("/reports/tellers/today"),
   processingTimeDistribution: (p?: { from?: string; to?: string }) =>
     apiFetch<ProcessingTimeBucket[]>(`/reports/processing-time-distribution${range(p)}`),

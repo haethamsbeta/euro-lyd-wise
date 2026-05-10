@@ -8,6 +8,25 @@ export function formatMinor(amountMinor: number | null | undefined, currency: st
   }).format(n);
 }
 
+/** Allowed currencies in DAHAB. Anything else is treated as missing. */
+export const ALLOWED_CURRENCIES = ["LYD", "USD", "EUR", "GBP"] as const;
+
+/**
+ * Format an amount when currency is known and valid. When the currency is
+ * missing or not in the allow-list, return the literal "Currency missing"
+ * sentinel so the UI can render a clear data-issue badge instead of falling
+ * back to USD or "UNK".
+ */
+export function formatMinorOrMissing(
+  amountMinor: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (!currency || !(ALLOWED_CURRENCIES as readonly string[]).includes(currency)) {
+    return "Currency missing";
+  }
+  return formatMinor(amountMinor, currency);
+}
+
 export function parseAmountToMinor(value: string): number | null {
   if (!value) return null;
   const cleaned = value.replace(/[, _]/g, "");

@@ -11,6 +11,8 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { formatMinor } from "@/lib/format";
 import { StatementLedger } from "@/components/app/statement-ledger";
 import { useT } from "@/lib/i18n";
+import { BackendPending } from "@/components/app/backend-pending";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/portal/$accountId/$currency")({
   component: AccountLedger,
@@ -21,6 +23,7 @@ function AccountLedger() {
   const { session, loading, user, signOut } = useAuth();
   const nav = useNavigate();
   const t = useT();
+  const isLambda = DATA_BACKEND === "lambda";
 
   useEffect(() => {
     if (!loading && !session) nav({ to: "/login", search: { portal: "consumer" } as any });
@@ -28,7 +31,7 @@ function AccountLedger() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["portal.account", accountId, currency, user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !isLambda,
     queryFn: async () => {
       const { data: acc, error: e1 } = await supabase
         .from("accounts")
@@ -69,6 +72,29 @@ function AccountLedger() {
 
   if (loading || !session) {
     return <div className="p-10 text-center text-muted-foreground">{t("common.loading")}</div>;
+  }
+
+  if (isLambda) {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <header className="border-b bg-background">
+          <div className="container mx-auto flex h-14 items-center justify-between px-6">
+            <Link to="/portal" className="flex items-center gap-3"><DahabCoin /><DahabMark size="sm" showArabic={false} /></Link>
+            <div className="flex items-center gap-3 text-sm">
+              <LanguageToggle />
+              <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto space-y-6 px-6 py-8">
+          <Button asChild variant="outline" size="sm"><Link to="/portal"><ArrowLeft className="h-4 w-4" /> {t("portal.allAccounts")}</Link></Button>
+          <BackendPending
+            endpoint="GET /portal/accounts/:id/ledger (proposed)"
+            note="The customer-facing portal API is not yet exposed by the backend. No fallback balances or ledger entries are shown."
+          />
+        </main>
+      </div>
+    );
   }
 
   return (
