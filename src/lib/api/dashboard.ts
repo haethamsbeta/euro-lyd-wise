@@ -18,6 +18,14 @@ export interface AdminDashboard {
   holder_account_count: number | null;
   transaction_count: number | null;
   vault_count: number | null;
+  /** Net cash balance per currency (Σ balance_minor of receivable + payable
+   *  cash vault accounts grouped by currency). Backend already returns net —
+   *  payable rows are negative, do NOT subtract again on the client. */
+  cash_by_currency: Array<{ currency: Currency; net_balance_minor: number }>;
+  /** Net bank balance per currency. Null when backend cannot yet split
+   *  cash vs bank (bank_split_available=false). */
+  bank_by_currency: Array<{ currency: Currency; net_balance_minor: number }> | null;
+  bank_split_available: boolean;
 }
 export interface TellerDashboard {
   txns_today: number;
@@ -45,6 +53,19 @@ export const dashboardApi = {
         cash_minor: Number(row.cash_minor ?? row.cash ?? 0),
         bank_minor: Number(row.bank_minor ?? row.bank ?? 0),
       }));
+      const cashByCur = Array.isArray(s.cash_by_currency)
+        ? s.cash_by_currency.map((r: any) => ({
+            currency: r.currency ?? r.currency_code,
+            net_balance_minor: Number(r.net_balance_minor ?? r.balance_minor ?? 0),
+          }))
+        : [];
+      const bankSplit = Boolean(s.bank_split_available);
+      const bankByCur = bankSplit && Array.isArray(s.bank_by_currency)
+        ? s.bank_by_currency.map((r: any) => ({
+            currency: r.currency ?? r.currency_code,
+            net_balance_minor: Number(r.net_balance_minor ?? r.balance_minor ?? 0),
+          }))
+        : null;
       return {
         ...res,
         totals,
@@ -57,6 +78,9 @@ export const dashboardApi = {
         transaction_count:
           s.transaction_count != null ? Number(s.transaction_count) : null,
         vault_count: s.vault_count != null ? Number(s.vault_count) : null,
+        cash_by_currency: cashByCur,
+        bank_by_currency: bankByCur,
+        bank_split_available: bankSplit,
       } as AdminDashboard & Record<string, any>;
     }
     return res as AdminDashboard;
