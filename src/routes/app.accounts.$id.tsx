@@ -310,7 +310,7 @@ function AccountDetail() {
         {isAdmin ? <LimitsCard account={a} /> : null}
 
         {/* Transactions */}
-        <TransactionsTable rows={ledger} loading={ledgerQ.isLoading} currency={currency} accountId={accountId} />
+        <TransactionsTable rows={ledger} loading={ledgerQ.isLoading} currency={currency} accountId={String(accountId)} />
       </div>
     </div>
   );
