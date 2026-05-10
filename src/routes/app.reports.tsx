@@ -320,9 +320,11 @@ function ReportsPage() {
                   <div className="p-1.5 rounded-md bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.20)]">
                     <k.icon className="w-3.5 h-3.5" />
                   </div>
-                  <span className={`flex items-center gap-1 text-[10px] font-semibold ${k.up ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
-                    {k.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />} {k.chg}
-                  </span>
+                  {k.sub && (
+                    <span className="text-[9px] tracking-wider uppercase text-text-tertiary">
+                      {k.sub}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[9px] tracking-[0.15em] uppercase text-text-secondary font-medium mb-1">{k.l}</p>
                 <p className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-tight">{k.v}</p>
