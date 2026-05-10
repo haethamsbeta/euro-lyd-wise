@@ -134,6 +134,28 @@ function Audit() {
               { header: "Description" },
             ]}
             buildRows={async (from, to) => {
+              if (DATA_BACKEND === "lambda") {
+                try {
+                  const res = await api.audit.list({
+                    from: from.toISOString(),
+                    to: to.toISOString(),
+                    limit: 5000,
+                  });
+                  const list = Array.isArray(res) ? res : ((res as any)?.items ?? []);
+                  return (list ?? []).map((r: any) => {
+                    const actor = r.user_email || "";
+                    return [
+                      formatDateTime(r.ts ?? r.created_at),
+                      actionLabel(r.action).label,
+                      actor || "—",
+                      r.entity_id || r.entity || "—",
+                      describe(r.action, r.meta ?? {}, actor),
+                    ];
+                  });
+                } catch {
+                  return [];
+                }
+              }
               const { data: rows, error } = await supabase
                 .from("audit_log")
                 .select("id, action, target, details, created_at, actor_user_id")
