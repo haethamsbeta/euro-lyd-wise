@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleGate } from "@/components/app/app-shell";
+import { BackendPending, isPendingError } from "@/components/app/backend-pending";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +34,26 @@ function FxRatesPage() {
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
 
-  const { data: history = [], isLoading } = useQuery({
+  const { data: history = [], isLoading, error: historyError } = useQuery({
     queryKey: ["fx_rates.history"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const rows = await api.fxRates.list();
+        const list = Array.isArray(rows) ? rows : [];
+        // Map backend FxRate → page row shape. We only render base→USD here.
+        return list
+          .filter((r: any) => String(r.quote ?? "").toUpperCase() === "USD")
+          .map((r: any, i: number) => ({
+            id: `${r.base}-${r.effective_at ?? i}`,
+            currency: r.base,
+            usd_rate: Number(r.rate ?? 0),
+            as_of_date: (r.effective_at ?? "").slice(0, 10),
+            source: "backend",
+            note: null as string | null,
+            created_at: r.effective_at ?? null,
+            created_by: r.set_by_user_id ?? null,
+          }));
+      }
       const { data, error } = await supabase
         .from("fx_rates")
         .select("id, currency, usd_rate, as_of_date, source, note, created_at, created_by")
@@ -43,7 +63,9 @@ function FxRatesPage() {
       if (error) throw error;
       return data ?? [];
     },
+    retry: false,
   });
+  const pending = isPendingError(historyError);
 
   const current = CURRENCIES.map((c) => {
     const latest = history.find((r: any) => r.currency === c);
@@ -54,6 +76,10 @@ function FxRatesPage() {
     mutationFn: async () => {
       const rate = Number(usdRate);
       if (!rate || rate <= 0) throw new Error("Enter a positive USD rate");
+      if (DATA_BACKEND === "lambda") {
+        await api.fxRates.set(currency as any, "USD" as any, rate);
+        return;
+      }
       const { error } = await supabase.from("fx_rates").insert({
         currency,
         usd_rate: rate,
@@ -72,7 +98,10 @@ function FxRatesPage() {
       setUsdRate("");
       setNote("");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to save rate"),
+    onError: (e: any) => {
+      if (isPendingError(e)) toast.error("Backend endpoint pending: POST /admin/fx-rates");
+      else toast.error(e.message ?? "Failed to save rate");
+    },
   });
 
   return (
@@ -84,11 +113,19 @@ function FxRatesPage() {
             Manual rates used to calculate consolidated USD reserves. New entries replace older ones automatically.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2">
+        <Button
+          onClick={() => setOpen(true)}
+          className="gap-2"
+          disabled={pending}
+          title={pending ? "Backend write endpoint pending: POST /admin/fx-rates" : undefined}
+        >
           <Plus className="h-4 w-4" /> Add rate
         </Button>
       </div>
 
+      {pending ? (
+        <BackendPending endpoint="GET /admin/fx-rates" note="FX rates are admin-entered. The backend list endpoint is not yet available." />
+      ) : (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {current.map(({ currency: c, latest }) => (
           <Card key={c} className="p-5">
@@ -116,7 +153,9 @@ function FxRatesPage() {
           </Card>
         ))}
       </div>
+      )}
 
+      {!pending && (
       <Card className="overflow-hidden p-0">
         <div className="border-b border-border bg-muted/30 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           History
@@ -154,6 +193,7 @@ function FxRatesPage() {
           </table>
         </div>
       </Card>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
