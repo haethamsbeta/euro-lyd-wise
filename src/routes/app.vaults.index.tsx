@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinor, formatMinorOrMissing, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { RoleGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
@@ -36,6 +36,25 @@ export const Route = createFileRoute("/app/vaults/")({
 function VaultsPage() {
   const t = useT();
   const { data: dashSummary } = useDashboardSummary();
+
+  // Currency Cash Vault Summary — net per currency from /dashboard/staff
+  // (already net of receivable + payable). Backend is the only allowed
+  // source; do not sum vault rows on the client.
+  const { data: dashAdmin } = useQuery({
+    queryKey: ["vaults.cashByCurrency"],
+    enabled: DATA_BACKEND === "lambda",
+    queryFn: () => api.dashboard.admin().catch(() => null),
+  });
+  const cashByCurrency =
+    DATA_BACKEND === "lambda"
+      ? ((dashAdmin as any)?.cash_by_currency ?? []) as Array<{
+          currency: string;
+          net_balance_minor: number;
+          total_inflow_minor?: number;
+          total_outflow_minor?: number;
+          transaction_rows?: number;
+        }>
+      : [];
 
   const { data: vaults = [] } = useQuery({
     queryKey: ["vaults.list"],
