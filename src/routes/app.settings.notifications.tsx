@@ -38,11 +38,32 @@ import { formatDistanceToNow } from "date-fns";
 export const Route = createFileRoute("/app/settings/notifications")({
   component: () => (
     <RoleGate allow={["admin", "teller", "auditor"]}>
-      <NotifSettingsPage />
+      {DATA_BACKEND === "lambda" ? <NotifSettingsLambdaPending /> : <NotifSettingsPage />}
     </RoleGate>
   ),
   head: () => ({ meta: [{ title: "Notification settings" }] }),
 });
+
+function NotifSettingsLambdaPending() {
+  return (
+    <>
+      <PageHeader
+        title="Notifications"
+        description="Choose what to be notified about and customize reminders."
+      />
+      <div className="grid gap-6 p-6 lg:grid-cols-2">
+        <BackendPending
+          endpoint="GET /notifications/prefs"
+          note="Notification preferences will load once the backend prefs endpoint is available."
+        />
+        <BackendPending
+          endpoint="GET /admin/push/status"
+          note="Web Push (VAPID) status and per-user device list pending backend wiring."
+        />
+      </div>
+    </>
+  );
+}
 
 const EVENTS: { key: string; label: string; help: string; roles?: string[] }[] = [
   { key: "tx_posted", label: "Transaction posted", help: "Any deposit or withdrawal posted to the ledger." },
@@ -73,26 +94,6 @@ type Prefs = {
 function NotifSettingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  if (DATA_BACKEND === "lambda") {
-    return (
-      <>
-        <PageHeader
-          title="Notifications"
-          description="Choose what to be notified about and customize reminders."
-        />
-        <div className="grid gap-6 p-6 lg:grid-cols-2">
-          <BackendPending
-            endpoint="GET /notifications/prefs"
-            note="Notification preferences will load once the backend prefs endpoint is available."
-          />
-          <BackendPending
-            endpoint="GET /admin/push/status"
-            note="Web Push (VAPID) status and per-user device list pending backend wiring."
-          />
-        </div>
-      </>
-    );
-  }
   const [perm, setPerm] = useState<string>("default");
   const [testing, setTesting] = useState(false);
   const [enabling, setEnabling] = useState(false);
