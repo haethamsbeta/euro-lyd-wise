@@ -1,71 +1,89 @@
 ## Goal
+Stop the Transactions page from hanging in lambda mode. In lambda mode, fetch from `GET /api/transactions?limit=10` and read rows from `response.data.items`. In supabase mode, behavior is unchanged.
 
-Wire `VITE_DATA_BACKEND=lambda`, `VITE_API_BASE_URL`, `VITE_REALTIME_MODE=polling`, and `VITE_VAPID_PUBLIC_KEY` into the frontend so the app can run against the SQL Server / Lambda backend without re-introducing forbidden secrets in the client bundle.
+## URL convention
+All existing adapters use paths starting with `/api/...` (e.g. `/api/holders`, `/api/audit`). So `VITE_API_BASE_URL` must NOT include `/api` (set it to `https://u2j81refrf.execute-api.eu-north-1.amazonaws.com` or the stage root). The transactions adapter will follow the same convention: `/api/transactions`.
 
-## User action (cannot be done from here)
+## Changes
 
-Add these in **Workspace Settings → Build Secrets** (they must exist at build time):
-
-- `VITE_DATA_BACKEND = lambda`
-- `VITE_API_BASE_URL = https://YOUR_API_GATEWAY_URL/api`
-- `VITE_REALTIME_MODE = polling`
-- `VITE_VAPID_PUBLIC_KEY = <public key>`
-
-Forbidden in the frontend (Lambda env only): `VAPID_PRIVATE_KEY`, `SQLSERVER_SECRET_ID`, SQL user/pass, `INTERNAL_WEBHOOK_SECRET`, `JWT_SECRET`.
-
-## Code changes
-
-### 1. New config module `src/lib/runtimeConfig.ts`
-
-Single source of truth read once at module load:
-
+### 1. `src/lib/dahabApi.ts`
+Add the paged envelope type (no behavior change to `apiFetch`):
 ```ts
-export const DATA_BACKEND   = (import.meta.env.VITE_DATA_BACKEND ?? "supabase") as "supabase" | "lambda";
-export const REALTIME_MODE  = (import.meta.env.VITE_REALTIME_MODE ?? "channels") as "channels" | "polling" | "off";
-export const VAPID_PUBLIC   = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "";
-export const POLL_INTERVAL_MS = 15_000; // notifications + device list polling
+export interface PagedResult<T> {
+  items: T[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  next_cursor?: string | null;
+}
 ```
 
-### 2. Realtime polling branch
-
-**`src/lib/notifications.tsx`** — inside the `useEffect` that today calls `supabase.channel(...).subscribe()`:
-
-- Branch on `REALTIME_MODE`:
-  - `"channels"` → keep existing Supabase channel (preview/dev fallback).
-  - `"polling"` → `setInterval(refresh, POLL_INTERVAL_MS)` + `visibilitychange` listener that calls `refresh()` on tab focus; clear interval on cleanup. Toast/browser-notify only for new IDs (diff against previous `items` by id).
-  - `"off"` → no subscription, no polling (manual refresh only).
-
-**`src/routes/app.settings.notifications.tsx`** — same branch for the `push-devices` channel: in polling mode replace the channel with `setInterval(refetchDevices, POLL_INTERVAL_MS)`.
-
-No UI changes; behavior parity for new-row toasts is preserved by id-diffing.
-
-### 3. VAPID public key — env-first in lambda mode
-
-**`src/lib/push-client.ts`** in `ensureSubscription()`:
-
+### 2. `src/lib/api/transactions.ts`
+Unwrap `data.items` while keeping the `Transaction[]` return type:
 ```ts
-const vapid = DATA_BACKEND === "lambda"
-  ? VAPID_PUBLIC  // env only; never call the server function
-  : (VAPID_PUBLIC || await getVapidPublicKey());
+list: async (params = {}) => {
+  const res = await apiFetch<PagedResult<Transaction> | Transaction[]>(
+    `/api/transactions${qs(params)}`,
+  );
+  return Array.isArray(res) ? res : (res?.items ?? []);
+},
+myRecent: async (limit = 10) => {
+  const res = await apiFetch<PagedResult<Transaction> | Transaction[]>(
+    `/api/transactions/me/recent${qs({ limit })}`,
+  );
+  return Array.isArray(res) ? res : (res?.items ?? []);
+},
 ```
 
-If `DATA_BACKEND === "lambda"` and `VAPID_PUBLIC` is empty → throw a clear error: `"VITE_VAPID_PUBLIC_KEY not configured"` (so misconfiguration is loud, not silent). The server function `getVapidPublicKey` stays for the supabase mode.
+### 3. `src/routes/app.transactions.index.tsx`
+Branch on `DATA_BACKEND` from `@/lib/runtimeConfig`.
 
-### 4. Audit doc refresh
+**Lambda branch** — replace the `useQuery` body with:
+```ts
+const rows = await api.transactions.list({ limit: 10 });
+return rows.map<Tx>((r) => ({
+  id: String(r.id),
+  tx_number: r.tx_number,
+  direction: r.direction,
+  channel: (r as any).channel ?? "cash",
+  currency: (r as any).currency ?? r.currency_code,
+  amount_minor: (r as any).amount_minor ?? 0,
+  status: r.status as Tx["status"],
+  comment: r.description ?? (r as any).comment ?? "",
+  created_at: (r as any).created_at ?? r.posted_at,
+  customer_account_id: String((r as any).customer_account_id ?? ""),
+  reverses_tx_id: (r as any).reverses_tx_id ?? null,
+  corrected_by_tx_id: (r as any).corrected_by_tx_id ?? null,
+  customer_name: null,
+  customer_account_number: null,
+  customer_dahab_number: null,
+  attachment_count: 0,
+}));
+```
+- Skip the `holder_accounts` `dahabMap` query in lambda mode (set `enabled: false`).
+- Do NOT compute amounts from `debit_amount`/`credit_amount` — use `amount_minor` + `direction` directly.
+- Keep all existing filters, KPIs, chips, polling intervals, and rendering unchanged.
 
-Append a short "Env cutover" section to `docs/SQLSERVER_READINESS_AUDIT_V2.md` listing the four required build vars and the forbidden list, plus the new realtime-mode matrix (channels / polling / off) and which routes/components honor it.
+**Supabase branch** — keep current `supabase.from("transactions")` query unchanged.
 
-## Out of scope
+**Loading / error / empty:**
+- `useQuery` already exposes `isLoading` and `error`; the page already renders an empty state when filtered rows are zero. No infinite spinner — `apiFetch` resolves or throws, react-query surfaces the error. Add a small retry button next to the error message in lambda mode if not already present.
 
-- No UI redesign.
-- No business-logic changes.
-- No changes to `apiFetch` / adapter modules (already in place from prior pass).
-- No swap of `authService` backend (still flagged separately by `VITE_AUTH_BACKEND`).
-- No SSE/WebSocket implementation — polling is the documented interim until a Lambda realtime endpoint exists.
+### 4. PDF export `buildRows`
+Same branching:
+- Lambda: `await api.transactions.list({ from: from.toISOString(), to: to.toISOString(), limit: 5000 })`, then map to the same row shape used today (customer column shows `—`).
+- Supabase: keep existing query.
+
+### 5. Out of scope
+- Transaction detail page, new-transaction wizard, approvals, other routes
+- Realtime / polling layer (already wired)
+- Joined customer/holder display in lambda mode (backend will add later)
+- No SSE/WebSocket
+- No `Transaction` type changes beyond what's already in `dahabApi.ts`
 
 ## Verification
-
-- `rg "supabase\.channel"` → only inside `if (REALTIME_MODE === "channels")` branches.
-- With `VITE_REALTIME_MODE=polling` set: notifications list and devices table refresh every 15s; no Realtime websocket opens (check Network tab — no `/realtime/v1/websocket` request).
-- With `VITE_DATA_BACKEND=lambda` + `VITE_VAPID_PUBLIC_KEY` set: enabling push subscribes successfully without calling the `getVapidPublicKey` server function.
-- With `VITE_DATA_BACKEND=lambda` and key empty: `Enable on this device` shows the explicit misconfig error instead of failing silently.
+- `VITE_DATA_BACKEND=lambda` + backend returning `{ data: { items: [...] } }` → rows render.
+- Empty `items` → empty state, no spinner.
+- API error → error message + retry, no infinite spinner.
+- `VITE_DATA_BACKEND=supabase` (default) → unchanged.
+- Build passes; `rg "supabase\.from\(\"transactions\"\)" src/routes/app.transactions.index.tsx` shows only the supabase-mode branch.
