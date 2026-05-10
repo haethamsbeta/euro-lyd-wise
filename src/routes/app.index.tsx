@@ -673,7 +673,7 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
                     <span className="text-[10px] text-muted-foreground">{ageMin}m ago</span>
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {tx.tx_number} • {formatMinor(tx.amount_minor, tx.currency)}
+                    {tx.tx_number} • {formatMinorOrMissing(tx.amount_minor, tx.currency)}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-gold group-hover:translate-x-1 transition-transform" />
@@ -866,9 +866,10 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  const isLambda = DATA_BACKEND === "lambda";
   const { data, isLoading } = useQuery({
     queryKey: ["dash.pinned.holders.v3", ids.slice().sort().join(",")],
-    enabled: numericIds.length > 0,
+    enabled: numericIds.length > 0 && !isLambda,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
@@ -878,6 +879,14 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
       return data ?? [];
     },
   });
+  if (isLambda) {
+    return (
+      <BackendPending
+        endpoint="GET /holder-accounts/:id + GET /holders/:id/totals (per-pin batched lookup)"
+        note="Pinned customer cards require a per-id lookup batch. The Supabase fallback is disabled in lambda mode; this section will populate once a backend batch endpoint or the per-id calls are wired."
+      />
+    );
+  }
   return (
     <PremiumCard className="p-5 border-gold/40 bg-[linear-gradient(135deg,oklch(0.74_0.135_82/0.10),transparent_60%)] shadow-[0_10px_40px_-20px_var(--gold)]">
       <div className="flex items-center justify-between mb-4">
