@@ -25,9 +25,9 @@ import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
- * Mirrors the Magic Patterns reference (Business / Tellers / Compliance lenses).
- * Business KPIs and charts pull live data; Teller and Compliance lenses use
- * illustrative demo data until those data sources land.
+ * Lambda mode: every figure on this page MUST come from a /reports/* endpoint.
+ * No Supabase fallback, no static demo arrays, no fabricated KPIs.
+ * Widgets without backend coverage render <BackendPending /> in place.
  */
 
 const GOLD = "#D4A857";
@@ -757,6 +757,9 @@ function ReportsPage() {
             <PremiumCard className="p-6">
               <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Volume by Teller (Today)</h2>
               <p className="text-sm text-text-secondary mb-5">Comparative throughput across the team</p>
+              {tellers.length === 0 ? (
+                <BackendPending endpoint="GET /reports/tellers/today" />
+              ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%" minHeight={240}>
                   <BarChart data={tellers} layout="vertical" margin={{ left: 80 }}>
@@ -767,6 +770,7 @@ function ReportsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              )}
             </PremiumCard>
 
             {/* Processing time + error rate */}
