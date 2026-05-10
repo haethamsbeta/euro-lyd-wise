@@ -840,23 +840,33 @@ function ReportsPage() {
               <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
               <div className="space-y-4">
                 {[
-                  { metric: "KYC Completion Rate", value: compliance.kyc.current_pct, target: compliance.kyc.target_pct },
-                  { metric: "Sanctions Screening", value: compliance.sanctions.current_pct, target: compliance.sanctions.target_pct },
-                  { metric: "Document Verification", value: compliance.doc_verification.current_pct, target: compliance.doc_verification.target_pct },
-                  { metric: "AML Alert Resolution", value: compliance.aml.current_pct, target: compliance.aml.target_pct },
+                  { metric: "KYC Completion Rate", g: compliance.kyc },
+                  { metric: "Sanctions Screening", g: compliance.sanctions },
+                  { metric: "Document Verification", g: compliance.doc_verification },
+                  { metric: "AML Alert Resolution", g: compliance.aml },
                 ].map((m) => {
-                  const meets = m.value >= m.target;
-                  const empty = !m.value && !m.target;
+                  if (m.g == null) {
+                    return (
+                      <div key={m.metric}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm text-foreground font-medium">{m.metric}</span>
+                          <span className="text-xs text-text-tertiary">Backend pending</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full" />
+                      </div>
+                    );
+                  }
+                  const meets = m.g.current_pct >= m.g.target_pct;
                   return (
                     <div key={m.metric}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm text-foreground font-medium">{m.metric}</span>
-                        <span className={`text-sm font-semibold tabular-nums ${empty ? "text-text-tertiary" : meets ? "text-[var(--success)]" : "text-amber-400"}`}>
-                          {empty ? "—" : `${m.value}%`} <span className="text-text-tertiary text-xs">/ {empty ? "—" : `${m.target}%`}</span>
+                        <span className={`text-sm font-semibold tabular-nums ${meets ? "text-[var(--success)]" : "text-amber-400"}`}>
+                          {`${m.g.current_pct}%`} <span className="text-text-tertiary text-xs">/ {`${m.g.target_pct}%`}</span>
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-[oklch(from_var(--surface-2)_l_c_h/0.6)] rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${meets ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${m.value}%` }} />
+                        <div className={`h-full rounded-full ${meets ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${m.g.current_pct}%` }} />
                       </div>
                     </div>
                   );
@@ -872,9 +882,12 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Alert Volume & Resolution</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
+                {(compliance.alert_volume ?? []).length === 0 ? (
+                  <BackendPending endpoint="GET /reports/compliance/overview" note="alert_volume_daily not yet returned." />
+                ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-                    <AreaChart data={isLambda ? (compliance.alert_volume ?? []) : alertVolume}>
+                    <AreaChart data={compliance.alert_volume ?? []}>
                       <defs>
                         <linearGradient id="genGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#F87171" stopOpacity={0.3} />
@@ -894,6 +907,7 @@ function ReportsPage() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
