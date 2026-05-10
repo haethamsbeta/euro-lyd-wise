@@ -636,10 +636,10 @@ function ReportsPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { l: "Active Tellers", v: isLambda ? "—" : "24", sub: isLambda ? "Backend pending" : "8 currently on shift", icon: Users },
-                { l: "Avg Txns / Teller / Day", v: isLambda ? "—" : "63", sub: isLambda ? "Backend pending" : "+8 from last week", icon: Activity },
-                { l: "Network Accuracy", v: isLambda ? "—" : "99.1%", sub: isLambda ? "Backend pending" : "Industry-leading", icon: Target },
-                { l: "Avg Time / Transaction", v: isLambda ? "—" : "2.5 min", sub: isLambda ? "Backend pending" : "-0.3 min from prior", icon: Clock },
+                { l: "Active Tellers", v: "—", sub: "Backend pending", icon: Users },
+                { l: "Avg Txns / Teller / Day", v: "—", sub: "Backend pending", icon: Activity },
+                { l: "Network Accuracy", v: "—", sub: "Backend pending", icon: Target },
+                { l: "Avg Time / Transaction", v: "—", sub: "Backend pending", icon: Clock },
               ].map((k, i) => (
                 <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <PremiumCard className="p-5">
@@ -777,6 +777,9 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Processing Time Distribution</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
+                {isLambda && processingTimeDist.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/processing-time-distribution" />
+                ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                     <BarChart data={processingTimeDist}>
@@ -787,6 +790,7 @@ function ReportsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
@@ -795,6 +799,9 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Error & Correction Rate</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
+                {isLambda && errorRateTrend.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/rejection-rate-trend" />
+                ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                     <LineChart data={errorRateTrend}>
@@ -805,6 +812,7 @@ function ReportsPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
             </div>
           </motion.div>
@@ -913,6 +921,10 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
                 <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
+                {isLambda && riskTypology.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/compliance/overview" note="risk_typology not yet returned." />
+                ) : (
+                <>
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%" minHeight={150}>
                     <PieChart>
@@ -934,6 +946,8 @@ function ReportsPage() {
                     </div>
                   ))}
                 </div>
+                </>
+                )}
               </PremiumCard>
             </div>
           </motion.div>
