@@ -242,8 +242,18 @@ function ReportsPage() {
   })();
   const kpis = [
     { l: "Network Volume (30d)", v: networkVolumeStr, sub: !volByCcy ? "Backend pending" : "", icon: TrendingUp },
-    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), sub: "", icon: Users },
-    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), sub: "", icon: BarChart3 },
+    {
+      l: "Total Customers",
+      v: fmtTotal(overview?.active_holders ?? dashSummary?.holderCount ?? null),
+      sub: "",
+      icon: Users,
+    },
+    {
+      l: "Total Transactions",
+      v: fmtTotal(counts?.total ?? dashSummary?.transactionCount ?? null),
+      sub: "",
+      icon: BarChart3,
+    },
     {
       l: "Avg Txn Value (LYD)",
       v: isLoading ? "…" : avgLydMinor != null ? formatMinor(avgLydMinor, "LYD") : "—",
@@ -308,7 +318,7 @@ function ReportsPage() {
         {/* TOP KPI STRIP */}
         {overviewPending && (
           <BackendPending
-            endpoint="GET /reports/overview"
+            endpoint="GET /reports/business/overview"
             note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
           />
         )}
@@ -495,6 +505,11 @@ function ReportsPage() {
                             <span className="w-6 h-6 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.15)] text-gold text-[11px] font-semibold inline-flex items-center justify-center">{i + 1}</span>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
+                              {(a.dahab_account_number ?? a.account_number) && (
+                                <p className="text-[10px] text-text-tertiary tabular-nums truncate">
+                                  {a.dahab_account_number ?? a.account_number}
+                                </p>
+                              )}
                               {ccy.valid ? (
                                 <CurrencyBadge currency={ccy.code} className="mt-1" />
                               ) : (

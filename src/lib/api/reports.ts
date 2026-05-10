@@ -31,6 +31,7 @@ export interface BusinessOverviewResponse {
     pending: number | null;
     rejection_rate: number | null;
   } | null;
+  active_holders: number | null;
   volume_by_currency_30d:
     | Array<{ currency: string; volume_minor: number; posted_count: number | null }>
     | null;
@@ -42,7 +43,14 @@ export interface BusinessOverviewResponse {
     | null;
   customer_growth_7m: Array<{ month: string; new_holders: number }> | null;
   top_accounts:
-    | Array<{ account_id: string; name: string; currency: string; balance_minor: number }>
+    | Array<{
+        account_id: string;
+        name: string;
+        currency: string;
+        balance_minor: number;
+        dahab_account_number?: string | null;
+        account_number?: string | null;
+      }>
     | null;
 }
 
@@ -112,33 +120,31 @@ export const reportsApi = {
   businessOverview: async (): Promise<BusinessOverviewResponse> => {
     const res = await apiFetch<any>("/reports/business/overview");
     const r = res ?? {};
-    const mapCcyRow = (row: any) => ({
-      ...row,
-      currency: row.currency ?? row.currency_code,
-    });
+    const c = r.counts ?? {};
     return {
       counts: r.counts
         ? {
-            total: numOrNull(r.counts.total),
-            posted: numOrNull(r.counts.posted),
-            rejected: numOrNull(r.counts.rejected),
-            pending: numOrNull(r.counts.pending),
-            rejection_rate: numOrNull(r.counts.rejection_rate),
+            total: numOrNull(c.total ?? c.tx_total),
+            posted: numOrNull(c.posted ?? c.tx_posted),
+            rejected: numOrNull(c.rejected ?? c.tx_rejected),
+            pending: numOrNull(c.pending ?? c.tx_pending),
+            rejection_rate: numOrNull(c.rejection_rate),
           }
         : null,
+      active_holders: numOrNull(r.active_holders ?? c.active_holders),
       volume_by_currency_30d: Array.isArray(r.volume_by_currency_30d)
         ? r.volume_by_currency_30d.map((row: any) => ({
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            posted_count: numOrNull(row.posted_count),
+            posted_count: numOrNull(row.posted_count ?? row.count),
           }))
         : null,
       daily_volume_7d: Array.isArray(r.daily_volume_7d)
         ? r.daily_volume_7d.map((row: any) => ({
-            day: String(row.day),
+            day: String(row.day ?? row.date ?? ""),
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            tx_count: numOrNull(row.tx_count),
+            tx_count: numOrNull(row.tx_count ?? row.count),
           }))
         : null,
       currency_distribution: Array.isArray(r.currency_distribution)
@@ -150,15 +156,23 @@ export const reportsApi = {
       customer_growth_7m: Array.isArray(r.customer_growth_7m)
         ? r.customer_growth_7m.map((row: any) => ({
             month: String(row.month),
-            new_holders: num(row.new_holders),
+            new_holders: num(row.new_holders ?? row.new_customers),
           }))
         : null,
       top_accounts: Array.isArray(r.top_accounts)
-        ? r.top_accounts.map(mapCcyRow).map((row: any) => ({
-            account_id: String(row.account_id ?? ""),
-            name: row.name ?? "—",
-            currency: row.currency,
+        ? r.top_accounts.map((row: any) => ({
+            account_id: String(
+              row.account_id ??
+                row.holder_account_id ??
+                row.account_number ??
+                row.dahab_account_number ??
+                "",
+            ),
+            name: row.name ?? row.canonical_name ?? row.account_display_name ?? "—",
+            currency: row.currency ?? row.currency_code,
             balance_minor: num(row.balance_minor),
+            dahab_account_number: row.dahab_account_number ?? null,
+            account_number: row.account_number ?? null,
           }))
         : null,
     };
