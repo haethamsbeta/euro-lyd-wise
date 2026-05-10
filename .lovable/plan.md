@@ -1,72 +1,60 @@
 ## Goal
 
-Stop reporting `array.length` from limited list endpoints as the database total. Use `/dashboard/staff` summary counts as the source of truth for totals on every page, and clearly label loaded rows as paginated subsets.
+Produce a comprehensive missing-data audit at `docs/LAMBDA_MISSING_DATA_AUDIT.md` covering every app page, comparing what the UI expects vs. what the Lambda backend at `https://u2j81refrf.execute-api.eu-north-1.amazonaws.com/api` actually returns. No mock data, no Supabase fallback, no UI redesign.
 
-## Source of truth
+## Approach
 
-`GET /dashboard/staff` → `summary`:
-- `holder_count` → 408
-- `holder_account_count` → 659
-- `transaction_count` → 23,484
-- `vault_count` → 10
-- (existing) `pending_approvals`, `txns_today`, `active_holders`
+### Phase 1 — Evidence gathering (read-only)
 
-Read with fallbacks (`summary.holder_count ?? summary.active_holders ?? null`) so the UI degrades gracefully if backend hasn't added a field yet. If a total is `null`, render "—" instead of inventing one.
+1. **Frontend expectations** — read every page route and its API adapter to extract the exact fields the UI binds to:
+   - Routes: `app.index.tsx`, `app.holders.index.tsx`, `app.holders.$id.tsx`, `app.holders.new.tsx`, `app.accounts.$id.tsx`, `app.transactions.index.tsx`, `app.transactions.$id.tsx`, `app.transactions.new.deposit.tsx`, `app.transactions.new.withdraw.tsx`, `app.approvals.tsx`, `app.vaults.index.tsx`, `app.vaults.$id.tsx`, `app.reports.tsx`, `app.audit.tsx`, `app.users.tsx`, `app.groups.index.tsx`, `app.groups.$id.tsx`, `app.portal-accounts.tsx`, `portal.$accountId.$currency.tsx`, `app.admin.fx-rates.tsx`, `app.admin.branches.tsx`, `app.settings.notifications.tsx`, `app.settings.security.tsx`, `app.about.tsx`, `m.dashboard.tsx`.
+   - Adapters: `src/lib/api/{dashboard,holders,accounts,transactions,vaults,approvals,reports,audit,users,groups,portal,admin,notifications,push,auth}.ts`.
 
-## Changes by file
+2. **Backend reality** — probe each live endpoint to capture actual response shapes:
+   - Auth once via `/auth/login` (using existing creds in env / known seed user) to obtain a JWT.
+   - GET each known-working endpoint with the JWT and small `limit` where applicable: `/dashboard/staff`, `/holders?limit=2`, `/holders/{id}`, `/holders/{id}/accounts`, `/holder-accounts/{id}`, `/holder-accounts/{id}/ledger?limit=2`, `/transactions?limit=2`, `/transactions/{id}`, `/vaults`, `/vaults/{id}`, `/vaults/{id}/activity?limit=2`, `/approvals/pending`, `/users`, `/audit`, `/groups`, `/admin/branches`, `/admin/fx-rates`, `/admin/vault-targets`, `/notifications`, `/reports/business/overview`, `/reports/cash-flow`, `/reports/hourly-traffic`, `/reports/tellers/today`, `/reports/liquidity-health`, `/reports/compliance/overview`, `/reports/processing-time-distribution`, `/reports/rejection-rate-trend`, `/portal/...`.
+   - Record HTTP status (200 / 401 / 404 / 500), envelope shape, and exact field names per endpoint.
 
-### 1. `src/lib/api/dashboard.ts`
-- Extend `AdminDashboard` with `holder_count`, `holder_account_count`, `transaction_count`, `vault_count` (all `number | null`).
-- In the normalizer, pass these through from `summary` with `?? null` (do not default to 0; `0` would be misreported as a real total).
+3. **Diff** — compare expected vs. returned for each page; classify each gap as:
+   - **frontend mapping only** (field is in payload but UI doesn't bind / mis-keys it),
+   - **backend extension** (endpoint exists, field missing),
+   - **new endpoint required** (404 / not implemented).
 
-### 2. `src/lib/dahabQueryKeys.ts` (or add a small hook)
-- Add a shared `useDashboardSummary()` hook wrapping `api.dashboard.admin()` with `queryKey: ["dashboard.summary"]` so Holders / Transactions / Vaults pages can read totals without each refetching.
+### Phase 2 — Write the audit document
 
-### 3. `src/routes/app.index.tsx` (Dashboard)
-- KPI cards must read `holderCount`, `holderAccountCount`, `transactionCount`, `vaultCount` straight from the summary, not from `recentTx.length` / `accounts.length`.
-- Keep `recentTx` for the recent activity list only; never display its `.length` as a total.
+Create `docs/LAMBDA_MISSING_DATA_AUDIT.md` with:
 
-### 4. `src/routes/app.holders.index.tsx`
-- Remove `holders: rows.length` as the displayed total. Read `holder_count` and `holder_account_count` from `useDashboardSummary()`.
-- Header badge: `Total holders: 408 · Linked accounts: 659 · Showing first {rows.length}`.
-- Add a "Pagination coming soon" hint when `rows.length < holder_count`.
-- Currency chips (`counts`) keep working but are labelled "in loaded sample" until backend exposes per-currency totals.
-
-### 5. `src/routes/app.transactions.index.tsx`
-- Default list call stays `limit: 50` (or whatever current cap is); change footer from `Showing {filtered.length} of {(data ?? []).length} on this page` to `Showing latest {rows.length} of {transaction_count?.toLocaleString() ?? "—"} transactions`.
-- Today / pending / posted / failed KPIs that are computed from the loaded rows must be relabelled "in loaded window" or removed; do not present them as DB-wide totals.
-
-### 6. `src/routes/app.vaults.index.tsx`
-- Render every row from `api.vaults.list()` (already grouped by id). Confirm no slice/limit on the client. Expected: 10 cards.
-- "Active Vaults" KPI: prefer `summary.vault_count`; fall back to `vaults.length`.
-- Remove any hard-coded mock cards if present.
-
-### 7. `src/routes/app.reports.tsx`
-- Remove the synthesized `total / posted / rejected / rejectionRate / holdersCount` block that is computed from a limited transactions sample.
-- For each report tile, if its dedicated `/reports/...` endpoint returns data, render it; otherwise render an empty state ("Not connected yet"). Do not fabricate totals from `tx.length`.
-
-### 8. Audit pass — every page
-Search for `.length` used as a "total". Allowed uses: array iteration, empty checks (`=== 0`), sparkline math, "showing N" labels. Forbidden: presenting it as the DB total.
-
-Files to sweep: all `src/routes/app.*.tsx`, `src/routes/m.*.tsx`, `src/components/app/*`, plus `src/routes/portal.*`. For each forbidden use, either swap to a summary count or relabel as "loaded" / "in this page".
-
-### 9. Doc — `docs/LAMBDA_TOTALS_AND_PAGINATION_AUDIT.md` (new)
-Table with one row per page:
+- **Header** — backend URL, auth method, totals ground truth, audit date.
+- **Per-page sections** (one per page in the user's list, 26 pages) following the exact template they specified:
+  1. Page + route
+  2. Endpoint(s) called
+  3. Fields UI expects
+  4. Fields backend returns
+  5. Missing fields
+  6. Fix class (FE / BE-extend / BE-new)
+  7. Current UI state (real / empty / dash / wrong)
+  8. Recommended fix (specific endpoint + field names)
+- **Specific deep-dive subsections** for the six known concerns: Transactions list, Holder accounts, Account ledger, Vaults, Reports, Users.
+- **Write-endpoint gap list** — POST/PATCH endpoints needed for: New deposit, New withdrawal, Approve/reject, Set withdraw limit, Set FX rate, Set vault target, Create holder, Add linked account, Correct transaction. Mark each present/absent based on probes.
+- **Summary table** with the requested columns:
 
 ```text
-Page | Endpoint | Limit sent | Currently displayed | Correct total source | Pagination needed?
+Page | Missing info | FE fix? | BE fix? | Priority (P0/P1/P2/P3)
 ```
 
-Cover: Dashboard, Holders, Holder detail, Transactions, Transaction detail, Vaults, Vault detail, Reports, Audit, Users, Approvals, Groups, Portal, Mobile dashboard.
+- **Backend ticket appendix** — consolidated list of required endpoints + response fields, grouped by priority, ready to hand to backend team.
 
-## Out of scope
-- Building real pagination controls (next/prev, server-side cursors). Plan adds the labels and totals only; pagination UI is a follow-up once backend cursors are confirmed.
-- Backend changes — this work assumes `/dashboard/staff` already exposes the four counts. If a field is missing the UI shows "—" and the audit doc flags it.
+### Phase 3 — Limited frontend-only follow-ups (deferred to build mode)
 
-## Acceptance
-- Dashboard shows 408 / 659 / 23,484 / 10 from the summary endpoint.
-- Holders page header reads `Total holders: 408 · Linked accounts: 659 · Showing first 100`.
-- Transactions footer reads `Showing latest 50 of 23,484 transactions`.
-- Vaults page renders 10 cards; "Active Vaults" reads 10.
-- Reports page shows real values or empty states, never `tx.length`-derived totals.
-- New audit doc lists every page with its endpoint, limit, displayed count, and total source.
+Out of scope for this plan beyond the doc itself. The audit will end with a section "Frontend mapping fixes safe to apply now" listing only changes where the backend already returns a field that the UI ignores. No code is edited in this loop — the user will trigger a follow-up build pass after reviewing the audit.
+
+## Deliverable
+
+A single new file: `docs/LAMBDA_MISSING_DATA_AUDIT.md` (~26 page sections + tables + backend tickets). No code changes, no mock data, no Supabase fallback work.
+
+## Technical notes
+
+- Probing uses `code--exec` with `curl` against the live API + a JWT obtained via `/auth/login`. Credentials read from env (`compgen -e` to find any DAHAB test user) — if absent, ask user for a test email/password before running probes.
+- For unauthenticated 401s on probe, mark endpoint "auth-gated, shape unknown" rather than guessing.
+- For 404s, mark "not implemented" — that drives the BE-new classification.
+- All counts/totals quoted in the doc come from `/dashboard/staff` summary, never `array.length`.
