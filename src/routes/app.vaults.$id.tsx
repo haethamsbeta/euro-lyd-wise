@@ -55,6 +55,10 @@ function VaultDetail() {
           currency_code: v.currency_code,
           internal_role: v.internal_role ?? null,
           balance_minor: Number(v.current_balance ?? 0),
+          inflow_minor: Number(v.inflow_minor ?? 0),
+          outflow_minor: Number(v.outflow_minor ?? 0),
+          transaction_rows: Number(v.transaction_rows ?? 0),
+          last_transaction_date: v.last_transaction_date ?? null,
         };
       }
       const { data, error } = await supabase
@@ -85,19 +89,41 @@ function VaultDetail() {
           .catch(() => null);
         if (!res) return null;
         const rows: any[] = Array.isArray((res as any).items) ? (res as any).items : [];
+        if (import.meta.env.DEV && rows[0]) {
+          const r = rows[0];
+          const rawVaultAmountMinor =
+            r.cash_vault_effect_minor !== null &&
+            r.cash_vault_effect_minor !== undefined &&
+            Number(r.cash_vault_effect_minor) !== 0
+              ? r.cash_vault_effect_minor
+              : r.amount_minor;
+          // eslint-disable-next-line no-console
+          console.log("[vault activity amount debug]", {
+            tx_number: r.tx_number,
+            amount_minor: r.amount_minor,
+            cash_vault_effect_minor: r.cash_vault_effect_minor,
+            rawVaultAmountMinor,
+            displayAmountMinor: Math.abs(Number(rawVaultAmountMinor || 0)),
+            displayDirection: r.cash_vault_direction || r.direction,
+            displayCurrency: r.currency_code || vault?.currency_code,
+          });
+        }
         return rows.map((r: any) => ({
           id: r.id,
           tx_number: r.tx_number,
           created_at: r.posted_at ?? r.created_at,
           comment: r.description ?? r.comment ?? "",
           holder_name: r.holder_name ?? null,
-          debit_minor: Number(r.debit_minor ?? 0),
-          credit_minor: Number(r.credit_minor ?? 0),
-          balance_after: Number(r.balance_after_minor ?? 0),
-          currency: r.currency_code ?? vault?.currency_code,
+          amount_minor: r.amount_minor,
+          cash_vault_effect_minor: r.cash_vault_effect_minor,
+          cash_vault_direction: r.cash_vault_direction ?? null,
+          direction: r.direction ?? null,
+          currency_code: r.currency_code ?? null,
+          balance_after_minor: r.balance_after_minor ?? null,
           status: r.status ?? "posted",
-          direction: Number(r.debit_minor ?? 0) > 0 ? "deposit" : "withdraw",
-          accounts: r.holder_name ? { name: r.holder_name, account_number: r.account_number ?? "" } : null,
+          accounts: r.holder_name
+            ? { name: r.holder_name, account_number: r.account_number ?? "" }
+            : null,
         }));
       }
       const { data, error } = await supabase
@@ -117,43 +143,16 @@ function VaultDetail() {
   const currency = vault?.currency_code ?? "USD";
   const activityPending = tx === null;
 
-  // 30-day inflow / outflow
-  const flow = useMemo(() => {
-    const list = (Array.isArray(tx) ? tx : []) as any[];
-    const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
-    let inMinor = 0;
-    let outMinor = 0;
-    for (const r of list) {
-      if (new Date(r.created_at).getTime() < cutoff) continue;
-      if (r.status && r.status !== "posted") continue;
-      const debit = Number(r.debit_minor ?? (r.direction === "deposit" ? r.amount_minor : 0)) || 0;
-      const credit = Number(r.credit_minor ?? (r.direction === "withdraw" ? r.amount_minor : 0)) || 0;
-      inMinor += debit;
-      outMinor += credit;
-    }
-    return { inMinor, outMinor };
-  }, [tx]);
-
-  // Single-currency vault — prefer backend-provided balance_after; fall back
-  // to running compute if missing.
-  const txWithBalance = useMemo(() => {
-    const list = (Array.isArray(tx) ? tx : []).slice() as any[];
-    if (list.length && list[0].balance_after != null) {
-      return list.map((r) => ({ ...r, _counted: true }));
-    }
-    const sorted = list.sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-    let running = 0;
-    const enriched = sorted.map((r) => {
-      const counts = !r.status || r.status === "posted";
-      const debit = Number(r.debit_minor ?? (r.direction === "deposit" ? r.amount_minor : 0)) || 0;
-      const credit = Number(r.credit_minor ?? (r.direction === "withdraw" ? r.amount_minor : 0)) || 0;
-      if (counts) running += debit - credit;
-      return { ...r, balance_after: running, _counted: counts };
-    });
-    return enriched.reverse();
-  }, [tx]);
+  // Summary numbers come from the backend (/vaults/:id). Do NOT recompute
+  // from the visible activity page.
+  const flow = {
+    inMinor: Number(vault?.inflow_minor ?? 0),
+    outMinor: Number(vault?.outflow_minor ?? 0),
+  };
+  const txWithBalance = useMemo(
+    () => (Array.isArray(tx) ? (tx as any[]) : []),
+    [tx],
+  );
 
   // Filter by search reference
   const filteredTx = useMemo(() => {
@@ -323,12 +322,20 @@ function VaultDetail() {
                   </tr>
                 ) : (
                   filteredTx.map((r: any) => {
-                    const debit = Number(r.debit_minor ?? 0);
-                    const credit = Number(r.credit_minor ?? 0);
-                    const intoVault = debit >= credit;
-                    const Icon =
-                      intoVault ? ArrowDownToLine : ArrowUpFromLine;
-                    const amountMinor = intoVault ? debit || r.amount_minor : credit || r.amount_minor;
+                    const rawVaultAmountMinor =
+                      r.cash_vault_effect_minor !== null &&
+                      r.cash_vault_effect_minor !== undefined &&
+                      Number(r.cash_vault_effect_minor) !== 0
+                        ? r.cash_vault_effect_minor
+                        : r.amount_minor;
+                    const displayAmountMinor = Math.abs(
+                      Number(rawVaultAmountMinor || 0),
+                    );
+                    const displayDirection =
+                      r.cash_vault_direction || r.direction;
+                    const displayCurrency = r.currency_code || currency;
+                    const intoVault = displayDirection === "deposit";
+                    const Icon = intoVault ? ArrowDownToLine : ArrowUpFromLine;
                     return (
                       <tr key={r.id} className="transition-colors hover:bg-muted/40">
                         <td className="px-5 py-3 text-xs text-muted-foreground">
@@ -365,7 +372,7 @@ function VaultDetail() {
                           }`}
                         >
                           {intoVault ? "+" : "−"}
-                          {formatMinor(amountMinor, r.currency ?? currency)}
+                          {formatMinor(displayAmountMinor, displayCurrency)}
                         </td>
                         <td className="px-5 py-3">
                           <Badge
@@ -381,8 +388,11 @@ function VaultDetail() {
                           </Badge>
                         </td>
                         <td className="px-5 py-3 text-right font-mono font-semibold tabular-nums">
-                          {r._counted
-                            ? formatMinor(r.balance_after, r.currency ?? currency)
+                          {r.balance_after_minor != null
+                            ? formatMinor(
+                                Number(r.balance_after_minor),
+                                displayCurrency,
+                              )
                             : "—"}
                         </td>
                         <td className="max-w-sm truncate px-5 py-3 text-muted-foreground">
