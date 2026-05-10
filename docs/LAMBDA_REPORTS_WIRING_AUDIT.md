@@ -43,6 +43,14 @@ hit, and no Supabase tables are queried for report data:
 **Status: live & mapped.** `/reports/business/overview` returns real data and the
 frontend adapter accepts the actual backend keys via aliases:
 
+**Diagnostic note (resolved):** an earlier symptom where Daily Transactions,
+Currency Distribution, Customer Growth and Top Accounts rendered
+`BackendPending` despite the backend returning data was traced to the adapter
+reading the response root rigidly. The adapter now defensively unwraps
+`res / res.data / res.overview / res.business`, picking the first object that
+contains any of the documented Business Overview keys. This was a route-level /
+adapter accessor issue, **not** missing backend fields.
+
 - `counts.tx_total ↔ total`, `counts.tx_posted ↔ posted`, `counts.tx_rejected ↔ rejected`, `counts.tx_pending ↔ pending`
 - `active_holders` is read from either `r.active_holders` or `counts.active_holders`
 - `top_accounts[]`: `account_id ?? holder_account_id ?? account_number ?? dahab_account_number`; `name ?? canonical_name ?? account_display_name`; `currency ?? currency_code`; `dahab_account_number` / `account_number` surfaced for display
