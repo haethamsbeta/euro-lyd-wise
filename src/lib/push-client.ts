@@ -6,6 +6,7 @@ import {
   subscribeThisDevice,
   unsubscribeThisDevice,
 } from "@/server/push.functions";
+import { DATA_BACKEND, VAPID_PUBLIC } from "@/lib/runtimeConfig";
 
 export const ENDPOINT_KEY = "dahab.pushEndpoint";
 
@@ -82,7 +83,15 @@ export async function ensureSubscription(): Promise<{ endpoint: string } | null>
   await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
-    const vapid = await getVapidPublicKey();
+    let vapid: string | null;
+    if (DATA_BACKEND === "lambda") {
+      if (!VAPID_PUBLIC) {
+        throw new Error("VITE_VAPID_PUBLIC_KEY not configured");
+      }
+      vapid = VAPID_PUBLIC;
+    } else {
+      vapid = VAPID_PUBLIC || (await getVapidPublicKey());
+    }
     if (!vapid) throw new Error("Push not configured (missing VAPID public key).");
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
