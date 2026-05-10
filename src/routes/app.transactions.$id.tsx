@@ -444,7 +444,9 @@ function TxDetail() {
                     ? `${tx.vault?.vault_channel ?? tx.channel} vault`
                     : tx.customer?.account_number
                       ? `#${tx.customer.account_number}`
-                      : ""
+                      : tx.account_number
+                        ? `#${tx.account_number}${tx.dahab_account_number ? ` · ${tx.dahab_account_number}` : ""}`
+                        : ""
                 }
                 icon={
                   isDeposit ? (
@@ -474,7 +476,9 @@ function TxDetail() {
                   isDeposit
                     ? tx.customer?.account_number
                       ? `#${tx.customer.account_number}`
-                      : ""
+                      : tx.account_number
+                        ? `#${tx.account_number}${tx.dahab_account_number ? ` · ${tx.dahab_account_number}` : ""}`
+                        : ""
                     : `${tx.vault?.vault_channel ?? tx.channel} vault`
                 }
                 icon={
