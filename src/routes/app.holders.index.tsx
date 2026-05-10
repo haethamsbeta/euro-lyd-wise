@@ -127,7 +127,8 @@ function HoldersList() {
   });
 
   const items = (data?.items ?? []) as any[];
-  const total = data?.total ?? 0;
+  const backendTotal = data?.total ?? 0;
+  const total = Math.max(backendTotal, dashSummary?.holderCount ?? 0);
   const filtered = items.filter((h: any) =>
     !curFilter || (h.holder_accounts ?? []).some((a: any) => a.currency_code === curFilter),
   );
