@@ -94,12 +94,42 @@ export const Route = createFileRoute("/app/reports")({
 });
 
 function ReportsPage() {
-  const { data, isLoading } = useReportsData();
-  const { data: topAccounts } = useTopAccounts();
+  const { data: overview, isLoading, isError: overviewIsError } = useReportsData();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
   const isLambda = DATA_BACKEND === "lambda";
-  const overviewPending = isLambda && (data as any)?.__lambdaEmpty;
+  const overviewPending = !overview && (overviewIsError || (!isLoading && isLambda));
+
+  // ── Business overview field projections (per-widget, never fabricated) ──
+  const counts = overview?.counts ?? null;
+  const volByCcy = overview?.volume_by_currency_30d ?? null;
+  const dailyVolume7d = useMemo(() => {
+    const rows = overview?.daily_volume_7d ?? [];
+    // LYD-only series for the chart (no FX summing across currencies).
+    return rows
+      .filter((r) => r.currency === "LYD")
+      .map((r) => ({ d: r.day, v: r.volume_minor / 100 }));
+  }, [overview]);
+  const currencyDistribution = useMemo(() => {
+    const rows = overview?.currency_distribution ?? [];
+    const total = rows.reduce((a, b) => a + b.balance_minor, 0);
+    return rows
+      .map((r) => {
+        const ccy = displayCurrency(r.currency);
+        return {
+          name: ccy.code,
+          valid: ccy.valid,
+          raw: r.balance_minor,
+          value: total ? Math.round((r.balance_minor / total) * 1000) / 10 : 0,
+          color: ccy.valid ? CURRENCY_COLORS[ccy.code] ?? "#A8842F" : "#6B7280",
+        };
+      })
+      .sort((a, b) => b.raw - a.raw);
+  }, [overview]);
+  const customerGrowth = useMemo(() => {
+    return (overview?.customer_growth_7m ?? []).map((r) => ({ m: r.month, v: r.new_holders }));
+  }, [overview]);
+  const topAccounts = overview?.top_accounts ?? null;
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
@@ -132,8 +162,33 @@ function ReportsPage() {
   const cashFlow = Array.from(cashFlowByDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([d, v]) => ({ d, deposits: v.deposits_minor / 100, withdrawals: v.withdrawals_minor / 100 }));
+  const cashFlowNet = cashFlow.reduce(
+    (acc, r) => ({ dep: acc.dep + r.deposits, wd: acc.wd + r.withdrawals }),
+    { dep: 0, wd: 0 },
+  );
+  const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
   const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
-  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => ({ currency: r.currency, balance: r.balance_minor / 100, daysOfCover: r.days_of_cover ?? 0, health: r.health }));
+  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
+    const ccy = displayCurrency(r.currency_code);
+    const breach = r.minimum_threshold_breach === true;
+    const dc = r.days_of_cover;
+    const health: "Healthy" | "Watch" | "Critical" = breach
+      ? "Critical"
+      : dc != null && dc < 7
+        ? "Watch"
+        : "Healthy";
+    return {
+      vaultName: r.vault_name ?? "—",
+      currency: ccy.code,
+      currencyValid: ccy.valid,
+      balanceMinor: Number(r.balance_minor ?? 0),
+      targetMinor: r.target_minor ?? null,
+      minMinor: r.min_minor ?? null,
+      daysOfCover: dc,
+      health,
+    };
+  });
+  const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
   const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
   const tellers = tellersApi.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
@@ -149,10 +204,10 @@ function ReportsPage() {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
     alert_volume: EMPTY_ARR as any[],
-    kyc: { target_pct: 0, current_pct: 0 },
-    aml: { target_pct: 0, current_pct: 0 },
-    doc_verification: { target_pct: 0, current_pct: 0 },
-    sanctions: { target_pct: 0, current_pct: 0 },
+    kyc: null,
+    aml: null,
+    doc_verification: null,
+    sanctions: null,
   });
   const riskMetrics = {
     flaggedTxns: compliance.flagged_txns,
@@ -166,19 +221,46 @@ function ReportsPage() {
   };
   const riskTypology = compliance.typology.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
 
-  const fmtN = (n: number) => n.toLocaleString();
-  const volumeSummary = data
-    ? Object.entries(data.volumeByCurrency).map(([ccy, v]) => formatMinor(v, ccy)).join(" · ") || "—"
-    : "—";
-  const lydVolume = data?.volumeByCurrency?.["LYD"] ?? 0;
-
+  // KPI strip — every cell sources from a real backend field. When a field
+  // is null/missing the cell renders "—" with `Backend pending` subtext.
+  const lydVol = volByCcy?.find((r) => r.currency === "LYD")?.volume_minor ?? null;
+  const lydPosted = volByCcy?.find((r) => r.currency === "LYD")?.posted_count ?? null;
+  const avgLydMinor =
+    lydVol != null && lydPosted != null && lydPosted > 0 ? Math.round(lydVol / lydPosted) : null;
+  const networkVolumeStr = (() => {
+    if (isLoading) return "…";
+    if (!volByCcy || volByCcy.length === 0) return "—";
+    return (
+      volByCcy
+        .map((r) => {
+          const c = displayCurrency(r.currency);
+          return c.valid ? formatMinor(r.volume_minor, c.code) : null;
+        })
+        .filter(Boolean)
+        .join(" · ") || "—"
+    );
+  })();
   const kpis = [
-    { l: "Network Volume (30d)", v: isLoading ? "…" : (lydVolume ? formatMinor(lydVolume, "LYD") : volumeSummary), chg: "", up: true, icon: TrendingUp },
-    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), chg: "", up: true, icon: Users },
-    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), chg: "", up: true, icon: BarChart3 },
-    { l: "Avg Txn Value (loaded)", v: isLoading ? "…" : formatMinor(data?.avgTxnValueLyd ?? 0, "LYD"), chg: "", up: true, icon: Target },
-    { l: "Approval Time", v: "—", chg: "", up: true, icon: Clock },
-    { l: "Rejection Rate (loaded)", v: isLoading ? "…" : ((data?.total ?? 0) > 0 ? `${(data?.rejectionRate ?? 0).toFixed(1)}%` : "—"), chg: "", up: true, icon: PieIcon },
+    { l: "Network Volume (30d)", v: networkVolumeStr, sub: !volByCcy ? "Backend pending" : "", icon: TrendingUp },
+    { l: "Total Customers", v: fmtTotal(dashSummary?.holderCount ?? null), sub: "", icon: Users },
+    { l: "Total Transactions", v: fmtTotal(dashSummary?.transactionCount ?? null), sub: "", icon: BarChart3 },
+    {
+      l: "Avg Txn Value (LYD)",
+      v: isLoading ? "…" : avgLydMinor != null ? formatMinor(avgLydMinor, "LYD") : "—",
+      sub: avgLydMinor == null && !isLoading ? "Backend pending" : "",
+      icon: Target,
+    },
+    { l: "Approval Time", v: "—", sub: "Backend pending", icon: Clock },
+    {
+      l: "Rejection Rate (30d)",
+      v: isLoading
+        ? "…"
+        : counts?.rejection_rate != null
+          ? `${counts.rejection_rate.toFixed(1)}%`
+          : "—",
+      sub: counts?.rejection_rate == null && !isLoading ? "Backend pending" : "",
+      icon: PieIcon,
+    },
   ];
 
   return (
