@@ -138,11 +138,11 @@ function Approvals() {
         ) : (
         <Card>
           <CardContent className="p-0">
-            {isLoading ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
-              : data && data.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
+            {isLoading && rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
+              : rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
               : (
               <ul className="divide-y">
-                {data!.map((row: any) => (
+                {rows.map((row: any) => (
                   <li key={row.id} className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                       <div className="min-w-0 space-y-1">
@@ -198,6 +198,13 @@ function Approvals() {
             )}
           </CardContent>
         </Card>
+        )}
+        {!pending && nextOffset != null && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => setOffset(nextOffset)}>
+              {isFetching ? "Loading…" : "Load more"}
+            </Button>
+          </div>
         )}
       </div>
 
