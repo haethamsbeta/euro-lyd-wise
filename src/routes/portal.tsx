@@ -28,6 +28,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { PremiumCard } from "@/components/ui/premium-card";
+import { BackendPending } from "@/components/app/backend-pending";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +70,7 @@ function Portal() {
   const t = useT();
   const [hideBalance, setHideBalance] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const isLambda = DATA_BACKEND === "lambda";
 
   useEffect(() => {
     if (loading) return;
@@ -82,7 +85,7 @@ function Portal() {
 
   const { data: holder, isLoading } = useQuery({
     queryKey: ["portal.holder", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !isLambda,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("account_holders")
@@ -99,7 +102,7 @@ function Portal() {
 
   const { data: totals } = useQuery({
     queryKey: ["portal.totals", holder?.id],
-    enabled: !!holder?.id,
+    enabled: !!holder?.id && !isLambda,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_holder_currency_totals", {
         p_holder_id: holder!.id,
@@ -134,6 +137,28 @@ function Portal() {
     return (
       <div className="p-10 text-center text-muted-foreground">{t("common.loading")}</div>
     );
+
+  if (isLambda) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <main className="mx-auto max-w-3xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
+          <div>
+            <h1 className="font-serif text-2xl font-semibold text-foreground">
+              Customer portal
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The customer-facing portal API has not been exposed by the
+              backend yet.
+            </p>
+          </div>
+          <BackendPending
+            endpoint="GET /portal/* (proposed)"
+            note="Holder profile, currency totals and per-account ledgers will populate once the portal API is live. No fallback balances are shown."
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
