@@ -120,6 +120,11 @@ function NotifSettingsPage() {
 
   useEffect(() => {
     if (!user) return;
+    if (REALTIME_MODE === "off") return;
+    if (REALTIME_MODE === "polling") {
+      const id = window.setInterval(() => refetchDevices(), POLL_INTERVAL_MS);
+      return () => window.clearInterval(id);
+    }
     const ch = supabase
       .channel(`push-devices:${user.id}`)
       .on(
