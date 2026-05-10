@@ -335,18 +335,27 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               <LivePulse />
               <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Network Pulse</span>
             </div>
-            <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance (LYD eq.)</div>
+            <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance — LYD Equivalent</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
               {network !== null ? (
                 <AnimatedNumber value={network} currency="LYD" />
               ) : (
-                <span className="text-muted-foreground text-2xl">—</span>
+                <span className="text-muted-foreground text-2xl">
+                  {missingRates.length > 0 || liquidity.isError
+                    ? "FX rates missing"
+                    : liquidity.isLoading
+                      ? "…"
+                      : "Set FX rates to calculate consolidated balance"}
+                </span>
               )}
             </div>
-            {missingRates.length > 0 && (
+            {(missingRates.length > 0 || (network === null && !liquidity.isLoading)) && (
               <div className="mt-2 text-xs text-amber-400">
-                FX rates missing for{" "}
-                {missingRates.map((r) => `${r.from}→${r.to}`).join(", ")}.{" "}
+                {missingRates.length > 0 ? (
+                  <>FX rates missing for {missingRates.map((r) => `${r.from}→${r.to}`).join(", ")}. </>
+                ) : (
+                  <>Backend has not returned a consolidated total. </>
+                )}
                 <Link to="/app/admin/fx-rates" className="underline hover:text-gold">
                   Set rates
                 </Link>
