@@ -777,6 +777,9 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Processing Time Distribution</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
+                {isLambda && processingTimeDist.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/processing-time-distribution" />
+                ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                     <BarChart data={processingTimeDist}>
@@ -787,6 +790,7 @@ function ReportsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
 
               <PremiumCard className="p-6">
@@ -795,6 +799,9 @@ function ReportsPage() {
                   <h2 className="text-lg font-serif font-semibold text-foreground">Error & Correction Rate</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
+                {isLambda && errorRateTrend.length === 0 ? (
+                  <BackendPending endpoint="GET /reports/rejection-rate-trend" />
+                ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                     <LineChart data={errorRateTrend}>
@@ -805,6 +812,7 @@ function ReportsPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </PremiumCard>
             </div>
           </motion.div>
