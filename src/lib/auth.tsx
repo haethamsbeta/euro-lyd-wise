@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { clearDahabAuthStorage, setAccessToken, getAccessToken } from "@/lib/dahabAuthToken";
+import { clearDahabAuthStorage, getAccessToken } from "@/lib/dahabAuthToken";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export type AppRole = "admin" | "teller" | "auditor" | "consumer";
