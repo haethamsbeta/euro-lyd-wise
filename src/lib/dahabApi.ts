@@ -52,7 +52,18 @@ export async function apiFetch<T>(
   const token = await tokenProvider();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const url = `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  // Defensive normalization: if API_BASE_URL already ends with /api and the
+  // caller also passed a path starting with /api/, strip the duplicate prefix
+  // so we never produce /api/api/... URLs.
+  const baseEndsWithApi = /\/api\/?$/.test(API_BASE_URL);
+  let normalizedPath = path;
+  if (baseEndsWithApi && normalizedPath.startsWith("/api/")) {
+    normalizedPath = normalizedPath.slice(4); // remove leading "/api"
+  } else if (baseEndsWithApi && normalizedPath === "/api") {
+    normalizedPath = "/";
+  }
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const url = `${base}${normalizedPath.startsWith("/") ? "" : "/"}${normalizedPath}`;
   const res = await fetch(url, { ...init, headers });
 
   let envelope: ApiEnvelope<T> | null = null;
