@@ -92,7 +92,7 @@ function HolderDetail() {
 
   const { data: totals } = useQuery({
     queryKey: ["holder-totals", holderId],
-    enabled: !!holderId,
+    enabled: !!id,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         const t: any = await api.holders.totals(id).catch(() => []);
