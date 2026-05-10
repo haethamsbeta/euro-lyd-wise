@@ -562,7 +562,7 @@ function ReportsPage() {
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-foreground tabular-nums">{fmtN(data?.posted ?? 3847)}</p>
+                      <p className="text-2xl font-bold text-foreground tabular-nums">{fmtTotal(dashSummary?.transactionCount ?? null)}</p>
                       <p className="text-[10px] uppercase tracking-wider text-text-secondary">Total Txns</p>
                     </div>
                   </div>
