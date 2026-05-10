@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
@@ -17,10 +17,10 @@ import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
-import { supabase } from "@/integrations/supabase/client";
 import { BackendPending } from "@/components/app/backend-pending";
-import { formatMinor } from "@/lib/format";
+import { formatMinor, formatMinorOrMissing } from "@/lib/format";
 import { api } from "@/lib/api";
+import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
@@ -42,8 +42,6 @@ const axisTick = { fill: "#8B8A85", fontSize: 11 };
 const CURRENCY_COLORS: Record<string, string> = {
   LYD: "#D4A857", USD: "#5FBE8A", EUR: "#7AA8E8", GBP: "#C394E0",
 };
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ───────────── Live report queries ─────────────
 // All business numbers below come from the backend Lambda API. Frontend
@@ -61,138 +59,16 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
   });
   return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
 }
-const approvalTrend = [
-  { d: "Mon", t: 18 }, { d: "Tue", t: 22 }, { d: "Wed", t: 16 }, { d: "Thu", t: 14 },
-  { d: "Fri", t: 19 }, { d: "Sat", t: 25 }, { d: "Sun", t: 21 },
-];
-const txnMix = [
-  { name: "Deposits", value: 52, count: 2000, color: "#34D399" },
-  { name: "Withdrawals", value: 38, count: 1462, color: "#F87171" },
-  { name: "Internal Transfers", value: 10, count: 385, color: GOLD },
-];
-const alertVolume = [
-  { d: "Mon", generated: 12, resolved: 14 }, { d: "Tue", generated: 15, resolved: 12 },
-  { d: "Wed", generated: 8, resolved: 10 }, { d: "Thu", generated: 18, resolved: 15 },
-  { d: "Fri", generated: 22, resolved: 18 }, { d: "Sat", generated: 9, resolved: 12 },
-  { d: "Sun", generated: 5, resolved: 8 },
-];
 
 // ───────────── Live data hook ─────────────
+// Lambda mode: every figure on this page MUST come from a /reports/* endpoint.
+// No Supabase fallback, no static demo arrays, no fabricated KPIs.
 function useReportsData() {
   return useQuery({
-    queryKey: ["reports", "overview"],
-    queryFn: async () => {
-      if (DATA_BACKEND === "lambda") {
-        // Lambda mode: do NOT compute KPIs on the frontend. Try the backend
-        // overview endpoint and pass through whatever it returns; if missing,
-        // render empty.
-        const overview = await api.reports
-          .liquidityHealth()
-          .catch(() => null as any);
-        return {
-          total: 0, posted: 0, rejected: 0, rejectionRate: 0,
-          holdersCount: 0,
-          volumeByCurrency: {} as Record<string, number>,
-          dailyVolume: [] as { d: string; date: string; v: number; n: number }[],
-          currencyDistribution: [] as Array<{ name: string; raw: number; value: number; color: string }>,
-          customerGrowth: [] as { m: string; key: string; v: number }[],
-          avgTxnValueLyd: 0,
-          __lambdaEmpty: !overview,
-        };
-      }
-      const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
-      const since7 = new Date(Date.now() - 6 * 86400_000);
-      since7.setHours(0, 0, 0, 0);
-
-      const [txRes, holdersRes, balancesRes, recentRes] = await Promise.all([
-        supabase.from("transactions")
-          .select("id, currency, amount_minor, status, created_at")
-          .gte("created_at", since30),
-        supabase.from("account_holders").select("id, created_at"),
-        supabase.from("account_balances").select("currency, balance_minor"),
-        supabase.from("transactions").select("created_at, amount_minor, status")
-          .gte("created_at", since7.toISOString()),
-      ]);
-
-      const tx = txRes.data ?? [];
-      const holders = holdersRes.data ?? [];
-      const balances = balancesRes.data ?? [];
-      const recent = recentRes.data ?? [];
-
-      const total = tx.length;
-      const posted = tx.filter((t) => t.status === "posted").length;
-      const rejected = tx.filter((t) => t.status === "rejected").length;
-      const rejectionRate = total ? (rejected / total) * 100 : 0;
-
-      const volumeByCurrency: Record<string, number> = {};
-      tx.filter((t) => t.status === "posted").forEach((t) => {
-        volumeByCurrency[t.currency] = (volumeByCurrency[t.currency] ?? 0) + Number(t.amount_minor ?? 0);
-      });
-
-      // 7-day volume
-      const dayBuckets: { d: string; date: string; v: number; n: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-        dayBuckets.push({ d: DAY_LABELS[d.getDay()], date: d.toISOString().slice(0, 10), v: 0, n: 0 });
-      }
-      recent.forEach((r: any) => {
-        const key = new Date(r.created_at).toISOString().slice(0, 10);
-        const b = dayBuckets.find((x) => x.date === key);
-        if (b) { b.n += 1; if (r.status === "posted") b.v += Number(r.amount_minor ?? 0) / 100; }
-      });
-
-      // Currency distribution from balances
-      const balByCcy: Record<string, number> = {};
-      balances.forEach((b) => { balByCcy[b.currency] = (balByCcy[b.currency] ?? 0) + Number(b.balance_minor ?? 0); });
-      const totalBal = Object.values(balByCcy).reduce((a, b) => a + b, 0);
-      const currencyDistribution = Object.entries(balByCcy)
-        .map(([name, raw]) => ({
-          name, raw,
-          value: totalBal ? Math.round((raw / totalBal) * 1000) / 10 : 0,
-          color: CURRENCY_COLORS[name] ?? "#A8842F",
-        }))
-        .sort((a, b) => b.raw - a.raw);
-
-      // Customer growth — last 7 months
-      const monthBuckets: { m: string; key: string; v: number }[] = [];
-      const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        monthBuckets.push({ m: MONTH_LABELS[d.getMonth()], key: `${d.getFullYear()}-${d.getMonth()}`, v: 0 });
-      }
-      holders.forEach((h: any) => {
-        const dt = new Date(h.created_at);
-        const k = `${dt.getFullYear()}-${dt.getMonth()}`;
-        const b = monthBuckets.find((x) => x.key === k);
-        if (b) b.v += 1;
-      });
-
-      const avgTxnValueLyd = posted
-        ? Math.round((volumeByCurrency["LYD"] ?? 0) / Math.max(1, tx.filter((t) => t.status === "posted" && t.currency === "LYD").length))
-        : 0;
-
-      return {
-        total, posted, rejected, rejectionRate, holdersCount: holders.length,
-        volumeByCurrency, dailyVolume: dayBuckets, currencyDistribution,
-        customerGrowth: monthBuckets, avgTxnValueLyd,
-      };
-    },
-    refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
-  });
-}
-
-function useTopAccounts() {
-  return useQuery({
-    queryKey: ["reports", "top-accounts"],
-    enabled: DATA_BACKEND !== "lambda",
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("account_balances")
-        .select("balance_minor, currency, account_id, accounts(name)")
-        .order("balance_minor", { ascending: false })
-        .limit(5);
-      return data ?? [];
-    },
+    queryKey: ["reports", "business-overview"],
+    queryFn: () => api.reports.businessOverview(),
+    retry: false,
+    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
