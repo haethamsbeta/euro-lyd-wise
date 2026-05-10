@@ -636,10 +636,10 @@ function ReportsPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { l: "Active Tellers", v: isLambda ? "—" : "24", sub: isLambda ? "Backend pending" : "8 currently on shift", icon: Users },
-                { l: "Avg Txns / Teller / Day", v: isLambda ? "—" : "63", sub: isLambda ? "Backend pending" : "+8 from last week", icon: Activity },
-                { l: "Network Accuracy", v: isLambda ? "—" : "99.1%", sub: isLambda ? "Backend pending" : "Industry-leading", icon: Target },
-                { l: "Avg Time / Transaction", v: isLambda ? "—" : "2.5 min", sub: isLambda ? "Backend pending" : "-0.3 min from prior", icon: Clock },
+                { l: "Active Tellers", v: "—", sub: "Backend pending", icon: Users },
+                { l: "Avg Txns / Teller / Day", v: "—", sub: "Backend pending", icon: Activity },
+                { l: "Network Accuracy", v: "—", sub: "Backend pending", icon: Target },
+                { l: "Avg Time / Transaction", v: "—", sub: "Backend pending", icon: Clock },
               ].map((k, i) => (
                 <motion.div key={k.l} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <PremiumCard className="p-5">
