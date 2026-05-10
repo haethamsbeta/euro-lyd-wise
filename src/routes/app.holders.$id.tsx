@@ -78,6 +78,8 @@ function HolderDetail() {
           email: r.email ?? null,
           created_at: r.created_at ?? null,
           holder_accounts: accts,
+          linked_account_count:
+            typeof r.linked_account_count === "number" ? r.linked_account_count : null,
         } as any;
       }
       const { data, error } = await supabase
@@ -376,7 +378,14 @@ function OverviewTab({ holder, accounts, totals, totalLyd, isReadOnly, isTeller,
             Account Summary
           </h3>
           <div className="space-y-3">
-            <SummaryRow label="Linked Accounts" value={String(accounts.length)} />
+            <SummaryRow
+              label="Linked Accounts"
+              value={
+                typeof (holder as any).linked_account_count === "number"
+                  ? String((holder as any).linked_account_count)
+                  : "—"
+              }
+            />
             <SummaryRow label="Currencies" value={String(totals.length || 0)} />
             <SummaryRow
               label="Status"
@@ -482,7 +491,7 @@ function AccountListBlock({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-serif text-lg font-semibold">
-          Linked Accounts ({accounts.length})
+          Linked Accounts <span className="text-xs text-muted-foreground">({accounts.length} loaded)</span>
         </h2>
         {!isReadOnly && isAdmin && <AddLinkedAccountDialog holderId={holderId} />}
       </div>
