@@ -29,6 +29,29 @@ export const transactionsApi = {
       if (import.meta.env.DEV) console.log("transaction rows", rows.length);
       return rows;
     }),
+  /**
+   * Paged variant — returns the full backend envelope so callers can use
+   * `total` and `next_offset` for pagination.
+   */
+  listPaged: (
+    params: {
+      q?: string; from?: string; to?: string;
+      category?: TransactionCategory; status?: string;
+      limit?: number; offset?: number;
+    } = {},
+  ) =>
+    apiFetch<any>(`/transactions${qs(params)}`).then((res) => {
+      if (Array.isArray(res)) {
+        return { items: res, total: res.length, limit: params.limit ?? res.length, offset: params.offset ?? 0, next_offset: null };
+      }
+      return {
+        items: res?.items ?? [],
+        total: typeof res?.total === "number" ? res.total : (res?.items?.length ?? 0),
+        limit: res?.limit ?? params.limit ?? 0,
+        offset: res?.offset ?? params.offset ?? 0,
+        next_offset: res?.next_offset ?? null,
+      };
+    }),
   get: (id: string | number) => apiFetch<Transaction>(`/transactions/${id}`),
   myRecent: (limit = 10) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(
