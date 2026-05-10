@@ -312,7 +312,7 @@ function VaultDetail() {
                 {activityPending ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">
-                      Backend endpoint pending — vault activity will appear once the API is live.
+                      Unable to load vault activity right now. Please retry shortly.
                     </td>
                   </tr>
                 ) : filteredTx.length === 0 ? (
