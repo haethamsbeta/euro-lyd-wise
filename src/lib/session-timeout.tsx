@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 /**
  * Security: layer client-side session timeouts on top of Supabase's built-in
@@ -72,7 +73,7 @@ export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
           /* ignore */
         }
       }
-    } else {
+    } else if (DATA_BACKEND !== "lambda") {
       try {
         window.localStorage.removeItem(SIGNIN_AT_KEY);
       } catch {
