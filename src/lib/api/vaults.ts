@@ -1,6 +1,11 @@
 // Vaults / internal-accounts adapter.
 import { apiFetch, qs } from "./_shared";
-import type { InternalAccount, Currency } from "@/lib/dahabApi";
+import type { InternalAccount, Currency, PagedResult } from "@/lib/dahabApi";
+
+function unwrap<T>(res: PagedResult<T> | T[] | null | undefined): T[] {
+  if (Array.isArray(res)) return res;
+  return res?.items ?? [];
+}
 
 export interface VaultActivityRow {
   id: string;
@@ -22,7 +27,12 @@ export interface VaultTarget {
 }
 
 export const vaultsApi = {
-  list: () => apiFetch<InternalAccount[]>("/vaults"),
+  list: async () => {
+    const res = await apiFetch<PagedResult<InternalAccount> | InternalAccount[]>("/vaults");
+    const rows = unwrap(res);
+    if (import.meta.env.DEV) console.log("vault rows", rows.length);
+    return rows;
+  },
   get: (id: string | number) => apiFetch<InternalAccount>(`/vaults/${id}`),
   recentActivity: (id: string | number, params: { limit?: number } = {}) =>
     apiFetch<VaultActivityRow[]>(`/vaults/${id}/activity${qs(params)}`),
