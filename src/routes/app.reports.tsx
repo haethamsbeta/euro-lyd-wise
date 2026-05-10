@@ -493,7 +493,9 @@ function ReportsPage() {
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {(!topAccounts || topAccounts.length === 0) ? (
+                {isLambda && (!topAccounts || topAccounts.length === 0) ? (
+                  <BackendPending endpoint="GET /reports/top-accounts" />
+                ) : (!topAccounts || topAccounts.length === 0) ? (
                   <p className="text-xs text-text-tertiary">No accounts yet.</p>
                 ) : (
                   <ul className="space-y-3">
