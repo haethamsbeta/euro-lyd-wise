@@ -228,8 +228,34 @@ function ReportsPage() {
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
   const { data: hourlyTraffic } = useReportFeed("hourly-traffic", () => api.reports.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
-  const { data: cashFlowApi } = useReportFeed("cash-flow", () => api.reports.cashFlow(), EMPTY_ARR as Array<{ d: string; deposits_minor: number; withdrawals_minor: number }>);
-  const cashFlow = cashFlowApi.map((r) => ({ d: r.d, deposits: r.deposits_minor / 100, withdrawals: r.withdrawals_minor / 100 }));
+  // Cash-flow: backend returns raw rows
+  // { day, currency_code, direction, transaction_count, volume_minor }.
+  // Pivot in the FE by day + currency_code → deposits_minor/withdrawals_minor.
+  // The chart below shows LYD-only; we never sum across currencies and never
+  // apply FX in the frontend. See LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md §4.
+  const { data: cashFlowApi } = useReportFeed(
+    "cash-flow",
+    () => api.reports.cashFlow(),
+    EMPTY_ARR as Array<{
+      day: string;
+      currency_code: string;
+      direction: string;
+      transaction_count: number;
+      volume_minor: number;
+    }>,
+  );
+  const CASH_FLOW_CCY = "LYD";
+  const cashFlowByDay = new Map<string, { deposits_minor: number; withdrawals_minor: number }>();
+  for (const r of cashFlowApi) {
+    if (r.currency_code !== CASH_FLOW_CCY) continue;
+    const cur = cashFlowByDay.get(r.day) ?? { deposits_minor: 0, withdrawals_minor: 0 };
+    if (r.direction === "deposit") cur.deposits_minor += Number(r.volume_minor || 0);
+    else if (r.direction === "withdraw") cur.withdrawals_minor += Number(r.volume_minor || 0);
+    cashFlowByDay.set(r.day, cur);
+  }
+  const cashFlow = Array.from(cashFlowByDay.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([d, v]) => ({ d, deposits: v.deposits_minor / 100, withdrawals: v.withdrawals_minor / 100 }));
   const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
   const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => ({ currency: r.currency, balance: r.balance_minor / 100, daysOfCover: r.days_of_cover ?? 0, health: r.health }));
   const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
