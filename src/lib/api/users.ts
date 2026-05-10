@@ -10,20 +10,20 @@ export interface AppUser {
 
 export const usersApi = {
   list: (params: { q?: string; role?: AppRole } = {}) =>
-    apiFetch<AppUser[]>(`/api/users${qs(params)}`),
-  get: (id: string) => apiFetch<AppUser>(`/api/users/${id}`),
+    apiFetch<AppUser[]>(`/users${qs(params)}`),
+  get: (id: string) => apiFetch<AppUser>(`/users/${id}`),
   createConsumer: (body: { email: string; full_name: string; phone?: string }) =>
-    apiFetch<AppUser>("/api/users/consumer", { method: "POST", body: JSON.stringify(body) }),
+    apiFetch<AppUser>("/users/consumer", { method: "POST", body: JSON.stringify(body) }),
   setRoles: (id: string, roles: AppRole[]) =>
-    apiFetch<AppUser>(`/api/users/${id}/roles`, {
+    apiFetch<AppUser>(`/users/${id}/roles`, {
       method: "PUT",
       body: JSON.stringify({ roles }),
     }),
   setActive: (id: string, is_active: boolean) =>
-    apiFetch<AppUser>(`/api/users/${id}/active`, {
+    apiFetch<AppUser>(`/users/${id}/active`, {
       method: "PUT",
       body: JSON.stringify({ is_active }),
     }),
   forcePasswordReset: (id: string) =>
-    apiFetch<{ ok: true }>(`/api/users/${id}/force-password-reset`, { method: "POST" }),
+    apiFetch<{ ok: true }>(`/users/${id}/force-password-reset`, { method: "POST" }),
 };

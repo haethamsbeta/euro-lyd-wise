@@ -12,14 +12,14 @@ export interface NotificationPrefs {
 
 export const notificationsApi = {
   list: (params: { unread_only?: boolean; limit?: number; offset?: number } = {}) =>
-    apiFetch<AppNotification[]>(`/api/notifications${qs(params)}`),
+    apiFetch<AppNotification[]>(`/notifications${qs(params)}`),
   markRead: (id: string) =>
-    apiFetch<{ ok: true }>(`/api/notifications/${id}/read`, { method: "POST" }),
+    apiFetch<{ ok: true }>(`/notifications/${id}/read`, { method: "POST" }),
   markAllRead: () =>
-    apiFetch<{ ok: true }>("/api/notifications/read-all", { method: "POST" }),
-  prefs: () => apiFetch<NotificationPrefs>("/api/notifications/prefs"),
+    apiFetch<{ ok: true }>("/notifications/read-all", { method: "POST" }),
+  prefs: () => apiFetch<NotificationPrefs>("/notifications/prefs"),
   updatePrefs: (body: Partial<NotificationPrefs>) =>
-    apiFetch<NotificationPrefs>("/api/notifications/prefs", {
+    apiFetch<NotificationPrefs>("/notifications/prefs", {
       method: "PUT",
       body: JSON.stringify(body),
     }),

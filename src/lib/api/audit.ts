@@ -11,5 +11,5 @@ export const auditApi = {
     q?: string; from?: string; to?: string;
     entity?: string; user_id?: string;
     limit?: number; offset?: number;
-  } = {}) => apiFetch<AuditEntry[]>(`/api/audit${qs(params)}`),
+  } = {}) => apiFetch<AuditEntry[]>(`/audit${qs(params)}`),
 };

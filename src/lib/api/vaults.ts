@@ -22,30 +22,30 @@ export interface VaultTarget {
 }
 
 export const vaultsApi = {
-  list: () => apiFetch<InternalAccount[]>("/api/vaults"),
-  get: (id: string | number) => apiFetch<InternalAccount>(`/api/vaults/${id}`),
+  list: () => apiFetch<InternalAccount[]>("/vaults"),
+  get: (id: string | number) => apiFetch<InternalAccount>(`/vaults/${id}`),
   recentActivity: (id: string | number, params: { limit?: number } = {}) =>
-    apiFetch<VaultActivityRow[]>(`/api/vaults/${id}/activity${qs(params)}`),
+    apiFetch<VaultActivityRow[]>(`/vaults/${id}/activity${qs(params)}`),
   consolidatedUsd: () =>
     apiFetch<{
       total_usd_minor: number;
       missing_rates: Array<{ from: Currency; to: Currency }>;
       breakdown: Array<{ currency: Currency; amount_minor: number; usd_minor: number }>;
-    }>("/api/vaults/consolidated-usd", { method: "POST" }),
+    }>("/vaults/consolidated-usd", { method: "POST" }),
   branches: () =>
-    apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/api/admin/branches"),
-  targets: () => apiFetch<VaultTarget[]>("/api/admin/vault-targets"),
+    apiFetch<Array<{ id: string; name: string; is_active: boolean }>>("/admin/branches"),
+  targets: () => apiFetch<VaultTarget[]>("/admin/vault-targets"),
   setTarget: (vault_id: string, currency: Currency, target_minor: number) =>
-    apiFetch<VaultTarget>("/api/admin/vault-targets", {
+    apiFetch<VaultTarget>("/admin/vault-targets", {
       method: "POST",
       body: JSON.stringify({ vault_id, currency, target_minor }),
     }),
 };
 
 export const fxRatesApi = {
-  list: () => apiFetch<FxRate[]>("/api/admin/fx-rates"),
+  list: () => apiFetch<FxRate[]>("/admin/fx-rates"),
   set: (base: Currency, quote: Currency, rate: number) =>
-    apiFetch<FxRate>("/api/admin/fx-rates", {
+    apiFetch<FxRate>("/admin/fx-rates", {
       method: "POST",
       body: JSON.stringify({ base, quote, rate }),
     }),

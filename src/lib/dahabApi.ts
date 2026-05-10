@@ -57,7 +57,7 @@ export async function apiFetch<T>(
   // so we never produce /api/api/... URLs.
   const baseEndsWithApi = /\/api\/?$/.test(API_BASE_URL);
   let normalizedPath = path;
-  if (baseEndsWithApi && normalizedPath.startsWith("/api/")) {
+  if (baseEndsWithApi && normalizedPath.startsWith("/")) {
     normalizedPath = normalizedPath.slice(4); // remove leading "/api"
   } else if (baseEndsWithApi && normalizedPath === "/api") {
     normalizedPath = "/";
@@ -173,20 +173,20 @@ export interface InternalAccount {
 // --- Endpoint helpers -----------------------------------------------------
 export const dahabApi = {
   holders: {
-    list: () => apiFetch<Holder[]>("/api/holders"),
+    list: () => apiFetch<Holder[]>("/holders"),
     get: (holderId: number | string) =>
-      apiFetch<Holder>(`/api/holders/${holderId}`),
+      apiFetch<Holder>(`/holders/${holderId}`),
     create: (body: Partial<Holder>) =>
-      apiFetch<Holder>("/api/holders", {
+      apiFetch<Holder>("/holders", {
         method: "POST",
         body: JSON.stringify(body),
       }),
     accounts: (holderId: number | string) =>
-      apiFetch<HolderAccount[]>(`/api/holders/${holderId}/accounts`),
+      apiFetch<HolderAccount[]>(`/holders/${holderId}/accounts`),
   },
   holderAccounts: {
     create: (holderId: number | string, body: Partial<HolderAccount>) =>
-      apiFetch<HolderAccount>(`/api/holders/${holderId}/accounts`, {
+      apiFetch<HolderAccount>(`/holders/${holderId}/accounts`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -195,7 +195,7 @@ export const dahabApi = {
       range: { from?: string; to?: string } = {},
     ) =>
       apiFetch<LedgerEntry[]>(
-        `/api/holder-accounts/${holderAccountId}/ledger${qs(range)}`,
+        `/holder-accounts/${holderAccountId}/ledger${qs(range)}`,
       ),
   },
   transactions: {
@@ -206,12 +206,12 @@ export const dahabApi = {
       category?: TransactionCategory;
       limit?: number;
       offset?: number;
-    } = {}) => apiFetch<Transaction[]>(`/api/transactions${qs(params)}`),
+    } = {}) => apiFetch<Transaction[]>(`/transactions${qs(params)}`),
   },
   internalAccounts: {
-    list: () => apiFetch<InternalAccount[]>("/api/internal-accounts"),
+    list: () => apiFetch<InternalAccount[]>("/internal-accounts"),
   },
   vaults: {
-    list: () => apiFetch<InternalAccount[]>("/api/vaults"),
+    list: () => apiFetch<InternalAccount[]>("/vaults"),
   },
 };
