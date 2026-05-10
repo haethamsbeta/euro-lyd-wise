@@ -89,8 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (DATA_BACKEND === "lambda") {
-      applyLambdaAuthState();
-      if (!getAccessToken()) {
+      if (!applyLambdaAuthState()) {
         setSession(null);
         setRoles([]);
         setLoading(false);
@@ -140,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearDahabAuthStorage();
       setSession(null);
       setRoles([]);
+      setLoading(false);
+      setRolesLoading(false);
       await supabase.auth.signOut();
     },
     refreshRoles: async () => loadRoles(session?.user.id),
