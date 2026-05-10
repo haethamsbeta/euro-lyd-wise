@@ -103,6 +103,19 @@ function ReportsPage() {
   // ── Business overview field projections (per-widget, never fabricated) ──
   const counts = overview?.counts ?? null;
   const volByCcy = overview?.volume_by_currency_30d ?? null;
+  if (typeof window !== "undefined" && overview) {
+    // Temporary diagnostic — confirms the adapter handed back the
+    // documented Business Overview keys.
+    // eslint-disable-next-line no-console
+    console.log("[reports business overview]", {
+      keys: Object.keys(overview as object),
+      daily_volume_7d: overview?.daily_volume_7d?.length,
+      currency_distribution: overview?.currency_distribution?.length,
+      customer_growth_7m: overview?.customer_growth_7m?.length,
+      top_accounts: overview?.top_accounts?.length,
+      volume_by_currency_30d: overview?.volume_by_currency_30d?.length,
+    });
+  }
   const dailyVolume7d = useMemo(() => {
     const rows = overview?.daily_volume_7d ?? [];
     // LYD-only series for the chart (no FX summing across currencies).
