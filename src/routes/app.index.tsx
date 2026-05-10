@@ -24,6 +24,7 @@ import { useEffectiveRoles } from "@/lib/role-view";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -116,7 +117,9 @@ function useDashData() {
           balances,
           recentTx,
           pendingCount: Number((adminRes as any)?.pending_approvals ?? 0),
-          holderCount: Number((adminRes as any)?.active_holders ?? 0),
+          holderCount: Number(
+            (adminRes as any)?.holder_count ?? (adminRes as any)?.active_holders ?? 0,
+          ),
         };
       }
       const [accounts, balances, recentTx, pending, holders] = await Promise.all([
