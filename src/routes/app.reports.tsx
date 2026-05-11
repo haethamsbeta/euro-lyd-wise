@@ -746,7 +746,9 @@ function ReportsPage() {
               )}
               {liquidityMissingRates.length > 0 && (
                 <p className="mt-2 text-xs text-amber-400">
-                  Missing FX rates for: {liquidityMissingRates.map((r) => `${r.from}→${r.to}`).join(", ")}
+                  Missing FX rates for: {liquidityMissingRates
+                    .map((r) => (typeof r === "string" ? r : `${r.from}→${r.to}`))
+                    .join(", ")}
                 </p>
               )}
             </PremiumCard>
