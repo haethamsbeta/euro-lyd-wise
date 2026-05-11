@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { PageHeader } from "@/components/app/app-shell";
@@ -23,6 +23,7 @@ function fmtAmount(n: number, currency: string) {
 }
 
 function AccountsList() {
+  const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<number>(50);
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
@@ -209,7 +210,10 @@ function AccountsList() {
                       return (
                         <tr
                           key={a.id}
-                          className="border-t border-border/40 hover:bg-muted/20"
+                          className="cursor-pointer border-t border-border/40 hover:bg-muted/20"
+                          onClick={() =>
+                            navigate({ to: "/app/accounts/$id", params: { id: String(a.id) } })
+                          }
                         >
                           <td className="px-3 py-2">
                             <div className="font-medium" dir="auto">
