@@ -354,7 +354,7 @@ function TestSandboxPage() {
   })();
 
   async function runFromFixtureRow(
-    f: { test_run_id: string; holder_id: string },
+    f: Fixture,
     direction: "deposit" | "withdraw",
     amountMinor: number,
     expectStatus: "posted" | "pending",
@@ -563,23 +563,25 @@ function TestSandboxPage() {
           <CardContent className="space-y-4 text-sm">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-muted-foreground">Holder:</span>
-              <span className="font-medium">{fixture.holder.name}</span>
+              <span className="font-medium">{activeHolderName}</span>
               <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
                 TEST
               </span>
               <span className="font-mono text-[10px] text-muted-foreground">
-                {fixture.holder.source_system ?? "DAHAB_TEST"} · {fixture.test_run_id}
+                {activeSourceSystem} · {fixture.test_run_id}
               </span>
-              {fixture.holder.dahab_account_number && (
+              {activeAccountNumber && (
                 <span className="font-mono text-xs text-muted-foreground">
-                  #{fixture.holder.dahab_account_number}
+                  #{activeAccountNumber}
                 </span>
               )}
-              <Button asChild size="sm" variant="outline">
-                <Link to="/app/holders/$id" params={{ id: fixture.holder.id }}>
-                  Open Test Holder
-                </Link>
-              </Button>
+              {activeHolderId ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/app/holders/$id" params={{ id: activeHolderId }}>
+                    Open Test Holder
+                  </Link>
+                </Button>
+              ) : null}
             </div>
 
             <div>
@@ -587,7 +589,7 @@ function TestSandboxPage() {
                 Linked test accounts
               </div>
               <ul className="space-y-1">
-                {fixture.holder_accounts.map((a) => (
+                {accounts.map((a) => (
                   <li key={a.id} className="flex items-center gap-3">
                     <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
                       {a.currency_code}
