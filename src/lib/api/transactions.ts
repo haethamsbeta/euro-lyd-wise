@@ -14,6 +14,23 @@ export interface PostTransactionInput {
   idempotency_key: string;
 }
 
+/**
+ * Cash-only transaction payload used by the New Transaction wizard while
+ * bank vaults are not yet provisioned. Mirrors the contract documented in
+ * docs/API_CONTRACT.md (POST /transactions).
+ */
+export interface PostCashTransactionInput {
+  holder_account_id: string | number;
+  direction: "deposit" | "withdraw";
+  channel: "cash";
+  transaction_category: "cash";
+  amount: number;
+  currency_code: string;
+  vault_account_id: string | number;
+  comment: string;
+  idempotency_key: string;
+}
+
 export const transactionsApi = {
   list: (
     params: {
@@ -58,6 +75,11 @@ export const transactionsApi = {
       `/transactions/me/recent${qs({ limit })}`,
     ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
   post: (body: PostTransactionInput) =>
+    apiFetch<Transaction>("/transactions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postCash: (body: PostCashTransactionInput) =>
     apiFetch<Transaction>("/transactions", {
       method: "POST",
       body: JSON.stringify(body),
