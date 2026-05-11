@@ -38,7 +38,7 @@ function genPassword() {
 
 type StaffRole = "admin" | "teller" | "auditor";
 
-function NewMemberPage() {
+export function NewMemberPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
