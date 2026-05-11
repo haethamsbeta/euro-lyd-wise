@@ -367,7 +367,7 @@ function ReportsPage() {
             <div>daily_volume_7d: {dailyVolume7dRows.length}</div>
             <div>currency_distribution: {currencyDistributionRows.length}</div>
             <div>customer_growth_7m: {customerGrowth7mRows.length}</div>
-            <div>top_accounts: {topAccounts.length}</div>
+            <div>top_accounts: {Math.min(topAccounts.length, 10)}/{topAccounts.length}</div>
             <div>volume_by_currency_30d: {volumeByCurrency30d.length}</div>
           </div>
         )}
