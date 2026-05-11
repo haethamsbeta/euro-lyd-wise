@@ -170,17 +170,17 @@ function TestSandboxPage() {
     setPendingErr(null);
     try {
       const raw: any = await api.admin.testFixtures.create();
-      const accounts = Array.isArray(raw?.holder_accounts)
-        ? raw.holder_accounts
-        : Array.isArray(raw?.accounts)
-          ? raw.accounts
-          : [];
-      const vaults = Array.isArray(raw?.vaults) ? raw.vaults : [];
+      const created = raw?.data ?? raw;
+      const accounts = getFixtureAccounts(created);
+      const vaults = getFixtureVaults(created);
       const normalized: Fixture = {
-        test_run_id: raw?.test_run_id,
-        holder: raw?.holder ?? { id: "", name: "" },
+        test_run_id: created?.test_run_id ?? "",
+        holder: created?.holder ?? { id: created?.holder_id ?? "", name: created?.holder_name ?? "Test holder" },
+        holder_id: created?.holder_id ?? created?.holder?.id,
+        holder_name: created?.holder_name ?? created?.holder?.name,
         holder_accounts: accounts,
         vaults,
+        next_steps: asArray(created?.next_steps),
       };
       persist(normalized);
       appendLog({ action: "Create fixture", status: "ok", detail: `test_run_id=${normalized.test_run_id}` });
@@ -234,12 +234,12 @@ function TestSandboxPage() {
   }
 
   function findHolderAccount(cur: Currency) {
-    const arr = Array.isArray(fixture?.holder_accounts) ? fixture!.holder_accounts : [];
+    const arr = getFixtureAccounts(fixture);
     return arr.find((a) => a.currency_code === cur);
   }
   function findReceivable(cur: Currency) {
     if (!fixture) return undefined;
-    const arr = Array.isArray(fixture.vaults) ? fixture.vaults : [];
+    const arr = getFixtureVaults(fixture);
     return arr.find(
       (v) =>
         v.currency_code === cur &&
@@ -249,7 +249,7 @@ function TestSandboxPage() {
   }
   function findPayable(cur: Currency) {
     if (!fixture) return undefined;
-    const arr = Array.isArray(fixture.vaults) ? fixture.vaults : [];
+    const arr = getFixtureVaults(fixture);
     return arr.find(
       (v) =>
         v.currency_code === cur &&
@@ -328,12 +328,19 @@ function TestSandboxPage() {
   const depositVault = fixture ? findReceivable(currency) : undefined;
   const withdrawVault = fixture ? findPayable(currency) : undefined;
   const ha = fixture ? findHolderAccount(currency) : undefined;
-  const depositDisabled = !fixture || !ha || !depositVault;
-  const withdrawDisabled = !fixture || !ha || !withdrawVault;
+  const fixtures = getFixtureList(fixturesQuery.data);
+  const activeFullFixture = fixture;
+  const accounts = getFixtureAccounts(activeFullFixture);
+  const vaults = getFixtureVaults(activeFullFixture);
+  const nextSteps = asArray(activeFullFixture?.next_steps);
+  const receivableVaults = vaults.filter((v) => v.internal_role === "cash_receivable" || isReceivable(v.internal_role));
+  const payableVaults = vaults.filter((v) => v.internal_role === "cash_payable" || isPayable(v.internal_role));
+  const hasAccountAndVaultArrays = accounts.length > 0 && vaults.length > 0;
+  const depositDisabled = !fixture || !hasAccountAndVaultArrays || !ha || !depositVault;
+  const withdrawDisabled = !fixture || !hasAccountAndVaultArrays || !ha || !withdrawVault;
 
   // A complete fixture has 4 holder accounts + 8 vaults (4 receivable + 4 payable).
   const fixtureComplete = !!fixture && (() => {
-    const accounts = Array.isArray(fixture.holder_accounts) ? fixture.holder_accounts : [];
     if (accounts.length < REAL_CURRENCIES.length) return false;
     for (const c of REAL_CURRENCIES) {
       if (!findReceivable(c) || !findPayable(c)) return false;
