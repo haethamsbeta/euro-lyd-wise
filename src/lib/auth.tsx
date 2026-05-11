@@ -90,7 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const existing = readLambdaUser();
     if (!getAccessToken() || !existing?.id) return;
     try {
-      const fresh = normalizeLambdaUser(await api.auth.me(), existing);
+      let fresh = normalizeLambdaUser(await api.auth.me(), existing);
+      if (fresh.role === "admin" && fresh.is_master_admin !== true && fresh.email) {
+        const users = await api.users.list({ q: fresh.email, limit: 10 }).catch(() => null);
+        const matchingUser = users?.items?.find((u: any) =>
+          String(u.id).toLowerCase() === String(fresh.id).toLowerCase() ||
+          String(u.email).toLowerCase() === String(fresh.email).toLowerCase(),
+        );
+        if (matchingUser) fresh = normalizeLambdaUser(matchingUser, fresh);
+      }
       localStorage.setItem("dahab.user", JSON.stringify(fresh));
       window.dispatchEvent(new Event("dahab.auth.changed"));
     } catch (error) {
