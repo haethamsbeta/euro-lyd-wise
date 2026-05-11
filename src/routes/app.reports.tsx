@@ -100,15 +100,23 @@ function ReportsPage() {
   const isLambda = DATA_BACKEND === "lambda";
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
-  const businessOverview = overview;
-  const dailyVolume7dRows = businessOverview?.daily_volume_7d ?? [];
-  const currencyDistributionRows =
-    businessOverview?.currency_distribution ?? [];
-  const customerGrowth7mRows =
-    businessOverview?.customer_growth_7m ?? [];
-  const topAccounts = businessOverview?.top_accounts ?? [];
-  const volumeByCurrency30d =
-    businessOverview?.volume_by_currency_30d ?? [];
+  const businessOverview = overview ?? ({} as NonNullable<typeof overview>);
+  const asArr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const dailyVolume7dRows = asArr<NonNullable<typeof overview>["daily_volume_7d"] extends (infer U)[] | null ? U : never>(
+    businessOverview?.daily_volume_7d,
+  );
+  const currencyDistributionRows = asArr<NonNullable<typeof overview>["currency_distribution"] extends (infer U)[] | null ? U : never>(
+    businessOverview?.currency_distribution,
+  );
+  const customerGrowth7mRows = asArr<NonNullable<typeof overview>["customer_growth_7m"] extends (infer U)[] | null ? U : never>(
+    businessOverview?.customer_growth_7m,
+  );
+  const topAccounts = asArr<NonNullable<typeof overview>["top_accounts"] extends (infer U)[] | null ? U : never>(
+    businessOverview?.top_accounts,
+  );
+  const volumeByCurrency30d = asArr<NonNullable<typeof overview>["volume_by_currency_30d"] extends (infer U)[] | null ? U : never>(
+    businessOverview?.volume_by_currency_30d,
+  );
   const hasOverviewPayload = Boolean(
     businessOverview?.counts ||
       dailyVolume7dRows.length > 0 ||
