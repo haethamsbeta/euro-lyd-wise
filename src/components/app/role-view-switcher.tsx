@@ -7,10 +7,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Eye, ShieldCheck, UserCog, ScrollText, User as UserIcon, Check } from "lucide-react";
+import { Eye, ShieldCheck, UserCog, ScrollText, User as UserIcon, Check, Wrench } from "lucide-react";
 import { useRoleView } from "@/lib/role-view";
 import type { AppRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import {
+  useIsRealMasterAdmin,
+  useMasterPreviewAsRegular,
+  setMasterPreviewAsRegular,
+} from "@/lib/admin-mode";
 
 const OPTIONS: Array<{
   role: AppRole;
@@ -26,8 +31,11 @@ const OPTIONS: Array<{
 
 export function RoleViewSwitcher() {
   const { canSwitch, viewAs, setViewAs, isPreviewing } = useRoleView();
+  const isMaster = useIsRealMasterAdmin();
+  const previewAsRegular = useMasterPreviewAsRegular();
   const nav = useNavigate();
-  if (!canSwitch) return null;
+  // Only Master Admin sees the role-view tools.
+  if (!canSwitch || !isMaster) return null;
 
   const current = viewAs ?? "admin";
   const currentLabel = OPTIONS.find((o) => o.role === current)?.label ?? "Admin";
@@ -93,6 +101,28 @@ export function RoleViewSwitcher() {
             </DropdownMenuItem>
           </>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Master tools
+        </DropdownMenuLabel>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setMasterPreviewAsRegular(!previewAsRegular);
+          }}
+          className="flex items-start gap-3 py-2"
+        >
+          <Wrench className={cn("mt-0.5 h-4 w-4 shrink-0", previewAsRegular ? "text-gold" : "text-muted-foreground")} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              View as Regular Admin
+              {previewAsRegular && <Check className="h-3.5 w-3.5 text-gold" />}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Hide debug, test, and pending-endpoint UI.
+            </div>
+          </div>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
