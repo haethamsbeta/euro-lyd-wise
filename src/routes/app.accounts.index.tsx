@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import { isTestRow } from "@/lib/api/_shared";
 
 export const Route = createFileRoute("/app/accounts/")({ component: AccountsList });
 
@@ -60,7 +61,7 @@ function AccountsList() {
     placeholderData: keepPreviousData,
   });
 
-  const items: any[] = data?.items ?? [];
+  const items: any[] = (data?.items ?? []).filter((r: any) => !isTestRow(r));
   const total = data?.total ?? dashSummary?.holderAccountCount ?? null;
   const start = items.length > 0 ? offset + 1 : 0;
   const end = offset + items.length;

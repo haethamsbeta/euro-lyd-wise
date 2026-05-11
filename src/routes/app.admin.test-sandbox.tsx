@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,31 @@ type Currency = (typeof REAL_CURRENCIES)[number];
 
 type Fixture = {
   test_run_id: string;
-  holder: { id: string; name: string; dahab_account_number?: string };
-  holder_accounts: Array<{ id: string; currency_code: string }>;
-  vaults: Array<{ id: string; currency_code: string; name?: string }>;
+  holder: {
+    id: string;
+    name: string;
+    dahab_account_number?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  };
+  holder_accounts: Array<{
+    id: string;
+    currency_code: string;
+    account_number?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  }>;
+  vaults: Array<{
+    id: string;
+    currency_code: string;
+    name?: string;
+    internal_role?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  }>;
 };
 
 type LogRow = {
@@ -47,6 +69,13 @@ const STORAGE_KEY = "dahab.testFixture";
 function uuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isReceivable(role?: string) {
+  return String(role ?? "").toLowerCase().includes("receiv");
+}
+function isPayable(role?: string) {
+  return String(role ?? "").toLowerCase().includes("pay");
 }
 
 function TestSandboxPage() {
@@ -161,10 +190,40 @@ function TestSandboxPage() {
     }
   }
 
-  function findPair(cur: Currency) {
-    const ha = fixture?.holder_accounts.find((a) => a.currency_code === cur);
-    const v = fixture?.vaults.find((x) => x.currency_code === cur);
-    return { ha, v };
+  function findHolderAccount(cur: Currency) {
+    return fixture?.holder_accounts.find((a) => a.currency_code === cur);
+  }
+  function findReceivable(cur: Currency) {
+    return fixture?.vaults.find(
+      (v) =>
+        v.currency_code === cur &&
+        isReceivable(v.internal_role) &&
+        (v.test_run_id ?? fixture.test_run_id) === fixture.test_run_id,
+    );
+  }
+  function findPayable(cur: Currency) {
+    return fixture?.vaults.find(
+      (v) =>
+        v.currency_code === cur &&
+        isPayable(v.internal_role) &&
+        (v.test_run_id ?? fixture.test_run_id) === fixture.test_run_id,
+    );
+  }
+
+  /** Hard isolation: refuse to post unless every party is sandbox-tagged and shares the same test_run_id. */
+  function assertSandboxPair(
+    ha: { id: string; is_test?: boolean; test_run_id?: string },
+    vault: { id: string; is_test?: boolean; test_run_id?: string },
+    fx: Fixture,
+  ) {
+    const haTest = ha.is_test !== false; // tolerate missing flag from backend
+    const vaTest = vault.is_test !== false;
+    const haRun = ha.test_run_id ?? fx.test_run_id;
+    const vaRun = vault.test_run_id ?? fx.test_run_id;
+    if (!haTest || !vaTest) throw new Error("Refused: non-test entity in sandbox call.");
+    if (haRun !== fx.test_run_id || vaRun !== fx.test_run_id) {
+      throw new Error("Refused: test_run_id mismatch between holder, vault, and fixture.");
+    }
   }
 
   async function runTx(opts: {
@@ -174,9 +233,18 @@ function TestSandboxPage() {
     expectStatus: "posted" | "pending";
   }) {
     if (!fixture) return;
-    const { ha, v } = findPair(currency);
+    const ha = findHolderAccount(currency);
+    const v = opts.direction === "deposit" ? findReceivable(currency) : findPayable(currency);
     if (!ha || !v) {
       toast.error(`No fixture pair for ${currency}`);
+      return;
+    }
+    try {
+      assertSandboxPair(ha, v, fixture);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sandbox guard rejected the call";
+      appendLog({ action: opts.action, status: "error", detail: msg });
+      toast.error(msg);
       return;
     }
     setBusy(opts.action);
@@ -209,7 +277,37 @@ function TestSandboxPage() {
     }
   }
 
-  const currencyDisabled = !fixture || !findPair(currency).ha || !findPair(currency).v;
+  const depositVault = fixture ? findReceivable(currency) : undefined;
+  const withdrawVault = fixture ? findPayable(currency) : undefined;
+  const ha = fixture ? findHolderAccount(currency) : undefined;
+  const depositDisabled = !fixture || !ha || !depositVault;
+  const withdrawDisabled = !fixture || !ha || !withdrawVault;
+
+  // A complete fixture has 4 holder accounts + 8 vaults (4 receivable + 4 payable).
+  const fixtureComplete = !!fixture && (() => {
+    if (fixture.holder_accounts.length < REAL_CURRENCIES.length) return false;
+    for (const c of REAL_CURRENCIES) {
+      if (!findReceivable(c) || !findPayable(c)) return false;
+    }
+    return true;
+  })();
+
+  async function runFromFixtureRow(
+    f: { test_run_id: string; holder_id: string },
+    direction: "deposit" | "withdraw",
+    amountMinor: number,
+    expectStatus: "posted" | "pending",
+    actionLabel: string,
+  ) {
+    // Hydrate the active fixture from the row by re-creating? No — use the
+    // currently loaded fixture if it matches; otherwise the row only knows
+    // the holder_id, so we ask the user to load it via Create/Use first.
+    if (!fixture || fixture.test_run_id !== f.test_run_id) {
+      toast.error("Open this fixture in the active panel first (re-create or already-loaded fixture only).");
+      return;
+    }
+    await runTx({ action: actionLabel, direction, amountMinor, expectStatus });
+  }
 
   return (
     <div className="space-y-6">
@@ -301,6 +399,11 @@ function TestSandboxPage() {
                           {f.account_count} account{f.account_count === 1 ? "" : "s"}
                         </span>
                       )}
+                      {typeof f.vault_count === "number" && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          · {f.vault_count} vault{f.vault_count === 1 ? "" : "s"}
+                        </span>
+                      )}
                     </div>
                     <div className="font-mono text-[10px] text-muted-foreground">
                       holder: {f.holder_id}
@@ -311,6 +414,49 @@ function TestSandboxPage() {
                       <Link to="/app/holders/$id" params={{ id: f.holder_id }}>
                         <ExternalLink /> Open holder
                       </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyText(f.test_run_id)}
+                      title="Copy test_run_id"
+                    >
+                      <Copy /> Copy ID
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      title={
+                        fixture?.test_run_id === f.test_run_id
+                          ? "Run a test deposit using this fixture"
+                          : "Active fixture must match this row"
+                      }
+                      onClick={() =>
+                        runFromFixtureRow(f, "deposit", Number(normalAmount), "posted", "Cash deposit")
+                      }
+                    >
+                      <ArrowDownToLine /> Deposit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      onClick={() =>
+                        runFromFixtureRow(f, "withdraw", Number(normalAmount), "posted", "Cash withdrawal")
+                      }
+                    >
+                      <ArrowUpFromLine /> Withdraw
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      onClick={() =>
+                        runFromFixtureRow(f, "withdraw", Number(bigAmount), "pending", "Pending approval")
+                      }
+                    >
+                      <Play /> Pending
                     </Button>
                     <Button
                       size="sm"
@@ -343,6 +489,12 @@ function TestSandboxPage() {
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-muted-foreground">Holder:</span>
               <span className="font-medium">{fixture.holder.name}</span>
+              <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                TEST
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {fixture.holder.source_system ?? "DAHAB_TEST"} · {fixture.test_run_id}
+              </span>
               {fixture.holder.dahab_account_number && (
                 <span className="font-mono text-xs text-muted-foreground">
                   #{fixture.holder.dahab_account_number}
@@ -365,7 +517,13 @@ function TestSandboxPage() {
                     <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
                       {a.currency_code}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">{a.id}</span>
+                    <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                      TEST
+                    </span>
+                    {a.account_number && (
+                      <span className="font-mono text-[11px]">{a.account_number}</span>
+                    )}
+                    <span className="font-mono text-[10px] text-muted-foreground">{a.id}</span>
                     <Button asChild size="sm" variant="ghost">
                       <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
                     </Button>
@@ -376,22 +534,26 @@ function TestSandboxPage() {
 
             <div>
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                Test cash vaults
+                Test cash vaults (by currency)
               </div>
-              <ul className="space-y-1">
-                {fixture.vaults.map((v) => (
-                  <li key={v.id} className="flex items-center gap-3">
-                    <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
-                      {v.currency_code}
-                    </span>
-                    <span className="text-xs">{v.name ?? "—"}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{v.id}</span>
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to="/app/vaults/$id" params={{ id: v.id }}>Open</Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid gap-2">
+                {REAL_CURRENCIES.map((cur) => {
+                  const rcv = findReceivable(cur);
+                  const pay = findPayable(cur);
+                  return (
+                    <div
+                      key={cur}
+                      className="grid grid-cols-1 items-center gap-2 rounded border border-border/40 p-2 sm:grid-cols-[3rem_1fr_1fr]"
+                    >
+                      <span className="inline-flex h-6 w-12 items-center justify-center rounded bg-gold/10 text-xs font-semibold text-gold">
+                        {cur}
+                      </span>
+                      <VaultCell label="Receivable" v={rcv} onCopy={copyText} />
+                      <VaultCell label="Payable" v={pay} onCopy={copyText} />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -434,16 +596,22 @@ function TestSandboxPage() {
               </div>
             </div>
 
-            {currencyDisabled && (
+            {!fixtureComplete && (
+              <p className="flex items-center gap-2 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Test vaults required before running transactions. Re-create the fixture so the backend returns 4 receivable + 4 payable test vaults.
+              </p>
+            )}
+            {fixtureComplete && (depositDisabled || withdrawDisabled) && (
               <p className="text-xs text-warning">
-                Fixture has no holder account + vault for {currency}.
+                Missing holder account or vault for {currency}.
               </p>
             )}
 
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !normalAmount}
+                disabled={busy !== null || depositDisabled || !normalAmount}
                 onClick={() => runTx({
                   action: "Cash deposit",
                   direction: "deposit",
@@ -455,7 +623,7 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !normalAmount}
+                disabled={busy !== null || withdrawDisabled || !normalAmount}
                 onClick={() => runTx({
                   action: "Cash withdrawal",
                   direction: "withdraw",
@@ -467,7 +635,7 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !bigAmount}
+                disabled={busy !== null || withdrawDisabled || !bigAmount}
                 onClick={() => runTx({
                   action: "Pending approval",
                   direction: "withdraw",
@@ -514,3 +682,36 @@ function TestSandboxPage() {
 
 // satisfy unused import warning when ApiError isn't directly referenced
 void ApiError;
+
+function VaultCell({
+  label,
+  v,
+  onCopy,
+}: {
+  label: "Receivable" | "Payable";
+  v?: { id: string; name?: string };
+  onCopy: (s: string) => void;
+}) {
+  if (!v) {
+    return (
+      <div className="text-[11px] text-warning">
+        {label}: missing
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <span className="rounded bg-muted px-1.5 py-0.5 font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className="truncate" title={v.name}>{v.name ?? "—"}</span>
+      <span className="font-mono text-[10px] text-muted-foreground">{v.id}</span>
+      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => onCopy(v.id)} aria-label="Copy vault id">
+        <Copy className="h-3 w-3" />
+      </Button>
+      <Button asChild size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]">
+        <Link to="/app/vaults/$id" params={{ id: v.id }}>Open</Link>
+      </Button>
+    </div>
+  );
+}
