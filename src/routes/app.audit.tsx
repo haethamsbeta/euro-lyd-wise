@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, formatMinor } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { ExportPdfButton } from "@/components/app/export-pdf";
-import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { toast } from "sonner";
@@ -20,10 +18,12 @@ export const Route = createFileRoute("/app/audit")({
 type AuditRow = {
   id: string;
   action: string;
-  target: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
   details: any;
   created_at: string;
-  actor_user_id: string | null;
+  actor_username: string | null;
+  actor_role: string | null;
 };
 
 function actionLabel(action: string): { label: string; tone: string } {
@@ -38,6 +38,10 @@ function actionLabel(action: string): { label: string; tone: string } {
       return { label: "Transaction rejected", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-400" };
     case "tx.create":
       return { label: "Transaction created", tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300" };
+    case "fx_rate.create":
+      return { label: "FX rate created", tone: "bg-blue-500/10 text-blue-700 dark:text-blue-400" };
+    case "fx_rate.update":
+      return { label: "FX rate updated", tone: "bg-blue-500/10 text-blue-700 dark:text-blue-400" };
     default:
       return { label: action, tone: "bg-muted text-muted-foreground" };
   }
@@ -80,32 +84,23 @@ function describe(action: string, d: any, actorName: string): string {
 function Audit() {
   const PAGE = 100;
   const [offset, setOffset] = useState(0);
-  const [acc, setAcc] = useState<(AuditRow & { __actor_email?: string | null })[]>([]);
+  const [acc, setAcc] = useState<AuditRow[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const { data, error, isFetching } = useQuery({
     queryKey: ["audit", offset],
     queryFn: async () => {
-      if (DATA_BACKEND === "lambda") {
-        const r = await api.audit.listPaged({ limit: PAGE, offset });
-        const items = (r.items ?? []).map((r: any) => ({
-          id: String(r.id),
-          action: r.action,
-          target: r.entity_id ?? r.entity ?? null,
-          details: r.meta ?? {},
-          created_at: r.ts ?? r.created_at,
-          actor_user_id: r.user_id ?? null,
-          __actor_email: r.user_email ?? null,
-        })) as (AuditRow & { __actor_email?: string | null })[];
-        return { items, next_offset: r.next_offset };
-      }
-      const { data, error } = await supabase
-        .from("audit_log")
-        .select("id, action, target, details, created_at, actor_user_id")
-        .order("created_at", { ascending: false })
-        .range(offset, offset + PAGE - 1);
-      if (error) throw error;
-      const items = (data ?? []) as AuditRow[];
-      return { items, next_offset: items.length === PAGE ? offset + PAGE : null };
+      const r = await api.audit.listPaged({ limit: PAGE, offset });
+      const items = (r.items ?? []).map((row: any) => ({
+        id: String(row.id),
+        action: row.action,
+        entity_type: row.entity_type ?? row.target_type ?? row.entity ?? null,
+        entity_id: row.entity_id ?? row.target_id ?? null,
+        details: row.metadata_json ?? row.metadata ?? row.meta ?? {},
+        created_at: row.created_at ?? row.ts,
+        actor_username: row.actor_username ?? row.user_email ?? null,
+        actor_role: row.actor_role ?? null,
+      })) as AuditRow[];
+      return { items, next_offset: r.next_offset };
     },
     retry: false,
   });
@@ -121,20 +116,7 @@ function Audit() {
   const pending = isPendingError(error);
   const rows = acc;
 
-  const actorIds = Array.from(new Set(rows.map((r) => r.actor_user_id).filter(Boolean) as string[]));
-  const { data: profiles } = useQuery({
-    queryKey: ["audit-profiles", actorIds],
-    enabled: actorIds.length > 0 && DATA_BACKEND !== "lambda",
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, full_name").in("id", actorIds);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  const nameOf = (id: string | null, row?: any) => {
-    if (DATA_BACKEND === "lambda") return row?.__actor_email || "";
-    return (id && profiles?.find((p) => p.id === id)?.full_name) || "";
-  };
+  const nameOf = (row: AuditRow) => row.actor_username || "";
 
   return (
     <div>
@@ -153,63 +135,39 @@ function Audit() {
               { header: "Description" },
             ]}
             buildRows={async (from, to) => {
-              if (DATA_BACKEND === "lambda") {
-                try {
-                  const res = await api.audit.list({
-                    from: from.toISOString(),
-                    to: to.toISOString(),
-                    limit: 5000,
-                  });
-                  const list = Array.isArray(res) ? res : ((res as any)?.items ?? []);
-                  return (list ?? []).map((r: any) => {
-                    const actor = r.user_email || "";
-                    return [
-                      formatDateTime(r.ts ?? r.created_at),
-                      actionLabel(r.action).label,
-                      actor || "—",
-                      r.entity_id || r.entity || "—",
-                      describe(r.action, r.meta ?? {}, actor),
-                    ];
-                  });
-                } catch (e) {
-                  if (isPendingError(e)) toast.error("Backend endpoint pending: GET /audit");
-                  return [];
-                }
+              try {
+                const res = await api.audit.list({
+                  from: from.toISOString(),
+                  to: to.toISOString(),
+                  limit: 5000,
+                });
+                const list = Array.isArray(res) ? res : ((res as any)?.items ?? []);
+                return (list ?? []).map((r: any) => {
+                  const actor = r.actor_username || r.user_email || "";
+                  const entityType = r.entity_type ?? r.target_type ?? r.entity ?? "";
+                  const entityId = r.entity_id ?? r.target_id ?? "";
+                  const target = [entityType, entityId].filter(Boolean).join(":") || "—";
+                  const details = r.metadata_json ?? r.metadata ?? r.meta ?? {};
+                  return [
+                    formatDateTime(r.created_at ?? r.ts),
+                    actionLabel(r.action).label,
+                    actor || "—",
+                    target,
+                    describe(r.action, details, actor),
+                  ];
+                });
+              } catch (e) {
+                if (isPendingError(e)) toast.error("Backend endpoint pending: GET /audit");
+                return [];
               }
-              const { data: rows, error } = await supabase
-                .from("audit_log")
-                .select("id, action, target, details, created_at, actor_user_id")
-                .gte("created_at", from.toISOString())
-                .lte("created_at", to.toISOString())
-                .order("created_at", { ascending: false })
-                .limit(5000);
-              if (error) throw error;
-              const ids = Array.from(
-                new Set((rows ?? []).map((r) => r.actor_user_id).filter(Boolean) as string[]),
-              );
-              let nameMap = new Map<string, string>();
-              if (ids.length > 0) {
-                const { data: profs } = await supabase
-                  .from("profiles").select("id, full_name").in("id", ids);
-                (profs ?? []).forEach((p) => nameMap.set(p.id, p.full_name || ""));
-              }
-              return (rows ?? []).map((r: any) => {
-                const actor = (r.actor_user_id && nameMap.get(r.actor_user_id)) || "";
-                return [
-                  formatDateTime(r.created_at),
-                  actionLabel(r.action).label,
-                  actor || "—",
-                  r.target || "—",
-                  describe(r.action, r.details, actor),
-                ];
-              });
             }}
           />
         </div>
         {!pending && rows.map((r) => {
           const meta = actionLabel(r.action);
-          const actor = nameOf(r.actor_user_id, r);
+          const actor = nameOf(r);
           const sentence = describe(r.action, r.details, actor);
+          const target = [r.entity_type, r.entity_id].filter(Boolean).join(":");
           return (
             <Card key={r.id} className="overflow-hidden">
               <CardContent className="p-4">
@@ -217,7 +175,8 @@ function Audit() {
                   <Badge className={`${meta.tone} border-0`}>{meta.label}</Badge>
                   <span>{formatDateTime(r.created_at)}</span>
                   {actor && <span>· by <span className="text-foreground font-medium">{actor}</span></span>}
-                  {r.target && <span>· <span className="font-mono">{r.target}</span></span>}
+                  {r.actor_role && <span>· <span className="text-foreground">{r.actor_role}</span></span>}
+                  {target && <span>· <span className="font-mono">{target}</span></span>}
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-foreground">{sentence}</p>
                 {r.details && Object.keys(r.details).length > 0 && (
