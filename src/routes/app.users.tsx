@@ -23,15 +23,17 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/users")({
-  component: () => <RoleGate allow={["admin"]}><UsersPage /></RoleGate>,
+  component: () => <RoleGate allow={["admin"]}><UsersRoute /></RoleGate>,
 });
 
 const ROLES = ["admin", "teller", "auditor", "consumer"] as const;
 
-function UsersPage() {
+function UsersRoute() {
   const location = useLocation();
-  if (location.pathname !== "/app/users") return <Outlet />;
+  return location.pathname === "/app/users" ? <UsersPage /> : <Outlet />;
+}
 
+function UsersPage() {
   const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
