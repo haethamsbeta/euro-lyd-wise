@@ -63,6 +63,7 @@ function FxRatesPage() {
       toast.success("FX rate saved");
       qc.invalidateQueries({ queryKey: ["fx_rates.history"] });
       qc.invalidateQueries({ queryKey: ["vaults.consolidatedUsd"] });
+      qc.invalidateQueries({ queryKey: ["reports", "liquidity-health"] });
       setOpen(false);
       setUsdRate("");
       setNote("");

@@ -213,7 +213,7 @@ function ReportsPage() {
     { dep: 0, wd: 0 },
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
-  const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
+  const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, network_total_usd_minor: null, missing_rates: [], generated_at: "" });
   const liquidityRowsRaw = Array.isArray(liquidityResp?.rows) ? liquidityResp.rows : [];
   const liquidityHealth = liquidityRowsRaw.map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
@@ -235,7 +235,9 @@ function ReportsPage() {
       health,
     };
   });
-  const liquidityNetwork = liquidityResp?.network_total_lyd_minor ?? null;
+  const liquidityNetworkLyd = liquidityResp?.network_total_lyd_minor ?? null;
+  const liquidityNetworkUsd = liquidityResp?.network_total_usd_minor ?? null;
+  const liquidityMissingRates = Array.isArray(liquidityResp?.missing_rates) ? liquidityResp.missing_rates : [];
   const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
   const tellerRowsRaw = Array.isArray(tellersApi) ? tellersApi : [];
   const tellers = tellerRowsRaw.map((t: any) => ({
@@ -718,9 +720,33 @@ function ReportsPage() {
                   );
                 })}
               </div>
-              {liquidityNetwork == null && liquidityHealth.length > 0 && (
-                <p className="mt-4 text-xs text-text-tertiary">
-                  FX/consolidated total pending — backend has not returned <code>network_total_lyd_minor</code>.
+              {(liquidityNetworkLyd != null || liquidityNetworkUsd != null) && (
+                <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                  {liquidityNetworkLyd != null && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-secondary mr-2">
+                        Network Total (LYD)
+                      </span>
+                      <span className="text-base font-semibold text-foreground tabular-nums">
+                        {formatMinor(liquidityNetworkLyd, "LYD")}
+                      </span>
+                    </div>
+                  )}
+                  {liquidityNetworkUsd != null && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-secondary mr-2">
+                        ≈ USD
+                      </span>
+                      <span className="text-sm font-medium text-text-secondary tabular-nums">
+                        {formatMinor(liquidityNetworkUsd, "USD")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {liquidityMissingRates.length > 0 && (
+                <p className="mt-2 text-xs text-amber-400">
+                  Missing FX rates for: {liquidityMissingRates.map((r) => `${r.from}→${r.to}`).join(", ")}
                 </p>
               )}
             </PremiumCard>
