@@ -101,14 +101,14 @@ function ReportsPage() {
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
   const businessOverview = overview;
-  const dailyVolume7dRows = businessOverview?.daily_volume_7d ?? businessOverview?.dailyVolume7d ?? [];
+  const dailyVolume7dRows = businessOverview?.daily_volume_7d ?? [];
   const currencyDistributionRows =
-    businessOverview?.currency_distribution ?? businessOverview?.currencyDistribution ?? [];
+    businessOverview?.currency_distribution ?? [];
   const customerGrowth7mRows =
-    businessOverview?.customer_growth_7m ?? businessOverview?.customerGrowth7m ?? [];
-  const topAccounts = businessOverview?.top_accounts ?? businessOverview?.topAccounts ?? [];
+    businessOverview?.customer_growth_7m ?? [];
+  const topAccounts = businessOverview?.top_accounts ?? [];
   const volumeByCurrency30d =
-    businessOverview?.volume_by_currency_30d ?? businessOverview?.volumeByCurrency30d ?? [];
+    businessOverview?.volume_by_currency_30d ?? [];
   const hasOverviewPayload = Boolean(
     businessOverview?.counts ||
       dailyVolume7dRows.length > 0 ||
@@ -288,7 +288,7 @@ function ReportsPage() {
     },
     {
       l: "Total Transactions",
-      v: fmtTotal(counts?.tx_total ?? counts?.total ?? dashSummary?.transactionCount ?? null),
+      v: fmtTotal(counts?.total ?? dashSummary?.transactionCount ?? null),
       sub: "",
       icon: BarChart3,
     },
