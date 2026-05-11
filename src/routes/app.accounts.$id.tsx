@@ -132,9 +132,12 @@ function AccountDetail() {
           credit_amount: e.credit_amount != null
             ? Number(e.credit_amount)
             : Number(e.credit_minor ?? 0) / 100,
-          balance_after: e.balance_after != null
-            ? Number(e.balance_after)
-            : Number(e.balance_after_minor ?? 0) / 100,
+          balance_after:
+            e.balance_after_minor != null
+              ? Number(e.balance_after_minor) / 100
+              : e.balance_after != null
+                ? Number(e.balance_after)
+                : null,
           currency_code: e.currency_code,
         }));
       }
@@ -587,7 +590,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
                   <td className="p-4 text-base">{e.description}</td>
                   <td className="p-4 text-right text-base text-destructive tabular-nums">{Number(e.debit_amount) ? fmt(Number(e.debit_amount)) : "—"}</td>
                   <td className="p-4 text-right text-base text-[var(--success)] tabular-nums">{Number(e.credit_amount) ? fmt(Number(e.credit_amount)) : "—"}</td>
-                  <td className="p-4 text-right text-base font-semibold tabular-nums">{fmt(Number(e.balance_after))}</td>
+                  <td className="p-4 text-right text-base font-semibold tabular-nums">{e.balance_after == null ? "—" : fmt(Number(e.balance_after))}</td>
                 </tr>
               ))}
             </tbody>
