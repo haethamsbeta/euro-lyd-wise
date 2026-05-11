@@ -13,6 +13,12 @@ import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { adminCreateConsumer, adminListHolders } from "@/server/admin.functions";
 import { useAuth } from "@/lib/auth";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const isLambda = DATA_BACKEND === "lambda";
+const LAMBDA_PENDING_MSG =
+  "Creating DAHAB Family users requires Lambda user management endpoint (POST /users). This form is disabled until the backend exposes that endpoint.";
 
 export const Route = createFileRoute("/app/users/new-consumer")({
   component: () => (
@@ -63,15 +69,19 @@ function NewConsumerPage() {
   }, [holders, search]);
 
   const submit = useMutation({
-    mutationFn: () =>
-      create({
+    mutationFn: () => {
+      if (isLambda) {
+        throw new Error(LAMBDA_PENDING_MSG);
+      }
+      return create({
         data: {
           full_name: fullName.trim(),
           email: email.trim(),
           password,
           holder_ids: Array.from(picked),
         },
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success("Consumer account created");
       nav({ to: "/app/users" });
@@ -95,6 +105,12 @@ function NewConsumerPage() {
         }
       />
       <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
+        {isLambda ? (
+          <Alert variant="destructive">
+            <AlertTitle>Backend endpoint pending</AlertTitle>
+            <AlertDescription>{LAMBDA_PENDING_MSG}</AlertDescription>
+          </Alert>
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Account details</CardTitle>
@@ -176,7 +192,17 @@ function NewConsumerPage() {
           <Button variant="outline" asChild>
             <Link to="/app/users">Cancel</Link>
           </Button>
-          <Button disabled={!ready || submit.isPending} onClick={() => submit.mutate()}>
+          <Button
+            disabled={!ready || submit.isPending || isLambda}
+            title={isLambda ? LAMBDA_PENDING_MSG : undefined}
+            onClick={() => {
+              if (isLambda) {
+                toast.error(LAMBDA_PENDING_MSG);
+                return;
+              }
+              submit.mutate();
+            }}
+          >
             {submit.isPending ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : null}
             Create consumer account
           </Button>
