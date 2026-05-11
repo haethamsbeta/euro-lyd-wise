@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
 import { formatMinor, formatMinorOrMissing } from "@/lib/format";
-import { api } from "@/lib/api";
+import { reportsApi } from "@/lib/api/reports";
 import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
@@ -54,10 +54,10 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
     queryKey: ["reports", key],
     queryFn: fn,
     retry: false,
-    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    enabled: DATA_BACKEND === "lambda",
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
-  return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
+  return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, isError: q.isError, error: q.error };
 }
 
 // ───────────── Live data hook ─────────────
@@ -66,9 +66,9 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
 function useReportsData() {
   return useQuery({
     queryKey: ["reports", "business-overview"],
-    queryFn: () => api.reports.businessOverview(),
+    queryFn: () => reportsApi.businessOverview(),
     retry: false,
-    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    enabled: DATA_BACKEND === "lambda",
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
