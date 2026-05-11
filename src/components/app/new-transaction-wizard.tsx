@@ -187,6 +187,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     if (!type || !picked) return null;
     const list = (vaultList ?? []) as Array<any>;
     return list.find((v) => {
+      if (v?.is_test === true || v?.source_system === "DAHAB_TEST" || !!v?.test_run_id) return false;
       if (v.currency_code !== currency) return false;
       const role = String(v.internal_role ?? "").toLowerCase();
       return type === "deposit"
