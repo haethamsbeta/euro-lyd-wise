@@ -34,4 +34,16 @@ export const approvalsApi = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  approveModified: (
+    id: string | number,
+    approved_amount: number,
+    reason: string,
+  ) =>
+    apiFetch<{ success: true; data: any; message: string }>(
+      `/approvals/${id}/approve-modified`,
+      {
+        method: "POST",
+        body: JSON.stringify({ approved_amount, reason }),
+      },
+    ),
 };
