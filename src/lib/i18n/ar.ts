@@ -119,6 +119,7 @@ export const ar: Dict = {
   "nav.portalAccounts": "حسابات بوابة العملاء",
   "nav.fxRates": "أسعار الصرف",
   "nav.branches": "الفروع",
+  "nav.testSandbox": "بيئة الاختبار",
 
   // app shell
   "shell.noStaffTitle": "لا يوجد وصول للموظفين",

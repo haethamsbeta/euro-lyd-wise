@@ -118,6 +118,7 @@ export const en = {
   "nav.portalAccounts": "Customer Portal Accounts",
   "nav.fxRates": "FX rates",
   "nav.branches": "Branches",
+ "nav.testSandbox": "Test Sandbox",
 
   // app shell
   "shell.noStaffTitle": "No staff access",
