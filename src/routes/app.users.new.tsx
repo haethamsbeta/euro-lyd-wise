@@ -51,8 +51,8 @@ function NewMemberPage() {
   const [endpointMissing, setEndpointMissing] = useState(false);
 
   const submit = useMutation({
-    mutationFn: () =>
-      api.users.create({
+    mutationFn: () => {
+      const payload = {
         username: username.trim().toLowerCase(),
         email: email.trim(),
         display_name: displayName.trim(),
@@ -60,15 +60,27 @@ function NewMemberPage() {
         role,
         status,
         must_change_password: mustChange,
-      }),
-    onSuccess: () => {
-      toast.success("DAHAB member created");
+      };
+      // eslint-disable-next-line no-console
+      console.log("[create dahab member]", {
+        payload: { ...payload, password: "***" },
+        endpoint: "/users",
+        mode: DATA_BACKEND,
+      });
+      return api.users.create(payload);
+    },
+    onSuccess: (res: any) => {
+      // eslint-disable-next-line no-console
+      console.log("[create dahab member] success", res);
+      toast.success(res?.message ?? "User created.");
       qc.invalidateQueries({ queryKey: ["users.profiles"] });
       nav({ to: "/app/users" });
     },
     onError: (e: any) => {
-      const status = e instanceof ApiError ? e.status : undefined;
-      if (status === 404 || status === 501) {
+      const httpStatus = e instanceof ApiError ? e.status : undefined;
+      // eslint-disable-next-line no-console
+      console.error("[create dahab member] failed", { httpStatus, message: e?.message, error: e });
+      if (httpStatus === 404 || httpStatus === 501) {
         setEndpointMissing(true);
         toast.error("Backend endpoint pending: POST /users not implemented yet.");
         return;
@@ -112,6 +124,17 @@ function NewMemberPage() {
             <AlertDescription>
               The Lambda backend has not implemented <code>POST /users</code> yet.
               Member creation is blocked until that endpoint is live and writing to <code>audit_log</code>.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {submit.isError && !endpointMissing ? (
+          <Alert variant="destructive">
+            <AlertTitle>Create failed</AlertTitle>
+            <AlertDescription>
+              {(submit.error as any)?.message ?? "Unknown error from backend."}
+              {submit.error instanceof ApiError ? (
+                <span className="ms-1 opacity-70">(HTTP {submit.error.status})</span>
+              ) : null}
             </AlertDescription>
           </Alert>
         ) : null}

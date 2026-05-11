@@ -87,6 +87,15 @@ function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {isStaff ? (
+              <>
+                <SignInForm portal={portal} />
+                <p className="mt-5 rounded-md border border-border/60 bg-muted/30 p-3 text-center text-xs text-muted-foreground">
+                  DAHAB Family accounts (admin, teller, auditor) are created by
+                  an administrator. Ask an admin to provision your account.
+                </p>
+              </>
+            ) : (
             <Tabs defaultValue="signin">
               <TabsList className="grid h-11 w-full grid-cols-2 gap-1 rounded-lg border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] p-1">
                 <TabsTrigger
@@ -109,6 +118,7 @@ function LoginPage() {
                 <SignUpForm />
               </TabsContent>
             </Tabs>
+            )}
             <p className="mt-6 text-center text-xs text-muted-foreground">
               <Link to="/" className="hover:text-gold hover:underline underline-offset-4">
                 {t("login.backHome")}
@@ -329,9 +339,14 @@ function SignUpForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const lambda = DATA_BACKEND === "lambda";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (lambda) {
+      toast.error("Consumer account creation is pending the customer portal backend.");
+      return;
+    }
     const parsed = signupSchema.safeParse({ fullName, email, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -368,12 +383,15 @@ function SignUpForm() {
       <Button
         type="submit"
         className="w-full bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95"
-        disabled={busy}
+        disabled={busy || lambda}
+        title={lambda ? "Consumer account creation pending backend." : undefined}
       >
         {busy ? t("login.creating") : t("login.createAccount")}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        {t("login.newAccountNote")}
+        {lambda
+          ? "Consumer self-registration is pending the customer portal backend. Please contact support to open an account."
+          : t("login.newAccountNote")}
       </p>
     </form>
   );
