@@ -1,64 +1,70 @@
-Plan to fix the Reports page crash:
+## Diagnosis
 
-1. Diagnose and patch the render-time crash in `src/routes/app.reports.tsx`
-   - Keep the existing route/component and the visible marker `REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3`.
-   - Add safe normalization before any render logic so every report feed has the requested defaults:
-     - `businessOverview = {}`
-     - `dailyVolume7d = []`
-     - `currencyDistribution = []`
-     - `customerGrowth7m = []`
-     - `topAccounts = []`
-     - `volumeByCurrency30d = []`
-     - `cashFlowRows = []`
-     - `hourlyRows = []`
-     - `liquidityRows = []`
-     - `tellerRows = []`
-     - `processingRows = []`
-     - `rejectionRows = []`
-     - `alertVolumeDaily = []`
-     - `riskTypology = []`
-   - Guard all risky render operations currently present in the reports page, especially array calls like `.map`, `.length`, `.reduce`, `.some`, `.filter`, and object calls like `Object.keys(...)`.
-   - The highest-risk current lines are the array assumptions around cash flow, liquidity, tellers, processing/rejection rows, and compliance typology/alert rows.
+`/app/users` runs in `DATA_BACKEND === "lambda"` (default in `src/lib/runtimeConfig.ts`). The list comes from `GET /users` correctly, but every mutation still calls Supabase directly:
 
-2. Make each widget fail independently instead of crashing the whole page
-   - Keep all sections visible.
-   - If a query errors, show that widget’s existing `ReportEmpty`/`BackendPending` state only for that widget.
-   - Leave Approval Speed as:
-     - endpoint `GET /reports/approval-speed`
-     - note `Approval-speed endpoint not yet implemented.`
-   - Leave Transaction Mix as:
-     - endpoint `GET /reports/transaction-mix`
-     - note `Transaction-mix endpoint not yet implemented.`
-   - Do not add mock data, frontend FX, or backend changes.
+- Grant role → `supabase.from("user_roles").insert(...)` ← raises **"new row violates row-level security policy for table user_roles"** because there is no Supabase session in lambda mode, so `auth.uid()` is null and the admin RLS check fails.
+- Revoke role → `supabase.from("user_roles").delete()`
+- Reset password → `supabase.rpc("admin_reset_password")` + `supabase.auth.resetPasswordForEmail`
+- Change email → `adminChangeUserEmail` (Supabase admin server fn)
+- Send test push → `sendTestPushToUser` (Supabase admin server fn)
+- Push status badge → `supabase.rpc("admin_list_push_status")`
 
-3. Fix compliance adapter aliases in `src/lib/api/reports.ts`
-   - Accept both `alert_volume_daily` and `alertVolumeDaily`.
-   - Accept both `risk_typology` and `riskTypology`.
-   - Normalize alert rows from `{ day, alert_count, resolved_count?, pending_count? }` into chart-safe rows.
-   - If `resolved_count` is missing, render alert volume only and mark resolution trend/backend resolution data as pending rather than inventing values.
-   - Normalize risk typology rows from `{ type, count }` into the existing chart shape.
+Per the new rules, **no Supabase write or admin call may run in lambda mode**, and the lambda write endpoints (`POST /users`, `PATCH /users/:id`, `PATCH /users/:id/role`, `PATCH /users/:id/status`, `PATCH /users/:id/password-reset`, `PATCH /users/:id/disable`) are treated as not-yet-available even though the adapter stubs in `src/lib/api/users.ts` exist. Until the backend confirms them, all writes are gated as BackendPending.
 
-4. Add temporary safe preview logging
-   - Log exactly one safe status object in the reports page using guarded lengths:
-     - `businessOverviewKeys`
-     - `dailyVolume7d`
-     - `currencyDistribution`
-     - `topAccounts`
-     - `cashFlowRows`
-     - `hourlyRows`
-     - `liquidityRows`
-     - `tellerRows`
-     - `complianceAlertRows`
-     - `complianceRiskRows`
-     - `processingRows`
-     - `rejectionRows`
-   - Keep it clearly marked as temporary preview debugging.
+## Plan
 
-5. Validate after implementation
-   - Let the automatic typecheck/build harness run.
-   - Open `/app/reports` in the preview with an authenticated session if available.
-   - Confirm the marker is visible and the page renders real backend data or per-widget empty/pending states.
+### 1. `src/routes/app.users.tsx` — gate every write in lambda mode
 
-<presentation-actions>
-<presentation-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</presentation-link>
-</presentation-actions>
+- Compute `const isLambda = DATA_BACKEND === "lambda";` once at the top of `UsersPage`.
+- Keep the existing list/query exactly as-is (lambda branch already correct). Add `retry: false` so a 401 from `GET /users` surfaces instead of looping.
+- For every action below, in lambda mode:
+  - Render the existing button/control **disabled** (no layout change, design preserved).
+  - Wrap with `<Tooltip>` showing **"User management write endpoint pending."**
+  - Do NOT execute the underlying Supabase call. The mutations themselves should early-return + toast the same message if invoked.
+- Affected controls:
+  - `<GrantRole>` Add button and `<Badge>` "×" revoke button → disabled in lambda mode.
+  - "Change email" pencil button → disabled.
+  - "Reset password" button → disabled.
+  - "Send test" push button → disabled.
+  - Push column badge → render neutral "—" in lambda mode (no `admin_list_push_status` call).
+- Status / Last login columns continue to read from the lambda payload — no change.
+- In Supabase mode (`DATA_BACKEND === "supabase"`) every existing flow keeps working unchanged.
+
+### 2. Skip Supabase admin calls in lambda mode
+
+- Guard the Supabase parallel reads (`profiles`, `user_roles`, `listEmails`, `admin_list_push_status`) so they only run in the supabase branch (already true; add the same guard for the push RPC).
+- Remove the lambda-mode invocations of `adminListUserEmails` / `adminChangeUserEmail` / `sendTestPushToUser` (only call the server fns inside the Supabase branch / handlers).
+
+### 3. `<RoleGate>` consideration
+
+`RoleGate allow={["admin"]}` reads roles from the auth context. In lambda mode roles come from the lambda `/auth/me` payload, so this gate already works — no change needed. Verify no Supabase fallback fires inside the gate.
+
+### 4. New audit doc — `docs/USERS_ROLES_LAMBDA_CUTOVER.md`
+
+Sections:
+- **Read path** — `GET /users` confirmed; list page is read-only in lambda mode.
+- **Incident** — `supabase.from("user_roles").insert(...)` triggered RLS violation because lambda users have no Supabase session.
+- **Decision** — disable every Supabase user/role/profile/auth admin write in lambda mode. Frontend never bypasses RLS.
+- **Pending backend endpoints** (required before re-enabling UI):
+  - `POST /users`
+  - `PATCH /users/:id`
+  - `PATCH /users/:id/role`
+  - `PATCH /users/:id/status`
+  - `PATCH /users/:id/password-reset`
+  - `PATCH /users/:id/disable` (or `DELETE /users/:id`)
+- **Rules** — role/status changes must be backend-owned and audit-logged server-side; the frontend only triggers the call.
+
+### Out of scope
+
+- No backend or migration changes; no RLS policy edits.
+- No design/layout changes; controls remain in the same positions, only disabled in lambda mode.
+- No mock data, no Supabase fallback in lambda mode, no frontend-computed FX.
+- The "Add consumer account" link to `/app/users/new-consumer` stays visible; that route gets the same "BackendPending" treatment in a follow-up if it currently writes via Supabase (out of scope here unless it's the source of another error).
+
+### Acceptance
+
+- Loading `/app/users` lists real users from `GET /users` with no errors.
+- In lambda mode, clicking any role-grant, role-revoke, change-email, reset-password, or send-test control does nothing destructive: button is disabled with the "User management write endpoint pending." tooltip; no Supabase request is made; no RLS error appears in the console or as a toast.
+- Push column shows "—" in lambda mode (no `admin_list_push_status` call observed in network tab).
+- Switching to `DATA_BACKEND === "supabase"` restores the original full functionality unchanged.
+- `docs/USERS_ROLES_LAMBDA_CUTOVER.md` exists and documents the cutover and pending endpoints.

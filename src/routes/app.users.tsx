@@ -40,10 +40,13 @@ function UsersPage() {
 
   const listEmails = useServerFn(adminListUserEmails);
   const changeEmail = useServerFn(adminChangeUserEmail);
+  const isLambda = DATA_BACKEND === "lambda";
+  const PENDING_MSG = "User management write endpoint pending.";
 
   const { data } = useQuery({
     queryKey: ["users.profiles"],
     enabled: !!user,
+    retry: false,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         // Lambda mode: GET /users?limit=&offset= → { items, total, limit, offset, next_offset }
@@ -100,8 +103,10 @@ function UsersPage() {
   });
 
   const changeEmailMut = useMutation({
-    mutationFn: ({ user_id, new_email }: { user_id: string; new_email: string }) =>
-      changeEmail({ data: { user_id, new_email } }),
+    mutationFn: ({ user_id, new_email }: { user_id: string; new_email: string }) => {
+      if (isLambda) throw new Error(PENDING_MSG);
+      return changeEmail({ data: { user_id, new_email } });
+    },
     onSuccess: (_res, vars) => {
       toast.success("Email updated successfully", {
         description: `Confirmation sent to ${vars.new_email}.`,
@@ -115,6 +120,7 @@ function UsersPage() {
 
   const grant = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: typeof ROLES[number] }) => {
+      if (isLambda) throw new Error(PENDING_MSG);
       const { error } = await supabase.from("user_roles").insert({ user_id, role });
       if (error) throw error;
     },
@@ -124,6 +130,7 @@ function UsersPage() {
 
   const revoke = useMutation({
     mutationFn: async (id: string) => {
+      if (isLambda) throw new Error(PENDING_MSG);
       const { error } = await supabase.from("user_roles").delete().eq("id", id);
       if (error) throw error;
     },
@@ -132,6 +139,7 @@ function UsersPage() {
   });
 
   async function onResetPassword(targetId: string, name: string) {
+    if (isLambda) { toast.message(PENDING_MSG); return; }
     if (!confirm(`Reset password for ${name}? They will be signed out and emailed a reset link.`)) return;
     setResettingId(targetId);
     try {
@@ -153,6 +161,7 @@ function UsersPage() {
   }
 
   async function onSendTest(targetId: string, name: string) {
+    if (isLambda) { toast.message(PENDING_MSG); return; }
     setTestingId(targetId);
     try {
       const r = await sendTestPushToUser({ data: { user_id: targetId } });
@@ -234,17 +243,20 @@ function UsersPage() {
                           <TooltipProvider delayDuration={150}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2"
-                                  aria-label="Change email"
-                                  onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
-                                >
-                                  <Mail className="h-3.5 w-3.5" />
-                                </Button>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2"
+                                    aria-label="Change email"
+                                    disabled={isLambda}
+                                    onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
+                                  >
+                                    <Mail className="h-3.5 w-3.5" />
+                                  </Button>
+                                </span>
                               </TooltipTrigger>
-                              <TooltipContent>Change email</TooltipContent>
+                              <TooltipContent>{isLambda ? PENDING_MSG : "Change email"}</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
@@ -255,7 +267,12 @@ function UsersPage() {
                           {userRoles.map((r) => (
                             <Badge key={r.id} variant="secondary" className="gap-1">
                               {r.role}
-                              <button className="ml-1 text-xs opacity-60 hover:opacity-100" onClick={() => revoke.mutate(r.id)}>×</button>
+                              <button
+                                className="ml-1 text-xs opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                title={isLambda ? PENDING_MSG : "Revoke role"}
+                                disabled={isLambda}
+                                onClick={() => revoke.mutate(r.id)}
+                              >×</button>
                             </Badge>
                           ))}
                         </div>
@@ -282,6 +299,9 @@ function UsersPage() {
                         )}
                       </td>
                       <td className="px-4 py-2">
+                        {isLambda ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -314,21 +334,33 @@ function UsersPage() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-col items-start gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            disabled={testingId === p.id}
-                            onClick={() => onSendTest(p.id, p.full_name || "this user")}
-                          >
-                            <Send className="h-3.5 w-3.5" />
-                            {testingId === p.id ? "Sending…" : "Send test"}
-                          </Button>
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    disabled={isLambda || testingId === p.id}
+                                    onClick={() => onSendTest(p.id, p.full_name || "this user")}
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                    {testingId === p.id ? "Sending…" : "Send test"}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {isLambda ? <TooltipContent>{PENDING_MSG}</TooltipContent> : null}
+                            </Tooltip>
+                          </TooltipProvider>
                           <span className="text-[11px] text-muted-foreground">
-                            {pushOn
+                            {isLambda
+                              ? "Push status pending"
+                              : pushOn
                               ? `Ready — ${push?.subscription_count} device(s)`
                               : pushPartial
                                 ? "In-app only (no devices)"
@@ -337,7 +369,13 @@ function UsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-2">
-                        <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
+                        <GrantRole
+                          userId={p.id}
+                          existing={userRoles.map((r) => r.role)}
+                          disabled={isLambda}
+                          disabledReason={PENDING_MSG}
+                          onGrant={(role) => grant.mutate({ user_id: p.id, role })}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
@@ -346,16 +384,25 @@ function UsersPage() {
                           const isSelf = user?.id === p.id;
                           if (!isStaff || isSelf) return null;
                           return (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              disabled={resettingId === p.id}
-                              onClick={() => onResetPassword(p.id, p.full_name || "this user")}
-                            >
-                              <KeyRound className="h-3.5 w-3.5" />
-                              {resettingId === p.id ? "Sending…" : "Reset password"}
-                            </Button>
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1.5"
+                                      disabled={isLambda || resettingId === p.id}
+                                      onClick={() => onResetPassword(p.id, p.full_name || "this user")}
+                                    >
+                                      <KeyRound className="h-3.5 w-3.5" />
+                                      {resettingId === p.id ? "Sending…" : "Reset password"}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {isLambda ? <TooltipContent>{PENDING_MSG}</TooltipContent> : null}
+                              </Tooltip>
+                            </TooltipProvider>
                           );
                           })()}
                         </div>
@@ -395,20 +442,27 @@ function UsersPage() {
   );
 }
 
-function GrantRole({ existing, onGrant }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void }) {
+function GrantRole({ existing, onGrant, disabled, disabledReason }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void; disabled?: boolean; disabledReason?: string }) {
   const t = useT();
   const [val, setVal] = useState<string>("");
   const available = ROLES.filter((r) => !existing.includes(r));
   if (available.length === 0) return <span className="text-xs text-muted-foreground">{t("users.allGranted")}</span>;
   return (
     <div className="flex items-center gap-2">
-      <Select value={val} onValueChange={setVal}>
+      <Select value={val} onValueChange={setVal} disabled={disabled}>
         <SelectTrigger className="h-8 w-32"><SelectValue placeholder={t("users.role")} /></SelectTrigger>
         <SelectContent>
           {available.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Button size="sm" disabled={!val} onClick={() => { onGrant(val as any); setVal(""); }}>{t("users.grant")}</Button>
+      <Button
+        size="sm"
+        disabled={!val || disabled}
+        title={disabled ? disabledReason : undefined}
+        onClick={() => { onGrant(val as any); setVal(""); }}
+      >
+        {t("users.grant")}
+      </Button>
     </div>
   );
 }
