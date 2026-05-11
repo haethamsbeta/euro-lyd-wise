@@ -338,6 +338,11 @@ function TestSandboxPage() {
   const hasAccountAndVaultArrays = accounts.length > 0 && vaults.length > 0;
   const depositDisabled = !fixture || !hasAccountAndVaultArrays || !ha || !depositVault;
   const withdrawDisabled = !fixture || !hasAccountAndVaultArrays || !ha || !withdrawVault;
+  const activeHolder = activeFullFixture?.holder;
+  const activeHolderId = activeHolder?.id ?? activeFullFixture?.holder_id ?? "";
+  const activeHolderName = activeHolder?.name ?? activeFullFixture?.holder_name ?? "Test holder";
+  const activeSourceSystem = activeHolder?.source_system ?? "DAHAB_TEST";
+  const activeAccountNumber = activeHolder?.dahab_account_number;
 
   // A complete fixture has 4 holder accounts + 8 vaults (4 receivable + 4 payable).
   const fixtureComplete = !!fixture && (() => {
@@ -428,18 +433,17 @@ function TestSandboxPage() {
               </p>
             )
           ) : (() => {
-              const raw: any = fixturesQuery.data;
-              const fixtures = Array.isArray(raw)
-                ? raw
-                : Array.isArray(raw?.items)
-                  ? raw.items
-                  : [];
               if (fixtures.length === 0) {
                 return <p className="text-sm text-muted-foreground">No fixtures yet.</p>;
               }
               return (
                 <ul className="divide-y divide-border">
-                  {fixtures.map((f: any) => (
+                  {fixtures.map((f: Fixture) => {
+                    const rowAccounts = getFixtureAccounts(f);
+                    const rowVaults = getFixtureVaults(f);
+                    const canRunRow = fixture?.test_run_id === f.test_run_id && rowAccounts.length > 0 && rowVaults.length > 0;
+                    const holderId = f.holder_id ?? f.holder?.id ?? "";
+                    return (
                     <li key={f.test_run_id} className="flex flex-wrap items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -457,7 +461,7 @@ function TestSandboxPage() {
                       </Button>
                     </div>
                     <div className="mt-0.5 text-sm">
-                      <span className="font-medium">{f.holder_name ?? "Test holder"}</span>
+                      <span className="font-medium">{f.holder_name ?? f.holder?.name ?? "Test holder"}</span>
                       {typeof f.account_count === "number" && (
                         <span className="ml-2 text-xs text-muted-foreground">
                           {f.account_count} account{f.account_count === 1 ? "" : "s"}
@@ -470,15 +474,20 @@ function TestSandboxPage() {
                       )}
                     </div>
                     <div className="font-mono text-[10px] text-muted-foreground">
-                      holder: {f.holder_id}
+                      holder: {holderId || "—"}
                     </div>
+                    {rowAccounts.length === 0 || rowVaults.length === 0 ? (
+                      <p className="mt-1 text-xs text-warning">Open or recreate fixture to load test accounts and vaults.</p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/app/holders/$id" params={{ id: f.holder_id }}>
-                        <ExternalLink /> Open holder
-                      </Link>
-                    </Button>
+                    {holderId ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/app/holders/$id" params={{ id: holderId }}>
+                          <ExternalLink /> Open holder
+                        </Link>
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -490,11 +499,11 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      disabled={busy !== null || !canRunRow}
                       title={
-                        fixture?.test_run_id === f.test_run_id
+                        canRunRow
                           ? "Run a test deposit using this fixture"
-                          : "Active fixture must match this row"
+                          : "Open or recreate fixture to load test accounts and vaults"
                       }
                       onClick={() =>
                         runFromFixtureRow(f, "deposit", Number(normalAmount), "posted", "Cash deposit")
@@ -505,7 +514,7 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      disabled={busy !== null || !canRunRow}
                       onClick={() =>
                         runFromFixtureRow(f, "withdraw", Number(normalAmount), "posted", "Cash withdrawal")
                       }
@@ -515,7 +524,7 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      disabled={busy !== null || !canRunRow}
                       onClick={() =>
                         runFromFixtureRow(f, "withdraw", Number(bigAmount), "pending", "Pending approval")
                       }
@@ -537,7 +546,8 @@ function TestSandboxPage() {
                     </Button>
                   </div>
                 </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               );
             })()}
