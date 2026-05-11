@@ -720,9 +720,33 @@ function ReportsPage() {
                   );
                 })}
               </div>
-              {liquidityNetwork == null && liquidityHealth.length > 0 && (
-                <p className="mt-4 text-xs text-text-tertiary">
-                  FX/consolidated total pending — backend has not returned <code>network_total_lyd_minor</code>.
+              {(liquidityNetworkLyd != null || liquidityNetworkUsd != null) && (
+                <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                  {liquidityNetworkLyd != null && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-secondary mr-2">
+                        Network Total (LYD)
+                      </span>
+                      <span className="text-base font-semibold text-foreground tabular-nums">
+                        {formatMinor(liquidityNetworkLyd, "LYD")}
+                      </span>
+                    </div>
+                  )}
+                  {liquidityNetworkUsd != null && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-text-secondary mr-2">
+                        ≈ USD
+                      </span>
+                      <span className="text-sm font-medium text-text-secondary tabular-nums">
+                        {formatMinor(liquidityNetworkUsd, "USD")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {liquidityMissingRates.length > 0 && (
+                <p className="mt-2 text-xs text-amber-400">
+                  Missing FX rates for: {liquidityMissingRates.map((r) => `${r.from}→${r.to}`).join(", ")}
                 </p>
               )}
             </PremiumCard>
