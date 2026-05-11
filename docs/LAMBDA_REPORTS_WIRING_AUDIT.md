@@ -43,13 +43,19 @@ hit, and no Supabase tables are queried for report data:
 **Status: live & mapped.** `/reports/business/overview` returns real data and the
 frontend adapter accepts the actual backend keys via aliases:
 
-**Diagnostic note (resolved):** an earlier symptom where Daily Transactions,
-Currency Distribution, Customer Growth and Top Accounts rendered
-`BackendPending` despite the backend returning data was traced to the adapter
-reading the response root rigidly. The adapter now defensively unwraps
-`res / res.data / res.overview / res.business`, picking the first object that
-contains any of the documented Business Overview keys. This was a route-level /
-adapter accessor issue, **not** missing backend fields.
+**Diagnostic note (resolved):** Two layered issues caused Business Overview
+widgets to display `BackendPending` despite live backend data:
+1. The adapter read the response root rigidly — fixed by defensively unwrapping
+   `res / res.data / res.overview / res.business`.
+2. The route gated each widget on **derived/filtered** arrays (e.g.
+   `dailyVolume7d` was LYD-only; `currencyDistribution` ran through
+   `displayCurrency()`). When the backend returned non-LYD or unmapped
+   currencies, the derived arrays were empty even though the raw backend
+   arrays had rows. Each Business Overview widget now gates on the **raw**
+   backend array length (`overview.daily_volume_7d.length`, etc.). Daily
+   Transactions still plots a single currency (no FX sum) and falls back to
+   the first currency present if no LYD rows are returned. Neither cause was
+   a missing backend field.
 
 - `counts.tx_total ↔ total`, `counts.tx_posted ↔ posted`, `counts.tx_rejected ↔ rejected`, `counts.tx_pending ↔ pending`
 - `active_holders` is read from either `r.active_holders` or `counts.active_holders`
