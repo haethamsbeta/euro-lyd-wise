@@ -441,7 +441,9 @@ function TestSandboxPage() {
                   {fixtures.map((f: Fixture) => {
                     const rowAccounts = getFixtureAccounts(f);
                     const rowVaults = getFixtureVaults(f);
-                    const canRunRow = fixture?.test_run_id === f.test_run_id && rowAccounts.length > 0 && rowVaults.length > 0;
+                    const rowHasDetails = rowAccounts.length > 0 && rowVaults.length > 0;
+                    const activeMatchesRow = fixture?.test_run_id === f.test_run_id;
+                    const canRunRow = activeMatchesRow && hasAccountAndVaultArrays;
                     const holderId = f.holder_id ?? f.holder?.id ?? "";
                     return (
                     <li key={f.test_run_id} className="flex flex-wrap items-center gap-3 py-3">
@@ -476,7 +478,7 @@ function TestSandboxPage() {
                     <div className="font-mono text-[10px] text-muted-foreground">
                       holder: {holderId || "—"}
                     </div>
-                    {rowAccounts.length === 0 || rowVaults.length === 0 ? (
+                    {!rowHasDetails && !canRunRow ? (
                       <p className="mt-1 text-xs text-warning">Open or recreate fixture to load test accounts and vaults.</p>
                     ) : null}
                   </div>
