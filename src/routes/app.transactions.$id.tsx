@@ -462,6 +462,7 @@ function TxDetail() {
                     <UserIcon className="h-4 w-4" />
                   )
                 }
+              accountId={!isDeposit ? tx.customer_account_id : undefined}
               />
               <div className="flex justify-center">
                 <div className="w-10 h-10 rounded-full bg-surface-2 border border-border grid place-items-center shadow-[0_0_15px_oklch(from_var(--gold)_l_c_h/0.10)] rotate-90 md:rotate-0">
@@ -493,6 +494,7 @@ function TxDetail() {
                     <Building2 className="h-4 w-4" />
                   )
                 }
+              accountId={isDeposit ? tx.customer_account_id : undefined}
               />
             </div>
           </PremiumCard>
@@ -570,24 +572,44 @@ function FromToTile({
   primary,
   secondary,
   icon,
+  accountId,
 }: {
   title: string;
   primary: string;
   secondary?: string;
   icon: React.ReactNode;
+  accountId?: string;
 }) {
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-surface-2/40 p-5 group">
+  const inner = (
+    <>
       <div className="absolute -top-8 -right-8 w-32 h-32 bg-[oklch(from_var(--gold)_l_c_h/0.05)] rounded-full blur-2xl group-hover:bg-[oklch(from_var(--gold)_l_c_h/0.10)] transition-colors pointer-events-none" />
       <div className="relative">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-text-secondary mb-2">
           {icon} {title}
         </div>
-        <div className="text-lg font-medium text-foreground">{primary}</div>
+        <div className="text-lg font-medium text-foreground group-hover:text-gold transition-colors">
+          {primary}
+        </div>
         {secondary ? (
           <div className="text-xs font-mono text-text-secondary mt-0.5">{secondary}</div>
         ) : null}
       </div>
+    </>
+  );
+  if (accountId) {
+    return (
+      <Link
+        to="/app/accounts/$id"
+        params={{ id: accountId }}
+        className="relative overflow-hidden rounded-xl border border-border bg-surface-2/40 p-5 group block hover:border-[oklch(from_var(--gold)_l_c_h/0.40)] transition-colors"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface-2/40 p-5 group">
+      {inner}
     </div>
   );
 }
