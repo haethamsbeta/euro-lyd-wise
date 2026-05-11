@@ -481,9 +481,10 @@ function TestSandboxPage() {
                     </Button>
                   </div>
                 </li>
-              ))}
-            </ul>
-          )}
+                  ))}
+                </ul>
+              );
+            })()}
         </CardContent>
       </Card>
 
