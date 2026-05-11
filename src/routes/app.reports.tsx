@@ -584,7 +584,7 @@ function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-gold" />
                       <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
-                      <CurrencyBadge currency="LYD" />
+                      <CurrencyBadge currency={CASH_FLOW_CCY} />
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
                   </div>
@@ -1058,6 +1058,16 @@ function Row({ label, value, valueClass }: { label: string; value: string; value
     <div className="flex justify-between items-center">
       <span className="text-[10px] uppercase tracking-wider text-text-secondary">{label}</span>
       <span className={`text-sm font-semibold tabular-nums ${valueClass ?? "text-foreground"}`}>{value}</span>
+    </div>
+  );
+}
+
+function ReportEmpty({ endpoint, status }: { endpoint: string; status: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.25)] p-4">
+      <div className="text-[10px] uppercase tracking-wider text-text-secondary">Live endpoint</div>
+      <div className="mt-1 font-mono text-xs text-foreground">{endpoint}</div>
+      <p className="mt-2 text-xs text-text-tertiary">{status}</p>
     </div>
   );
 }
