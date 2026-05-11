@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
+  Download, Calendar, TrendingUp, Users,
   BarChart3, PieChart as PieIcon, FileText, ChevronRight, Sparkles,
   Award, Clock, Zap, Target, AlertCircle, CheckCircle2, Activity,
   Trophy, Medal, Star,
@@ -18,9 +18,9 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
-import { formatMinor, formatMinorOrMissing } from "@/lib/format";
-import { api } from "@/lib/api";
-import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
+import { formatMinor } from "@/lib/format";
+import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
+import { displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
@@ -54,10 +54,10 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
     queryKey: ["reports", key],
     queryFn: fn,
     retry: false,
-    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    enabled: DATA_BACKEND === "lambda",
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
-  return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, error: q.error };
+  return { data: (q.data ?? fallback) as T, isLoading: q.isLoading, isError: q.isError, error: q.error };
 }
 
 // ───────────── Live data hook ─────────────
@@ -66,9 +66,9 @@ function useReportFeed<T>(key: string, fn: () => Promise<T>, fallback: T) {
 function useReportsData() {
   return useQuery({
     queryKey: ["reports", "business-overview"],
-    queryFn: () => api.reports.businessOverview(),
+    queryFn: () => reportsApi.businessOverview(),
     retry: false,
-    enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
+    enabled: DATA_BACKEND === "lambda",
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
 }
@@ -100,21 +100,29 @@ function ReportsPage() {
   const isLambda = DATA_BACKEND === "lambda";
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
+  const businessOverview = overview;
+  const dailyVolume7dRows = businessOverview?.daily_volume_7d ?? [];
+  const currencyDistributionRows =
+    businessOverview?.currency_distribution ?? [];
+  const customerGrowth7mRows =
+    businessOverview?.customer_growth_7m ?? [];
+  const topAccounts = businessOverview?.top_accounts ?? [];
+  const volumeByCurrency30d =
+    businessOverview?.volume_by_currency_30d ?? [];
   const hasOverviewPayload = Boolean(
-    overview &&
-      (overview.counts ||
-        (overview.daily_volume_7d?.length ?? 0) > 0 ||
-        (overview.currency_distribution?.length ?? 0) > 0 ||
-        (overview.customer_growth_7m?.length ?? 0) > 0 ||
-        (overview.top_accounts?.length ?? 0) > 0 ||
-        (overview.volume_by_currency_30d?.length ?? 0) > 0),
+    businessOverview?.counts ||
+      dailyVolume7dRows.length > 0 ||
+      currencyDistributionRows.length > 0 ||
+      customerGrowth7mRows.length > 0 ||
+      topAccounts.length > 0 ||
+      volumeByCurrency30d.length > 0,
   );
   const overviewPending =
     !hasOverviewPayload && (overviewIsError || (!isLoading && isLambda));
 
   // ── Business overview field projections (per-widget, never fabricated) ──
-  const counts = overview?.counts ?? null;
-  const volByCcy = overview?.volume_by_currency_30d ?? null;
+  const counts = businessOverview?.counts ?? null;
+  const volByCcy = volumeByCurrency30d;
   if (typeof window !== "undefined" && overview) {
     // Temporary diagnostic — confirms the adapter handed back the
     // documented Business Overview keys.
@@ -129,7 +137,7 @@ function ReportsPage() {
     });
   }
   const dailyVolume7d = useMemo(() => {
-    const rows = overview?.daily_volume_7d ?? [];
+    const rows = dailyVolume7dRows;
     // Single-currency series only (no FX summing across currencies).
     // Prefer LYD; if backend returned no LYD rows, fall back to the first
     // currency present so we still render a real chart instead of empty.
@@ -138,9 +146,9 @@ function ReportsPage() {
       ? rows.filter((r) => r.currency === rows[0].currency)
       : [];
     return chosen.map((r) => ({ d: r.day, v: r.volume_minor / 100 }));
-  }, [overview]);
+  }, [dailyVolume7dRows]);
   const currencyDistribution = useMemo(() => {
-    const rows = overview?.currency_distribution ?? [];
+    const rows = currencyDistributionRows;
     const total = rows.reduce((a, b) => a + b.balance_minor, 0);
     return rows
       .map((r) => {
@@ -154,23 +162,22 @@ function ReportsPage() {
         };
       })
       .sort((a, b) => b.raw - a.raw);
-  }, [overview]);
+  }, [currencyDistributionRows]);
   const customerGrowth = useMemo(() => {
-    return (overview?.customer_growth_7m ?? []).map((r) => ({ m: r.month, v: r.new_holders }));
-  }, [overview]);
-  const topAccounts = overview?.top_accounts ?? null;
+    return customerGrowth7mRows.map((r) => ({ m: r.month, v: r.new_holders }));
+  }, [customerGrowth7mRows]);
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
-  const { data: hourlyTraffic } = useReportFeed("hourly-traffic", () => api.reports.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
+  const { data: hourlyTraffic, isLoading: hourlyTrafficLoading, isError: hourlyTrafficError } = useReportFeed("hourly-traffic", () => reportsApi.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
   // Cash-flow: backend returns raw rows
   // { day, currency_code, direction, transaction_count, volume_minor }.
   // Pivot in the FE by day + currency_code → deposits_minor/withdrawals_minor.
   // The chart below shows LYD-only; we never sum across currencies and never
   // apply FX in the frontend. See LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md §4.
-  const { data: cashFlowApi } = useReportFeed(
+  const { data: cashFlowApi, isLoading: cashFlowLoading, isError: cashFlowError } = useReportFeed(
     "cash-flow",
-    () => api.reports.cashFlow(),
+    () => reportsApi.cashFlow(),
     EMPTY_ARR as Array<{
       day: string;
       currency_code: string;
@@ -179,7 +186,9 @@ function ReportsPage() {
       volume_minor: number;
     }>,
   );
-  const CASH_FLOW_CCY = "LYD";
+  const CASH_FLOW_CCY = cashFlowApi.some((r) => r.currency_code === "LYD")
+    ? "LYD"
+    : (cashFlowApi[0]?.currency_code ?? "LYD");
   const cashFlowByDay = new Map<string, { deposits_minor: number; withdrawals_minor: number }>();
   for (const r of cashFlowApi) {
     if (r.currency_code !== CASH_FLOW_CCY) continue;
@@ -196,7 +205,7 @@ function ReportsPage() {
     { dep: 0, wd: 0 },
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
-  const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
+  const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
   const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
     const breach = r.minimum_threshold_breach === true;
@@ -218,7 +227,7 @@ function ReportsPage() {
     };
   });
   const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
-  const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
+  const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
   const tellers = tellersApi.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
     txnsToday: t.txns_today, volumeToday: t.volume_today_minor / 100,
@@ -226,10 +235,10 @@ function ReportsPage() {
     avgTime: t.avg_time_seconds / 60, rank: t.rank,
     trend: t.trend ?? [], streak: t.streak_days,
   }));
-  const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => api.reports.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
-  const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => api.reports.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
+  const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => reportsApi.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
+  const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => reportsApi.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
   const errorRateTrend = errorRateApi.map((r) => ({ d: r.d, rate: r.rate_pct }));
-  const { data: compliance } = useReportFeed("compliance-overview", () => api.reports.complianceOverview(), {
+  const { data: compliance } = useReportFeed<ComplianceOverview>("compliance-overview", () => reportsApi.complianceOverview(), {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
     alert_volume: EMPTY_ARR as any[],
@@ -273,7 +282,7 @@ function ReportsPage() {
     { l: "Network Volume (30d)", v: networkVolumeStr, sub: !volByCcy ? "Backend pending" : "", icon: TrendingUp },
     {
       l: "Total Customers",
-      v: fmtTotal(overview?.active_holders ?? dashSummary?.holderCount ?? null),
+      v: fmtTotal(businessOverview?.active_holders ?? dashSummary?.holderCount ?? null),
       sub: "",
       icon: Users,
     },
@@ -345,22 +354,22 @@ function ReportsPage() {
         </div>
 
         {/* TOP KPI STRIP */}
-        {overviewPending && (
-          <BackendPending
-            endpoint="GET /reports/business/overview"
-            note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
-          />
-        )}
-        {overview && (
+        <div className="text-[10px] font-mono text-gold border border-[oklch(from_var(--gold)_l_c_h/0.35)] rounded px-2 py-1 w-fit">
+          REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3
+        </div>
+        {isLambda && (
           <div className="text-[10px] font-mono text-text-tertiary border border-border rounded px-2 py-1">
-            Business overview loaded — counts: {String(Boolean(overview.counts))}
-            {" · "}daily_volume_7d: {overview.daily_volume_7d?.length ?? 0}
-            {" · "}currency_distribution: {overview.currency_distribution?.length ?? 0}
-            {" · "}customer_growth_7m: {overview.customer_growth_7m?.length ?? 0}
-            {" · "}top_accounts: {overview.top_accounts?.length ?? 0}
-            {" · "}volume_by_currency_30d: {overview.volume_by_currency_30d?.length ?? 0}
+            <div>Business overview debug:</div>
+            <div>businessOverview keys: {Object.keys(businessOverview || {}).join(", ")}</div>
+            <div>counts: {String(!!businessOverview?.counts)}</div>
+            <div>daily_volume_7d: {dailyVolume7dRows.length}</div>
+            <div>currency_distribution: {currencyDistributionRows.length}</div>
+            <div>customer_growth_7m: {customerGrowth7mRows.length}</div>
+            <div>top_accounts: {topAccounts.length}</div>
+            <div>volume_by_currency_30d: {volumeByCurrency30d.length}</div>
           </div>
         )}
+        {overviewPending && <ReportEmpty endpoint="GET /reports/business/overview" status="No business overview payload returned." />}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map((k, i) => (
             <motion.div key={k.l} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
@@ -395,8 +404,8 @@ function ReportsPage() {
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
                 </div>
-                {(overview?.daily_volume_7d?.length ?? 0) === 0 ? (
-                  <BackendPending endpoint="GET /reports/business/overview" note="daily_volume_7d not yet returned." />
+                {dailyVolume7dRows.length === 0 ? (
+                  <ReportEmpty endpoint="GET /reports/business/overview" status="No daily volume rows returned." />
                 ) : (
                   <div className="h-64" style={{ minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%" minHeight={220}>
@@ -420,8 +429,8 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
                 <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-                {(overview?.currency_distribution?.length ?? 0) === 0 ? (
-                  <BackendPending endpoint="GET /reports/business/overview" note="currency_distribution not yet returned." />
+                {currencyDistributionRows.length === 0 ? (
+                  <ReportEmpty endpoint="GET /reports/business/overview" status="No currency distribution rows returned." />
                 ) : (
                   <>
                     <div className="h-48" style={{ minWidth: 0 }}>
@@ -475,7 +484,7 @@ function ReportsPage() {
                   </div>
                 </div>
                 {hourlyTraffic.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/hourly-traffic" />
+                  <ReportEmpty endpoint="GET /reports/hourly-traffic" status={hourlyTrafficLoading ? "Loading hourly traffic…" : hourlyTrafficError ? "Hourly traffic request failed." : "No hourly traffic rows returned."} />
                 ) : (
                   <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%" minHeight={180}>
@@ -512,8 +521,8 @@ function ReportsPage() {
               <PremiumCard className="lg:col-span-2 p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
                 <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
-                {(overview?.customer_growth_7m?.length ?? 0) === 0 ? (
-                  <BackendPending endpoint="GET /reports/business/overview" note="customer_growth_7m not yet returned." />
+                {customerGrowth7mRows.length === 0 ? (
+                  <ReportEmpty endpoint="GET /reports/business/overview" status="No customer growth rows returned." />
                 ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
@@ -531,11 +540,11 @@ function ReportsPage() {
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {(overview?.top_accounts?.length ?? 0) === 0 ? (
-                  <BackendPending endpoint="GET /reports/business/overview" note="top_accounts not yet returned." />
+                {topAccounts.length === 0 ? (
+                  <ReportEmpty endpoint="GET /reports/business/overview" status="No top account rows returned." />
                 ) : (
                   <ul className="space-y-3">
-                    {(topAccounts ?? []).map((a, i) => {
+                    {topAccounts.map((a, i) => {
                       const ccy = displayCurrency(a.currency);
                       return (
                         <li key={`${a.account_id}-${a.currency}-${i}`}
@@ -575,21 +584,21 @@ function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-gold" />
                       <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
-                      <CurrencyBadge currency="LYD" />
+                      <CurrencyBadge currency={CASH_FLOW_CCY} />
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow (LYD, 7d)</p>
+                    <p className="text-[10px] uppercase tracking-wider text-text-secondary">Net Flow ({CASH_FLOW_CCY}, 7d)</p>
                     <p className={`text-lg font-semibold tabular-nums ${cashFlow.length === 0 ? "text-text-tertiary" : cashFlowNetMinor >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
                       {cashFlow.length === 0
                         ? "—"
-                        : `${cashFlowNetMinor >= 0 ? "+" : ""}${formatMinor(cashFlowNetMinor, "LYD")}`}
+                        : `${cashFlowNetMinor >= 0 ? "+" : ""}${formatMinor(cashFlowNetMinor, CASH_FLOW_CCY)}`}
                     </p>
                   </div>
                 </div>
                 {cashFlow.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/cash-flow" />
+                  <ReportEmpty endpoint="GET /reports/cash-flow" status={cashFlowLoading ? "Loading cash flow…" : cashFlowError ? "Cash-flow request failed." : "No cash-flow rows returned."} />
                 ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%" minHeight={220}>
@@ -636,7 +645,7 @@ function ReportsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {liquidityHealth.length === 0 && (
                   <div className="md:col-span-2 lg:col-span-4">
-                    <BackendPending endpoint="GET /reports/liquidity-health" />
+                    <ReportEmpty endpoint="GET /reports/liquidity-health" status={liquidityLoading ? "Loading liquidity health…" : liquidityError ? "Liquidity health request failed." : "No liquidity rows returned."} />
                   </div>
                 )}
                 {liquidityHealth.map((liq, idx) => {
@@ -711,7 +720,7 @@ function ReportsPage() {
             </div>
 
             {isLambda && tellers.length === 0 && (
-              <BackendPending endpoint="GET /reports/tellers/today" />
+              <ReportEmpty endpoint="GET /reports/tellers/today" status="No teller rows returned." />
             )}
 
             {/* Top Performers Podium */}
@@ -812,7 +821,7 @@ function ReportsPage() {
               <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Volume by Teller (Today)</h2>
               <p className="text-sm text-text-secondary mb-5">Comparative throughput across the team</p>
               {tellers.length === 0 ? (
-                <BackendPending endpoint="GET /reports/tellers/today" />
+                <ReportEmpty endpoint="GET /reports/tellers/today" status="No teller rows returned." />
               ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%" minHeight={240}>
@@ -836,7 +845,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
                 {isLambda && processingTimeDist.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/processing-time-distribution" />
+                  <ReportEmpty endpoint="GET /reports/processing-time-distribution" status="No processing-time rows returned." />
                 ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
@@ -858,7 +867,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
                 {isLambda && errorRateTrend.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/rejection-rate-trend" />
+                  <ReportEmpty endpoint="GET /reports/rejection-rate-trend" status="No rejection-rate rows returned." />
                 ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
@@ -880,7 +889,7 @@ function ReportsPage() {
         {lens === "compliance" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {isLambda && riskMetrics.flaggedTxns === 0 && riskMetrics.pendingReviews === 0 && riskMetrics.resolvedToday === 0 && riskMetrics.highRiskHolders === 0 && riskTypology.length === 0 && (compliance.alert_volume?.length ?? 0) === 0 && (
-              <BackendPending endpoint="GET /reports/compliance/overview" />
+              <ReportEmpty endpoint="GET /reports/compliance/overview" status="No compliance overview payload returned." />
             )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
@@ -949,7 +958,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
                 {(compliance.alert_volume ?? []).length === 0 ? (
-                  <BackendPending endpoint="GET /reports/compliance/overview" note="alert_volume_daily not yet returned." />
+                  <ReportEmpty endpoint="GET /reports/compliance/overview" status="No alert volume rows returned." />
                 ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
@@ -980,7 +989,7 @@ function ReportsPage() {
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
                 <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
                 {isLambda && riskTypology.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/compliance/overview" note="risk_typology not yet returned." />
+                  <ReportEmpty endpoint="GET /reports/compliance/overview" status="No risk typology rows returned." />
                 ) : (
                 <>
                 <div className="h-40">
@@ -1049,6 +1058,16 @@ function Row({ label, value, valueClass }: { label: string; value: string; value
     <div className="flex justify-between items-center">
       <span className="text-[10px] uppercase tracking-wider text-text-secondary">{label}</span>
       <span className={`text-sm font-semibold tabular-nums ${valueClass ?? "text-foreground"}`}>{value}</span>
+    </div>
+  );
+}
+
+function ReportEmpty({ endpoint, status }: { endpoint: string; status: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.25)] p-4">
+      <div className="text-[10px] uppercase tracking-wider text-text-secondary">Live endpoint</div>
+      <div className="mt-1 font-mono text-xs text-foreground">{endpoint}</div>
+      <p className="mt-2 text-xs text-text-tertiary">{status}</p>
     </div>
   );
 }
