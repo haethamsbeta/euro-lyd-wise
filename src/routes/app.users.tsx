@@ -40,10 +40,13 @@ function UsersPage() {
 
   const listEmails = useServerFn(adminListUserEmails);
   const changeEmail = useServerFn(adminChangeUserEmail);
+  const isLambda = DATA_BACKEND === "lambda";
+  const PENDING_MSG = "User management write endpoint pending.";
 
   const { data } = useQuery({
     queryKey: ["users.profiles"],
     enabled: !!user,
+    retry: false,
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         // Lambda mode: GET /users?limit=&offset= → { items, total, limit, offset, next_offset }
@@ -100,8 +103,10 @@ function UsersPage() {
   });
 
   const changeEmailMut = useMutation({
-    mutationFn: ({ user_id, new_email }: { user_id: string; new_email: string }) =>
-      changeEmail({ data: { user_id, new_email } }),
+    mutationFn: ({ user_id, new_email }: { user_id: string; new_email: string }) => {
+      if (isLambda) throw new Error(PENDING_MSG);
+      return changeEmail({ data: { user_id, new_email } });
+    },
     onSuccess: (_res, vars) => {
       toast.success("Email updated successfully", {
         description: `Confirmation sent to ${vars.new_email}.`,
@@ -115,6 +120,7 @@ function UsersPage() {
 
   const grant = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: typeof ROLES[number] }) => {
+      if (isLambda) throw new Error(PENDING_MSG);
       const { error } = await supabase.from("user_roles").insert({ user_id, role });
       if (error) throw error;
     },
@@ -124,6 +130,7 @@ function UsersPage() {
 
   const revoke = useMutation({
     mutationFn: async (id: string) => {
+      if (isLambda) throw new Error(PENDING_MSG);
       const { error } = await supabase.from("user_roles").delete().eq("id", id);
       if (error) throw error;
     },
@@ -132,6 +139,7 @@ function UsersPage() {
   });
 
   async function onResetPassword(targetId: string, name: string) {
+    if (isLambda) { toast.message(PENDING_MSG); return; }
     if (!confirm(`Reset password for ${name}? They will be signed out and emailed a reset link.`)) return;
     setResettingId(targetId);
     try {
@@ -153,6 +161,7 @@ function UsersPage() {
   }
 
   async function onSendTest(targetId: string, name: string) {
+    if (isLambda) { toast.message(PENDING_MSG); return; }
     setTestingId(targetId);
     try {
       const r = await sendTestPushToUser({ data: { user_id: targetId } });
