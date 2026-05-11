@@ -532,16 +532,22 @@ function TestSandboxPage() {
               </div>
             </div>
 
-            {currencyDisabled && (
+            {!fixtureComplete && (
+              <p className="flex items-center gap-2 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Test vaults required before running transactions. Re-create the fixture so the backend returns 4 receivable + 4 payable test vaults.
+              </p>
+            )}
+            {fixtureComplete && (depositDisabled || withdrawDisabled) && (
               <p className="text-xs text-warning">
-                Fixture has no holder account + vault for {currency}.
+                Missing holder account or vault for {currency}.
               </p>
             )}
 
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !normalAmount}
+                disabled={busy !== null || depositDisabled || !normalAmount}
                 onClick={() => runTx({
                   action: "Cash deposit",
                   direction: "deposit",
@@ -553,7 +559,7 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !normalAmount}
+                disabled={busy !== null || withdrawDisabled || !normalAmount}
                 onClick={() => runTx({
                   action: "Cash withdrawal",
                   direction: "withdraw",
@@ -565,7 +571,7 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || currencyDisabled || !bigAmount}
+                disabled={busy !== null || withdrawDisabled || !bigAmount}
                 onClick={() => runTx({
                   action: "Pending approval",
                   direction: "withdraw",
