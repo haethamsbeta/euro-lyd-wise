@@ -442,20 +442,27 @@ function UsersPage() {
   );
 }
 
-function GrantRole({ existing, onGrant }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void }) {
+function GrantRole({ existing, onGrant, disabled, disabledReason }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void; disabled?: boolean; disabledReason?: string }) {
   const t = useT();
   const [val, setVal] = useState<string>("");
   const available = ROLES.filter((r) => !existing.includes(r));
   if (available.length === 0) return <span className="text-xs text-muted-foreground">{t("users.allGranted")}</span>;
   return (
     <div className="flex items-center gap-2">
-      <Select value={val} onValueChange={setVal}>
+      <Select value={val} onValueChange={setVal} disabled={disabled}>
         <SelectTrigger className="h-8 w-32"><SelectValue placeholder={t("users.role")} /></SelectTrigger>
         <SelectContent>
           {available.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Button size="sm" disabled={!val} onClick={() => { onGrant(val as any); setVal(""); }}>{t("users.grant")}</Button>
+      <Button
+        size="sm"
+        disabled={!val || disabled}
+        title={disabled ? disabledReason : undefined}
+        onClick={() => { onGrant(val as any); setVal(""); }}
+      >
+        {t("users.grant")}
+      </Button>
     </div>
   );
 }
