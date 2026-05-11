@@ -20,10 +20,12 @@ export type ApiEnvelope<T> = {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  details?: unknown;
+  constructor(message: string, status: number, details?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -50,6 +52,14 @@ export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  const envelope = await apiFetchEnvelope<T>(path, init);
+  return envelope.data;
+}
+
+export async function apiFetchEnvelope<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<ApiEnvelope<T>> {
   if (!API_BASE_URL) {
     throw new ApiError("VITE_API_BASE_URL is not configured", 0);
   }
@@ -87,9 +97,9 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok || !envelope?.success) {
-    throw new ApiError(envelope?.message ?? res.statusText, res.status);
+    throw new ApiError(envelope?.message ?? res.statusText, res.status, envelope);
   }
-  return envelope.data;
+  return envelope;
 }
 
 function qs(params: Record<string, string | number | undefined | null>): string {
