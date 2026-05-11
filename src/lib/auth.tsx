@@ -128,8 +128,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         void refreshLambdaUser();
       }
-      window.addEventListener("dahab.auth.changed", applyLambdaAuthState);
-      return () => window.removeEventListener("dahab.auth.changed", applyLambdaAuthState);
+      const handleLambdaAuthChanged = () => {
+        if (applyLambdaAuthState()) void refreshLambdaUser();
+      };
+      window.addEventListener("dahab.auth.changed", handleLambdaAuthChanged);
+      return () => window.removeEventListener("dahab.auth.changed", handleLambdaAuthChanged);
     }
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
