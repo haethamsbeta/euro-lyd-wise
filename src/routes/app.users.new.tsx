@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,7 @@ type StaffRole = "admin" | "teller" | "auditor";
 
 function NewMemberPage() {
   const nav = useNavigate();
+  const qc = useQueryClient();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -62,6 +63,7 @@ function NewMemberPage() {
       }),
     onSuccess: () => {
       toast.success("DAHAB member created");
+      qc.invalidateQueries({ queryKey: ["users.profiles"] });
       nav({ to: "/app/users" });
     },
     onError: (e: any) => {
