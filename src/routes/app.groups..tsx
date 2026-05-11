@@ -35,7 +35,7 @@ import { api } from "@/lib/api";
 import type { AccountGroup, GroupMember, GroupActivity30d } from "@/lib/api/groups";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
-export const Route = createFileRoute("/app/groups/$id")({
+export const Route = createFileRoute("/app/groups/")({
   component: GroupDetailPage,
   head: () => ({ meta: [{ title: "Group" }] }),
 });
