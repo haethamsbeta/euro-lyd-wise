@@ -235,18 +235,20 @@ function ReportsPage() {
       health,
     };
   });
-  const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
+  const liquidityNetwork = liquidityResp?.network_total_lyd_minor ?? null;
   const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
-  const tellers = tellersApi.map((t: any) => ({
+  const tellerRowsRaw = Array.isArray(tellersApi) ? tellersApi : [];
+  const tellers = tellerRowsRaw.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
     txnsToday: t.txns_today, volumeToday: t.volume_today_minor / 100,
     avgValue: t.avg_value_minor / 100, accuracy: t.accuracy_pct,
     avgTime: t.avg_time_seconds / 60, rank: t.rank,
-    trend: t.trend ?? [], streak: t.streak_days,
+    trend: Array.isArray(t.trend) ? t.trend : [], streak: t.streak_days,
   }));
   const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => reportsApi.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
+  const processingRows = Array.isArray(processingTimeDist) ? processingTimeDist : [];
   const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => reportsApi.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
-  const errorRateTrend = errorRateApi.map((r) => ({ d: r.d, rate: r.rate_pct }));
+  const errorRateTrend = (Array.isArray(errorRateApi) ? errorRateApi : []).map((r) => ({ d: r.d, rate: r.rate_pct }));
   const { data: compliance } = useReportFeed<ComplianceOverview>("compliance-overview", () => reportsApi.complianceOverview(), {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
