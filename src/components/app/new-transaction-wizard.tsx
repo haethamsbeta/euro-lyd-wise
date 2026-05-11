@@ -198,9 +198,9 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     switch (step.key) {
       case "type": return !!type;
       case "customer": return !!picked;
-      case "vault": return !!channel;
+      case "vault": return channel === "cash" && !cashVaultMissing;
       case "details": return amountMinor !== null && amountMinor > 0 && commentValid;
-      case "review": return true;
+      case "review": return !cashVaultMissing;
     }
   }
 
@@ -698,45 +698,62 @@ function DirectionCard({
   );
 }
 
-function VaultStep({ value, onPick }: { value: Channel | null; onPick: (v: Channel) => void }) {
+function VaultStep({
+  value, onPick, cashVaultMissing, currency,
+}: {
+  value: Channel | null; onPick: (v: Channel) => void;
+  cashVaultMissing: boolean; currency: Currency;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-      <VaultCard
-        active={value === "cash"}
-        onClick={() => onPick("cash")}
-        icon={<Wallet className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
-        title="Cash Vault"
-        desc="Physical cash handled at branch."
-        hint="Walk-in deposits, teller-counted withdrawals"
-      />
-      <VaultCard
-        active={value === "bank"}
-        onClick={() => onPick("bank")}
-        icon={<Landmark className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
-        title="Bank Vault"
-        desc="Wire / digital transfer through bank."
-        hint="SWIFT wires, ACH, internal bank movements"
-      />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <VaultCard
+          active={value === "cash"}
+          onClick={() => onPick("cash")}
+          icon={<Wallet className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
+          title="Cash Vault"
+          desc="Physical cash handled at branch."
+          hint="Walk-in deposits, teller-counted withdrawals"
+        />
+        <VaultCard
+          active={false}
+          onClick={() => {}}
+          disabled
+          icon={<Landmark className="h-8 w-8 md:h-10 md:w-10" strokeWidth={2} />}
+          title="Bank Vault"
+          desc="Bank vault accounts are not configured yet."
+          hint="Coming soon — only cash transactions are enabled in this phase."
+        />
+      </div>
+      {cashVaultMissing && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>Cash vault for {currency} is not configured. Submit is disabled.</p>
+        </div>
+      )}
     </div>
   );
 }
 
 function VaultCard({
-  active, onClick, icon, title, desc, hint,
+  active, onClick, icon, title, desc, hint, disabled,
 }: {
   active: boolean; onClick: () => void;
-  icon: React.ReactNode; title: string; desc: string; hint?: string;
+  icon: React.ReactNode; title: string; desc: string; hint?: string; disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
       className={cn(
         "group relative overflow-hidden rounded-3xl border-2 p-8 text-left transition-all md:p-10",
         "min-h-[220px] md:min-h-[260px]",
         active
           ? "border-gold bg-gold/10 shadow-[0_20px_60px_-20px_oklch(0.74_0.135_82/0.55)]"
           : "border-gold/25 bg-card/60 hover:border-gold/55 hover:bg-card",
+        disabled && "cursor-not-allowed opacity-50 hover:border-gold/25 hover:bg-card/60",
       )}
     >
       {active && (
