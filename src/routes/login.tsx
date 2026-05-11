@@ -339,9 +339,14 @@ function SignUpForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const lambda = DATA_BACKEND === "lambda";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (lambda) {
+      toast.error("Consumer account creation is pending the customer portal backend.");
+      return;
+    }
     const parsed = signupSchema.safeParse({ fullName, email, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -378,12 +383,15 @@ function SignUpForm() {
       <Button
         type="submit"
         className="w-full bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95"
-        disabled={busy}
+        disabled={busy || lambda}
+        title={lambda ? "Consumer account creation pending backend." : undefined}
       >
         {busy ? t("login.creating") : t("login.createAccount")}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        {t("login.newAccountNote")}
+        {lambda
+          ? "Consumer self-registration is pending the customer portal backend. Please contact support to open an account."
+          : t("login.newAccountNote")}
       </p>
     </form>
   );
