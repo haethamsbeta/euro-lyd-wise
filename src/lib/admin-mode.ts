@@ -7,7 +7,8 @@ const EVENT = "dahab.masterPreview.changed";
 function read(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    window.localStorage.removeItem(STORAGE_KEY);
+    return window.sessionStorage.getItem(STORAGE_KEY) === "1";
   } catch {
     return false;
   }
@@ -34,8 +35,9 @@ export function useMasterPreviewAsRegular(): boolean {
 
 export function setMasterPreviewAsRegular(value: boolean) {
   try {
-    if (value) window.localStorage.setItem(STORAGE_KEY, "1");
-    else window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(STORAGE_KEY);
+    if (value) window.sessionStorage.setItem(STORAGE_KEY, "1");
+    else window.sessionStorage.removeItem(STORAGE_KEY);
   } catch {}
   window.dispatchEvent(new Event(EVENT));
 }
