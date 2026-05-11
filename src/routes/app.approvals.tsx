@@ -280,16 +280,16 @@ function Approvals() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!partialTarget} onOpenChange={(o) => { if (!o) { setPartialTarget(null); setPartialAmount(""); } }}>
+      <Dialog open={!!partialTarget} onOpenChange={(o) => { if (!o) { setPartialTarget(null); setPartialAmount(""); setPartialReason("Approved with modified amount."); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Partial approval</DialogTitle>
+            <DialogTitle>Modify amount and approve</DialogTitle>
             <DialogDescription>
-              Approve a smaller amount than requested for{" "}
+              Approve a different amount than requested for{" "}
               <span className="font-mono">{partialTarget?.tx_number}</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="text-xs text-muted-foreground">
               Requested: <span className="font-mono">{partialTarget ? formatMinor(partialTarget.amount_minor, partialTarget.currency) : ""}</span>
             </div>
@@ -304,17 +304,34 @@ function Approvals() {
               onChange={(e) => setPartialAmount(e.target.value)}
               autoFocus
             />
+            <Label htmlFor="partial-reason">Reason</Label>
+            <Textarea
+              id="partial-reason"
+              rows={3}
+              value={partialReason}
+              onChange={(e) => setPartialReason(e.target.value)}
+              placeholder="Approved with modified amount."
+            />
+            {modifiedEndpointPending ? (
+              <BackendPending endpoint="POST /approvals/:id/approve-modified" />
+            ) : null}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setPartialTarget(null); setPartialAmount(""); }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setPartialTarget(null); setPartialAmount(""); setPartialReason("Approved with modified amount."); }}>Cancel</Button>
             <Button
-              disabled={!partialTarget || !(Number(partialAmount) > 0) || approve.isPending}
+              disabled={
+                !partialTarget ||
+                !(Number(partialAmount) > 0) ||
+                partialReason.trim().length < 3 ||
+                approveModified.isPending ||
+                modifiedEndpointPending
+              }
               onClick={() => {
                 if (!partialTarget) return;
                 const minor = Math.round(Number(partialAmount) * 100);
-                approve.mutate({ id: partialTarget.id, amount: minor });
+                approveModified.mutate({ id: partialTarget.id, amount: minor, reason: partialReason.trim() });
               }}
-            >Approve partial</Button>
+            >Approve modified</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
