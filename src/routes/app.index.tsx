@@ -320,7 +320,12 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
     enabled: Boolean(import.meta.env.VITE_API_BASE_URL),
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
-  const network = liquidity.data?.network_total_lyd_minor ?? null;
+  const networkLyd = liquidity.data?.network_total_lyd_minor ?? null;
+  const networkUsd = liquidity.data?.network_total_usd_minor ?? null;
+  const missingRates = Array.isArray(liquidity.data?.missing_rates)
+    ? liquidity.data!.missing_rates
+    : [];
+  const hasConsolidatedTotal = networkLyd != null || networkUsd != null;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -336,14 +341,39 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             </div>
             <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance — LYD Equivalent</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
-              {network !== null ? (
-                <AnimatedNumber value={network} currency="LYD" />
+              {hasConsolidatedTotal ? (
+                networkLyd != null ? (
+                  <AnimatedNumber value={networkLyd} currency="LYD" />
+                ) : (
+                  <AnimatedNumber value={networkUsd as number} currency="USD" />
+                )
               ) : (
                 <span className="text-muted-foreground text-2xl">
                   {liquidity.isLoading ? "…" : "FX/consolidated total pending"}
                 </span>
               )}
             </div>
+            {hasConsolidatedTotal && networkUsd != null && networkLyd != null && (
+              <div className="text-xs text-muted-foreground mt-1 tabular-nums">
+                ≈ {formatMinor(networkUsd, "USD")} USD
+              </div>
+            )}
+            {missingRates.length > 0 && (
+              <div className="text-xs text-amber-400 mt-1">
+                Missing FX rates for: {missingRates
+                  .map((r: any) => (typeof r === "string" ? r : `${r.from}→${r.to}`))
+                  .join(", ")}
+              </div>
+            )}
+            {import.meta.env.DEV && (
+              <div className="mt-2 rounded border border-dashed border-border/60 bg-surface-2/40 p-2 text-[10px] font-mono text-muted-foreground space-y-0.5">
+                <div>Liquidity consolidated debug:</div>
+                <div>network_total_lyd_minor: {String(networkLyd)}</div>
+                <div>network_total_usd_minor: {String(networkUsd)}</div>
+                <div>missing_rates: {JSON.stringify(missingRates)}</div>
+                <div>hasConsolidatedTotal: {String(hasConsolidatedTotal)}</div>
+              </div>
+            )}
           </div>
           <div className="flex-1 lg:basis-7/12 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => {
