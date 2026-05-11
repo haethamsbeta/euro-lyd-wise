@@ -628,3 +628,36 @@ function TestSandboxPage() {
 
 // satisfy unused import warning when ApiError isn't directly referenced
 void ApiError;
+
+function VaultCell({
+  label,
+  v,
+  onCopy,
+}: {
+  label: "Receivable" | "Payable";
+  v?: { id: string; name?: string };
+  onCopy: (s: string) => void;
+}) {
+  if (!v) {
+    return (
+      <div className="text-[11px] text-warning">
+        {label}: missing
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <span className="rounded bg-muted px-1.5 py-0.5 font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className="truncate" title={v.name}>{v.name ?? "—"}</span>
+      <span className="font-mono text-[10px] text-muted-foreground">{v.id}</span>
+      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => onCopy(v.id)} aria-label="Copy vault id">
+        <Copy className="h-3 w-3" />
+      </Button>
+      <Button asChild size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]">
+        <Link to="/app/vaults/$id" params={{ id: v.id }}>Open</Link>
+      </Button>
+    </div>
+  );
+}
