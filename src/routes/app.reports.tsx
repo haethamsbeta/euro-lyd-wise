@@ -313,6 +313,11 @@ function ReportsPage() {
 
   return (
     <>
+      <div className="px-4 pt-3 sm:px-6">
+        <div className="text-[10px] font-mono text-gold border border-[oklch(from_var(--gold)_l_c_h/0.35)] rounded px-2 py-1 w-fit">
+          REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3
+        </div>
+      </div>
       <PageHeader title="Reports & Insights" description="Analytics command center" />
       <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 pb-12">
         {/* Header */}
@@ -354,9 +359,6 @@ function ReportsPage() {
         </div>
 
         {/* TOP KPI STRIP */}
-        <div className="text-[10px] font-mono text-gold border border-[oklch(from_var(--gold)_l_c_h/0.35)] rounded px-2 py-1 w-fit">
-          REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3
-        </div>
         {isLambda && (
           <div className="text-[10px] font-mono text-text-tertiary border border-border rounded px-2 py-1">
             <div>Business overview debug:</div>
