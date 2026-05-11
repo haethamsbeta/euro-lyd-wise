@@ -34,6 +34,23 @@ export const usersApi = {
   get: (id: string) => apiFetch<AppUser>(`/users/${id}`),
   createConsumer: (body: { email: string; full_name: string; phone?: string }) =>
     apiFetch<AppUser>("/users/consumer", { method: "POST", body: JSON.stringify(body) }),
+  // POST /users — create a DAHAB Family staff member (admin only).
+  // Backend must insert an audit_log row.
+  create: (body: {
+    username: string;
+    email: string;
+    display_name: string;
+    password: string;
+    role: Exclude<AppRole, "consumer">;
+    status?: "active" | "disabled";
+    must_change_password?: boolean;
+  }) => apiFetch<AppUser>("/users", { method: "POST", body: JSON.stringify(body) }),
+  setRole: (id: string, role: Exclude<AppRole, "consumer">) =>
+    apiFetch<AppUser>(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
+  setStatus: (id: string, status: "active" | "disabled") =>
+    apiFetch<AppUser>(`/users/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  passwordReset: (id: string) =>
+    apiFetch<{ ok: true }>(`/users/${id}/password-reset`, { method: "PATCH" }),
   setRoles: (id: string, roles: AppRole[]) =>
     apiFetch<AppUser>(`/users/${id}/roles`, {
       method: "PUT",

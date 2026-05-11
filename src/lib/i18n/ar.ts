@@ -199,6 +199,7 @@ export const ar: Dict = {
   "users.grant": "منح",
   "users.granted": "تم منح الدور",
   "users.revoked": "تم سحب الدور",
+  "users.addMember": "إضافة عضو ذهب",
 
   // accounts list
   "accounts.title": "الحسابات",

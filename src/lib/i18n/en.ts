@@ -199,6 +199,7 @@ export const en = {
   "users.grant": "Grant",
   "users.granted": "Role granted",
   "users.revoked": "Role revoked",
+  "users.addMember": "Add DAHAB member",
 
   // accounts list
   "accounts.title": "Accounts",

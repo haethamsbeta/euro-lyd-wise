@@ -203,11 +203,15 @@ function UsersPage() {
             ) : null}
           </div>
           <Button asChild size="sm">
-            <Link to="/app/users/new-consumer">
-              <UserPlus className="me-1 h-4 w-4" /> Add consumer account
+            <Link to="/app/users/new">
+              <UserPlus className="me-1 h-4 w-4" /> {t("users.addMember")}
             </Link>
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          DAHAB Family portal users (admin, teller, auditor) are created here.
+          Consumer accounts are created from the Consumer Portal Accounts page.
+        </p>
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
