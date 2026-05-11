@@ -61,9 +61,34 @@ export interface CreateGroupBody {
 
 export type UpdateGroupBody = Partial<CreateGroupBody>;
 
+export interface PaginatedEnvelope<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  next_offset: number | null;
+}
+
+function normalizePaginated<T>(raw: unknown): PaginatedEnvelope<T> {
+  if (Array.isArray(raw)) {
+    return { items: raw as T[], total: raw.length, limit: raw.length, offset: 0, next_offset: null };
+  }
+  const obj = (raw ?? {}) as Partial<PaginatedEnvelope<T>>;
+  const items = Array.isArray(obj.items) ? (obj.items as T[]) : [];
+  return {
+    items,
+    total: typeof obj.total === "number" ? obj.total : items.length,
+    limit: typeof obj.limit === "number" ? obj.limit : items.length,
+    offset: typeof obj.offset === "number" ? obj.offset : 0,
+    next_offset: obj.next_offset ?? null,
+  };
+}
+
 export const groupsApi = {
-  list: (params: { q?: string; pinned?: boolean } = {}) =>
-    apiFetch<AccountGroup[]>(`/groups${qs(params)}`),
+  list: async (params: { q?: string; pinned?: boolean } = {}) => {
+    const raw = await apiFetch<unknown>(`/groups${qs(params)}`);
+    return normalizePaginated<AccountGroup>(raw);
+  },
   get: (id: string | number) => apiFetch<AccountGroup>(`/groups/${id}`),
   create: (body: CreateGroupBody) =>
     apiFetch<AccountGroup>(`/groups`, {
@@ -82,8 +107,12 @@ export const groupsApi = {
       method: "PATCH",
       body: JSON.stringify({ is_pinned }),
     }),
-  members: (id: string | number) =>
-    apiFetch<GroupMember[]>(`/groups/${id}/members`),
+  members: async (id: string | number) => {
+    const raw = await apiFetch<unknown>(`/groups/${id}/members`);
+    if (Array.isArray(raw)) return raw as GroupMember[];
+    const items = (raw as { items?: unknown })?.items;
+    return Array.isArray(items) ? (items as GroupMember[]) : [];
+  },
   addMember: (id: string | number, holder_account_id: string | number) =>
     apiFetch<{ ok: true }>(`/groups/${id}/members`, {
       method: "POST",
