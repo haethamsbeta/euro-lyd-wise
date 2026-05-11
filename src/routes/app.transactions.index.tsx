@@ -634,20 +634,20 @@ function TxList() {
                 {isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-border">
-                      <td colSpan={isAdmin ? 6 : 5} className="px-4 py-3">
+                     <td colSpan={isAdmin ? 7 : 6} className="px-4 py-3">
                         <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
                       </td>
                     </tr>
                   ))
                 ) : error ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="p-6 text-center text-destructive">
+                   <td colSpan={isAdmin ? 7 : 6} className="p-6 text-center text-destructive">
                       Failed to load transactions: {(error as Error).message}
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="p-10 text-center text-text-secondary">
+                   <td colSpan={isAdmin ? 7 : 6} className="p-10 text-center text-text-secondary">
                       No transactions match the current filters.
                     </td>
                   </tr>
