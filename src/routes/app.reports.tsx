@@ -214,7 +214,8 @@ function ReportsPage() {
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
   const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
-  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
+  const liquidityRowsRaw = Array.isArray(liquidityResp?.rows) ? liquidityResp.rows : [];
+  const liquidityHealth = liquidityRowsRaw.map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
     const breach = r.minimum_threshold_breach === true;
     const dc = r.days_of_cover;
