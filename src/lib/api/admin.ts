@@ -36,4 +36,17 @@ export const adminApi = {
         body: JSON.stringify({ is_active }),
       }),
   },
+  testFixtures: {
+    create: () =>
+      apiFetch<{
+        test_run_id: string;
+        holder: { id: string; name: string; dahab_account_number?: string };
+        holder_accounts: Array<{ id: string; currency_code: string }>;
+        vaults: Array<{ id: string; currency_code: string; name?: string }>;
+      }>("/admin/test-fixtures/e2e", { method: "POST" }),
+    cleanup: (testRunId: string) =>
+      apiFetch<{ ok: true }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}`, {
+        method: "DELETE",
+      }),
+  },
 };
