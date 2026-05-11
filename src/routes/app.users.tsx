@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -29,6 +29,9 @@ export const Route = createFileRoute("/app/users")({
 const ROLES = ["admin", "teller", "auditor", "consumer"] as const;
 
 function UsersPage() {
+  const location = useLocation();
+  if (location.pathname !== "/app/users") return <Outlet />;
+
   const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
