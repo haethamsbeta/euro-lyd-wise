@@ -504,7 +504,7 @@ function AccountListBlock({
   isReadOnly: boolean;
   isAdmin: boolean;
   isTeller?: boolean;
-  holderId: number;
+  holderId: string | number;
   highlightedAccountId: number | null;
   compact?: boolean;
 }) {

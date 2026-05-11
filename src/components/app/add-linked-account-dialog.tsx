@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +29,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/dahabApi";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 const CURRENCIES = [
   { code: "LYD", name: "Libyan Dinar", flag: "🇱🇾" },
@@ -38,32 +40,34 @@ const CURRENCIES = [
   { code: "GBP", name: "British Pound", flag: "🇬🇧" },
 ] as const;
 
-export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
+export function AddLinkedAccountDialog({
+  holderId,
+}: {
+  holderId: string | number;
+}) {
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState("USD");
   const [nature, setNature] = useState("Debit");
   const [displayName, setDisplayName] = useState("");
   const [alias, setAlias] = useState("");
   const qc = useQueryClient();
+  const showMaster = useShowMasterTools();
 
   const { data: holderInfo } = useQuery({
     queryKey: ["holder.lite", holderId],
-    enabled: open,
+    enabled: open && holderId !== undefined && holderId !== null && String(holderId) !== "" && String(holderId) !== "NaN",
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_holders")
-        .select(
-          "id,canonical_name,dahab_account_number,holder_accounts(currency_code)",
-        )
-        .eq("id", holderId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const r: any = await api.holders.get(holderId as any);
+      return {
+        canonical_name: r?.canonical_name ?? r?.holder_name ?? r?.full_name ?? "",
+        dahab_account_number: r?.dahab_account_number ?? "",
+        accounts: r?.accounts ?? r?.holder_accounts ?? [],
+      };
     },
   });
 
   const existingCurrencies = useMemo(
-    () => (holderInfo?.holder_accounts ?? []).map((a: any) => a.currency_code),
+    () => (holderInfo?.accounts ?? []).map((a: any) => a.currency_code),
     [holderInfo],
   );
   const currencyExists = existingCurrencies.includes(currency);
@@ -87,25 +91,36 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
 
   const m = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("add_account_to_holder", {
-        p_holder_id: holderId,
-        p_account: {
-          currency_code: currency,
-          account_nature: nature,
-          account_display_name: displayName.trim() || undefined,
-          account_alias_name: alias.trim() || undefined,
-          is_primary_account: false,
-        } as any,
-      });
-      if (error) throw error;
+      return await api.holders.addAccount(holderId as any, {
+        account_display_name: displayName.trim(),
+        account_alias_name: alias.trim() || undefined,
+        currency_code: currency,
+        account_nature: nature,
+        is_primary_account: false,
+      } as any);
     },
     onSuccess: () => {
-      toast.success("Linked account added");
+      toast.success("Holder account created.");
       qc.invalidateQueries({ queryKey: ["holder", holderId] });
+      qc.invalidateQueries({ queryKey: ["holder", Number(holderId)] });
+      qc.invalidateQueries({ queryKey: ["holder.lite", holderId] });
       qc.invalidateQueries({ queryKey: ["holders.list"] });
+      qc.invalidateQueries({ queryKey: ["holders.summary"] });
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       setOpen(false);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to add account"),
+    onError: (e: any) => {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
+        toast.error(
+          showMaster
+            ? `Backend endpoint pending: POST /holders/${holderId}/accounts`
+            : "Coming soon",
+        );
+        return;
+      }
+      toast.error(e?.message ?? "Failed to add account");
+    },
   });
 
   const canSubmit = displayName.trim().length >= 2 && !m.isPending;
@@ -143,7 +158,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
         </DialogHeader>
 
         <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5">
-          {/* Holder context strip */}
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4">
             <div className="min-w-0">
               <div className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
@@ -177,7 +191,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
             </div>
           </div>
 
-          {/* Currency picker */}
           <div>
             <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Currency
@@ -228,7 +241,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
             )}
           </div>
 
-          {/* Auto-generated number preview */}
           <div className="rounded-xl border border-gold/25 bg-muted/30 p-4">
             <div className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
               Auto-generated account number
@@ -241,7 +253,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
             </p>
           </div>
 
-          {/* Nature */}
           <div>
             <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Account nature
@@ -257,7 +268,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
             </Select>
           </div>
 
-          {/* Display name */}
           <div>
             <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Display name *
@@ -273,7 +283,6 @@ export function AddLinkedAccountDialog({ holderId }: { holderId: number }) {
             </p>
           </div>
 
-          {/* Alias */}
           <div>
             <Label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Alias (optional)
