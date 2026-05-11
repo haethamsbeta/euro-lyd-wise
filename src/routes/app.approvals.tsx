@@ -40,6 +40,8 @@ function Approvals() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [partialTarget, setPartialTarget] = useState<any | null>(null);
   const [partialAmount, setPartialAmount] = useState("");
+  const [partialReason, setPartialReason] = useState("Approved with modified amount.");
+  const [modifiedEndpointPending, setModifiedEndpointPending] = useState(false);
   const PAGE = 100;
   const [offset, setOffset] = useState(0);
   const [acc, setAcc] = useState<any[]>([]);
@@ -99,22 +101,57 @@ function Approvals() {
   const pending = isPendingError(error);
   const rows = acc;
   const isLambda = DATA_BACKEND === "lambda";
-  const writesDisabled = isLambda; // POST endpoints not confirmed live yet
+  const writesDisabled = false; // POST /approvals/:id/approve and /reject are live
   const approve = useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount?: number }) => {
-      const { error } = await supabase.rpc("approve_transaction", {
-        p_tx_id: id,
-        ...(amount != null ? { p_approved_amount_minor: amount } : {}),
-      } as any);
+    mutationFn: async ({ id }: { id: string }) => {
+      if (isLambda) {
+        await api.approvals.approve(id);
+        return;
+      }
+      const { error } = await supabase.rpc("approve_transaction", { p_tx_id: id } as any);
       if (error) throw error;
     },
     onMutate: ({ id }) => setBusyId(id),
     onSettled: () => setBusyId(null),
-    onSuccess: () => { toast.success(t("approvals.approved")); invalidate(); setPartialTarget(null); setPartialAmount(""); },
+    onSuccess: () => { toast.success(t("approvals.approved")); invalidate(); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to approve"),
+  });
+  const approveModified = useMutation({
+    mutationFn: async ({ id, amount, reason }: { id: string; amount: number; reason: string }) => {
+      if (!isLambda) {
+        const { error } = await supabase.rpc("approve_transaction", {
+          p_tx_id: id,
+          p_approved_amount_minor: amount,
+        } as any);
+        if (error) throw error;
+        return;
+      }
+      await api.approvals.approveModified(id, amount, reason);
+    },
+    onMutate: ({ id }) => setBusyId(id),
+    onSettled: () => setBusyId(null),
+    onSuccess: () => {
+      toast.success("Transaction approved with modified amount.");
+      invalidate();
+      setPartialTarget(null);
+      setPartialAmount("");
+      setPartialReason("Approved with modified amount.");
+    },
+    onError: (e: any) => {
+      if (isPendingError(e)) {
+        setModifiedEndpointPending(true);
+        toast.error("Backend endpoint pending: POST /approvals/:id/approve-modified");
+      } else {
+        toast.error(e?.message ?? "Failed to approve modified amount");
+      }
+    },
   });
   const reject = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      if (isLambda) {
+        await api.approvals.reject(id, reason);
+        return;
+      }
       const { error } = await supabase.rpc("reject_transaction", { p_tx_id: id, p_reason: reason });
       if (error) throw error;
     },
