@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ApiError } from "@/lib/dahabApi";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 export function isPendingError(err: unknown): boolean {
   return err instanceof ApiError && (err.status === 404 || err.status === 501);
@@ -14,6 +15,21 @@ export function BackendPending({
   note?: string;
   className?: string;
 }) {
+  const showMaster = useShowMasterTools();
+  if (!showMaster) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-6">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Coming soon
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This section is coming soon.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card className={className}>
       <CardContent className="p-6">

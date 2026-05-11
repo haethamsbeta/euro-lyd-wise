@@ -27,6 +27,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { BackendPending } from "@/components/app/backend-pending";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
@@ -289,6 +290,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
   const totals = useTotals(data);
   const { data: dashSummary } = useDashboardSummary();
   const isLambda = DATA_BACKEND === "lambda";
+  const showMasterTools = useShowMasterTools();
 
   // Source-of-truth currency cash vault balances (net of receivable+payable
   // per currency). Backend already returns the net — never sum or subtract
@@ -373,7 +375,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
                   .join(", ")}
               </div>
             )}
-            {import.meta.env.DEV && (
+            {showMasterTools && (
               <div className="mt-2 rounded border border-dashed border-border/60 bg-surface-2/40 p-2 text-[10px] font-mono text-muted-foreground space-y-0.5">
                 <div>Liquidity consolidated debug:</div>
                 <div>network_total_lyd_minor: {String(networkLyd)}</div>

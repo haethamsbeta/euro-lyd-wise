@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
+import { useShowMasterTools } from "@/lib/admin-mode";
 import { formatMinor } from "@/lib/format";
 import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
 import { displayCurrency } from "@/lib/api/reports";
@@ -98,6 +99,7 @@ function ReportsPage() {
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
   const isLambda = DATA_BACKEND === "lambda";
+  const showMasterTools = useShowMasterTools();
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
   const businessOverview = overview ?? ({} as NonNullable<typeof overview>);
@@ -273,7 +275,7 @@ function ReportsPage() {
   const typologyRows = Array.isArray(compliance?.typology) ? compliance.typology : [];
   const alertVolumeDaily = Array.isArray(compliance?.alert_volume) ? compliance.alert_volume : [];
   const riskTypology = typologyRows.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && showMasterTools) {
     // Temporary preview debugging — remove once Reports stability is confirmed.
     // eslint-disable-next-line no-console
     console.log("[reports endpoint status]", {
@@ -346,11 +348,13 @@ function ReportsPage() {
 
   return (
     <>
-      <div className="px-4 pt-3 sm:px-6">
-        <div className="text-[10px] font-mono text-gold border border-[oklch(from_var(--gold)_l_c_h/0.35)] rounded px-2 py-1 w-fit">
-          REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3
+      {showMasterTools && (
+        <div className="px-4 pt-3 sm:px-6">
+          <div className="text-[10px] font-mono text-gold border border-[oklch(from_var(--gold)_l_c_h/0.35)] rounded px-2 py-1 w-fit">
+            REPORTS COMPONENT VERSION: LIVE-LAMBDA-REPORTS-V3
+          </div>
         </div>
-      </div>
+      )}
       <PageHeader title="Reports & Insights" description="Analytics command center" />
       <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 pb-12">
         {/* Header */}
@@ -392,7 +396,7 @@ function ReportsPage() {
         </div>
 
         {/* TOP KPI STRIP */}
-        {isLambda && (
+        {isLambda && showMasterTools && (
           <div className="text-[10px] font-mono text-text-tertiary border border-border rounded px-2 py-1">
             <div>Business overview debug:</div>
             <div>businessOverview keys: {Object.keys(businessOverview || {}).join(", ")}</div>

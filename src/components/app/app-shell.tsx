@@ -19,6 +19,12 @@ import { GlobalSearch } from "@/components/app/global-search";
 import { useRoleView } from "@/lib/role-view";
 import { RoleViewSwitcher } from "@/components/app/role-view-switcher";
 import {
+  useIsRealMasterAdmin,
+  useMasterPreviewAsRegular,
+  setMasterPreviewAsRegular,
+  useMasterPreviewGuard,
+} from "@/lib/admin-mode";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -68,6 +74,9 @@ const RAISED_PATH = "/app/transactions/new";
 export function AppShell() {
   const { session, roles, loading, rolesLoading, signOut, user } = useAuth();
   const { effectiveRoles, isPreviewing, viewAs, setViewAs } = useRoleView();
+  const isRealMaster = useIsRealMasterAdmin();
+  const masterPreviewAsRegular = useMasterPreviewAsRegular();
+  useMasterPreviewGuard();
   const nav = useNavigate();
   const location = useLocation();
   const t = useT();
@@ -273,6 +282,23 @@ export function AppShell() {
                 <button
                   type="button"
                   onClick={() => setViewAs(null)}
+                  className="rounded-md border border-gold/40 bg-gold/15 px-2.5 py-1 font-medium text-gold transition-colors hover:bg-gold/25"
+                >
+                  Exit preview
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isRealMaster && masterPreviewAsRegular && (
+            <div className="border-b border-gold/30 bg-gold/10">
+              <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3 px-4 py-2 text-xs sm:px-6">
+                <span className="text-gold">
+                  Previewing as Regular Admin — master debug and test tools are hidden.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMasterPreviewAsRegular(false)}
                   className="rounded-md border border-gold/40 bg-gold/15 px-2.5 py-1 font-medium text-gold transition-colors hover:bg-gold/25"
                 >
                   Exit preview
