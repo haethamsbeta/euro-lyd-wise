@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FlaskConical, Trash2, Play, Loader2 } from "lucide-react";
+import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,13 @@ function TestSandboxPage() {
   const [bigAmount, setBigAmount] = useState("999999999"); // designed to exceed limits
   const [log, setLog] = useState<LogRow[]>([]);
 
+  const fixturesQuery = useQuery({
+    queryKey: ["admin", "test-fixtures"],
+    queryFn: () => api.admin.testFixtures.list(),
+    enabled: showMaster,
+    retry: false,
+  });
+
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
   }, [showMaster, nav]);
@@ -105,6 +113,7 @@ function TestSandboxPage() {
       persist(data);
       appendLog({ action: "Create fixture", status: "ok", detail: `test_run_id=${data.test_run_id}` });
       toast.success("Test fixture created");
+      fixturesQuery.refetch();
     } catch (e) {
       handleError("Create fixture", e, "POST /admin/test-fixtures/e2e");
     } finally {
@@ -120,10 +129,35 @@ function TestSandboxPage() {
       appendLog({ action: "Cleanup fixture", status: "ok", detail: fixture.test_run_id });
       persist(null);
       toast.success("Test fixture removed");
+      fixturesQuery.refetch();
     } catch (e) {
       handleError("Cleanup fixture", e, `DELETE /admin/test-fixtures/${fixture.test_run_id}`);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function deleteFixtureById(testRunId: string) {
+    setBusy(`del-${testRunId}`);
+    try {
+      await api.admin.testFixtures.cleanup(testRunId);
+      appendLog({ action: "Delete fixture", status: "ok", detail: testRunId });
+      toast.success("Fixture deleted");
+      if (fixture?.test_run_id === testRunId) persist(null);
+      fixturesQuery.refetch();
+    } catch (e) {
+      handleError("Delete fixture", e, `DELETE /admin/test-fixtures/${testRunId}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied");
+    } catch {
+      toast.error("Copy failed");
     }
   }
 
