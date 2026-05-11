@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
@@ -197,6 +199,31 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
 
   const post = useMutation({
     mutationFn: async () => {
+      // Cash-only routing: pick the matching cash receivable / payable vault
+      // for the selected currency. Bank vaults are not provisioned yet.
+      if (!cashVaultId) {
+        throw new Error("Cash vault for this currency is not configured.");
+      }
+      if (channel !== "cash") {
+        throw new Error("Only cash transactions are enabled in this phase.");
+      }
+      if (DATA_BACKEND === "lambda") {
+        const tx = await api.transactions.postCash({
+          holder_account_id: picked!.holder_account_id,
+          direction: type!,
+          channel: "cash",
+          transaction_category: "cash",
+          amount: amountMinor!,
+          currency_code: currency,
+          vault_account_id: cashVaultId,
+          comment: trimmedComment,
+          idempotency_key:
+            (typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+        });
+        return tx as any;
+      }
       const { data: bridgedId, error: bridgeErr } = await supabase.rpc(
         "ensure_customer_account_for_holder_account",
         { p_holder_account_id: picked!.holder_account_id },
