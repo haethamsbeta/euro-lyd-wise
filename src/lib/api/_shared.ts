@@ -18,3 +18,18 @@ export function qs(params: Record<string, string | number | boolean | undefined 
   const s = usp.toString();
   return s ? `?${s}` : "";
 }
+
+/**
+ * Returns true when a row originates from the Test Sandbox fixture pipeline
+ * (is_test=true, source_system=DAHAB_TEST, or has a test_run_id). Used to
+ * defensively hide sandbox rows from production lists, totals, and the
+ * production transaction wizard. The Test Sandbox page itself bypasses this.
+ */
+export function isTestRow(r: any): boolean {
+  if (!r || typeof r !== "object") return false;
+  return (
+    r.is_test === true ||
+    r.source_system === "DAHAB_TEST" ||
+    !!r.test_run_id
+  );
+}
