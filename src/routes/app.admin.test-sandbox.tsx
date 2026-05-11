@@ -399,6 +399,11 @@ function TestSandboxPage() {
                           {f.account_count} account{f.account_count === 1 ? "" : "s"}
                         </span>
                       )}
+                      {typeof f.vault_count === "number" && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          · {f.vault_count} vault{f.vault_count === 1 ? "" : "s"}
+                        </span>
+                      )}
                     </div>
                     <div className="font-mono text-[10px] text-muted-foreground">
                       holder: {f.holder_id}
@@ -409,6 +414,49 @@ function TestSandboxPage() {
                       <Link to="/app/holders/$id" params={{ id: f.holder_id }}>
                         <ExternalLink /> Open holder
                       </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyText(f.test_run_id)}
+                      title="Copy test_run_id"
+                    >
+                      <Copy /> Copy ID
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      title={
+                        fixture?.test_run_id === f.test_run_id
+                          ? "Run a test deposit using this fixture"
+                          : "Active fixture must match this row"
+                      }
+                      onClick={() =>
+                        runFromFixtureRow(f, "deposit", Number(normalAmount), "posted", "Cash deposit")
+                      }
+                    >
+                      <ArrowDownToLine /> Deposit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      onClick={() =>
+                        runFromFixtureRow(f, "withdraw", Number(normalAmount), "posted", "Cash withdrawal")
+                      }
+                    >
+                      <ArrowUpFromLine /> Withdraw
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy !== null || fixture?.test_run_id !== f.test_run_id}
+                      onClick={() =>
+                        runFromFixtureRow(f, "withdraw", Number(bigAmount), "pending", "Pending approval")
+                      }
+                    >
+                      <Play /> Pending
                     </Button>
                     <Button
                       size="sm"
