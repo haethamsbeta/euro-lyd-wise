@@ -504,7 +504,7 @@ function AccountListBlock({
   isReadOnly: boolean;
   isAdmin: boolean;
   isTeller?: boolean;
-  holderId: number;
+  holderId: string | number;
   highlightedAccountId: number | null;
   compact?: boolean;
 }) {
@@ -514,7 +514,7 @@ function AccountListBlock({
         <h2 className="font-serif text-lg font-semibold">
           Linked Accounts <span className="text-xs text-muted-foreground">({accounts.length} loaded)</span>
         </h2>
-        {!isReadOnly && isAdmin && <AddLinkedAccountDialog holderId={id} />}
+        {!isReadOnly && isAdmin && <AddLinkedAccountDialog holderId={holderId} />}
       </div>
       <div className="space-y-3">
         {accounts.length === 0 ? (
