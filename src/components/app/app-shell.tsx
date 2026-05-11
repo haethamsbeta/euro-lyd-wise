@@ -124,7 +124,12 @@ export function AppShell() {
   }
 
   // Nav and visibility react to the previewed role.
-  const visibleNav = NAV.filter((i) => hasAnyRole(effectiveRoles, i.roles));
+  const showMasterTools = isRealMaster && !masterPreviewAsRegular;
+  const visibleNav = NAV.filter(
+    (i) =>
+      hasAnyRole(effectiveRoles, i.roles) &&
+      (i.to.startsWith("/app/admin/test-sandbox") ? showMasterTools : true),
+  );
 
   // Full nav list lives in the More drawer. Bottom dock owns primary navigation.
   const overflowNav = visibleNav;
