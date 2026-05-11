@@ -1,72 +1,120 @@
-# Master Admin Test Sandbox
+## Test Sandbox Phase 2 — Isolation Hardening
 
-A new Master Admin-only page for end-to-end test fixtures, gated behind `useShowMasterTools()` (real master + not previewing as regular). Lambda only — no Supabase, no mocks.
+Backend now returns `vaults[]` with 8 entries per fixture (LYD/USD/EUR/GBP × cash_receivable/cash_payable). Wire the sandbox to use them, enforce strict pairing between test holder accounts and test vaults, and ensure test data never bleeds into production views.
 
-## 1. API adapter
+### 1. API types (`src/lib/api/admin.ts`)
 
-Extend `src/lib/api/admin.ts` with a `testFixtures` namespace:
+Extend `testFixtures.create` and `testFixtures.list` return types so each vault includes `internal_role: "cash_receivable" | "cash_payable"`, `currency_code`, `is_test`, `test_run_id`, `source_system`. Add `vault_count` to list rows. Holder accounts get `is_test`, `test_run_id`, `source_system` too.
 
-- `create()` → `POST /admin/test-fixtures/e2e` returns
-  `{ test_run_id, holder: {id, name, dahab_account_number}, holder_accounts: [{id, currency_code}], vaults: [{id, currency_code, name}] }`
-- `cleanup(testRunId)` → `DELETE /admin/test-fixtures/:testRunId`
+### 2. Sandbox page (`src/routes/app.admin.test-sandbox.tsx`)
 
-Use real currency codes only: LYD, USD, EUR, GBP. No client-side fixture generation — backend owns shape.
+- Replace `findPair(currency)` with `findReceivable(currency)` and `findPayable(currency)`, both filtered by `internal_role`, `currency_code`, AND `test_run_id === fixture.test_run_id`.
+- Deposit → receivable vault id. Withdrawal & pending-approval → payable vault id.
+- Disable each transaction button when its required vault is missing. Inline warning "Test vaults required before running transactions." when fixture lacks all 8 expected vaults.
+- Group "Test cash vaults" in fixture details by currency, two columns (Receivable / Payable), each with id + copy button.
+- Existing Fixtures list: `account_count` and `vault_count` badges; per-row inline actions: Open Holder, Copy Test Run ID, Run Test Deposit, Run Test Withdrawal, Run Pending Approval Test, Delete Fixture. Run actions hydrate the active fixture from the row first.
+- Hard guard before every `transactions.postCash`: refuse if `holder_account.is_test !== true`, vault `is_test !== true`, or `vault.test_run_id !== fixture.test_run_id` — surfaces a toast and aborts.
 
-## 2. Route
+### 3. Strict isolation rule (enforced both ways)
 
-New file `src/routes/app.admin.test-sandbox.tsx`:
+Add a tiny `assertSandboxPair(holderAccount, vault, fixture)` helper inside the sandbox file that throws unless all three carry the same `test_run_id` and both `is_test === true`. This means:
 
-- Route: `/app/admin/test-sandbox`
-- Component guard: redirect to `/app` if `!useShowMasterTools()`. Render nothing while auth still loading.
-- Section header: "Test Sandbox" with subtitle explaining `is_test=true / source_system=DAHAB_TEST` markers.
+- Test holder accounts can ONLY transact with test vaults from the same `test_run_id` (sandbox enforces it; backend should too).
+- Production holder accounts cannot reach test vaults — they're never exposed in the production transaction wizard (see step 4 filter).
+- Sandbox cannot accidentally point at a production vault — the dropdown sources strictly from `fixture.vaults`.
 
-### Layout (single page, three cards)
+### 4. Production isolation (filter test rows out of normal views)
 
-**Card 1 — Fixture lifecycle**
-- Button: "Create E2E Test Fixture" → `api.admin.testFixtures.create()`
-- Stores response in local state + `sessionStorage` key `dahab.testFixture` so reload preserves it.
-- Button: "Cleanup Fixture" (destructive) — disabled until fixture exists, calls cleanup then clears state.
-- Shows toast with backend `message` (success and error) verbatim.
+Add `isTestRow(r)` helper in `src/lib/api/_shared.ts`:
+`r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id`
 
-**Card 2 — Fixture details** (visible after creation)
-- Test Holder row: name + dahab number + "Open Test Holder" link → `/app/holders/$id`
-- Linked Test Accounts: list each `{currency_code, id}` with "Open" → `/app/accounts/$id`
-- Test Cash Vaults: list each `{currency_code, name, id}` with "Open" → `/app/vaults/$id`
-- Display `test_run_id` as monospace chip.
+Apply client-side filtering (defensive — backend should also exclude) in:
 
-**Card 3 — Transaction tests** (visible after creation)
-Currency selector (LYD/USD/EUR/GBP) + amount input. Three actions, each posts via `api.transactions.postCash` using the fixture's holder account + vault for the chosen currency:
+- `src/routes/app.vaults.index.tsx` — drop test vaults from the grid and from any client-side totals.
+- `src/routes/app.vaults.$id.tsx` — if the loaded vault is a test vault and viewer isn't Master Admin, redirect to `/app/vaults`.
+- `src/routes/app.accounts.index.tsx` — drop test holder accounts.
+- `src/routes/app.holders.index.tsx` — drop test holders.
+- `src/routes/app.transactions.index.tsx` — drop test transactions from the list.
+- `src/routes/app.reports.tsx` and any dashboard widget that iterates client-side vault/account/transaction arrays — apply filter before rendering or summing.
+- `src/components/app/new-transaction-wizard.tsx` — exclude test holder accounts and test vaults from selectable options so production flows can never target sandbox data.
 
-1. "Run Test Cash Deposit" — direction `deposit`, normal amount, expects `status=posted`.
-2. "Run Test Cash Withdrawal" — direction `withdraw`, normal amount, expects `status=posted`.
-3. "Run Pending Approval Test" — withdrawal with deliberately large amount (e.g. 10× current balance or hard-coded high value, configurable input), expects backend to return `status=pending`. Show actual returned status, mark pass/fail by comparing to expected.
+Server-aggregated metrics (dashboard `cash_by_currency`, liquidity, consolidated totals) are backend-owned — frontend will NOT recompute. Plan note: backend must also exclude `is_test=true` from production aggregates; frontend cannot fix server math.
 
-Each action appends to an in-page "Test results" log (timestamp, action, returned txn id, status, message). No mock data — only backend response shown.
+Master Admin keeps full visibility ONLY inside `/app/admin/test-sandbox`. Everywhere else (including when a Master Admin browses vaults/holders/transactions normally), test rows are hidden so production views stay clean.
 
-## 3. Navigation entry
+### 5. Visibility / role gating
 
-In `src/components/app/app-shell.tsx`:
-- Add nav item `{ to: "/app/admin/test-sandbox", labelKey: "nav.testSandbox", icon: FlaskConical, roles: ["admin"] }`.
-- Filter NAV with extra predicate: items whose `to` starts with `/app/admin/test-sandbox` only render when `useShowMasterTools()` is true (regular admins and preview-as-regular masters won't see it).
-- Add i18n key `nav.testSandbox: "Test Sandbox"` in both `src/lib/i18n/en.ts` and `ar.ts`.
+No changes to `useShowMasterTools()`, route gate, or nav — already correct. `RoleGate` on vault/holder pages unchanged. The `isTestRow` filter is role-independent and applies to everyone outside the sandbox.
 
-## 4. Error handling
+### 6. Out of scope
 
-Wrap every Lambda call with try/catch:
-- On `ApiError` 404/501: show `<BackendPending>` block inline (Master Admin only sees this page anyway, so always show technical detail with endpoint name).
-- Other errors: toast with backend `message`.
-- Success: toast with backend `message`.
+- No new backend endpoints beyond the existing `testFixtures` namespace.
+- No Supabase reads/writes.
+- No fake currencies; only LYD/USD/EUR/GBP.
+- No edits to `src/integrations/supabase/*` or auto-generated files.
 
-## 5. Out of scope
+### Files touched
 
-- No Supabase fallback.
-- No client-side currency invention.
-- No changes to regular admin UI.
-- No backend changes (endpoints assumed live per request).
+- `src/lib/api/admin.ts` — extend types, add `vault_count`.
+- `src/lib/api/_shared.ts` — add `isTestRow` helper.
+- `src/routes/app.admin.test-sandbox.tsx` — receivable/payable routing, per-row actions, strict assert.
+- `src/routes/app.vaults.index.tsx`, `app.vaults.$id.tsx`, `app.accounts.index.tsx`, `app.holders.index.tsx`, `app.transactions.index.tsx`, `app.reports.tsx` — filter test rows.
+- `src/components/app/new-transaction-wizard.tsx` — exclude test holders/vaults from production transaction options.
 
-## Files
+&nbsp;
 
-- new `src/routes/app.admin.test-sandbox.tsx`
-- edit `src/lib/api/admin.ts` (add `testFixtures`)
-- edit `src/components/app/app-shell.tsx` (gated nav entry)
-- edit `src/lib/i18n/en.ts`, `src/lib/i18n/ar.ts` (label)
+Reinforce Test Sandbox isolation and display rules.
+
+Test Sandbox transactions must affect only:
+
+- the selected test holder account
+
+- the matching test cash vault from the same test_run_id
+
+- test transaction rows
+
+They must never affect:
+
+- production holder accounts
+
+- production cash vaults
+
+- production dashboard metrics
+
+- production liquidity/consolidated totals
+
+- production reports
+
+Frontend must use only vault IDs returned inside fixture.vaults[].
+
+If the selected holder account is test data:
+
+- only show test vaults from the same test_run_id
+
+- never show production vaults
+
+If the selected holder account is production data:
+
+- never show test vaults
+
+Display test accounts clearly:
+
+- show a TEST badge
+
+- show test_run_id
+
+- show source_system = DAHAB_TEST
+
+- visually separate test accounts/vaults from production data
+
+Preferred test account number format:
+
+- holder accounts: TST-H-{CURRENCY}-{sequence}
+
+- vault accounts: TST-V-{CURRENCY}-RCV-{sequence} or TST-V-{CURRENCY}-PAY-{sequence}
+
+Keep Test Sandbox visible only to:
+
+currentUser.role === "admin" && [currentUser.is](http://currentUser.is)_master_admin === true
+
+Hide all test data from regular admin, teller, auditor, and consumer screens.
