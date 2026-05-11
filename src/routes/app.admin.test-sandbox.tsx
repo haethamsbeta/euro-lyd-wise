@@ -30,9 +30,31 @@ type Currency = (typeof REAL_CURRENCIES)[number];
 
 type Fixture = {
   test_run_id: string;
-  holder: { id: string; name: string; dahab_account_number?: string };
-  holder_accounts: Array<{ id: string; currency_code: string }>;
-  vaults: Array<{ id: string; currency_code: string; name?: string }>;
+  holder: {
+    id: string;
+    name: string;
+    dahab_account_number?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  };
+  holder_accounts: Array<{
+    id: string;
+    currency_code: string;
+    account_number?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  }>;
+  vaults: Array<{
+    id: string;
+    currency_code: string;
+    name?: string;
+    internal_role?: string;
+    is_test?: boolean;
+    test_run_id?: string;
+    source_system?: string;
+  }>;
 };
 
 type LogRow = {
@@ -47,6 +69,13 @@ const STORAGE_KEY = "dahab.testFixture";
 function uuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isReceivable(role?: string) {
+  return String(role ?? "").toLowerCase().includes("receiv");
+}
+function isPayable(role?: string) {
+  return String(role ?? "").toLowerCase().includes("pay");
 }
 
 function TestSandboxPage() {
