@@ -268,7 +268,27 @@ function ReportsPage() {
     Structuring: "#F59E0B", "High-Value Cash": "#EF4444",
     Velocity: "#8B5CF6", "Watchlist Match": "#EC4899",
   };
-  const riskTypology = compliance.typology.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
+  const typologyRows = Array.isArray(compliance?.typology) ? compliance.typology : [];
+  const alertVolumeDaily = Array.isArray(compliance?.alert_volume) ? compliance.alert_volume : [];
+  const riskTypology = typologyRows.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
+  if (typeof window !== "undefined") {
+    // Temporary preview debugging — remove once Reports stability is confirmed.
+    // eslint-disable-next-line no-console
+    console.log("[reports endpoint status]", {
+      businessOverviewKeys: Object.keys(businessOverview || {}),
+      dailyVolume7d: dailyVolume7dRows.length,
+      currencyDistribution: currencyDistributionRows.length,
+      topAccounts: topAccounts.length,
+      cashFlowRows: cashFlowRows.length,
+      hourlyRows: Array.isArray(hourlyTraffic) ? hourlyTraffic.length : 0,
+      liquidityRows: liquidityRowsRaw.length,
+      tellerRows: tellerRowsRaw.length,
+      complianceAlertRows: alertVolumeDaily.length,
+      complianceRiskRows: typologyRows.length,
+      processingRows: processingRows.length,
+      rejectionRows: errorRateTrend.length,
+    });
+  }
 
   // KPI strip — every cell sources from a real backend field. When a field
   // is null/missing the cell renders "—" with `Backend pending` subtext.
