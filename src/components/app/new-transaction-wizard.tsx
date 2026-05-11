@@ -1221,14 +1221,17 @@ function DetailsStep({
 }
 
 function ReviewStep({
-  type, picked, channel, currency, amountMinor, comment, willPend, canViewBalances, onEdit,
+  type, picked, channel, currency, amountMinor, comment, willPend, canViewBalances, cashVaultName, onEdit,
 }: {
   type: Direction; picked: HolderCardHit; channel: Channel; currency: Currency;
   amountMinor: number; comment: string; willPend: boolean; canViewBalances: boolean;
+  cashVaultName: string | null;
   onEdit: (k: StepKey) => void;
 }) {
   const isDeposit = type === "deposit";
   const sign = isDeposit ? "+" : "−";
+  const vaultLabel = cashVaultName ?? (isDeposit ? `Cash Receivable ${currency}` : `Cash Payable ${currency}`);
+  const amountStr = `${formatMinor(amountMinor, currency)} ${currency}`;
   return (
     <div className="space-y-5">
       <div className="relative overflow-hidden rounded-2xl border border-gold/30 bg-gradient-to-br from-card via-card to-gold/5 p-7 text-center shadow-gold">
@@ -1264,6 +1267,50 @@ function ReviewStep({
         {canViewBalances && (
           <ReviewRow label="Balance after" value={formatMinor(isDeposit ? picked.balance_minor + amountMinor : picked.balance_minor - amountMinor, currency)} mono last />
         )}
+      </div>
+
+      <div className="rounded-2xl border border-gold/20 bg-surface-2/40 p-4 text-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-gold">
+          Ledger impact preview
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          This cash transaction will create two ledger effects:
+        </p>
+        <ol className="mt-2 list-decimal space-y-1 ps-5 text-xs text-muted-foreground">
+          <li>
+            <span className="text-foreground">Holder account ledger:</span> the
+            selected holder account will be updated by the transaction amount.
+          </li>
+          <li>
+            <span className="text-foreground">Cash vault ledger:</span> the
+            matching official cash vault account for this currency will be
+            updated.
+          </li>
+        </ol>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          For cash deposits, the holder account increases and the Cash
+          Receivable vault increases. For cash withdrawals, the holder account
+          decreases and the Cash Payable vault decreases.
+        </p>
+
+        <div className="mt-4 grid gap-2 rounded-xl border border-gold/15 bg-card/60 p-3 font-mono text-[12px]">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Holder account</span>
+            <span className={cn("tabular-nums", isDeposit ? "text-emerald-400" : "text-red-400")}>
+              {sign}{amountStr}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Cash vault</span>
+            <span className={cn("tabular-nums", isDeposit ? "text-emerald-400" : "text-red-400")}>
+              {sign}{amountStr}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Vault</span>
+            <span className="truncate text-foreground">{vaultLabel}</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-3 rounded-2xl border border-gold/10 bg-surface-2/50 p-4 text-xs text-muted-foreground">
