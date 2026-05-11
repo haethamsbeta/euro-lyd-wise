@@ -382,6 +382,14 @@ function WithdrawLimitsCard({ account, utilPct, utilTone }: { account: any; util
 
   const save = useMutation({
     mutationFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const env = await api.accounts.setWithdrawLimit(account.id, {
+          withdraw_limit_enabled: enabled,
+          withdraw_limit_amount: enabled ? Number(amount) || 0 : null,
+          ...(note ? { withdraw_limit_note: note } : {}),
+        });
+        return env;
+      }
       const { error } = await supabase.rpc("sp_set_holder_withdraw_limit", {
         p_holder_account_id: account.id,
         p_enabled: enabled,
@@ -389,10 +397,13 @@ function WithdrawLimitsCard({ account, utilPct, utilTone }: { account: any; util
         p_note: note || undefined,
       });
       if (error) throw error;
+      return null;
     },
-    onSuccess: () => {
-      toast.success("Withdrawal limit updated", { duration: 2500 });
+    onSuccess: (res: any) => {
+      toast.success(res?.message ?? "Withdrawal limit updated", { duration: 2500 });
       qc.invalidateQueries({ queryKey: ["account.detail", account.id] });
+      qc.invalidateQueries({ queryKey: ["accounts.list"] });
+      qc.invalidateQueries({ queryKey: ["holder.detail"] });
       setEditing(false); setNote("");
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed", { duration: 2500 }),
