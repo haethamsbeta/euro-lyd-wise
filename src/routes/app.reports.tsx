@@ -100,15 +100,22 @@ function ReportsPage() {
   const isLambda = DATA_BACKEND === "lambda";
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
-  const businessOverview = overview;
-  const dailyVolume7dRows = businessOverview?.daily_volume_7d ?? [];
-  const currencyDistributionRows =
-    businessOverview?.currency_distribution ?? [];
-  const customerGrowth7mRows =
-    businessOverview?.customer_growth_7m ?? [];
-  const topAccounts = businessOverview?.top_accounts ?? [];
-  const volumeByCurrency30d =
-    businessOverview?.volume_by_currency_30d ?? [];
+  const businessOverview = overview ?? ({} as NonNullable<typeof overview>);
+  const dailyVolume7dRows = Array.isArray(businessOverview?.daily_volume_7d)
+    ? businessOverview.daily_volume_7d!
+    : [];
+  const currencyDistributionRows = Array.isArray(businessOverview?.currency_distribution)
+    ? businessOverview.currency_distribution!
+    : [];
+  const customerGrowth7mRows = Array.isArray(businessOverview?.customer_growth_7m)
+    ? businessOverview.customer_growth_7m!
+    : [];
+  const topAccounts = Array.isArray(businessOverview?.top_accounts)
+    ? businessOverview.top_accounts!
+    : [];
+  const volumeByCurrency30d = Array.isArray(businessOverview?.volume_by_currency_30d)
+    ? businessOverview.volume_by_currency_30d!
+    : [];
   const hasOverviewPayload = Boolean(
     businessOverview?.counts ||
       dailyVolume7dRows.length > 0 ||
@@ -186,11 +193,12 @@ function ReportsPage() {
       volume_minor: number;
     }>,
   );
-  const CASH_FLOW_CCY = cashFlowApi.some((r) => r.currency_code === "LYD")
+  const cashFlowRows = Array.isArray(cashFlowApi) ? cashFlowApi : [];
+  const CASH_FLOW_CCY = cashFlowRows.some((r) => r.currency_code === "LYD")
     ? "LYD"
-    : (cashFlowApi[0]?.currency_code ?? "LYD");
+    : (cashFlowRows[0]?.currency_code ?? "LYD");
   const cashFlowByDay = new Map<string, { deposits_minor: number; withdrawals_minor: number }>();
-  for (const r of cashFlowApi) {
+  for (const r of cashFlowRows) {
     if (r.currency_code !== CASH_FLOW_CCY) continue;
     const cur = cashFlowByDay.get(r.day) ?? { deposits_minor: 0, withdrawals_minor: 0 };
     if (r.direction === "deposit") cur.deposits_minor += Number(r.volume_minor || 0);
@@ -206,7 +214,8 @@ function ReportsPage() {
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
   const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
-  const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
+  const liquidityRowsRaw = Array.isArray(liquidityResp?.rows) ? liquidityResp.rows : [];
+  const liquidityHealth = liquidityRowsRaw.map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
     const breach = r.minimum_threshold_breach === true;
     const dc = r.days_of_cover;
@@ -226,18 +235,20 @@ function ReportsPage() {
       health,
     };
   });
-  const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
+  const liquidityNetwork = liquidityResp?.network_total_lyd_minor ?? null;
   const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
-  const tellers = tellersApi.map((t: any) => ({
+  const tellerRowsRaw = Array.isArray(tellersApi) ? tellersApi : [];
+  const tellers = tellerRowsRaw.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
     txnsToday: t.txns_today, volumeToday: t.volume_today_minor / 100,
     avgValue: t.avg_value_minor / 100, accuracy: t.accuracy_pct,
     avgTime: t.avg_time_seconds / 60, rank: t.rank,
-    trend: t.trend ?? [], streak: t.streak_days,
+    trend: Array.isArray(t.trend) ? t.trend : [], streak: t.streak_days,
   }));
   const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => reportsApi.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
+  const processingRows = Array.isArray(processingTimeDist) ? processingTimeDist : [];
   const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => reportsApi.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
-  const errorRateTrend = errorRateApi.map((r) => ({ d: r.d, rate: r.rate_pct }));
+  const errorRateTrend = (Array.isArray(errorRateApi) ? errorRateApi : []).map((r) => ({ d: r.d, rate: r.rate_pct }));
   const { data: compliance } = useReportFeed<ComplianceOverview>("compliance-overview", () => reportsApi.complianceOverview(), {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
@@ -257,7 +268,27 @@ function ReportsPage() {
     Structuring: "#F59E0B", "High-Value Cash": "#EF4444",
     Velocity: "#8B5CF6", "Watchlist Match": "#EC4899",
   };
-  const riskTypology = compliance.typology.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
+  const typologyRows = Array.isArray(compliance?.typology) ? compliance.typology : [];
+  const alertVolumeDaily = Array.isArray(compliance?.alert_volume) ? compliance.alert_volume : [];
+  const riskTypology = typologyRows.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
+  if (typeof window !== "undefined") {
+    // Temporary preview debugging — remove once Reports stability is confirmed.
+    // eslint-disable-next-line no-console
+    console.log("[reports endpoint status]", {
+      businessOverviewKeys: Object.keys(businessOverview || {}),
+      dailyVolume7d: dailyVolume7dRows.length,
+      currencyDistribution: currencyDistributionRows.length,
+      topAccounts: topAccounts.length,
+      cashFlowRows: cashFlowRows.length,
+      hourlyRows: Array.isArray(hourlyTraffic) ? hourlyTraffic.length : 0,
+      liquidityRows: liquidityRowsRaw.length,
+      tellerRows: tellerRowsRaw.length,
+      complianceAlertRows: alertVolumeDaily.length,
+      complianceRiskRows: typologyRows.length,
+      processingRows: processingRows.length,
+      rejectionRows: errorRateTrend.length,
+    });
+  }
 
   // KPI strip — every cell sources from a real backend field. When a field
   // is null/missing the cell renders "—" with `Backend pending` subtext.
