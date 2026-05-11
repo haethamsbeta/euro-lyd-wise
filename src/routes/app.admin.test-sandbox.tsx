@@ -441,6 +441,12 @@ function TestSandboxPage() {
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-muted-foreground">Holder:</span>
               <span className="font-medium">{fixture.holder.name}</span>
+              <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                TEST
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {fixture.holder.source_system ?? "DAHAB_TEST"} · {fixture.test_run_id}
+              </span>
               {fixture.holder.dahab_account_number && (
                 <span className="font-mono text-xs text-muted-foreground">
                   #{fixture.holder.dahab_account_number}
@@ -474,22 +480,26 @@ function TestSandboxPage() {
 
             <div>
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                Test cash vaults
+                Test cash vaults (by currency)
               </div>
-              <ul className="space-y-1">
-                {fixture.vaults.map((v) => (
-                  <li key={v.id} className="flex items-center gap-3">
-                    <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
-                      {v.currency_code}
-                    </span>
-                    <span className="text-xs">{v.name ?? "—"}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{v.id}</span>
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to="/app/vaults/$id" params={{ id: v.id }}>Open</Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid gap-2">
+                {REAL_CURRENCIES.map((cur) => {
+                  const rcv = findReceivable(cur);
+                  const pay = findPayable(cur);
+                  return (
+                    <div
+                      key={cur}
+                      className="grid grid-cols-1 items-center gap-2 rounded border border-border/40 p-2 sm:grid-cols-[3rem_1fr_1fr]"
+                    >
+                      <span className="inline-flex h-6 w-12 items-center justify-center rounded bg-gold/10 text-xs font-semibold text-gold">
+                        {cur}
+                      </span>
+                      <VaultCell label="Receivable" v={rcv} onCopy={copyText} />
+                      <VaultCell label="Payable" v={pay} onCopy={copyText} />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
