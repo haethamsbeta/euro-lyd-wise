@@ -11,6 +11,7 @@ import { RoleGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary } from "@/lib/useDashboardSummary";
+import { isTestRow } from "@/lib/api/_shared";
 import {
   Landmark,
   Banknote,
@@ -62,11 +63,12 @@ function VaultsPage() {
       if (DATA_BACKEND === "lambda") {
         const list = await api.vaults.list().catch(() => [] as any[]);
         const rows = Array.isArray(list) ? list : [];
+        const filtered = rows.filter((r: any) => !isTestRow(r));
         // Each official vault account is single-currency. Render 1 row per
         // vault account exactly as the backend returns. Do NOT merge across
         // currencies — Cash Receivable LYD / Cash Payable LYD / etc. are
         // separate vault accounts.
-        return rows.map((r: any) => ({
+        return filtered.map((r: any) => ({
           id: r.id,
           name: r.name,
           vault_channel: r.vault_channel ?? r.channel ?? r.kind ?? "cash",
