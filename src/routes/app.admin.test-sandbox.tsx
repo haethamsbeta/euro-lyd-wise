@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FlaskConical, Trash2, Play, Loader2 } from "lucide-react";
+import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,13 @@ function TestSandboxPage() {
   const [bigAmount, setBigAmount] = useState("999999999"); // designed to exceed limits
   const [log, setLog] = useState<LogRow[]>([]);
 
+  const fixturesQuery = useQuery({
+    queryKey: ["admin", "test-fixtures"],
+    queryFn: () => api.admin.testFixtures.list(),
+    enabled: showMaster,
+    retry: false,
+  });
+
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
   }, [showMaster, nav]);
@@ -105,6 +113,7 @@ function TestSandboxPage() {
       persist(data);
       appendLog({ action: "Create fixture", status: "ok", detail: `test_run_id=${data.test_run_id}` });
       toast.success("Test fixture created");
+      fixturesQuery.refetch();
     } catch (e) {
       handleError("Create fixture", e, "POST /admin/test-fixtures/e2e");
     } finally {
@@ -120,10 +129,35 @@ function TestSandboxPage() {
       appendLog({ action: "Cleanup fixture", status: "ok", detail: fixture.test_run_id });
       persist(null);
       toast.success("Test fixture removed");
+      fixturesQuery.refetch();
     } catch (e) {
       handleError("Cleanup fixture", e, `DELETE /admin/test-fixtures/${fixture.test_run_id}`);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function deleteFixtureById(testRunId: string) {
+    setBusy(`del-${testRunId}`);
+    try {
+      await api.admin.testFixtures.cleanup(testRunId);
+      appendLog({ action: "Delete fixture", status: "ok", detail: testRunId });
+      toast.success("Fixture deleted");
+      if (fixture?.test_run_id === testRunId) persist(null);
+      fixturesQuery.refetch();
+    } catch (e) {
+      handleError("Delete fixture", e, `DELETE /admin/test-fixtures/${testRunId}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied");
+    } catch {
+      toast.error("Copy failed");
     }
   }
 
@@ -210,6 +244,91 @@ function TestSandboxPage() {
             <span className="ml-auto self-center font-mono text-xs text-muted-foreground">
               test_run_id: {fixture.test_run_id}
             </span>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Existing fixtures from backend */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+          <CardTitle className="text-base">Existing test fixtures</CardTitle>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => fixturesQuery.refetch()}
+            disabled={fixturesQuery.isFetching}
+          >
+            {fixturesQuery.isFetching ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Refresh
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {fixturesQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : fixturesQuery.error ? (
+            isPendingError(fixturesQuery.error) ? (
+              <BackendPending endpoint="GET /admin/test-fixtures" />
+            ) : (
+              <p className="text-sm text-destructive">
+                {(fixturesQuery.error as Error).message}
+              </p>
+            )
+          ) : !fixturesQuery.data || fixturesQuery.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No fixtures yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {fixturesQuery.data.map((f) => (
+                <li key={f.test_run_id} className="flex flex-wrap items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {f.test_run_id}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => copyText(f.test_run_id)}
+                        aria-label="Copy test_run_id"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="mt-0.5 text-sm">
+                      <span className="font-medium">{f.holder_name ?? "Test holder"}</span>
+                      {typeof f.account_count === "number" && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {f.account_count} account{f.account_count === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[10px] text-muted-foreground">
+                      holder: {f.holder_id}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/app/holders/$id" params={{ id: f.holder_id }}>
+                        <ExternalLink /> Open holder
+                      </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteFixtureById(f.test_run_id)}
+                      disabled={busy === `del-${f.test_run_id}`}
+                    >
+                      {busy === `del-${f.test_run_id}` ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Trash2 />
+                      )}
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>
