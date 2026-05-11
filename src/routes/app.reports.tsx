@@ -213,7 +213,7 @@ function ReportsPage() {
     { dep: 0, wd: 0 },
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
-  const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
+  const { data: liquidityResp, isLoading: liquidityLoading, isError: liquidityError } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, network_total_usd_minor: null, missing_rates: [], generated_at: "" });
   const liquidityRowsRaw = Array.isArray(liquidityResp?.rows) ? liquidityResp.rows : [];
   const liquidityHealth = liquidityRowsRaw.map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
@@ -235,7 +235,9 @@ function ReportsPage() {
       health,
     };
   });
-  const liquidityNetwork = liquidityResp?.network_total_lyd_minor ?? null;
+  const liquidityNetworkLyd = liquidityResp?.network_total_lyd_minor ?? null;
+  const liquidityNetworkUsd = liquidityResp?.network_total_usd_minor ?? null;
+  const liquidityMissingRates = Array.isArray(liquidityResp?.missing_rates) ? liquidityResp.missing_rates : [];
   const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
   const tellerRowsRaw = Array.isArray(tellersApi) ? tellersApi : [];
   const tellers = tellerRowsRaw.map((t: any) => ({
