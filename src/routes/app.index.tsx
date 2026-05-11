@@ -201,10 +201,11 @@ function useTotals(data: ReturnType<typeof useDashData>["data"]) {
 function Dashboard() {
   const { prefs, update } = usePrefs();
   const roles = useEffectiveRoles();
+  const showMasterTools = useShowMasterTools();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isAuditor;
-  const roleLabel = isAdmin ? "Admin" : isAuditor ? "Auditor" : isTeller ? "Teller" : "Operator";
+  const roleLabel = showMasterTools ? "Master Admin" : isAdmin ? "Admin" : isAuditor ? "Auditor" : isTeller ? "Teller" : "Operator";
   const accent = isAuditor ? "sky" : "gold";
 
   return (

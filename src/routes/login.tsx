@@ -18,6 +18,7 @@ import { passkeysSupported, signInWithPasskey } from "@/lib/passkey";
 import { authService } from "@/lib/authService";
 import { DATA_BACKEND, API_BASE_URL } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
+import { normalizeLambdaUser } from "@/lib/lambdaUser";
 
 type PortalKind = "staff" | "consumer";
 
@@ -187,7 +188,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         const payload = envelope?.data ?? envelope;
         const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
-        const user = payload?.user;
+        const user = normalizeLambdaUser(payload);
         returned = !!accessToken;
 
         if (!res.ok || !accessToken) {
@@ -205,6 +206,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           hasToken: stored,
           keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
           role: user?.role,
+          is_master_admin: user?.is_master_admin,
         });
         setDebug({ called, returned, stored });
         if (!stored) throw new Error("Lambda token storage failed");
