@@ -2,8 +2,20 @@
 import { apiFetch, qs } from "./_shared";
 
 export interface AuditEntry {
-  id: string; ts: string; user_id: string | null; user_email: string | null;
-  action: string; entity: string; entity_id: string | null; meta: Record<string, unknown>;
+  id: string;
+  created_at: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  actor_username: string | null;
+  actor_role: string | null;
+  metadata_json: Record<string, unknown> | null;
+  // legacy aliases (optional)
+  ts?: string;
+  user_id?: string | null;
+  user_email?: string | null;
+  entity?: string | null;
+  meta?: Record<string, unknown> | null;
 }
 
 export const auditApi = {
