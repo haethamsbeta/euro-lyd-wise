@@ -28,9 +28,28 @@ export const Route = createFileRoute("/app/admin/test-sandbox")({
 const REAL_CURRENCIES = ["LYD", "USD", "EUR", "GBP"] as const;
 type Currency = (typeof REAL_CURRENCIES)[number];
 
+type FixtureAccount = {
+  id: string;
+  currency_code: string;
+  account_number?: string;
+  is_test?: boolean;
+  test_run_id?: string;
+  source_system?: string;
+};
+
+type FixtureVault = {
+  id: string;
+  currency_code: string;
+  name?: string;
+  internal_role?: string;
+  is_test?: boolean;
+  test_run_id?: string;
+  source_system?: string;
+};
+
 type Fixture = {
   test_run_id: string;
-  holder: {
+  holder?: {
     id: string;
     name: string;
     dahab_account_number?: string;
@@ -38,23 +57,16 @@ type Fixture = {
     test_run_id?: string;
     source_system?: string;
   };
-  holder_accounts: Array<{
-    id: string;
-    currency_code: string;
-    account_number?: string;
-    is_test?: boolean;
-    test_run_id?: string;
-    source_system?: string;
-  }>;
-  vaults: Array<{
-    id: string;
-    currency_code: string;
-    name?: string;
-    internal_role?: string;
-    is_test?: boolean;
-    test_run_id?: string;
-    source_system?: string;
-  }>;
+  holder_id?: string;
+  holder_name?: string;
+  holder_accounts?: FixtureAccount[];
+  accounts?: FixtureAccount[];
+  vaults?: FixtureVault[];
+  next_steps?: string[];
+  account_count?: number;
+  vault_count?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type LogRow = {
@@ -65,6 +77,25 @@ type LogRow = {
 };
 
 const STORAGE_KEY = "dahab.testFixture";
+
+const asArray = <T,>(value: T[] | undefined | null): T[] =>
+  Array.isArray(value) ? value : [];
+
+const getFixtureList = (response: any): Fixture[] => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.data?.items)) return response.data.items;
+  return [];
+};
+
+function getFixtureAccounts(f: Fixture | null | undefined): FixtureAccount[] {
+  const holderAccounts = asArray(f?.holder_accounts);
+  return holderAccounts.length > 0 ? holderAccounts : asArray(f?.accounts);
+}
+
+function getFixtureVaults(f: Fixture | null | undefined): FixtureVault[] {
+  return asArray(f?.vaults);
+}
 
 function uuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
