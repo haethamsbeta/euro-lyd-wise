@@ -289,25 +289,42 @@ export const reportsApi = {
   },
   complianceOverview: async (): Promise<ComplianceOverview> => {
     const r = (await apiFetch<any>("/reports/compliance/overview")) ?? {};
+    // Typology may arrive as `typology`, `risk_typology`, or `riskTypology`.
+    // Row shape may be `{name, value}` or backend-native `{type, count}`.
+    const typologySrc: any[] = Array.isArray(r.typology)
+      ? r.typology
+      : Array.isArray(r.risk_typology)
+        ? r.risk_typology
+        : Array.isArray(r.riskTypology)
+          ? r.riskTypology
+          : [];
+    const typology = typologySrc
+      .map((row: any) => ({
+        name: String(row?.name ?? row?.type ?? ""),
+        value: num(row?.value ?? row?.count),
+      }))
+      .filter((row) => row.name);
+    // Alerts may arrive as `alert_volume`, `alert_volume_daily`, or `alertVolumeDaily`.
+    // Row shape may be `{d, generated, resolved}` or `{day, alert_count, resolved_count?}`.
+    const alertSrc: any[] = Array.isArray(r.alert_volume)
+      ? r.alert_volume
+      : Array.isArray(r.alert_volume_daily)
+        ? r.alert_volume_daily
+        : Array.isArray(r.alertVolumeDaily)
+          ? r.alertVolumeDaily
+          : [];
+    const alert_volume = alertSrc.map((row: any) => ({
+      d: String(row?.d ?? row?.day ?? ""),
+      generated: num(row?.generated ?? row?.alert_count),
+      resolved: num(row?.resolved ?? row?.resolved_count),
+    }));
     return {
       flagged_txns: num(r.flagged_txns),
       pending_reviews: num(r.pending_reviews),
       resolved_today: num(r.resolved_today),
       high_risk_holders: num(r.high_risk_holders),
-      typology: Array.isArray(r.typology)
-        ? r.typology
-        : Array.isArray(r.risk_typology)
-          ? r.risk_typology
-          : [],
-      alert_volume: Array.isArray(r.alert_volume)
-        ? r.alert_volume
-        : Array.isArray(r.alert_volume_daily)
-          ? r.alert_volume_daily.map((row: any) => ({
-              d: String(row.d ?? row.day ?? ""),
-              generated: num(row.generated),
-              resolved: num(row.resolved),
-            }))
-          : [],
+      typology,
+      alert_volume,
       kyc: normalizeGauge(r.kyc),
       aml: normalizeGauge(r.aml),
       doc_verification: normalizeGauge(r.document_verification ?? r.doc_verification),
