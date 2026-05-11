@@ -43,14 +43,37 @@ export const adminApi = {
         holder_id: string;
         holder_name?: string;
         account_count?: number;
+        vault_count?: number;
         created_at?: string;
       }>>("/admin/test-fixtures"),
     create: () =>
       apiFetch<{
         test_run_id: string;
-        holder: { id: string; name: string; dahab_account_number?: string };
-        holder_accounts: Array<{ id: string; currency_code: string }>;
-        vaults: Array<{ id: string; currency_code: string; name?: string }>;
+        holder: {
+          id: string;
+          name: string;
+          dahab_account_number?: string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        };
+        holder_accounts: Array<{
+          id: string;
+          currency_code: string;
+          account_number?: string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        }>;
+        vaults: Array<{
+          id: string;
+          currency_code: string;
+          name?: string;
+          internal_role?: "cash_receivable" | "cash_payable" | string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        }>;
       }>("/admin/test-fixtures/e2e", { method: "POST" }),
     cleanup: (testRunId: string) =>
       apiFetch<{ ok: true }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}`, {
