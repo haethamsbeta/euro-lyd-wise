@@ -101,22 +101,21 @@ function ReportsPage() {
   // Banner only when the response truly carries nothing — never when the
   // backend has returned counts or any of the documented arrays.
   const businessOverview = overview ?? ({} as NonNullable<typeof overview>);
-  const asArr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
-  const dailyVolume7dRows = asArr<NonNullable<typeof overview>["daily_volume_7d"] extends (infer U)[] | null ? U : never>(
-    businessOverview?.daily_volume_7d,
-  );
-  const currencyDistributionRows = asArr<NonNullable<typeof overview>["currency_distribution"] extends (infer U)[] | null ? U : never>(
-    businessOverview?.currency_distribution,
-  );
-  const customerGrowth7mRows = asArr<NonNullable<typeof overview>["customer_growth_7m"] extends (infer U)[] | null ? U : never>(
-    businessOverview?.customer_growth_7m,
-  );
-  const topAccounts = asArr<NonNullable<typeof overview>["top_accounts"] extends (infer U)[] | null ? U : never>(
-    businessOverview?.top_accounts,
-  );
-  const volumeByCurrency30d = asArr<NonNullable<typeof overview>["volume_by_currency_30d"] extends (infer U)[] | null ? U : never>(
-    businessOverview?.volume_by_currency_30d,
-  );
+  const dailyVolume7dRows = Array.isArray(businessOverview?.daily_volume_7d)
+    ? businessOverview.daily_volume_7d!
+    : [];
+  const currencyDistributionRows = Array.isArray(businessOverview?.currency_distribution)
+    ? businessOverview.currency_distribution!
+    : [];
+  const customerGrowth7mRows = Array.isArray(businessOverview?.customer_growth_7m)
+    ? businessOverview.customer_growth_7m!
+    : [];
+  const topAccounts = Array.isArray(businessOverview?.top_accounts)
+    ? businessOverview.top_accounts!
+    : [];
+  const volumeByCurrency30d = Array.isArray(businessOverview?.volume_by_currency_30d)
+    ? businessOverview.volume_by_currency_30d!
+    : [];
   const hasOverviewPayload = Boolean(
     businessOverview?.counts ||
       dailyVolume7dRows.length > 0 ||
