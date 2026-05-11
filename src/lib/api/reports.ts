@@ -155,7 +155,7 @@ export const reportsApi = {
         ? r.volume_by_currency_30d.map((row: any) => ({
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            posted_count: numOrNull(row.posted_count ?? row.count),
+            posted_count: numOrNull(row.posted_count ?? row.transaction_count ?? row.count),
           }))
         : null,
       daily_volume_7d: Array.isArray(r.daily_volume_7d)
@@ -163,13 +163,13 @@ export const reportsApi = {
             day: String(row.day ?? row.date ?? ""),
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            tx_count: numOrNull(row.tx_count ?? row.count),
+            tx_count: numOrNull(row.tx_count ?? row.transaction_count ?? row.count),
           }))
         : null,
       currency_distribution: Array.isArray(r.currency_distribution)
         ? r.currency_distribution.map((row: any) => ({
             currency: row.currency ?? row.currency_code,
-            balance_minor: num(row.balance_minor),
+            balance_minor: num(row.balance_minor ?? row.volume_minor),
           }))
         : null,
       customer_growth_7m: Array.isArray(r.customer_growth_7m)
@@ -198,7 +198,13 @@ export const reportsApi = {
   },
   liquidityHealth: async (): Promise<LiquidityHealthResponse> => {
     const res = await apiFetch<any>("/reports/liquidity-health");
-    const rowsIn: any[] = Array.isArray(res?.rows) ? res.rows : Array.isArray(res) ? res : [];
+    const rowsIn: any[] = Array.isArray(res?.rows)
+      ? res.rows
+      : Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res)
+          ? res
+          : [];
     const rows: LiquidityHealthRow[] = rowsIn.map((r) => ({
       vault_account_id: r.vault_account_id ?? null,
       vault_name: r.vault_name ?? null,
@@ -219,8 +225,18 @@ export const reportsApi = {
       generated_at: (res && (res as any).generated_at) ?? "",
     };
   },
-  hourlyTraffic: (p?: { from?: string; to?: string }) =>
-    apiFetch<HourlyTrafficPoint[]>(`/reports/hourly-traffic${range(p)}`),
+  hourlyTraffic: async (p?: { from?: string; to?: string }): Promise<HourlyTrafficPoint[]> => {
+    const res = await apiFetch<any>(`/reports/hourly-traffic${range(p)}`);
+    const items: any[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.items)
+        ? res.items
+        : [];
+    return items.map((r) => ({
+      h: String(r.h ?? r.hour ?? r.hour_of_day ?? ""),
+      v: num(r.v ?? r.transaction_count ?? r.count),
+    }));
+  },
   cashFlow: (p?: { from?: string; to?: string }) =>
     apiFetch<CashFlowRow[] | { items: CashFlowRow[] }>(
       `/reports/cash-flow${range(p)}`,
@@ -247,10 +263,30 @@ export const reportsApi = {
       streak_days: num(t.streak_days),
     }));
   },
-  processingTimeDistribution: (p?: { from?: string; to?: string }) =>
-    apiFetch<ProcessingTimeBucket[]>(`/reports/processing-time-distribution${range(p)}`),
-  rejectionRateTrend: (p?: { from?: string; to?: string }) =>
-    apiFetch<RejectionRatePoint[]>(`/reports/rejection-rate-trend${range(p)}`),
+  processingTimeDistribution: async (p?: { from?: string; to?: string }): Promise<ProcessingTimeBucket[]> => {
+    const res = await apiFetch<any>(`/reports/processing-time-distribution${range(p)}`);
+    const items: any[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.items)
+        ? res.items
+        : [];
+    return items.map((r) => ({
+      bucket: String(r.bucket ?? r.label ?? "unknown"),
+      count: num(r.count ?? r.transaction_count),
+    }));
+  },
+  rejectionRateTrend: async (p?: { from?: string; to?: string }): Promise<RejectionRatePoint[]> => {
+    const res = await apiFetch<any>(`/reports/rejection-rate-trend${range(p)}`);
+    const items: any[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.items)
+        ? res.items
+        : [];
+    return items.map((r) => ({
+      d: String(r.d ?? r.day ?? ""),
+      rate_pct: num(r.rate_pct ?? r.rejection_rate),
+    }));
+  },
   complianceOverview: async (): Promise<ComplianceOverview> => {
     const r = (await apiFetch<any>("/reports/compliance/overview")) ?? {};
     return {
