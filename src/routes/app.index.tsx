@@ -27,6 +27,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { BackendPending } from "@/components/app/backend-pending";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
 
