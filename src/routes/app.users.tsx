@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -23,10 +23,15 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/users")({
-  component: () => <RoleGate allow={["admin"]}><UsersPage /></RoleGate>,
+  component: () => <RoleGate allow={["admin"]}><UsersRoute /></RoleGate>,
 });
 
 const ROLES = ["admin", "teller", "auditor", "consumer"] as const;
+
+function UsersRoute() {
+  const location = useLocation();
+  return location.pathname === "/app/users" ? <UsersPage /> : <Outlet />;
+}
 
 function UsersPage() {
   const t = useT();

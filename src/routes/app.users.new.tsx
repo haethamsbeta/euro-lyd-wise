@@ -38,7 +38,7 @@ function genPassword() {
 
 type StaffRole = "admin" | "teller" | "auditor";
 
-function NewMemberPage() {
+export function NewMemberPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
@@ -48,7 +48,6 @@ function NewMemberPage() {
   const [role, setRole] = useState<StaffRole>("teller");
   const [status, setStatus] = useState<"active" | "disabled">("active");
   const [mustChange, setMustChange] = useState(true);
-  const [endpointMissing, setEndpointMissing] = useState(false);
 
   const submit = useMutation({
     mutationFn: () => {
@@ -69,22 +68,17 @@ function NewMemberPage() {
       });
       return api.users.create(payload);
     },
-    onSuccess: (res: any) => {
+    onSuccess: async (res: any) => {
       // eslint-disable-next-line no-console
       console.log("[create dahab member] success", res);
       toast.success(res?.message ?? "User created.");
-      qc.invalidateQueries({ queryKey: ["users.profiles"] });
+      await qc.invalidateQueries({ queryKey: ["users.profiles"] });
       nav({ to: "/app/users" });
     },
     onError: (e: any) => {
       const httpStatus = e instanceof ApiError ? e.status : undefined;
       // eslint-disable-next-line no-console
-      console.error("[create dahab member] failed", { httpStatus, message: e?.message, error: e });
-      if (httpStatus === 404 || httpStatus === 501) {
-        setEndpointMissing(true);
-        toast.error("Backend endpoint pending: POST /users not implemented yet.");
-        return;
-      }
+      console.error("[create dahab member] failed", { httpStatus, message: e?.message, details: e?.details, error: e });
       toast.error(e?.message ?? "Failed to create member");
     },
   });
@@ -95,8 +89,7 @@ function NewMemberPage() {
     /.+@.+\..+/.test(email) &&
     password.length >= 8;
 
-  const disableSubmit =
-    !ready || submit.isPending || !isLambda || endpointMissing;
+  const disableSubmit = !ready || submit.isPending || !isLambda;
 
   return (
     <div>
@@ -118,16 +111,7 @@ function NewMemberPage() {
             <AlertDescription>{SUPABASE_DISABLED_MSG}</AlertDescription>
           </Alert>
         ) : null}
-        {endpointMissing ? (
-          <Alert variant="destructive">
-            <AlertTitle>Backend endpoint pending</AlertTitle>
-            <AlertDescription>
-              The Lambda backend has not implemented <code>POST /users</code> yet.
-              Member creation is blocked until that endpoint is live and writing to <code>audit_log</code>.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {submit.isError && !endpointMissing ? (
+        {submit.isError ? (
           <Alert variant="destructive">
             <AlertTitle>Create failed</AlertTitle>
             <AlertDescription>
