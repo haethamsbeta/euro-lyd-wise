@@ -546,7 +546,7 @@ function ReportsPage() {
                   <ReportEmpty endpoint="GET /reports/business/overview" status="No top account rows returned." />
                 ) : (
                   <ul className="space-y-3">
-                    {topAccounts.map((a, i) => {
+                    {topAccounts.slice(0, 10).map((a, i) => {
                       const ccy = displayCurrency(a.currency);
                       return (
                         <li key={`${a.account_id}-${a.currency}-${i}`}
