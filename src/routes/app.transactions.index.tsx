@@ -619,13 +619,15 @@ function TxList() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-sm text-left">
               <thead className="text-[10px] uppercase tracking-wider text-text-secondary bg-[color:var(--surface-2)]/60 border-b border-border">
-                <tr>
-                  <th className="px-4 py-3">Date &amp; ID</th>
-                  <th className="px-4 py-3">Customer</th>
+               <tr>
+                 <th className="px-4 py-3">TX #</th>
+                 <th className="px-4 py-3">Date</th>
+                 <th className="px-4 py-3">Time</th>
+                 <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3 text-right">Amount</th>
                   <th className="px-4 py-3">Status</th>
-                  {isAdmin ? <th className="px-4 py-3 text-right">Actions</th> : null}
+                 {isAdmin ? <th className="px-4 py-3 text-right">Actions</th> : null}
                 </tr>
               </thead>
               <tbody>
