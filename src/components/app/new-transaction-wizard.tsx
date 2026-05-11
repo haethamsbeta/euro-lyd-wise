@@ -46,14 +46,6 @@ const COMMENT_MIN = 3;
 const COMMENT_MAX = 280;
 const APPROVAL_THRESHOLD_MINOR = 25_000_00;
 
-const submitSchema = z.object({
-  customer_account_id: z.string().uuid(),
-  channel: z.enum(["cash", "bank"]),
-  currency: z.enum(["USD", "EUR", "LYD"]),
-  amount_minor: z.number().int().positive(),
-  comment: z.string().trim().min(COMMENT_MIN).max(COMMENT_MAX),
-});
-
 type StepKey = "type" | "customer" | "vault" | "details" | "review";
 const STEPS: { key: StepKey; label: string }[] = [
   { key: "type", label: "Type" },
