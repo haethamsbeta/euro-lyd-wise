@@ -155,7 +155,7 @@ export const reportsApi = {
         ? r.volume_by_currency_30d.map((row: any) => ({
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            posted_count: numOrNull(row.posted_count ?? row.count),
+            posted_count: numOrNull(row.posted_count ?? row.transaction_count ?? row.count),
           }))
         : null,
       daily_volume_7d: Array.isArray(r.daily_volume_7d)
@@ -163,13 +163,13 @@ export const reportsApi = {
             day: String(row.day ?? row.date ?? ""),
             currency: row.currency ?? row.currency_code,
             volume_minor: num(row.volume_minor),
-            tx_count: numOrNull(row.tx_count ?? row.count),
+            tx_count: numOrNull(row.tx_count ?? row.transaction_count ?? row.count),
           }))
         : null,
       currency_distribution: Array.isArray(r.currency_distribution)
         ? r.currency_distribution.map((row: any) => ({
             currency: row.currency ?? row.currency_code,
-            balance_minor: num(row.balance_minor),
+            balance_minor: num(row.balance_minor ?? row.volume_minor),
           }))
         : null,
       customer_growth_7m: Array.isArray(r.customer_growth_7m)
