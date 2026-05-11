@@ -173,43 +173,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             } as HolderCardHit;
           });
       }
-      const holderIds = new Set<number>();
-      if (term) {
-        const [{ data: byHolder }, { data: byCard }] = await Promise.all([
-          supabase.from("account_holders").select("id")
-            .or(`dahab_account_number.ilike.%${term}%,canonical_name.ilike.%${term}%,normalized_name.ilike.%${term}%,phone.ilike.%${term}%`)
-            .limit(20),
-          supabase.from("holder_accounts").select("account_holder_id")
-            .or(`account_number.ilike.%${term}%,dahab_account_number.ilike.%${term}%,account_alias_name.ilike.%${term}%,currency_code.ilike.%${term}%`)
-            .limit(20),
-        ]);
-        (byHolder ?? []).forEach((r: any) => holderIds.add(r.id));
-        (byCard ?? []).forEach((r: any) => holderIds.add(r.account_holder_id));
-        if (holderIds.size === 0) return [] as HolderCardHit[];
-      }
-      let q = supabase.from("holder_accounts")
-        .select("id, account_number, currency_code, current_balance, status, account_nature, account_alias_name, withdraw_limit_amount, withdraw_limit_enabled, account_holder_id, account_holders!inner(id, dahab_account_number, canonical_name, phone, holder_type)")
-        .in("currency_code", ["USD", "EUR", "LYD"]).order("account_holder_id").limit(60);
-      if (term) q = q.in("account_holder_id", Array.from(holderIds));
-      else q = q.limit(30);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []).map((r: any) => ({
-        holder_account_id: r.id,
-        account_number: r.account_number,
-        currency: r.currency_code as Currency,
-        balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
-        account_holder_id: r.account_holder_id,
-        dahab_account_number: r.account_holders?.dahab_account_number ?? "",
-        holder_name: r.account_holders?.canonical_name ?? r.account_number,
-        phone: r.account_holders?.phone ?? null,
-        status: r.status ?? "ACTIVE",
-        account_nature: r.account_nature ?? null,
-        alias: r.account_alias_name ?? null,
-        withdraw_limit_minor: Math.round(Number(r.withdraw_limit_amount ?? 0) * 100),
-        withdraw_limit_enabled: !!r.withdraw_limit_enabled,
-        holder_type: (r.account_holders?.holder_type ?? "INDIVIDUAL") as string,
-      })) as HolderCardHit[];
+      return [] as HolderCardHit[];
     },
   });
 
@@ -288,8 +252,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
       if (channel !== "cash") {
         throw new Error("Only cash transactions are enabled in this phase.");
       }
-      if (DATA_BACKEND === "lambda") {
-        const tx = await api.transactions.postCash({
+      const tx = await api.transactions.postCash({
           holder_account_id: picked!.holder_account_id,
           direction: type!,
           channel: "cash",
@@ -302,31 +265,8 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             (typeof crypto !== "undefined" && "randomUUID" in crypto
               ? crypto.randomUUID()
               : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
-        });
-        return tx as any;
-      }
-      const { data: bridgedId, error: bridgeErr } = await supabase.rpc(
-        "ensure_customer_account_for_holder_account",
-        { p_holder_account_id: picked!.holder_account_id },
-      );
-      if (bridgeErr) throw bridgeErr;
-      const parsed = submitSchema.parse({
-        customer_account_id: bridgedId as string,
-        channel: channel!,
-        currency,
-        amount_minor: amountMinor!,
-        comment: trimmedComment,
       });
-      const { data, error } = await supabase.rpc("post_transaction", {
-        p_customer_account_id: parsed.customer_account_id,
-        p_currency: parsed.currency,
-        p_direction: type!,
-        p_channel: parsed.channel,
-        p_amount_minor: parsed.amount_minor,
-        p_comment: parsed.comment,
-      });
-      if (error) throw error;
-      return data as any;
+      return tx as any;
     },
     onSuccess: (tx) => {
       qc.invalidateQueries();
