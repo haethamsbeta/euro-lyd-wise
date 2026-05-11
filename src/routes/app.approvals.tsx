@@ -195,9 +195,13 @@ function Approvals() {
                                 ? "Insufficient balance"
                                 : row.review_reason === "exceeds_withdraw_limit"
                                 ? "Over withdrawal limit"
-                                : "Within buffer — review"}
+                                : row.review_reason === "over_limit_with_buffer"
+                                ? "Within buffer — review"
+                                : "Pending review"}
                             </Badge>
-                          ) : null}
+                          ) : (
+                            <Badge variant="secondary">Pending review</Badge>
+                          )}
                         </div>
                         <div className="font-mono text-sm">{formatMinor(row.amount_minor, row.currency)}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(row.created_at)}</div>
