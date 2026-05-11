@@ -619,33 +619,35 @@ function TxList() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-sm text-left">
               <thead className="text-[10px] uppercase tracking-wider text-text-secondary bg-[color:var(--surface-2)]/60 border-b border-border">
-                <tr>
-                  <th className="px-4 py-3">Date &amp; ID</th>
-                  <th className="px-4 py-3">Customer</th>
+               <tr>
+                 <th className="px-4 py-3">TX #</th>
+                 <th className="px-4 py-3">Date</th>
+                 <th className="px-4 py-3">Time</th>
+                 <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3 text-right">Amount</th>
                   <th className="px-4 py-3">Status</th>
-                  {isAdmin ? <th className="px-4 py-3 text-right">Actions</th> : null}
+                 {isAdmin ? <th className="px-4 py-3 text-right">Actions</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-border">
-                      <td colSpan={isAdmin ? 6 : 5} className="px-4 py-3">
+                     <td colSpan={isAdmin ? 7 : 6} className="px-4 py-3">
                         <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
                       </td>
                     </tr>
                   ))
                 ) : error ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="p-6 text-center text-destructive">
+                   <td colSpan={isAdmin ? 7 : 6} className="p-6 text-center text-destructive">
                       Failed to load transactions: {(error as Error).message}
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="p-10 text-center text-text-secondary">
+                   <td colSpan={isAdmin ? 7 : 6} className="p-10 text-center text-text-secondary">
                       No transactions match the current filters.
                     </td>
                   </tr>
@@ -770,11 +772,15 @@ function TxRow({
       onClick={() => onOpen(tx)}
     >
       <td className="px-4 py-3 align-top">
-        <div className="font-medium text-foreground">{dateStr}</div>
-        <div className="text-[10px] font-mono text-text-secondary mt-0.5">
+        <div className="font-mono text-[12px] text-foreground group-hover:text-gold transition-colors">
           {tx.tx_number}
         </div>
-        <div className="text-[10px] text-text-secondary">{timeStr}</div>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <div className="font-medium text-foreground">{dateStr}</div>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <div className="font-mono text-[12px] text-text-secondary">{timeStr}</div>
       </td>
       <td className="px-4 py-3 align-top">
         <div className="font-medium group-hover:text-gold transition-colors">
