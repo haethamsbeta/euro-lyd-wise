@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +22,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/dahabApi";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/holders/new")({
   component: () => (
@@ -65,6 +67,7 @@ type Step = 1 | 2;
 function NewHolderPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
+  const showMaster = useShowMasterTools();
 
   const [step, setStep] = useState<Step>(1);
 
@@ -92,33 +95,46 @@ function NewHolderPage() {
 
   const m = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "create_holder_with_accounts",
-        {
-          p_canonical_name: name.trim(),
-          p_holder_type: holderType,
-          p_accounts: [
-            {
-              currency_code: currency,
-              account_nature: nature,
-              account_display_name: displayName.trim() || undefined,
-              account_alias_name: undefined,
-              is_primary_account: true,
-            },
-          ] as any,
-          p_phone: phone.trim() || null,
-          p_email: email.trim() || null,
-        },
-      );
-      if (error) throw error;
-      return data as any;
+      // 1. Create holder
+      const holder: any = await api.holders.create({
+        canonical_name: name.trim(),
+        holder_type: holderType,
+        phone_number: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        status: "ACTIVE",
+      } as any);
+      const holderId = holder?.id ?? holder?.holder_id;
+      if (!holderId) throw new ApiError("Holder created but no id returned", 0);
+      // 2. Create first account
+      try {
+        await api.holders.addAccount(holderId, {
+          account_display_name: displayName.trim(),
+          currency_code: currency,
+          account_nature: nature,
+          is_primary_account: true,
+          status: "ACTIVE",
+        } as any);
+      } catch (e) {
+        // Holder is created; surface account error but still navigate.
+        if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
+          toast.error(
+            showMaster
+              ? `Backend endpoint pending: POST /holders/${holderId}/accounts`
+              : "First account: Coming soon",
+          );
+        } else {
+          toast.error((e as any)?.message ?? "Failed to add first account");
+        }
+      }
+      return { ...holder, holder_id: holderId };
     },
     onSuccess: (data) => {
       toast.success(
-        `Holder ${data?.dahab_account_number ?? ""} created with first account`,
+        `Holder ${data?.dahab_account_number ?? ""} created.`,
       );
       qc.invalidateQueries({ queryKey: ["holders.list"] });
       qc.invalidateQueries({ queryKey: ["holders.summary"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       if (data?.holder_id) {
         nav({
           to: "/app/holders/$id",
@@ -128,7 +144,17 @@ function NewHolderPage() {
         nav({ to: "/app/holders" });
       }
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to create holder"),
+    onError: (e: any) => {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
+        toast.error(
+          showMaster
+            ? `Backend endpoint pending: POST /holders`
+            : "Coming soon",
+        );
+        return;
+      }
+      toast.error(e?.message ?? "Failed to create holder");
+    },
   });
 
   const selectedType = useMemo(
