@@ -1,54 +1,38 @@
-## Root cause
+## Changes
 
-The BackendPending widgets are gated on **derived/filtered** arrays, not the raw backend arrays:
+### 1. Reports — Top Accounts limit (10 not 50)
+File: `src/routes/app.reports.tsx`
 
-- **Daily Transactions** checks `dailyVolume7d.length === 0`, but `dailyVolume7d` is filtered to `currency === "LYD"` only. If the backend returns 3 rows that are USD/EUR/GBP, the filter yields 0 → BackendPending shows even though `overview.daily_volume_7d.length === 3`.
-- **Balance by Currency** checks `currencyDistribution.length === 0`, derived via `displayCurrency()`. If backend currency codes don't match the strict allow-list, derived length can be 0.
-- **Customer Growth** maps `r.month` / `r.new_holders`. If backend uses `m` / `count` (or zeros), the derived array length still matches but values may be empty — gating is fine here, but should still use raw backend length per the spec.
-- **Top Accounts** correctly uses raw `topAccounts` (good).
-- **Debug block** is gated by `import.meta.env.DEV`, so it's invisible in the deployed preview the user is looking at.
+The backend returns up to 50 `top_accounts`. Slice to the first 10 before rendering.
 
-## Fix (frontend render-conditions only)
+- Change `topAccounts.map((a, i) => ...)` to `topAccounts.slice(0, 10).map(...)`.
+- Update the debug line `top_accounts: {topAccounts.length}` to also show the rendered count, e.g. `top_accounts: {Math.min(topAccounts.length, 10)}/{topAccounts.length}`.
 
-### 1. `src/routes/app.reports.tsx` — gate every Business Overview widget on **raw backend array lengths**
+No backend or query changes.
 
-Replace the gating expressions:
+### 2. Vaults page — group Receivable + Payable per currency into a single card
+File: `src/routes/app.vaults.index.tsx`
 
-| Widget                | Current condition                          | New condition                                                  |
-|-----------------------|--------------------------------------------|----------------------------------------------------------------|
-| Daily Transactions    | `dailyVolume7d.length === 0`               | `(overview?.daily_volume_7d?.length ?? 0) === 0`               |
-| Balance by Currency   | `currencyDistribution.length === 0`        | `(overview?.currency_distribution?.length ?? 0) === 0`         |
-| Customer Growth       | `customerGrowth.length === 0`              | `(overview?.customer_growth_7m?.length ?? 0) === 0`            |
-| Top Accounts          | `!topAccounts \|\| topAccounts.length===0` | `(overview?.top_accounts?.length ?? 0) === 0`                  |
+Today the "Official Vault Accounts" grid renders one card per official vault account (e.g. `Cash Receivable LYD`, `Cash Payable LYD`, `Cash Receivable USD`, …). The user wants one card per currency that combines the receivable and payable side, while still showing each side's balance.
 
-Also relax the **Daily Transactions** series so it doesn't silently empty when backend returns no LYD rows: if the LYD-filtered series is empty but the raw array has rows, plot one currency we do have (prefer LYD; otherwise the first currency present), and label the axis with that currency. Still no FX summing across currencies.
+Approach (frontend-only, no FX math):
 
-### 2. Make the debug block always visible
+1. Group `vaults` by `currency_code`. Within each group, separate by `internal_role` regex (`/receiv/i`, `/pay/i`); anything else becomes "other".
+2. Render one card per currency in the grid. Each card shows:
+   - Currency badge as the headline.
+   - Channel icon (use `Banknote` if any cash, else `Building2`).
+   - Two stacked rows inside: **Receivable** (sum of `balance_minor` over receivable vaults in that currency, formatted via `formatMinor`) and **Payable** (same for payable). Show "—" if a side is absent.
+   - Net = receivable − payable, displayed as the prominent balance using `formatMinor`.
+   - Small footer line listing the underlying vault names (e.g. "2 vault accounts").
+3. Card click behaviour: if the group has exactly one underlying vault, link to that vault detail; otherwise link to the receivable vault by default (first vault in group) — keeps existing detail page untouched.
+4. Keep the existing "Currency Cash Vault Summary" strip above as is (it already groups net by currency from backend). The new grouped cards replace the current per-account grid.
 
-Remove the `import.meta.env.DEV` guard so the line:
+No changes to backend, `vaults.list()` adapter, or vault detail route.
 
-```
-Business overview loaded — counts: true · daily_volume_7d: 3 · currency_distribution: 3 · customer_growth_7m: 1 · top_accounts: 50 · volume_by_currency_30d: 3
-```
-
-renders directly under the page header in production preview too. Keep it small/mono, unobtrusive.
-
-### 3. Banner condition
-
-`overviewPending` already uses `hasOverviewPayload` against raw arrays — leave as-is. With confirmed backend data, the banner with "KPI strip will populate once the backend reports overview endpoint is available" will not render.
-
-### 4. Network Volume 30d
-
-The KPI strip already sources from `volByCcy` (`overview.volume_by_currency_30d`); no separate BackendPending exists for it, so no change required beyond confirming the banner stays hidden.
+### 3. Verification
+- Run typecheck.
+- Confirm Reports renders ≤10 rows in Top Accounts.
+- Confirm Vaults page shows one card per currency with receivable + payable balances visible.
 
 ## Out of scope
-
-- No backend changes, no mock data, no Supabase fallback, no FX math, no redesign.
-- Approval Speed / Hourly Traffic / Cash Flow / Liquidity / Tellers / Compliance pending blocks are unrelated to Business Overview and stay as-is.
-
-## Verification
-
-1. Typecheck (`tsc --noEmit` via harness).
-2. Grep `src/routes/app.reports.tsx` to confirm the four exact strings ("KPI strip will populate…", "daily_volume_7d not yet returned.", "currency_distribution not yet returned.", "customer_growth_7m not yet returned.", "top_accounts not yet returned.") still exist as `note=` props but are only reachable when raw backend arrays are empty.
-3. Open `/app/reports` — debug line shows non-zero counts, and none of the four Business Overview widgets render BackendPending.
-4. Update `docs/LAMBDA_REPORTS_WIRING_AUDIT.md` diagnostic note to record that the gating bug was filtered-array based, not raw-array based.
+- No backend changes, no mock data, no Supabase fallback edits, no FX conversion in frontend, no redesign of detail pages.
