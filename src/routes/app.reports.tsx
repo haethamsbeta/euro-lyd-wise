@@ -720,7 +720,7 @@ function ReportsPage() {
             </div>
 
             {isLambda && tellers.length === 0 && (
-              <BackendPending endpoint="GET /reports/tellers/today" />
+              <ReportEmpty endpoint="GET /reports/tellers/today" status="No teller rows returned." />
             )}
 
             {/* Top Performers Podium */}
@@ -821,7 +821,7 @@ function ReportsPage() {
               <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Volume by Teller (Today)</h2>
               <p className="text-sm text-text-secondary mb-5">Comparative throughput across the team</p>
               {tellers.length === 0 ? (
-                <BackendPending endpoint="GET /reports/tellers/today" />
+                <ReportEmpty endpoint="GET /reports/tellers/today" status="No teller rows returned." />
               ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%" minHeight={240}>
@@ -845,7 +845,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
                 {isLambda && processingTimeDist.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/processing-time-distribution" />
+                  <ReportEmpty endpoint="GET /reports/processing-time-distribution" status="No processing-time rows returned." />
                 ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
@@ -867,7 +867,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
                 {isLambda && errorRateTrend.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/rejection-rate-trend" />
+                  <ReportEmpty endpoint="GET /reports/rejection-rate-trend" status="No rejection-rate rows returned." />
                 ) : (
                 <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%" minHeight={180}>
@@ -889,7 +889,7 @@ function ReportsPage() {
         {lens === "compliance" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {isLambda && riskMetrics.flaggedTxns === 0 && riskMetrics.pendingReviews === 0 && riskMetrics.resolvedToday === 0 && riskMetrics.highRiskHolders === 0 && riskTypology.length === 0 && (compliance.alert_volume?.length ?? 0) === 0 && (
-              <BackendPending endpoint="GET /reports/compliance/overview" />
+              <ReportEmpty endpoint="GET /reports/compliance/overview" status="No compliance overview payload returned." />
             )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
@@ -958,7 +958,7 @@ function ReportsPage() {
                 </div>
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
                 {(compliance.alert_volume ?? []).length === 0 ? (
-                  <BackendPending endpoint="GET /reports/compliance/overview" note="alert_volume_daily not yet returned." />
+                  <ReportEmpty endpoint="GET /reports/compliance/overview" status="No alert volume rows returned." />
                 ) : (
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%" minHeight={200}>
@@ -989,7 +989,7 @@ function ReportsPage() {
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
                 <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
                 {isLambda && riskTypology.length === 0 ? (
-                  <BackendPending endpoint="GET /reports/compliance/overview" note="risk_typology not yet returned." />
+                  <ReportEmpty endpoint="GET /reports/compliance/overview" status="No risk typology rows returned." />
                 ) : (
                 <>
                 <div className="h-40">
