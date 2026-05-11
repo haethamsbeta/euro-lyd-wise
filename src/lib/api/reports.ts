@@ -1,7 +1,6 @@
 // Reports adapter — every figure on /app/reports MUST come from here.
 // Frontend never multiplies FX, never sums currencies, never invents counts.
 import { apiFetch, qs } from "./_shared";
-import type { Currency } from "./_shared";
 
 /** Strict allow-list for currency rendering across the Reports page. */
 export const ACCEPTED_CCY = ["LYD", "USD", "EUR", "GBP"] as const;
@@ -71,7 +70,7 @@ export interface LiquidityHealthResponse {
   /** Backend-computed network total in USD-equivalent minor units. */
   network_total_usd_minor: number | null;
   /** Currency pairs missing an FX rate. If non-empty, network_total may be null. */
-  missing_rates: Array<{ from: Currency; to: Currency }>;
+  missing_rates: Array<string | { from: string; to: string }>;
   generated_at: string;
 }
 
