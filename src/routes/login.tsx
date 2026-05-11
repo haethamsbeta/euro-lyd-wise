@@ -87,6 +87,15 @@ function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {isStaff ? (
+              <>
+                <SignInForm portal={portal} />
+                <p className="mt-5 rounded-md border border-border/60 bg-muted/30 p-3 text-center text-xs text-muted-foreground">
+                  DAHAB Family accounts (admin, teller, auditor) are created by
+                  an administrator. Ask an admin to provision your account.
+                </p>
+              </>
+            ) : (
             <Tabs defaultValue="signin">
               <TabsList className="grid h-11 w-full grid-cols-2 gap-1 rounded-lg border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.06)] p-1">
                 <TabsTrigger
@@ -109,6 +118,7 @@ function LoginPage() {
                 <SignUpForm />
               </TabsContent>
             </Tabs>
+            )}
             <p className="mt-6 text-center text-xs text-muted-foreground">
               <Link to="/" className="hover:text-gold hover:underline underline-offset-4">
                 {t("login.backHome")}
