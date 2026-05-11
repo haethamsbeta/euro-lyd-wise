@@ -305,7 +305,7 @@ function UsersPage() {
                               {r.role}
                               <button
                                 className="ml-1 text-xs opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                title={isLambda ? PENDING_MSG : "Revoke role"}
+                                title={isLambda ? "Use Change role to reassign." : "Revoke role"}
                                 disabled={isLambda}
                                 onClick={() => revoke.mutate(r.id)}
                               >×</button>
@@ -408,8 +408,8 @@ function UsersPage() {
                         <GrantRole
                           userId={p.id}
                           existing={userRoles.map((r) => r.role)}
-                          disabled={isLambda}
-                          disabledReason={PENDING_MSG}
+                          lambdaMode={isLambda}
+                          pending={grant.isPending}
                           onGrant={(role) => grant.mutate({ user_id: p.id, role })}
                         />
                       </td>
@@ -419,7 +419,26 @@ function UsersPage() {
                           const isStaff = userRoles.some((r) => ["admin","teller","auditor"].includes(r.role));
                           const isSelf = user?.id === p.id;
                           if (!isStaff || isSelf) return null;
+                          const statusStr = ((p as any).status ?? "").toString().toLowerCase();
+                          const active = statusStr !== "disabled" && statusStr !== "inactive";
                           return (
+                            <>
+                              {isLambda ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  disabled={statusMut.isPending}
+                                  onClick={() => {
+                                    const next = active ? "disabled" : "active";
+                                    if (!confirm(`${active ? "Disable" : "Enable"} ${p.full_name || "this user"}?`)) return;
+                                    statusMut.mutate({ user_id: p.id, status: next });
+                                  }}
+                                >
+                                  {active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                                  {active ? "Disable" : "Enable"}
+                                </Button>
+                              ) : null}
                             <TooltipProvider delayDuration={150}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -428,7 +447,7 @@ function UsersPage() {
                                       size="sm"
                                       variant="outline"
                                       className="gap-1.5"
-                                      disabled={isLambda || resettingId === p.id}
+                                      disabled={resettingId === p.id}
                                       onClick={() => onResetPassword(p.id, p.full_name || "this user")}
                                     >
                                       <KeyRound className="h-3.5 w-3.5" />
@@ -436,9 +455,9 @@ function UsersPage() {
                                     </Button>
                                   </span>
                                 </TooltipTrigger>
-                                {isLambda ? <TooltipContent>{PENDING_MSG}</TooltipContent> : null}
                               </Tooltip>
                             </TooltipProvider>
+                            </>
                           );
                           })()}
                         </div>
@@ -478,14 +497,18 @@ function UsersPage() {
   );
 }
 
-function GrantRole({ existing, onGrant, disabled, disabledReason }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void; disabled?: boolean; disabledReason?: string }) {
+function GrantRole({ existing, onGrant, lambdaMode, pending }: { userId: string; existing: string[]; onGrant: (role: typeof ROLES[number]) => void; lambdaMode?: boolean; pending?: boolean }) {
   const t = useT();
   const [val, setVal] = useState<string>("");
-  const available = ROLES.filter((r) => !existing.includes(r));
+  // Lambda backend uses a single-role model: any staff role replaces the current role via PATCH /users/:id/role.
+  // In Supabase legacy mode, roles are additive — exclude already-granted roles.
+  const available = lambdaMode
+    ? (["admin", "teller", "auditor"] as typeof ROLES[number][]).filter((r) => !existing.includes(r))
+    : ROLES.filter((r) => !existing.includes(r));
   if (available.length === 0) return <span className="text-xs text-muted-foreground">{t("users.allGranted")}</span>;
   return (
     <div className="flex items-center gap-2">
-      <Select value={val} onValueChange={setVal} disabled={disabled}>
+      <Select value={val} onValueChange={setVal} disabled={pending}>
         <SelectTrigger className="h-8 w-32"><SelectValue placeholder={t("users.role")} /></SelectTrigger>
         <SelectContent>
           {available.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -493,11 +516,10 @@ function GrantRole({ existing, onGrant, disabled, disabledReason }: { userId: st
       </Select>
       <Button
         size="sm"
-        disabled={!val || disabled}
-        title={disabled ? disabledReason : undefined}
+        disabled={!val || pending}
         onClick={() => { onGrant(val as any); setVal(""); }}
       >
-        {t("users.grant")}
+        {lambdaMode ? "Change role" : t("users.grant")}
       </Button>
     </div>
   );
