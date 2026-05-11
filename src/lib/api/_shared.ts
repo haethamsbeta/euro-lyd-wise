@@ -6,7 +6,7 @@
  * SQL Server DAHABDB. They are NOT wired into every page yet — see
  * docs/SQLSERVER_READINESS_AUDIT_V2.md for the migration matrix.
  */
-export { apiFetch, ApiError } from "@/lib/dahabApi";
+export { apiFetch, apiFetchEnvelope, ApiError } from "@/lib/dahabApi";
 export type { ApiEnvelope, Currency } from "@/lib/dahabApi";
 
 /** Build a query string from an object, skipping null/undefined/empty values. */
