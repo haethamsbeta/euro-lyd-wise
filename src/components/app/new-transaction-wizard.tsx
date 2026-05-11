@@ -376,6 +376,8 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
           {step.key === "vault" && (
             <VaultStep
               value={channel}
+              cashVaultMissing={cashVaultMissing}
+              currency={currency}
               onPick={(v) => {
                 changeChannel(v);
                 // Auto-advance to Details — vault step has only two options,
