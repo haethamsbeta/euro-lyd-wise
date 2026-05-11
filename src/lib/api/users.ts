@@ -1,5 +1,5 @@
 // Users / staff admin adapter.
-import { apiFetch, qs } from "./_shared";
+import { apiFetch, apiFetchEnvelope, qs } from "./_shared";
 
 export type AppRole = "admin" | "teller" | "auditor" | "consumer";
 export interface AppUser {
@@ -44,13 +44,19 @@ export const usersApi = {
     role: Exclude<AppRole, "consumer">;
     status?: "active" | "disabled";
     must_change_password?: boolean;
-  }) => apiFetch<AppUser>("/users", { method: "POST", body: JSON.stringify(body) }),
-  setRole: (id: string, role: Exclude<AppRole, "consumer">) =>
+  }) => apiFetchEnvelope<AppUser>("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateRole: (id: string, role: Exclude<AppRole, "consumer">) =>
     apiFetch<AppUser>(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
-  setStatus: (id: string, status: "active" | "disabled") =>
+  updateStatus: (id: string, status: "active" | "disabled") =>
     apiFetch<AppUser>(`/users/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  passwordReset: (id: string) =>
-    apiFetch<{ ok: true }>(`/users/${id}/password-reset`, { method: "PATCH" }),
+  resetPassword: (id: string, password?: string, must_change_password = true) =>
+    apiFetch<{ ok: true }>(`/users/${id}/password-reset`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...(password ? { password } : {}), must_change_password }),
+    }),
+  setRole: (id: string, role: Exclude<AppRole, "consumer">) => usersApi.updateRole(id, role),
+  setStatus: (id: string, status: "active" | "disabled") => usersApi.updateStatus(id, status),
+  passwordReset: (id: string) => usersApi.resetPassword(id),
   setRoles: (id: string, roles: AppRole[]) =>
     apiFetch<AppUser>(`/users/${id}/roles`, {
       method: "PUT",
