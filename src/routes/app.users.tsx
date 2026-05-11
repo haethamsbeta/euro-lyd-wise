@@ -243,17 +243,20 @@ function UsersPage() {
                           <TooltipProvider delayDuration={150}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2"
-                                  aria-label="Change email"
-                                  onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
-                                >
-                                  <Mail className="h-3.5 w-3.5" />
-                                </Button>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2"
+                                    aria-label="Change email"
+                                    disabled={isLambda}
+                                    onClick={() => { setEmailEdit({ id: p.id, current: email }); setNewEmail(email ?? ""); }}
+                                  >
+                                    <Mail className="h-3.5 w-3.5" />
+                                  </Button>
+                                </span>
                               </TooltipTrigger>
-                              <TooltipContent>Change email</TooltipContent>
+                              <TooltipContent>{isLambda ? PENDING_MSG : "Change email"}</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
@@ -264,7 +267,12 @@ function UsersPage() {
                           {userRoles.map((r) => (
                             <Badge key={r.id} variant="secondary" className="gap-1">
                               {r.role}
-                              <button className="ml-1 text-xs opacity-60 hover:opacity-100" onClick={() => revoke.mutate(r.id)}>×</button>
+                              <button
+                                className="ml-1 text-xs opacity-60 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                title={isLambda ? PENDING_MSG : "Revoke role"}
+                                disabled={isLambda}
+                                onClick={() => revoke.mutate(r.id)}
+                              >×</button>
                             </Badge>
                           ))}
                         </div>
@@ -291,6 +299,9 @@ function UsersPage() {
                         )}
                       </td>
                       <td className="px-4 py-2">
+                        {isLambda ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -323,21 +334,33 @@ function UsersPage() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-col items-start gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            disabled={testingId === p.id}
-                            onClick={() => onSendTest(p.id, p.full_name || "this user")}
-                          >
-                            <Send className="h-3.5 w-3.5" />
-                            {testingId === p.id ? "Sending…" : "Send test"}
-                          </Button>
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    disabled={isLambda || testingId === p.id}
+                                    onClick={() => onSendTest(p.id, p.full_name || "this user")}
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                    {testingId === p.id ? "Sending…" : "Send test"}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {isLambda ? <TooltipContent>{PENDING_MSG}</TooltipContent> : null}
+                            </Tooltip>
+                          </TooltipProvider>
                           <span className="text-[11px] text-muted-foreground">
-                            {pushOn
+                            {isLambda
+                              ? "Push status pending"
+                              : pushOn
                               ? `Ready — ${push?.subscription_count} device(s)`
                               : pushPartial
                                 ? "In-app only (no devices)"
@@ -346,7 +369,13 @@ function UsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-2">
-                        <GrantRole userId={p.id} existing={userRoles.map((r) => r.role)} onGrant={(role) => grant.mutate({ user_id: p.id, role })} />
+                        <GrantRole
+                          userId={p.id}
+                          existing={userRoles.map((r) => r.role)}
+                          disabled={isLambda}
+                          disabledReason={PENDING_MSG}
+                          onGrant={(role) => grant.mutate({ user_id: p.id, role })}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
@@ -355,16 +384,25 @@ function UsersPage() {
                           const isSelf = user?.id === p.id;
                           if (!isStaff || isSelf) return null;
                           return (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              disabled={resettingId === p.id}
-                              onClick={() => onResetPassword(p.id, p.full_name || "this user")}
-                            >
-                              <KeyRound className="h-3.5 w-3.5" />
-                              {resettingId === p.id ? "Sending…" : "Reset password"}
-                            </Button>
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1.5"
+                                      disabled={isLambda || resettingId === p.id}
+                                      onClick={() => onResetPassword(p.id, p.full_name || "this user")}
+                                    >
+                                      <KeyRound className="h-3.5 w-3.5" />
+                                      {resettingId === p.id ? "Sending…" : "Reset password"}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {isLambda ? <TooltipContent>{PENDING_MSG}</TooltipContent> : null}
+                              </Tooltip>
+                            </TooltipProvider>
                           );
                           })()}
                         </div>
