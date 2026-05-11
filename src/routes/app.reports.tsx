@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
+  Download, Calendar, TrendingUp, Users,
   BarChart3, PieChart as PieIcon, FileText, ChevronRight, Sparkles,
   Award, Clock, Zap, Target, AlertCircle, CheckCircle2, Activity,
   Trophy, Medal, Star,
@@ -18,9 +18,9 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
-import { formatMinor, formatMinorOrMissing } from "@/lib/format";
+import { formatMinor } from "@/lib/format";
 import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
-import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
+import { displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
 /**
