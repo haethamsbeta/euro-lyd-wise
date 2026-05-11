@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState, useMemo } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { RoleGate } from "@/components/app/app-shell";
 import { REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
+import { isTestRow } from "@/lib/api/_shared";
+import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/vaults/$id")({
   component: () => (
@@ -39,6 +41,8 @@ export const Route = createFileRoute("/app/vaults/$id")({
 function VaultDetail() {
   const t = useT();
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const showMaster = useShowMasterTools();
   const [search, setSearch] = useState("");
 
   const { data: vault } = useQuery({
@@ -48,6 +52,7 @@ function VaultDetail() {
         const v: any = await api.vaults.get(id).catch(() => null);
         if (!v) return null;
         return {
+          __raw_is_test: v.is_test === true || v.source_system === "DAHAB_TEST" || !!v.test_run_id,
           id: v.id,
           name: v.name,
           vault_channel: v.vault_channel ?? v.channel ?? v.kind ?? "cash",
@@ -79,6 +84,12 @@ function VaultDetail() {
       };
     },
   });
+
+  useEffect(() => {
+    if (vault && (vault as any).__raw_is_test && !showMaster) {
+      navigate({ to: "/app/vaults" });
+    }
+  }, [vault, showMaster, navigate]);
 
   const { data: tx } = useQuery({
     queryKey: ["vault.tx", id],
