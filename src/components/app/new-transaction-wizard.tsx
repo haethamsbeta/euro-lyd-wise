@@ -138,6 +138,9 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         const allowed = new Set(["USD", "EUR", "LYD"]);
         return accountItems
           .filter((r) => allowed.has(String(r.currency_code)))
+          .filter((r) =>
+            !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
+          )
           .map((r) => {
             const holder = holderById.get(r.account_holder_id) ?? {};
             return {
