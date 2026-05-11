@@ -331,6 +331,11 @@ function GroupsPage() {
           mode={editing ? "edit" : "create"}
           group={editing}
           onClose={() => { setCreating(false); setEditing(null); }}
+          onCreated={(g) => {
+            setCreating(false);
+            setEditing(null);
+            navigate({ to: "/app/groups/$id", params: { id: String(g.id) } });
+          }}
         />
       )}
 
@@ -667,8 +672,8 @@ function EmptyFilteredState({ onClear }: { onClear: () => void }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function GroupModal({
-  mode, group, onClose,
-}: { mode: "create" | "edit"; group: AccountGroup | null; onClose: () => void }) {
+  mode, group, onClose, onCreated,
+}: { mode: "create" | "edit"; group: AccountGroup | null; onClose: () => void; onCreated?: (g: AccountGroup) => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState(group?.name ?? "");
   const [description, setDescription] = useState(group?.description ?? "");
@@ -695,11 +700,15 @@ function GroupModal({
       }
       return null;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast.success(mode === "create" ? "Group created" : "Group updated");
       qc.invalidateQueries({ queryKey: ["groups.list.v3"] });
       qc.invalidateQueries({ queryKey: ["group.detail"] });
-      onClose();
+      if (mode === "create" && result && onCreated) {
+        onCreated(result as AccountGroup);
+      } else {
+        onClose();
+      }
     },
     onError: (e: any) => {
       if (isPendingError(e)) {
