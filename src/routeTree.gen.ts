@@ -36,6 +36,7 @@ import { Route as AppAccountsIndexRouteImport } from './routes/app.accounts.inde
 import { Route as PortalAccountIdCurrencyRouteImport } from './routes/portal.$accountId.$currency'
 import { Route as AppVaultsIdRouteImport } from './routes/app.vaults.$id'
 import { Route as AppUsersNewConsumerRouteImport } from './routes/app.users.new-consumer'
+import { Route as AppUsersNewRouteImport } from './routes/app.users.new'
 import { Route as AppTransactionsIdRouteImport } from './routes/app.transactions.$id'
 import { Route as AppSettingsSecurityRouteImport } from './routes/app.settings.security'
 import { Route as AppSettingsNotificationsRouteImport } from './routes/app.settings.notifications'
@@ -187,6 +188,11 @@ const AppUsersNewConsumerRoute = AppUsersNewConsumerRouteImport.update({
   path: '/new-consumer',
   getParentRoute: () => AppUsersRoute,
 } as any)
+const AppUsersNewRoute = AppUsersNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppUsersRoute,
+} as any)
 const AppTransactionsIdRoute = AppTransactionsIdRouteImport.update({
   id: '/transactions/$id',
   path: '/transactions/$id',
@@ -297,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/transactions/$id': typeof AppTransactionsIdRoute
+  '/app/users/new': typeof AppUsersNewRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/transactions/$id': typeof AppTransactionsIdRoute
+  '/app/users/new': typeof AppUsersNewRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -383,6 +391,7 @@ export interface FileRoutesById {
   '/app/settings/notifications': typeof AppSettingsNotificationsRoute
   '/app/settings/security': typeof AppSettingsSecurityRoute
   '/app/transactions/$id': typeof AppTransactionsIdRoute
+  '/app/users/new': typeof AppUsersNewRoute
   '/app/users/new-consumer': typeof AppUsersNewConsumerRoute
   '/app/vaults/$id': typeof AppVaultsIdRoute
   '/portal/$accountId/$currency': typeof PortalAccountIdCurrencyRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/settings/security'
     | '/app/transactions/$id'
+    | '/app/users/new'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -470,6 +480,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/settings/security'
     | '/app/transactions/$id'
+    | '/app/users/new'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/app/settings/notifications'
     | '/app/settings/security'
     | '/app/transactions/$id'
+    | '/app/users/new'
     | '/app/users/new-consumer'
     | '/app/vaults/$id'
     | '/portal/$accountId/$currency'
@@ -733,6 +745,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersNewConsumerRouteImport
       parentRoute: typeof AppUsersRoute
     }
+    '/app/users/new': {
+      id: '/app/users/new'
+      path: '/new'
+      fullPath: '/app/users/new'
+      preLoaderRoute: typeof AppUsersNewRouteImport
+      parentRoute: typeof AppUsersRoute
+    }
     '/app/transactions/$id': {
       id: '/app/transactions/$id'
       path: '/transactions/$id'
@@ -842,10 +861,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppUsersRouteChildren {
+  AppUsersNewRoute: typeof AppUsersNewRoute
   AppUsersNewConsumerRoute: typeof AppUsersNewConsumerRoute
 }
 
 const AppUsersRouteChildren: AppUsersRouteChildren = {
+  AppUsersNewRoute: AppUsersNewRoute,
   AppUsersNewConsumerRoute: AppUsersNewConsumerRoute,
 }
 
