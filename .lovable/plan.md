@@ -1,48 +1,54 @@
-## Goal
-`/reports/business/overview` is live but the FE adapter expects `counts.{total,posted,rejected}` while backend returns `counts.{tx_total, tx_posted, tx_rejected, active_holders}`. Active holders also lives inside `counts` (not at root). Fix mapping with alias support so widgets render. No redesign, no mock data, no FX, no Supabase.
+## Root cause
 
-## Changes
+The BackendPending widgets are gated on **derived/filtered** arrays, not the raw backend arrays:
 
-### 1. `src/lib/api/reports.ts`
+- **Daily Transactions** checks `dailyVolume7d.length === 0`, but `dailyVolume7d` is filtered to `currency === "LYD"` only. If the backend returns 3 rows that are USD/EUR/GBP, the filter yields 0 → BackendPending shows even though `overview.daily_volume_7d.length === 3`.
+- **Balance by Currency** checks `currencyDistribution.length === 0`, derived via `displayCurrency()`. If backend currency codes don't match the strict allow-list, derived length can be 0.
+- **Customer Growth** maps `r.month` / `r.new_holders`. If backend uses `m` / `count` (or zeros), the derived array length still matches but values may be empty — gating is fine here, but should still use raw backend length per the spec.
+- **Top Accounts** correctly uses raw `topAccounts` (good).
+- **Debug block** is gated by `import.meta.env.DEV`, so it's invisible in the deployed preview the user is looking at.
 
-**`BusinessOverviewResponse`**
-- Move `active_holders` into the optional surfaced fields (keep root accessor for back-compat).
-- Add optional `dahab_account_number` and `account_number` on `top_accounts` row.
+## Fix (frontend render-conditions only)
 
-**`businessOverview()` mapping**
-- `counts`:
-  - `total`     ← `c.total ?? c.tx_total`
-  - `posted`    ← `c.posted ?? c.tx_posted`
-  - `rejected`  ← `c.rejected ?? c.tx_rejected`
-  - `pending`   ← `c.pending ?? c.tx_pending` (nullable)
-  - `rejection_rate` ← unchanged, nullable
-- `active_holders`: read from `r.active_holders ?? r.counts?.active_holders` and expose at top level.
-- `top_accounts[]` row aliases:
-  - `account_id`  ← `account_id ?? holder_account_id ?? account_number ?? dahab_account_number`
-  - `name`        ← `name ?? canonical_name ?? account_display_name`
-  - `currency`    ← `currency ?? currency_code`
-  - keep `balance_minor`
-  - surface `dahab_account_number` and `account_number` for optional display.
-- `currency_distribution[]`, `daily_volume_7d[]`, `volume_by_currency_30d[]`: already alias `currency_code` — keep, plus accept `date` for `day` and `count` for `tx_count`/`posted_count`.
-- `customer_growth_7m[]`: accept `new_customers ?? new_holders`.
+### 1. `src/routes/app.reports.tsx` — gate every Business Overview widget on **raw backend array lengths**
 
-### 2. `src/routes/app.reports.tsx`
+Replace the gating expressions:
 
-- Top KPI strip BackendPending banner (line ~310): change `endpoint="GET /reports/overview"` → `"GET /reports/business/overview"`.
-- KPI strip: confirm tiles read from normalized `counts.total/posted/rejected` and `overview.active_holders` (already wired through adapter once aliases land).
-- Top Accounts (~line 488): keep current layout. Optionally show `a.dahab_account_number ?? a.account_number` as a small muted line under the name when present. No style/layout changes.
-- All `BackendPending` guards stay as `array.length === 0` — they will simply stop firing once the adapter returns mapped rows.
+| Widget                | Current condition                          | New condition                                                  |
+|-----------------------|--------------------------------------------|----------------------------------------------------------------|
+| Daily Transactions    | `dailyVolume7d.length === 0`               | `(overview?.daily_volume_7d?.length ?? 0) === 0`               |
+| Balance by Currency   | `currencyDistribution.length === 0`        | `(overview?.currency_distribution?.length ?? 0) === 0`         |
+| Customer Growth       | `customerGrowth.length === 0`              | `(overview?.customer_growth_7m?.length ?? 0) === 0`            |
+| Top Accounts          | `!topAccounts \|\| topAccounts.length===0` | `(overview?.top_accounts?.length ?? 0) === 0`                  |
 
-### 3. `docs/LAMBDA_REPORTS_WIRING_AUDIT.md`
-- Mark Business Overview section as **Live & mapped**.
-- Note the accepted alias pairs:
-  - counts: `tx_total↔total`, `tx_posted↔posted`, `tx_rejected↔rejected`, `active_holders` lives under `counts`.
-  - top_accounts: `holder_account_id`, `canonical_name`/`account_display_name`, `dahab_account_number`/`account_number`, `currency_code`.
-  - daily_volume / volume_by_currency / currency_distribution: `currency_code`.
-- Update "remaining gaps" to drop Business Overview rows.
+Also relax the **Daily Transactions** series so it doesn't silently empty when backend returns no LYD rows: if the LYD-filtered series is empty but the raw array has rows, plot one currency we do have (prefer LYD; otherwise the first currency present), and label the axis with that currency. Still no FX summing across currencies.
 
-### 4. Verify
-Run `bunx tsc --noEmit`. Report changed files.
+### 2. Make the debug block always visible
+
+Remove the `import.meta.env.DEV` guard so the line:
+
+```
+Business overview loaded — counts: true · daily_volume_7d: 3 · currency_distribution: 3 · customer_growth_7m: 1 · top_accounts: 50 · volume_by_currency_30d: 3
+```
+
+renders directly under the page header in production preview too. Keep it small/mono, unobtrusive.
+
+### 3. Banner condition
+
+`overviewPending` already uses `hasOverviewPayload` against raw arrays — leave as-is. With confirmed backend data, the banner with "KPI strip will populate once the backend reports overview endpoint is available" will not render.
+
+### 4. Network Volume 30d
+
+The KPI strip already sources from `volByCcy` (`overview.volume_by_currency_30d`); no separate BackendPending exists for it, so no change required beyond confirming the banner stays hidden.
 
 ## Out of scope
-No redesign, no new endpoints, no mock data, no Supabase fallback, no frontend FX, no removal of report sections.
+
+- No backend changes, no mock data, no Supabase fallback, no FX math, no redesign.
+- Approval Speed / Hourly Traffic / Cash Flow / Liquidity / Tellers / Compliance pending blocks are unrelated to Business Overview and stay as-is.
+
+## Verification
+
+1. Typecheck (`tsc --noEmit` via harness).
+2. Grep `src/routes/app.reports.tsx` to confirm the four exact strings ("KPI strip will populate…", "daily_volume_7d not yet returned.", "currency_distribution not yet returned.", "customer_growth_7m not yet returned.", "top_accounts not yet returned.") still exist as `note=` props but are only reachable when raw backend arrays are empty.
+3. Open `/app/reports` — debug line shows non-zero counts, and none of the four Business Overview widgets render BackendPending.
+4. Update `docs/LAMBDA_REPORTS_WIRING_AUDIT.md` diagnostic note to record that the gating bug was filtered-array based, not raw-array based.
