@@ -371,12 +371,20 @@ function TestSandboxPage() {
                 {(fixturesQuery.error as Error).message}
               </p>
             )
-          ) : !fixturesQuery.data || fixturesQuery.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No fixtures yet.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {fixturesQuery.data.map((f) => (
-                <li key={f.test_run_id} className="flex flex-wrap items-center gap-3 py-3">
+          ) : (() => {
+              const raw: any = fixturesQuery.data;
+              const fixtures = Array.isArray(raw)
+                ? raw
+                : Array.isArray(raw?.items)
+                  ? raw.items
+                  : [];
+              if (fixtures.length === 0) {
+                return <p className="text-sm text-muted-foreground">No fixtures yet.</p>;
+              }
+              return (
+                <ul className="divide-y divide-border">
+                  {fixtures.map((f: any) => (
+                    <li key={f.test_run_id} className="flex flex-wrap items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">
@@ -473,9 +481,10 @@ function TestSandboxPage() {
                     </Button>
                   </div>
                 </li>
-              ))}
-            </ul>
-          )}
+                  ))}
+                </ul>
+              );
+            })()}
         </CardContent>
       </Card>
 

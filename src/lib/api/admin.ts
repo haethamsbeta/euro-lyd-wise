@@ -37,15 +37,33 @@ export const adminApi = {
       }),
   },
   testFixtures: {
-    list: () =>
-      apiFetch<Array<{
+    list: async () => {
+      type Row = {
         test_run_id: string;
         holder_id: string;
         holder_name?: string;
         account_count?: number;
         vault_count?: number;
         created_at?: string;
-      }>>("/admin/test-fixtures"),
+      };
+      const res = await apiFetch<any>("/admin/test-fixtures");
+      const items: Row[] = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.items)
+          ? res.items
+          : Array.isArray(res?.data?.items)
+            ? res.data.items
+            : Array.isArray(res?.data)
+              ? res.data
+              : [];
+      const total: number =
+        typeof res?.total === "number"
+          ? res.total
+          : typeof res?.data?.total === "number"
+            ? res.data.total
+            : items.length;
+      return { items, total };
+    },
     create: () =>
       apiFetch<{
         test_run_id: string;
