@@ -190,10 +190,40 @@ function TestSandboxPage() {
     }
   }
 
-  function findPair(cur: Currency) {
-    const ha = fixture?.holder_accounts.find((a) => a.currency_code === cur);
-    const v = fixture?.vaults.find((x) => x.currency_code === cur);
-    return { ha, v };
+  function findHolderAccount(cur: Currency) {
+    return fixture?.holder_accounts.find((a) => a.currency_code === cur);
+  }
+  function findReceivable(cur: Currency) {
+    return fixture?.vaults.find(
+      (v) =>
+        v.currency_code === cur &&
+        isReceivable(v.internal_role) &&
+        (v.test_run_id ?? fixture.test_run_id) === fixture.test_run_id,
+    );
+  }
+  function findPayable(cur: Currency) {
+    return fixture?.vaults.find(
+      (v) =>
+        v.currency_code === cur &&
+        isPayable(v.internal_role) &&
+        (v.test_run_id ?? fixture.test_run_id) === fixture.test_run_id,
+    );
+  }
+
+  /** Hard isolation: refuse to post unless every party is sandbox-tagged and shares the same test_run_id. */
+  function assertSandboxPair(
+    ha: { id: string; is_test?: boolean; test_run_id?: string },
+    vault: { id: string; is_test?: boolean; test_run_id?: string },
+    fx: Fixture,
+  ) {
+    const haTest = ha.is_test !== false; // tolerate missing flag from backend
+    const vaTest = vault.is_test !== false;
+    const haRun = ha.test_run_id ?? fx.test_run_id;
+    const vaRun = vault.test_run_id ?? fx.test_run_id;
+    if (!haTest || !vaTest) throw new Error("Refused: non-test entity in sandbox call.");
+    if (haRun !== fx.test_run_id || vaRun !== fx.test_run_id) {
+      throw new Error("Refused: test_run_id mismatch between holder, vault, and fixture.");
+    }
   }
 
   async function runTx(opts: {
@@ -203,9 +233,18 @@ function TestSandboxPage() {
     expectStatus: "posted" | "pending";
   }) {
     if (!fixture) return;
-    const { ha, v } = findPair(currency);
+    const ha = findHolderAccount(currency);
+    const v = opts.direction === "deposit" ? findReceivable(currency) : findPayable(currency);
     if (!ha || !v) {
       toast.error(`No fixture pair for ${currency}`);
+      return;
+    }
+    try {
+      assertSandboxPair(ha, v, fixture);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sandbox guard rejected the call";
+      appendLog({ action: opts.action, status: "error", detail: msg });
+      toast.error(msg);
       return;
     }
     setBusy(opts.action);
