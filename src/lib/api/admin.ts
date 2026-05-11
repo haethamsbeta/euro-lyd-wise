@@ -37,6 +37,14 @@ export const adminApi = {
       }),
   },
   testFixtures: {
+    list: () =>
+      apiFetch<Array<{
+        test_run_id: string;
+        holder_id: string;
+        holder_name?: string;
+        account_count?: number;
+        created_at?: string;
+      }>>("/admin/test-fixtures"),
     create: () =>
       apiFetch<{
         test_run_id: string;
