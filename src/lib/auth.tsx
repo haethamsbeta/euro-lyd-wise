@@ -3,6 +3,8 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { clearDahabAuthStorage, getAccessToken } from "@/lib/dahabAuthToken";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { api } from "@/lib/api";
+import { normalizeLambdaUser, roleFromLambdaUser, type LambdaStoredUser } from "@/lib/lambdaUser";
 
 export type AppRole = "admin" | "teller" | "auditor" | "consumer";
 
@@ -57,15 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
 
-  function readLambdaUser() {
+  function readLambdaUser(): LambdaStoredUser | null {
     if (typeof localStorage === "undefined") return null;
     try {
-      return JSON.parse(localStorage.getItem("dahab.user") || "null") as {
-        id?: string;
-        email?: string;
-        role?: string;
-        is_master_admin?: boolean;
-      } | null;
+      return normalizeLambdaUser(JSON.parse(localStorage.getItem("dahab.user") || "null"));
     } catch {
       return null;
     }
@@ -82,10 +79,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_master_admin: lambdaUser.is_master_admin === true,
       },
     } as unknown as Session);
-    setRoles(lambdaUser.role && APP_ROLES.includes(lambdaUser.role as AppRole) ? [lambdaUser.role as AppRole] : []);
+    const role = roleFromLambdaUser(lambdaUser, APP_ROLES);
+    setRoles(role ? [role] : []);
     setLoading(false);
     setRolesLoading(false);
     return true;
+  }
+
+  async function refreshLambdaUser() {
+    const existing = readLambdaUser();
+    if (!getAccessToken() || !existing?.id) return;
+    try {
+      const fresh = normalizeLambdaUser(await api.auth.me(), existing);
+      localStorage.setItem("dahab.user", JSON.stringify(fresh));
+      window.dispatchEvent(new Event("dahab.auth.changed"));
+    } catch (error) {
+      if (import.meta.env.DEV) console.warn("[auth] Failed to refresh Lambda user", error);
+    }
   }
 
   async function loadRoles(uid: string | undefined) {
@@ -107,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles([]);
         setLoading(false);
         setRolesLoading(false);
+      } else {
+        void refreshLambdaUser();
       }
       window.addEventListener("dahab.auth.changed", applyLambdaAuthState);
       return () => window.removeEventListener("dahab.auth.changed", applyLambdaAuthState);
