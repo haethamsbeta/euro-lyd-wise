@@ -193,11 +193,12 @@ function ReportsPage() {
       volume_minor: number;
     }>,
   );
-  const CASH_FLOW_CCY = cashFlowApi.some((r) => r.currency_code === "LYD")
+  const cashFlowRows = Array.isArray(cashFlowApi) ? cashFlowApi : [];
+  const CASH_FLOW_CCY = cashFlowRows.some((r) => r.currency_code === "LYD")
     ? "LYD"
-    : (cashFlowApi[0]?.currency_code ?? "LYD");
+    : (cashFlowRows[0]?.currency_code ?? "LYD");
   const cashFlowByDay = new Map<string, { deposits_minor: number; withdrawals_minor: number }>();
-  for (const r of cashFlowApi) {
+  for (const r of cashFlowRows) {
     if (r.currency_code !== CASH_FLOW_CCY) continue;
     const cur = cashFlowByDay.get(r.day) ?? { deposits_minor: 0, withdrawals_minor: 0 };
     if (r.direction === "deposit") cur.deposits_minor += Number(r.volume_minor || 0);
