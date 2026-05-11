@@ -8,9 +8,11 @@ export type AppRole = "admin" | "teller" | "auditor" | "consumer";
 
 const APP_ROLES: AppRole[] = ["admin", "teller", "auditor", "consumer"];
 
+export type DahabUser = User & { is_master_admin?: boolean };
+
 type AuthState = {
   session: Session | null;
-  user: User | null;
+  user: DahabUser | null;
   roles: AppRole[];
   loading: boolean;
   rolesLoading: boolean;
@@ -58,7 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function readLambdaUser() {
     if (typeof localStorage === "undefined") return null;
     try {
-      return JSON.parse(localStorage.getItem("dahab.user") || "null") as { id?: string; email?: string; role?: string } | null;
+      return JSON.parse(localStorage.getItem("dahab.user") || "null") as {
+        id?: string;
+        email?: string;
+        role?: string;
+        is_master_admin?: boolean;
+      } | null;
     } catch {
       return null;
     }
@@ -68,7 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const lambdaUser = readLambdaUser();
     const token = getAccessToken();
     if (!token || !lambdaUser?.id) return false;
-    setSession({ user: { id: lambdaUser.id, email: lambdaUser.email ?? "" } } as Session);
+    setSession({
+      user: {
+        id: lambdaUser.id,
+        email: lambdaUser.email ?? "",
+        is_master_admin: lambdaUser.is_master_admin === true,
+      },
+    } as unknown as Session);
     setRoles(lambdaUser.role && APP_ROLES.includes(lambdaUser.role as AppRole) ? [lambdaUser.role as AppRole] : []);
     setLoading(false);
     setRolesLoading(false);
@@ -131,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthState = {
     session,
-    user: session?.user ?? null,
+    user: (session?.user as DahabUser | undefined) ?? null,
     roles,
     loading,
     rolesLoading,
