@@ -130,10 +130,14 @@ function ReportsPage() {
   }
   const dailyVolume7d = useMemo(() => {
     const rows = overview?.daily_volume_7d ?? [];
-    // LYD-only series for the chart (no FX summing across currencies).
-    return rows
-      .filter((r) => r.currency === "LYD")
-      .map((r) => ({ d: r.day, v: r.volume_minor / 100 }));
+    // Single-currency series only (no FX summing across currencies).
+    // Prefer LYD; if backend returned no LYD rows, fall back to the first
+    // currency present so we still render a real chart instead of empty.
+    const lyd = rows.filter((r) => r.currency === "LYD");
+    const chosen = lyd.length > 0 ? lyd : rows.length > 0
+      ? rows.filter((r) => r.currency === rows[0].currency)
+      : [];
+    return chosen.map((r) => ({ d: r.day, v: r.volume_minor / 100 }));
   }, [overview]);
   const currencyDistribution = useMemo(() => {
     const rows = overview?.currency_distribution ?? [];
@@ -347,7 +351,7 @@ function ReportsPage() {
             note="KPI strip will populate once the backend reports overview endpoint is available. Holder/transaction totals come from the dashboard summary."
           />
         )}
-        {import.meta.env.DEV && overview && (
+        {overview && (
           <div className="text-[10px] font-mono text-text-tertiary border border-border rounded px-2 py-1">
             Business overview loaded — counts: {String(Boolean(overview.counts))}
             {" · "}daily_volume_7d: {overview.daily_volume_7d?.length ?? 0}
@@ -391,7 +395,7 @@ function ReportsPage() {
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
                 </div>
-                {dailyVolume7d.length === 0 ? (
+                {(overview?.daily_volume_7d?.length ?? 0) === 0 ? (
                   <BackendPending endpoint="GET /reports/business/overview" note="daily_volume_7d not yet returned." />
                 ) : (
                   <div className="h-64" style={{ minWidth: 0 }}>
@@ -416,7 +420,7 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
                 <p className="text-sm text-text-secondary mb-6">Network distribution</p>
-                {currencyDistribution.length === 0 ? (
+                {(overview?.currency_distribution?.length ?? 0) === 0 ? (
                   <BackendPending endpoint="GET /reports/business/overview" note="currency_distribution not yet returned." />
                 ) : (
                   <>
@@ -508,7 +512,7 @@ function ReportsPage() {
               <PremiumCard className="lg:col-span-2 p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
                 <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
-                {customerGrowth.length === 0 ? (
+                {(overview?.customer_growth_7m?.length ?? 0) === 0 ? (
                   <BackendPending endpoint="GET /reports/business/overview" note="customer_growth_7m not yet returned." />
                 ) : (
                 <div className="h-56">
@@ -527,11 +531,11 @@ function ReportsPage() {
               <PremiumCard variant="premium" className="p-6">
                 <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
-                {!topAccounts || topAccounts.length === 0 ? (
+                {(overview?.top_accounts?.length ?? 0) === 0 ? (
                   <BackendPending endpoint="GET /reports/business/overview" note="top_accounts not yet returned." />
                 ) : (
                   <ul className="space-y-3">
-                    {topAccounts.map((a, i) => {
+                    {(topAccounts ?? []).map((a, i) => {
                       const ccy = displayCurrency(a.currency);
                       return (
                         <li key={`${a.account_id}-${a.currency}-${i}`}
