@@ -29,6 +29,22 @@ Conventions:
 | POST | `/api/users/:id/roles` | admin | `{role}` add |
 | DELETE | `/api/users/:id/roles/:role` | admin | revoke |
 
+### DahabDB / Lambda staff-management endpoints (pending)
+
+These replace the legacy Supabase admin paths above for the `/app/users` page in lambda mode. Every write must insert an `audit_log` row.
+
+| Method | Path | Role | Body | Purpose |
+|---|---|---|---|---|
+| POST | `/api/users` | admin | `{ username, email, display_name, password, role: admin\|teller\|auditor, status?, must_change_password? }` | create DAHAB Family staff member |
+| PATCH | `/api/users/:id` | admin | partial profile | update profile fields |
+| PATCH | `/api/users/:id/role` | admin | `{ role }` | change role (no `consumer`) |
+| PATCH | `/api/users/:id/status` | admin | `{ status: active\|disabled }` | enable / disable |
+| PATCH | `/api/users/:id/password-reset` | admin | — | force reset + `must_change_password=true` |
+| POST | `/api/users/:id/test-push` | admin | — | send test push |
+| GET | `/api/users/:id/push-status` | admin | — | subscription summary |
+
+See `docs/USERS_ROLES_LAMBDA_CUTOVER.md` for the full request/response shapes.
+
 ## Account holders
 | GET | `/api/holders?q=&limit=&offset=` | staff | search by name / dahab_account_number |
 | GET | `/api/holders/:id` | staff or owner | |
