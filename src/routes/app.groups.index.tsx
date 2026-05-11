@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,23 +19,32 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Layers, Plus, Search, X, Star, Pin, MoreVertical, Pencil, Trash2, Users,
   Briefcase, Home, TrendingUp, PiggyBank, Building2, Crown, Sparkles, ArrowRight,
-  FolderOpen, FilterX, ShieldAlert, ArrowUp, ArrowDown,
+  FolderOpen, FilterX, ShieldAlert,
 } from "lucide-react";
-import { useAuth, hasAnyRole } from "@/lib/auth";
+import { hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { useDebounced } from "@/hooks/use-debounced";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import type { AccountGroup } from "@/lib/api/groups";
+import { BackendPending, isPendingError } from "@/components/app/backend-pending";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/groups/")({
   component: GroupsPage,
   head: () => ({ meta: [{ title: "Groups" }] }),
 });
 
+const isLambda = DATA_BACKEND === "lambda";
+
 // ────────────────────────────────────────────────────────────────────────────
-// TYPE_META
+// TYPE_META (re-exported for detail page)
 // ────────────────────────────────────────────────────────────────────────────
 
 export type GroupType = "general" | "family" | "business" | "investment" | "savings" | "corporate" | "vip";
@@ -62,21 +70,10 @@ export function metaFor(t: string | null | undefined) {
   return TYPE_META[(t as GroupType) in TYPE_META ? (t as GroupType) : "general"];
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Types
-// ────────────────────────────────────────────────────────────────────────────
-
-type GroupRow = {
-  id: number;
-  name: string;
-  description: string | null;
-  group_type: string;
-  is_pinned: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-type CurrencyAgg = { currency: string; balance: number; credits30d: number; debits30d: number; tx30d: number; accountCount: number };
+export function initials(name: string) {
+  const parts = (name ?? "").trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
 
 type SortKey = "pinned" | "newest" | "name" | "members";
 
@@ -98,132 +95,49 @@ function GroupsPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | GroupType>("all");
   const [sortKey, setSortKey] = useState<SortKey>("pinned");
 
-  const [editing, setEditing] = useState<GroupRow | null>(null);
+  const [editing, setEditing] = useState<AccountGroup | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState<GroupRow | null>(null);
+  const [deleting, setDeleting] = useState<AccountGroup | null>(null);
 
   const groupsQ = useQuery({
-    queryKey: ["groups.list.v2"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_groups")
-        .select("id,name,description,group_type,is_pinned,created_at,updated_at")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as GroupRow[];
-    },
+    queryKey: ["groups.list.v3"],
+    queryFn: () => api.groups.list(),
+    retry: false,
   });
 
-  const membersQ = useQuery({
-    queryKey: ["groups.all-members"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_group_members")
-        .select("group_id,holder_account_id");
-      if (error) throw error;
-      const map = new Map<number, number[]>();
-      for (const r of (data ?? []) as { group_id: number; holder_account_id: number }[]) {
-        const arr = map.get(r.group_id);
-        if (arr) arr.push(r.holder_account_id);
-        else map.set(r.group_id, [r.holder_account_id]);
-      }
-      return map;
-    },
-  });
-
-  const allAccountIds = useMemo(() => {
-    const set = new Set<number>();
-    membersQ.data?.forEach((arr) => arr.forEach((id) => set.add(id)));
-    return Array.from(set);
-  }, [membersQ.data]);
-
-  const balancesQ = useQuery({
-    queryKey: ["groups.account-balances", allAccountIds.length],
-    enabled: allAccountIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("holder_accounts")
-        .select("id,currency_code,current_balance")
-        .in("id", allAccountIds);
-      if (error) throw error;
-      const m = new Map<number, { currency: string; balance: number }>();
-      for (const r of data ?? []) m.set(r.id, { currency: r.currency_code, balance: Number(r.current_balance ?? 0) });
-      return m;
-    },
-  });
-
-  const activityQ = useQuery({
-    queryKey: ["groups.activity30d", allAccountIds.length],
-    enabled: allAccountIds.length > 0,
-    queryFn: async () => {
-      const since = new Date(Date.now() - 30 * 86400_000).toISOString();
-      const { data, error } = await supabase
-        .from("holder_ledger_entries")
-        .select("account_id,currency_code,debit_amount,credit_amount,posted_at")
-        .in("account_id", allAccountIds)
-        .gte("posted_at", since)
-        .limit(10000);
-      if (error) throw error;
-      const m = new Map<number, { credits: number; debits: number; tx: number }>();
-      for (const r of data ?? []) {
-        const cur = m.get(r.account_id) ?? { credits: 0, debits: 0, tx: 0 };
-        cur.credits += Number(r.credit_amount ?? 0);
-        cur.debits += Number(r.debit_amount ?? 0);
-        cur.tx += 1;
-        m.set(r.account_id, cur);
-      }
-      return m;
-    },
-  });
+  const listPending = isLambda && isPendingError(groupsQ.error);
+  // Once the GET endpoint is missing, write endpoints almost certainly are too.
+  const writesDisabled = listPending;
 
   const togglePin = useMutation({
-    mutationFn: async (g: GroupRow) => {
-      const { error } = await supabase.from("account_groups").update({ is_pinned: !g.is_pinned }).eq("id", g.id);
-      if (error) throw error;
+    mutationFn: (g: AccountGroup) => api.groups.togglePin(g.id, !g.is_pinned),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["groups.list.v3"] }),
+    onError: (e: any) => {
+      if (isPendingError(e)) {
+        toast.error("Backend endpoint pending: PATCH /api/groups/:id");
+      } else {
+        toast.error(e?.message ?? "Could not pin group");
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["groups.list.v2"] }),
-    onError: (e: any) => toast.error(e?.message ?? "Could not pin group"),
   });
 
   const deleteMut = useMutation({
-    mutationFn: async (id: number) => {
-      await supabase.from("account_group_members").delete().eq("group_id", id);
-      const { error } = await supabase.from("account_groups").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string | number) => api.groups.remove(id),
     onSuccess: () => {
       toast.success("Group deleted");
-      qc.invalidateQueries({ queryKey: ["groups.list.v2"] });
-      qc.invalidateQueries({ queryKey: ["groups.all-members"] });
+      qc.invalidateQueries({ queryKey: ["groups.list.v3"] });
       setDeleting(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to delete"),
+    onError: (e: any) => {
+      if (isPendingError(e)) {
+        toast.error("Backend endpoint pending: DELETE /api/groups/:id");
+      } else {
+        toast.error(e?.message ?? "Failed to delete");
+      }
+    },
   });
 
   const groups = groupsQ.data ?? [];
-  const members = membersQ.data ?? new Map<number, number[]>();
-  const balances = balancesQ.data ?? new Map();
-  const activity = activityQ.data ?? new Map();
-
-  function aggregateGroup(groupId: number): CurrencyAgg[] {
-    const ids = members.get(groupId) ?? [];
-    const byCur = new Map<string, CurrencyAgg>();
-    for (const id of ids) {
-      const b = balances.get(id);
-      if (!b) continue;
-      const cur = byCur.get(b.currency) ?? { currency: b.currency, balance: 0, credits30d: 0, debits30d: 0, tx30d: 0, accountCount: 0 };
-      cur.balance += b.balance;
-      cur.accountCount += 1;
-      const a = activity.get(id);
-      if (a) {
-        cur.credits30d += a.credits;
-        cur.debits30d += a.debits;
-        cur.tx30d += a.tx;
-      }
-      byCur.set(b.currency, cur);
-    }
-    return Array.from(byCur.values()).sort((x, y) => y.balance - x.balance);
-  }
 
   const filtered = useMemo(() => {
     let xs = groups.slice();
@@ -242,29 +156,28 @@ function GroupsPage() {
       }
       if (sortKey === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (sortKey === "name") return a.name.localeCompare(b.name);
-      if (sortKey === "members") return (members.get(b.id)?.length ?? 0) - (members.get(a.id)?.length ?? 0);
+      if (sortKey === "members") return (b.member_count ?? 0) - (a.member_count ?? 0);
       return 0;
     });
     return xs;
-  }, [groups, typeFilter, dq, sortKey, members]);
+  }, [groups, typeFilter, dq, sortKey]);
 
-  const totalMembers = useMemo(() => Array.from(members.values()).reduce((s, arr) => s + arr.length, 0), [members]);
+  const totalMembers = useMemo(() => groups.reduce((s, g) => s + (g.member_count ?? 0), 0), [groups]);
   const pinnedCount = groups.filter((g) => g.is_pinned).length;
 
   // Aggregate managed balance — top currency across all groups
   const managedTotals = useMemo(() => {
     const m = new Map<string, number>();
-    for (const arr of members.values()) {
-      for (const id of arr) {
-        const b = balances.get(id);
-        if (!b) continue;
-        m.set(b.currency, (m.get(b.currency) ?? 0) + b.balance);
+    for (const g of groups) {
+      for (const t of g.totals_by_currency ?? []) {
+        m.set(t.currency, (m.get(t.currency) ?? 0) + Number(t.total_minor ?? 0));
       }
     }
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  }, [members, balances]);
+  }, [groups]);
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="min-h-[calc(100vh-7rem)]">
       <div className="mx-auto max-w-7xl px-4 pt-6 md:px-8 md:pt-8">
         {/* Header */}
@@ -280,9 +193,22 @@ function GroupsPage() {
             </p>
           </div>
           {canMutate && (
-            <Button variant="gold" className="self-start md:self-auto" onClick={() => setCreating(true)}>
-              <Plus className="h-4 w-4" /> New Group
-            </Button>
+            writesDisabled ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="self-start md:self-auto">
+                    <Button variant="gold" disabled>
+                      <Plus className="h-4 w-4" /> New Group
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Backend endpoint pending</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button variant="gold" className="self-start md:self-auto" onClick={() => setCreating(true)}>
+                <Plus className="h-4 w-4" /> New Group
+              </Button>
+            )
           )}
         </div>
 
@@ -360,26 +286,34 @@ function GroupsPage() {
           </div>
         </div>
 
-        {/* Cards grid / empty states */}
+        {/* Cards grid / empty / pending states */}
         <div className="mt-6 pb-12">
-          {groupsQ.isLoading ? (
+          {listPending ? (
+            <BackendPending
+              endpoint="GET /api/groups"
+              note="Group list, create, update, delete and member endpoints are not enabled on the Lambda backend yet. The page will populate as soon as they ship."
+            />
+          ) : groupsQ.isLoading ? (
             <div className="rounded-2xl border border-gold/15 bg-card/40 p-10 text-center text-sm text-muted-foreground">
               Loading groups…
             </div>
+          ) : groupsQ.error ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center text-sm text-destructive">
+              {(groupsQ.error as any)?.message ?? "Failed to load groups"}
+            </div>
           ) : groups.length === 0 ? (
-            <EmptyZeroState canCreate={canMutate} onCreate={() => setCreating(true)} />
+            <EmptyZeroState canCreate={canMutate && !writesDisabled} onCreate={() => setCreating(true)} />
           ) : filtered.length === 0 ? (
             <EmptyFilteredState onClear={() => { setSearch(""); setTypeFilter("all"); }} />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filtered.map((g) => (
                 <GroupCard
-                  key={g.id}
+                  key={String(g.id)}
                   g={g}
-                  memberCount={members.get(g.id)?.length ?? 0}
-                  aggs={aggregateGroup(g.id)}
                   canMutate={canMutate}
                   canViewBalances={canViewBalances}
+                  writesDisabled={writesDisabled}
                   onOpen={() => navigate({ to: "/app/groups/$id", params: { id: String(g.id) } })}
                   onEdit={() => setEditing(g)}
                   onDelete={() => setDeleting(g)}
@@ -431,6 +365,7 @@ function GroupsPage() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -504,22 +439,20 @@ function TypePill({
 // ────────────────────────────────────────────────────────────────────────────
 
 function GroupCard({
-  g, memberCount, aggs, canMutate, canViewBalances, onOpen, onEdit, onDelete, onTogglePin,
+  g, canMutate, canViewBalances, writesDisabled, onOpen, onEdit, onDelete, onTogglePin,
 }: {
-  g: GroupRow; memberCount: number; aggs: CurrencyAgg[];
-  canMutate: boolean; canViewBalances: boolean;
+  g: AccountGroup;
+  canMutate: boolean; canViewBalances: boolean; writesDisabled: boolean;
   onOpen: () => void; onEdit: () => void; onDelete: () => void; onTogglePin: () => void;
 }) {
   const meta = metaFor(g.group_type);
-  const accountCount = aggs.reduce((s, a) => s + a.accountCount, 0);
-  const primary = aggs[0];
-  const secondary = aggs.slice(1, 3);
-  const overflow = Math.max(0, aggs.length - 3);
-  const totalCredits30d = aggs.reduce((s, a) => s + a.credits30d, 0);
-  const totalDebits30d = aggs.reduce((s, a) => s + a.debits30d, 0);
-  const totalTx30d = aggs.reduce((s, a) => s + a.tx30d, 0);
-  const hasNegative = aggs.some((a) => a.balance < 0);
-  const isStale = canViewBalances && aggs.length > 0 && totalTx30d === 0;
+  const totals = (g.totals_by_currency ?? [])
+    .map((t) => ({ currency: t.currency, balance: Number(t.total_minor ?? 0) }))
+    .sort((a, b) => b.balance - a.balance);
+  const primary = totals[0];
+  const secondary = totals.slice(1, 3);
+  const overflow = Math.max(0, totals.length - 3);
+  const hasNegative = totals.some((a) => a.balance < 0);
 
   return (
     <div
@@ -539,17 +472,23 @@ function GroupCard({
         </div>
         <div className="flex items-center gap-1">
           {canMutate && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-              aria-label={g.is_pinned ? "Unpin group" : "Pin group"}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                g.is_pinned ? "text-gold hover:bg-gold/10" : "text-muted-foreground hover:bg-gold/10 hover:text-gold",
-              )}
-            >
-              <Star className={cn("h-4 w-4", g.is_pinned && "fill-current")} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  disabled={writesDisabled}
+                  onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onTogglePin(); }}
+                  aria-label={g.is_pinned ? "Unpin group" : "Pin group"}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+                    g.is_pinned ? "text-gold hover:bg-gold/10" : "text-muted-foreground hover:bg-gold/10 hover:text-gold",
+                  )}
+                >
+                  <Star className={cn("h-4 w-4", g.is_pinned && "fill-current")} />
+                </button>
+              </TooltipTrigger>
+              {writesDisabled && <TooltipContent>Backend endpoint pending</TooltipContent>}
+            </Tooltip>
           )}
           {canMutate && (
             <DropdownMenu>
@@ -567,12 +506,16 @@ function GroupCard({
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
                   <FolderOpen className="h-4 w-4" /> View details
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                <DropdownMenuItem
+                  disabled={writesDisabled}
+                  onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onEdit(); }}
+                >
                   <Pencil className="h-4 w-4" /> Edit group
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  disabled={writesDisabled}
+                  onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onDelete(); }}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" /> Delete
@@ -601,11 +544,11 @@ function GroupCard({
       </p>
 
       {/* Status chips */}
-      {(accountCount > 0 || hasNegative || isStale) && (
+      {(g.member_count > 0 || hasNegative) && (
         <div className="flex flex-wrap items-center gap-1.5">
-          {accountCount > 0 && (
+          {g.member_count > 0 && (
             <span className="inline-flex items-center gap-1 rounded-md border border-gold/20 bg-gold/5 px-2 py-0.5 text-[10px] font-medium text-gold">
-              {accountCount} acct{accountCount === 1 ? "" : "s"}
+              {g.member_count} acct{g.member_count === 1 ? "" : "s"}
             </span>
           )}
           {hasNegative && (
@@ -613,17 +556,12 @@ function GroupCard({
               <ShieldAlert className="h-3 w-3" /> Negative balance
             </span>
           )}
-          {isStale && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-              No activity · 30d
-            </span>
-          )}
         </div>
       )}
 
       {/* Hero balances */}
       {canViewBalances ? (
-        aggs.length === 0 ? (
+        totals.length === 0 ? (
           <div className="rounded-xl border border-gold/10 bg-surface-2/50 px-3 py-3 text-center text-xs text-muted-foreground">
             No balances yet
           </div>
@@ -663,95 +601,23 @@ function GroupCard({
                 )}
               </div>
             )}
-
-            {/* 30d activity strip */}
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gold/10 pt-3">
-              <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/80">Credits 30d</div>
-                <div className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-semibold tabular-nums text-emerald-400">
-                  <ArrowUp className="h-4 w-4" />{compactNum(totalCredits30d)}
-                </div>
-              </div>
-              <div className="rounded-lg border border-rose-400/20 bg-rose-400/5 px-2.5 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-300/80">Debits 30d</div>
-                <div className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-semibold tabular-nums text-rose-400">
-                  <ArrowDown className="h-4 w-4" />{compactNum(totalDebits30d)}
-                </div>
-              </div>
-              <div className="rounded-lg border border-gold/15 bg-gold/5 px-2.5 py-2 text-right">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Txns</div>
-                <div className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">{compactNum(totalTx30d)}</div>
-              </div>
-            </div>
           </div>
         )
       ) : (
         <div className="rounded-lg border border-gold/10 bg-surface-2/50 px-3 py-2 text-[11px] text-muted-foreground">
-          {memberCount} member{memberCount === 1 ? "" : "s"}
+          {g.member_count} member{g.member_count === 1 ? "" : "s"}
         </div>
       )}
 
       {/* Members footer */}
       <div className="flex items-center justify-between border-t border-gold/10 pt-3">
-        <MemberAvatars groupId={g.id} count={memberCount} />
+        <span className="text-[11px] text-muted-foreground">
+          {g.member_count > 0 ? `${g.member_count} member${g.member_count === 1 ? "" : "s"}` : "No members yet"}
+        </span>
         <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
       </div>
     </div>
   );
-}
-
-function compactNum(n: number) {
-  if (!n) return "0";
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return Math.round(n).toString();
-}
-
-function MemberAvatars({ groupId, count }: { groupId: number; count: number }) {
-  const q = useQuery({
-    queryKey: ["group.preview-members", groupId],
-    enabled: count > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("account_group_members")
-        .select("holder_account_id, holder_accounts!inner(account_holders!inner(canonical_name))")
-        .eq("group_id", groupId)
-        .limit(4);
-      if (error) throw error;
-      return (data ?? []).map((m: any) => m.holder_accounts?.account_holders?.canonical_name as string).filter(Boolean);
-    },
-  });
-  const names = q.data ?? [];
-  const overflow = Math.max(0, count - names.length);
-  if (count === 0) {
-    return <span className="text-[11px] text-muted-foreground">No members yet</span>;
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex -space-x-2">
-        {names.slice(0, 4).map((n, i) => (
-          <span
-            key={i}
-            title={n}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-card bg-gradient-to-br from-gold/30 to-gold/10 text-[10px] font-semibold text-gold"
-          >
-            {initials(n)}
-          </span>
-        ))}
-        {overflow > 0 && (
-          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-card bg-surface-2 text-[10px] font-semibold text-muted-foreground">
-            +{overflow}
-          </span>
-        )}
-      </div>
-      <span className="text-[11px] text-muted-foreground">{count} member{count === 1 ? "" : "s"}</span>
-    </div>
-  );
-}
-
-export function initials(name: string) {
-  const parts = (name ?? "").trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -802,45 +668,48 @@ function EmptyFilteredState({ onClear }: { onClear: () => void }) {
 
 function GroupModal({
   mode, group, onClose,
-}: { mode: "create" | "edit"; group: GroupRow | null; onClose: () => void }) {
+}: { mode: "create" | "edit"; group: AccountGroup | null; onClose: () => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState(group?.name ?? "");
   const [description, setDescription] = useState(group?.description ?? "");
   const [type, setType] = useState<GroupType>((group?.group_type as GroupType) || "general");
+  const [pendingNotice, setPendingNotice] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: async () => {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Name is required");
       if (mode === "create") {
-        const { data: u } = await supabase.auth.getUser();
-        const { error } = await supabase.from("account_groups").insert({
+        return api.groups.create({
           name: trimmed,
           description: description.trim() || null,
           group_type: type,
           is_pinned: false,
-          created_by: u.user?.id ?? null,
         });
-        if (error) throw error;
       } else if (group) {
-        const { error } = await supabase
-          .from("account_groups")
-          .update({
-            name: trimmed,
-            description: description.trim() || null,
-            group_type: type,
-          })
-          .eq("id", group.id);
-        if (error) throw error;
+        return api.groups.update(group.id, {
+          name: trimmed,
+          description: description.trim() || null,
+          group_type: type,
+        });
       }
+      return null;
     },
     onSuccess: () => {
       toast.success(mode === "create" ? "Group created" : "Group updated");
-      qc.invalidateQueries({ queryKey: ["groups.list.v2"] });
+      qc.invalidateQueries({ queryKey: ["groups.list.v3"] });
       qc.invalidateQueries({ queryKey: ["group.detail"] });
       onClose();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+    onError: (e: any) => {
+      if (isPendingError(e)) {
+        const ep = mode === "create" ? "POST /api/groups" : "PATCH /api/groups/:id";
+        setPendingNotice(ep);
+        toast.error(`Backend endpoint pending: ${ep}`);
+      } else {
+        toast.error(e?.message ?? "Failed");
+      }
+    },
   });
 
   return (
@@ -854,6 +723,13 @@ function GroupModal({
             Choose a type and add a clear name. You can manage members from the group's detail page.
           </DialogDescription>
         </DialogHeader>
+
+        {pendingNotice && (
+          <BackendPending
+            endpoint={pendingNotice}
+            note="The backend has not enabled this write endpoint yet. Your input was not saved."
+          />
+        )}
 
         <div className="space-y-5">
           <div>
@@ -912,7 +788,7 @@ function GroupModal({
           <Button
             variant="gold"
             disabled={save.isPending || !name.trim()}
-            onClick={() => save.mutate()}
+            onClick={() => { setPendingNotice(null); save.mutate(); }}
           >
             {save.isPending ? "Saving…" : mode === "create" ? "Create Group" : "Save Changes"}
           </Button>
