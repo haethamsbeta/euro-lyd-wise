@@ -44,6 +44,7 @@ import { Route as AppMeActivityRouteImport } from './routes/app.me.activity'
 import { Route as AppHoldersNewRouteImport } from './routes/app.holders.new'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
+import { Route as AppAdminTestSandboxRouteImport } from './routes/app.admin.test-sandbox'
 import { Route as AppAdminFxRatesRouteImport } from './routes/app.admin.fx-rates'
 import { Route as AppAdminBranchesRouteImport } from './routes/app.admin.branches'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
@@ -229,6 +230,11 @@ const AppGroupsIdRoute = AppGroupsIdRouteImport.update({
   path: '/groups/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminTestSandboxRoute = AppAdminTestSandboxRouteImport.update({
+  id: '/admin/test-sandbox',
+  path: '/admin/test-sandbox',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminFxRatesRoute = AppAdminFxRatesRouteImport.update({
   id: '/admin/fx-rates',
   path: '/admin/fx-rates',
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -384,6 +392,7 @@ export interface FileRoutesById {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
   '/app/holders/new': typeof AppHoldersNewRoute
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
     | '/app/holders/new'
@@ -801,6 +813,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/test-sandbox': {
+      id: '/app/admin/test-sandbox'
+      path: '/admin/test-sandbox'
+      fullPath: '/app/admin/test-sandbox'
+      preLoaderRoute: typeof AppAdminTestSandboxRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/admin/fx-rates': {
       id: '/app/admin/fx-rates'
       path: '/admin/fx-rates'
@@ -900,6 +919,7 @@ interface AppRouteChildren {
   AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppAdminBranchesRoute: typeof AppAdminBranchesRoute
   AppAdminFxRatesRoute: typeof AppAdminFxRatesRoute
+  AppAdminTestSandboxRoute: typeof AppAdminTestSandboxRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
   AppHoldersNewRoute: typeof AppHoldersNewRoute
@@ -928,6 +948,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountsIdRoute: AppAccountsIdRoute,
   AppAdminBranchesRoute: AppAdminBranchesRoute,
   AppAdminFxRatesRoute: AppAdminFxRatesRoute,
+  AppAdminTestSandboxRoute: AppAdminTestSandboxRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
   AppHoldersNewRoute: AppHoldersNewRoute,
