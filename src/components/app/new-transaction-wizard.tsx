@@ -186,6 +186,11 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   }, [vaultList, type, picked, currency]);
   const cashVaultMissing = DATA_BACKEND === "lambda" && !!type && !!picked && !cashVaultId;
 
+  // Auto-select Cash channel — bank vaults are not enabled in this phase.
+  useEffect(() => {
+    if (picked && channel !== "cash") setChannel("cash");
+  }, [picked, channel]);
+
   const commentValid = trimmedComment.length >= COMMENT_MIN && trimmedComment.length <= COMMENT_MAX;
   const currentBalance = picked?.balance_minor ?? 0;
   const withdrawLimitMinor = picked?.withdraw_limit_enabled ? picked.withdraw_limit_minor : 0;
