@@ -25,14 +25,56 @@ The same root cause silently breaks revoke-role, reset-password, change-email, p
 
 ## Pending backend endpoints
 
-These must exist and be confirmed before the corresponding UI controls are re-enabled:
+These must exist and be confirmed before the corresponding UI controls are re-enabled. Every write must insert an `audit_log` row.
 
-- `POST /users` — create user (replaces frontend Supabase consumer creation).
-- `PATCH /users/:id` — update profile fields (display name, email, etc.).
-- `PATCH /users/:id/role` — change a user's role (replaces `user_roles` insert/delete).
-- `PATCH /users/:id/status` — activate/suspend.
-- `PATCH /users/:id/password-reset` — trigger password reset email + force change.
-- `PATCH /users/:id/disable` (or `DELETE /users/:id`) — disable an account.
+### `POST /users` — create DAHAB Family staff member
+
+Used by the new `/app/users/new` page. Admin only. **Role must be `admin | teller | auditor`** — consumer accounts are created from the Consumer Portal Accounts page, not here.
+
+Request body:
+
+```json
+{
+  "username": "ahmed.a",
+  "email": "ahmed@example.com",
+  "display_name": "Ahmed A.",
+  "password": "TempPass!23",
+  "role": "teller",
+  "status": "active",
+  "must_change_password": true
+}
+```
+
+Response envelope (matches `apiFetch`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "username": "ahmed.a",
+    "email": "ahmed@example.com",
+    "display_name": "Ahmed A.",
+    "role": "teller",
+    "status": "active",
+    "must_change_password": true,
+    "created_at": "2026-05-11T..."
+  },
+  "message": "User created."
+}
+```
+
+### Other staff-management endpoints
+
+| Method | Path | Body | Purpose |
+| --- | --- | --- | --- |
+| `PATCH` | `/users/:id` | partial profile | update display_name, etc. |
+| `PATCH` | `/users/:id/email` | `{ new_email }` | change email |
+| `PATCH` | `/users/:id/role` | `{ role }` | change role (no `consumer`) |
+| `PATCH` | `/users/:id/status` | `{ status }` | active / disabled |
+| `PATCH` | `/users/:id/password-reset` | — | trigger reset link + `must_change_password=true` |
+| `POST` | `/users/:id/test-push` | — | send test push |
+| `GET` | `/users/:id/push-status` | — | subscription summary |
 
 Push status / test push need a separate lambda contract; until then the push column shows `—` and the "Send test" button is disabled.
 
