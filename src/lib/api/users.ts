@@ -11,6 +11,7 @@ export interface AppUser {
   status?: string | null;
   role?: AppRole | string | null;
   roles?: AppRole[];
+  is_master_admin?: boolean;
   is_active?: boolean;
   must_change_password: boolean;
   last_login_at?: string | null;
