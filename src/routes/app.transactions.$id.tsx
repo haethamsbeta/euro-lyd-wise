@@ -121,7 +121,9 @@ function TxDetail() {
             name: r.holder_name ?? r.account_display_name ?? "",
             account_number: r.account_number ?? "",
           } : null,
-          vault: r.vault_name ? { name: r.vault_name, vault_channel: r.vault_channel ?? null } : null,
+          vault: r.vault_name
+            ? { name: r.vault_name, vault_channel: r.vault_channel ?? null }
+            : sandboxVaultFallback(r),
         };
         return mapped;
       }
