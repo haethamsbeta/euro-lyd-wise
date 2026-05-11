@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
@@ -162,7 +162,7 @@ function ReportsPage() {
 
   // Live report feeds — every chart below sources from the backend Lambda API.
   // Empty arrays mean "no data yet"; charts render their natural empty state.
-  const { data: hourlyTraffic } = useReportFeed("hourly-traffic", () => api.reports.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
+  const { data: hourlyTraffic } = useReportFeed("hourly-traffic", () => reportsApi.hourlyTraffic(), EMPTY_ARR as { h: string; v: number }[]);
   // Cash-flow: backend returns raw rows
   // { day, currency_code, direction, transaction_count, volume_minor }.
   // Pivot in the FE by day + currency_code → deposits_minor/withdrawals_minor.
@@ -170,7 +170,7 @@ function ReportsPage() {
   // apply FX in the frontend. See LAMBDA_FULL_ENDPOINT_AND_BALANCE_AUDIT.md §4.
   const { data: cashFlowApi } = useReportFeed(
     "cash-flow",
-    () => api.reports.cashFlow(),
+    () => reportsApi.cashFlow(),
     EMPTY_ARR as Array<{
       day: string;
       currency_code: string;
@@ -196,7 +196,7 @@ function ReportsPage() {
     { dep: 0, wd: 0 },
   );
   const cashFlowNetMinor = (cashFlowNet.dep - cashFlowNet.wd) * 100;
-  const { data: liquidityResp } = useReportFeed("liquidity-health", () => api.reports.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
+  const { data: liquidityResp } = useReportFeed("liquidity-health", () => reportsApi.liquidityHealth(), { rows: EMPTY_ARR as any[], network_total_lyd_minor: null, missing_rates: [], generated_at: "" });
   const liquidityHealth = (liquidityResp.rows ?? []).map((r: any) => {
     const ccy = displayCurrency(r.currency_code);
     const breach = r.minimum_threshold_breach === true;
@@ -218,7 +218,7 @@ function ReportsPage() {
     };
   });
   const liquidityNetwork = liquidityResp.network_total_lyd_minor ?? null;
-  const { data: tellersApi } = useReportFeed("tellers-today", () => api.reports.tellersToday(), EMPTY_ARR as any[]);
+  const { data: tellersApi } = useReportFeed("tellers-today", () => reportsApi.tellersToday(), EMPTY_ARR as any[]);
   const tellers = tellersApi.map((t: any) => ({
     id: t.id, name: t.name, branch: t.branch ?? "—", avatar: t.avatar,
     txnsToday: t.txns_today, volumeToday: t.volume_today_minor / 100,
@@ -226,10 +226,10 @@ function ReportsPage() {
     avgTime: t.avg_time_seconds / 60, rank: t.rank,
     trend: t.trend ?? [], streak: t.streak_days,
   }));
-  const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => api.reports.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
-  const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => api.reports.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
+  const { data: processingTimeDist } = useReportFeed("processing-time-dist", () => reportsApi.processingTimeDistribution(), EMPTY_ARR as { bucket: string; count: number }[]);
+  const { data: errorRateApi } = useReportFeed("rejection-rate-trend", () => reportsApi.rejectionRateTrend(), EMPTY_ARR as Array<{ d: string; rate_pct: number }>);
   const errorRateTrend = errorRateApi.map((r) => ({ d: r.d, rate: r.rate_pct }));
-  const { data: compliance } = useReportFeed("compliance-overview", () => api.reports.complianceOverview(), {
+  const { data: compliance } = useReportFeed<ComplianceOverview>("compliance-overview", () => reportsApi.complianceOverview(), {
     flagged_txns: 0, pending_reviews: 0, resolved_today: 0, high_risk_holders: 0,
     typology: EMPTY_ARR as Array<{ name: string; value: number }>,
     alert_volume: EMPTY_ARR as any[],
