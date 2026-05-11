@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { RoleGate } from "@/components/app/app-shell";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { api } from "@/lib/api";
-import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
-import { useAuth } from "@/lib/auth";
 import { Plus, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/app/admin/fx-rates")({
@@ -27,7 +24,6 @@ type Ccy = (typeof CURRENCIES)[number];
 
 function FxRatesPage() {
   const qc = useQueryClient();
-  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState<Ccy>("EUR");
   const [usdRate, setUsdRate] = useState("");
@@ -37,38 +33,18 @@ function FxRatesPage() {
   const { data: history = [], isLoading, error: historyError } = useQuery({
     queryKey: ["fx_rates.history"],
     queryFn: async () => {
-      if (DATA_BACKEND === "lambda") {
-        const rows = await api.fxRates.list();
-        const list = Array.isArray(rows) ? rows : [];
-        // Map backend FxRate → page row shape. We only render base→USD here.
-        return list
-          .filter((r: any) => String(r.quote ?? "").toUpperCase() === "USD")
-          .map((r: any, i: number) => ({
-            id: `${r.base}-${r.effective_at ?? i}`,
-            currency: r.base,
-            usd_rate: Number(r.rate ?? 0),
-            as_of_date: (r.effective_at ?? "").slice(0, 10),
-            source: "backend",
-            note: null as string | null,
-            created_at: r.effective_at ?? null,
-            created_by: r.set_by_user_id ?? null,
-          }));
-      }
-      const { data, error } = await supabase
-        .from("fx_rates")
-        .select("id, currency, usd_rate, as_of_date, source, note, created_at, created_by")
-        .order("as_of_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data ?? [];
+      const rows = await api.fxRates.list();
+      // Newest first by as_of_date.
+      return [...rows].sort((a, b) =>
+        String(b.as_of_date ?? "").localeCompare(String(a.as_of_date ?? "")),
+      );
     },
     retry: false,
   });
   const pending = isPendingError(historyError);
 
   const current = CURRENCIES.map((c) => {
-    const latest = history.find((r: any) => r.currency === c);
+    const latest = history.find((r: any) => r.currency_code === c);
     return { currency: c, latest };
   });
 
@@ -76,19 +52,12 @@ function FxRatesPage() {
     mutationFn: async () => {
       const rate = Number(usdRate);
       if (!rate || rate <= 0) throw new Error("Enter a positive USD rate");
-      if (DATA_BACKEND === "lambda") {
-        await api.fxRates.set(currency as any, "USD" as any, rate);
-        return;
-      }
-      const { error } = await supabase.from("fx_rates").insert({
-        currency,
+      await api.fxRates.create({
+        currency_code: currency,
         usd_rate: rate,
         as_of_date: asOf,
-        note: note || null,
-        source: "manual",
-        created_by: user?.id ?? null,
+        note: note ? note : null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("FX rate saved");
@@ -167,23 +136,21 @@ function FxRatesPage() {
                 <th className="px-5 py-3 font-medium">As of</th>
                 <th className="px-5 py-3 font-medium">Currency</th>
                 <th className="px-5 py-3 text-right font-medium">USD rate</th>
-                <th className="px-5 py-3 font-medium">Source</th>
                 <th className="px-5 py-3 font-medium">Note</th>
                 <th className="px-5 py-3 font-medium">Entered</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">Loading…</td></tr>
+                <tr><td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">Loading…</td></tr>
               ) : history.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">No rates entered yet.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">No rates entered yet.</td></tr>
               ) : (
                 history.map((r: any) => (
                   <tr key={r.id} className="transition-colors hover:bg-muted/40">
                     <td className="px-5 py-3 text-xs">{r.as_of_date}</td>
-                    <td className="px-5 py-3"><Badge variant="outline">{r.currency}</Badge></td>
+                    <td className="px-5 py-3"><Badge variant="outline">{r.currency_code}</Badge></td>
                     <td className="px-5 py-3 text-right font-mono tabular-nums">{Number(r.usd_rate).toFixed(8)}</td>
-                    <td className="px-5 py-3 text-xs text-muted-foreground">{r.source}</td>
                     <td className="px-5 py-3 text-xs text-muted-foreground">{r.note ?? "—"}</td>
                     <td className="px-5 py-3 text-xs text-muted-foreground">{formatDateTime(r.created_at)}</td>
                   </tr>
