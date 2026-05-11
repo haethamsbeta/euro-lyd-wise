@@ -772,11 +772,15 @@ function TxRow({
       onClick={() => onOpen(tx)}
     >
       <td className="px-4 py-3 align-top">
-        <div className="font-medium text-foreground">{dateStr}</div>
-        <div className="text-[10px] font-mono text-text-secondary mt-0.5">
+        <div className="font-mono text-[12px] text-foreground group-hover:text-gold transition-colors">
           {tx.tx_number}
         </div>
-        <div className="text-[10px] text-text-secondary">{timeStr}</div>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <div className="font-medium text-foreground">{dateStr}</div>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <div className="font-mono text-[12px] text-text-secondary">{timeStr}</div>
       </td>
       <td className="px-4 py-3 align-top">
         <div className="font-medium group-hover:text-gold transition-colors">
