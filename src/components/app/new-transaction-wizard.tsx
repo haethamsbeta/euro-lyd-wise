@@ -120,6 +120,60 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     queryKey: ["holder_cards.search", debounced],
     queryFn: async () => {
       const term = debounced;
+      if (DATA_BACKEND === "lambda") {
+        // Lambda mode — search via backend endpoints (no Supabase reads).
+        const [accountsRes, holdersRes] = await Promise.all([
+          api.accounts.list({ q: term || undefined, limit: 60 }),
+          term
+            ? api.holders.list({ q: term, limit: 30 }).catch(() => [])
+            : Promise.resolve([] as any[]),
+        ]);
+        const accountItems: any[] = (accountsRes as any)?.items ?? [];
+        const holderById = new Map<string | number, any>();
+        for (const h of holdersRes as any[]) holderById.set(h.id, h);
+        // Fetch any holders referenced by accounts but missing from search hit.
+        const missingIds = Array.from(
+          new Set(
+            accountItems
+              .map((a) => a.account_holder_id)
+              .filter((id) => id != null && !holderById.has(id)),
+          ),
+        ).slice(0, 20);
+        if (missingIds.length > 0) {
+          const fetched = await Promise.all(
+            missingIds.map((id) => api.holders.get(id).catch(() => null)),
+          );
+          for (const h of fetched) if (h) holderById.set((h as any).id, h);
+        }
+        const allowed = new Set(["USD", "EUR", "LYD"]);
+        return accountItems
+          .filter((r) => allowed.has(String(r.currency_code)))
+          .map((r) => {
+            const holder = holderById.get(r.account_holder_id) ?? {};
+            return {
+              holder_account_id: Number(r.id),
+              account_number: r.account_number,
+              currency: r.currency_code as Currency,
+              balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+              account_holder_id: Number(r.account_holder_id),
+              dahab_account_number:
+                holder.dahab_account_number ?? r.account_number ?? "",
+              holder_name:
+                holder.holder_name ??
+                r.account_display_name ??
+                r.account_number,
+              phone: holder.phone ?? null,
+              status: r.status ?? "ACTIVE",
+              account_nature: r.account_nature ?? null,
+              alias: r.alias_name ?? null,
+              withdraw_limit_minor: Math.round(
+                Number((r as any).withdraw_limit_amount ?? 0) * 100,
+              ),
+              withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
+              holder_type: (holder.holder_type ?? "INDIVIDUAL") as string,
+            } as HolderCardHit;
+          });
+      }
       const holderIds = new Set<number>();
       if (term) {
         const [{ data: byHolder }, { data: byCard }] = await Promise.all([
