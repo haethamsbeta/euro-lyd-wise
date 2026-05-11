@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Download, Calendar, TrendingUp, Users, ArrowUpRight, ArrowDownRight,
@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
 import { formatMinor, formatMinorOrMissing } from "@/lib/format";
-import { reportsApi } from "@/lib/api/reports";
+import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
 import { ACCEPTED_CCY, displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
