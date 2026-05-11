@@ -517,7 +517,13 @@ function TestSandboxPage() {
                     <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
                       {a.currency_code}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">{a.id}</span>
+                    <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                      TEST
+                    </span>
+                    {a.account_number && (
+                      <span className="font-mono text-[11px]">{a.account_number}</span>
+                    )}
+                    <span className="font-mono text-[10px] text-muted-foreground">{a.id}</span>
                     <Button asChild size="sm" variant="ghost">
                       <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
                     </Button>
