@@ -329,81 +329,134 @@ function VaultsPage() {
           )}
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {vaults.map((v: any, i: number) => {
-            const Icon = v.vault_channel === "cash" ? Banknote : Building2;
-            const role = (v.internal_role ?? "").toString();
-            const isReceivable = /receiv/i.test(role);
-            const isPayable = /pay/i.test(role);
-            const roleLabel = isReceivable
-              ? "Cash Receivable"
-              : isPayable
-              ? "Cash Payable"
-              : role || "Vault";
-            return (
-              <motion.div
-                key={v.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <Link
-                  to="/app/vaults/$id"
-                  params={{ id: String(v._vaultId ?? v.id) }}
-                  search={{}}
-                  className="block h-full"
+          {(() => {
+            const groups = new Map<string, any[]>();
+            for (const v of vaults as any[]) {
+              const key = v.currency_code ?? "__missing__";
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(v);
+            }
+            return Array.from(groups.entries()).map(([ccy, items], i) => {
+              const receivables = items.filter((v) =>
+                /receiv/i.test(String(v.internal_role ?? "")),
+              );
+              const payables = items.filter((v) =>
+                /pay/i.test(String(v.internal_role ?? "")),
+              );
+              const others = items.filter(
+                (v) =>
+                  !/receiv/i.test(String(v.internal_role ?? "")) &&
+                  !/pay/i.test(String(v.internal_role ?? "")),
+              );
+              const sumRec = receivables.reduce(
+                (a, v) => a + Number(v.balance_minor || 0),
+                0,
+              );
+              const sumPay = payables.reduce(
+                (a, v) => a + Number(v.balance_minor || 0),
+                0,
+              );
+              const sumOther = others.reduce(
+                (a, v) => a + Number(v.balance_minor || 0),
+                0,
+              );
+              const net = sumRec - sumPay + sumOther;
+              const hasCash = items.some((v) => v.vault_channel === "cash");
+              const Icon = hasCash ? Banknote : Building2;
+              const validCcy = ccy !== "__missing__";
+              const linkTarget = receivables[0] ?? items[0];
+              return (
+                <motion.div
+                  key={ccy}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
                 >
-                  <Card className="group relative h-full overflow-hidden p-5 transition-all hover:border-gold/50 hover:shadow-lg">
-                    <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06] transition-all duration-500 group-hover:scale-110 group-hover:opacity-10">
-                      <Landmark className="h-28 w-28 text-gold" />
-                    </div>
-                    <div className="relative z-10 flex h-full flex-col">
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/30 bg-gold/10">
-                            <Icon className="h-5 w-5 text-gold" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-foreground">
-                              {v.name}
-                            </span>
-                            <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
-                              {roleLabel} · {v.vault_channel}
-                            </span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] uppercase tracking-wider ${
-                            v.currency_code ? "" : "border-destructive/40 text-destructive"
-                          }`}
-                          title={v.currency_code ? "" : "Currency missing on backend row"}
-                        >
-                          {v.currency_code ?? "Currency missing"}
-                        </Badge>
+                  <Link
+                    to="/app/vaults/$id"
+                    params={{ id: String(linkTarget._vaultId ?? linkTarget.id) }}
+                    search={{}}
+                    className="block h-full"
+                  >
+                    <Card className="group relative h-full overflow-hidden p-5 transition-all hover:border-gold/50 hover:shadow-lg">
+                      <div className="pointer-events-none absolute -right-4 -top-4 opacity-[0.06] transition-all duration-500 group-hover:scale-110 group-hover:opacity-10">
+                        <Landmark className="h-28 w-28 text-gold" />
                       </div>
+                      <div className="relative z-10 flex h-full flex-col">
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold/30 bg-gold/10">
+                              <Icon className="h-5 w-5 text-gold" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="block truncate text-sm font-medium text-foreground">
+                                {validCcy ? `${ccy} Cash Vault` : "Currency missing"}
+                              </span>
+                              <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                                {items.length} vault account{items.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] uppercase tracking-wider ${
+                              validCcy ? "" : "border-destructive/40 text-destructive"
+                            }`}
+                          >
+                            {validCcy ? ccy : "Currency missing"}
+                          </Badge>
+                        </div>
 
-                      <div className="mt-auto flex items-end justify-between border-t border-border pt-4">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Balance
+                        <div className="space-y-2 border-t border-border pt-3 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                              <ArrowDownToLine className="h-3.5 w-3.5 text-success" />
+                              Receivable
+                            </span>
+                            <span className="font-mono tabular-nums text-foreground">
+                              {receivables.length === 0
+                                ? "—"
+                                : validCcy
+                                ? formatMinor(sumRec, ccy)
+                                : "—"}
+                            </span>
                           </div>
-                          <div className="font-mono text-lg font-semibold tabular-nums text-foreground">
-                            {v.currency_code
-                              ? formatMinor(v.balance_minor, v.currency_code)
-                              : "—"}
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                              <ArrowUpFromLine className="h-3.5 w-3.5 text-destructive" />
+                              Payable
+                            </span>
+                            <span className="font-mono tabular-nums text-foreground">
+                              {payables.length === 0
+                                ? "—"
+                                : validCcy
+                                ? formatMinor(sumPay, ccy)
+                                : "—"}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-gold">
-                          {t("vaults.viewTx")}
-                          <ArrowRight className="h-4 w-4" />
+
+                        <div className="mt-auto flex items-end justify-between border-t border-border pt-4">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              Net Balance
+                            </div>
+                            <div className="font-mono text-lg font-semibold tabular-nums text-foreground">
+                              {validCcy ? formatMinor(net, ccy) : "—"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-gold">
+                            {t("vaults.viewTx")}
+                            <ArrowRight className="h-4 w-4" />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                </Link>
-              </motion.div>
-            );
-          })}
+                    </Card>
+                  </Link>
+                </motion.div>
+              );
+            });
+          })()}
         </div>
       </div>
 
