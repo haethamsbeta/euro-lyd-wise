@@ -163,6 +163,29 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const currency: Currency = picked?.currency ?? "USD";
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
   const trimmedComment = comment.trim();
+
+  // Vault auto-routing — fetch official cash vaults from the backend and
+  // pick the receivable/payable account that matches the selected currency.
+  const { data: vaultList } = useQuery({
+    queryKey: ["vaults.list.cash-routing"],
+    queryFn: () => api.vaults.list(),
+    enabled: DATA_BACKEND === "lambda",
+    staleTime: 5 * 60_000,
+  });
+  const cashVaultId = useMemo<string | null>(() => {
+    if (!type || !picked) return null;
+    const list = (vaultList ?? []) as Array<any>;
+    const match = list.find((v) => {
+      if (v.currency_code !== currency) return false;
+      const role = String(v.internal_role ?? "").toLowerCase();
+      return type === "deposit"
+        ? role.includes("receiv")
+        : role.includes("pay");
+    });
+    return match ? String(match.id) : null;
+  }, [vaultList, type, picked, currency]);
+  const cashVaultMissing = DATA_BACKEND === "lambda" && !!type && !!picked && !cashVaultId;
+
   const commentValid = trimmedComment.length >= COMMENT_MIN && trimmedComment.length <= COMMENT_MAX;
   const currentBalance = picked?.balance_minor ?? 0;
   const withdrawLimitMinor = picked?.withdraw_limit_enabled ? picked.withdraw_limit_minor : 0;
