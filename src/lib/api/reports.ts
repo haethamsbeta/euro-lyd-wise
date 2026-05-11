@@ -68,6 +68,8 @@ export interface LiquidityHealthResponse {
   rows: LiquidityHealthRow[];
   /** Backend-computed network total in LYD-equivalent minor units. */
   network_total_lyd_minor: number | null;
+  /** Backend-computed network total in USD-equivalent minor units. */
+  network_total_usd_minor: number | null;
   /** Currency pairs missing an FX rate. If non-empty, network_total may be null. */
   missing_rates: Array<{ from: Currency; to: Currency }>;
   generated_at: string;
@@ -220,6 +222,8 @@ export const reportsApi = {
       rows,
       network_total_lyd_minor:
         res && typeof res === "object" ? numOrNull((res as any).network_total_lyd_minor) : null,
+      network_total_usd_minor:
+        res && typeof res === "object" ? numOrNull((res as any).network_total_usd_minor) : null,
       missing_rates:
         res && Array.isArray((res as any).missing_rates) ? (res as any).missing_rates : [],
       generated_at: (res && (res as any).generated_at) ?? "",
