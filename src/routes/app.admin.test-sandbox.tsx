@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { FlaskConical, Trash2, Play, Loader2, Copy, ExternalLink, RefreshCw, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -277,7 +277,37 @@ function TestSandboxPage() {
     }
   }
 
-  const currencyDisabled = !fixture || !findPair(currency).ha || !findPair(currency).v;
+  const depositVault = fixture ? findReceivable(currency) : undefined;
+  const withdrawVault = fixture ? findPayable(currency) : undefined;
+  const ha = fixture ? findHolderAccount(currency) : undefined;
+  const depositDisabled = !fixture || !ha || !depositVault;
+  const withdrawDisabled = !fixture || !ha || !withdrawVault;
+
+  // A complete fixture has 4 holder accounts + 8 vaults (4 receivable + 4 payable).
+  const fixtureComplete = !!fixture && (() => {
+    if (fixture.holder_accounts.length < REAL_CURRENCIES.length) return false;
+    for (const c of REAL_CURRENCIES) {
+      if (!findReceivable(c) || !findPayable(c)) return false;
+    }
+    return true;
+  })();
+
+  async function runFromFixtureRow(
+    f: { test_run_id: string; holder_id: string },
+    direction: "deposit" | "withdraw",
+    amountMinor: number,
+    expectStatus: "posted" | "pending",
+    actionLabel: string,
+  ) {
+    // Hydrate the active fixture from the row by re-creating? No — use the
+    // currently loaded fixture if it matches; otherwise the row only knows
+    // the holder_id, so we ask the user to load it via Create/Use first.
+    if (!fixture || fixture.test_run_id !== f.test_run_id) {
+      toast.error("Open this fixture in the active panel first (re-create or already-loaded fixture only).");
+      return;
+    }
+    await runTx({ action: actionLabel, direction, amountMinor, expectStatus });
+  }
 
   return (
     <div className="space-y-6">
