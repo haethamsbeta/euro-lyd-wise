@@ -17,9 +17,13 @@ export interface VaultActivityRow {
   balance_after_minor: number;
 }
 export interface FxRate {
-  base: Currency; quote: Currency;
-  rate: number; effective_at: string;
-  set_by_user_id: string | null;
+  id: string | number;
+  currency_code: Currency;
+  usd_rate: number;
+  as_of_date: string; // YYYY-MM-DD
+  note: string | null;
+  created_at?: string | null;
+  created_by?: string | null;
 }
 export interface VaultTarget {
   vault_id: string; currency: Currency;
@@ -63,14 +67,28 @@ export const vaultsApi = {
     }),
 };
 
+export interface FxRateUpsert {
+  currency_code: Currency;
+  usd_rate: number;
+  as_of_date: string;
+  note?: string | null;
+}
+
 export const fxRatesApi = {
   list: () =>
-    apiFetch<FxRate[] | { items: FxRate[] }>("/admin/fx-rates").then((res) =>
-      Array.isArray(res) ? res : (res?.items ?? []),
-    ),
-  set: (base: Currency, quote: Currency, rate: number) =>
+    apiFetch<any>("/admin/fx-rates").then((res) => {
+      if (Array.isArray(res)) return res as FxRate[];
+      if (Array.isArray(res?.items)) return res.items as FxRate[];
+      return [];
+    }),
+  create: (body: FxRateUpsert) =>
     apiFetch<FxRate>("/admin/fx-rates", {
       method: "POST",
-      body: JSON.stringify({ base, quote, rate }),
+      body: JSON.stringify(body),
+    }),
+  update: (id: string | number, body: FxRateUpsert) =>
+    apiFetch<FxRate>(`/admin/fx-rates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     }),
 };
