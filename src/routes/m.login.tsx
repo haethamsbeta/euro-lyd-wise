@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
+import { normalizeLambdaUser } from "@/lib/lambdaUser";
 
 export const Route = createFileRoute("/m/login")({
   component: MobileLogin,
@@ -40,7 +41,7 @@ function MobileLogin() {
         const payload = raw?.data?.access_token ? raw.data : raw;
         const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
-        const user = payload?.user;
+        const user = normalizeLambdaUser(payload);
 
         if (!accessToken) {
           console.error("[LOGIN ERROR] Missing access_token", raw);
@@ -58,6 +59,7 @@ function MobileLogin() {
           hasToken,
           keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
           role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+          is_master_admin: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.is_master_admin,
         });
         setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
         if (!hasToken) throw new Error("Lambda token storage failed");
