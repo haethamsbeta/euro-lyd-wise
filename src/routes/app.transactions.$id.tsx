@@ -121,7 +121,9 @@ function TxDetail() {
             name: r.holder_name ?? r.account_display_name ?? "",
             account_number: r.account_number ?? "",
           } : null,
-          vault: r.vault_name ? { name: r.vault_name, vault_channel: r.vault_channel ?? null } : null,
+          vault: r.vault_name
+            ? { name: r.vault_name, vault_channel: r.vault_channel ?? null }
+            : sandboxVaultFallback(r),
         };
         return mapped;
       }
@@ -797,4 +799,38 @@ function AttachmentRow({ att }: { att: Attachment }) {
       ) : null}
     </div>
   );
+}
+
+/**
+ * When the backend returns null vault_* fields for a sandbox test transaction,
+ * fall back to the active sandbox fixture stored in sessionStorage and match
+ * by vault_account_id. Returns null when not a test tx or no match.
+ */
+function sandboxVaultFallback(r: any): { name: string; vault_channel: string | null } | null {
+  try {
+    const isTest =
+      r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id;
+    if (!isTest) return null;
+    if (typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem("dahab.testFixture");
+    if (!raw) return null;
+    const fx = JSON.parse(raw);
+    if (r?.test_run_id && fx?.test_run_id && fx.test_run_id !== r.test_run_id) return null;
+    const vid = String(r?.vault_account_id ?? "");
+    if (!vid) return null;
+    const v = (fx?.vaults ?? []).find((x: any) => String(x.id) === vid);
+    if (!v) return null;
+    const role = String(v.internal_role ?? "").toLowerCase();
+    const roleLabel = role.includes("receiv")
+      ? "cash receivable"
+      : role.includes("pay")
+        ? "cash payable"
+        : "cash";
+    return {
+      name: `${v.name ?? `TEST ${v.currency_code}`} (${v.currency_code} · ${roleLabel}) [TEST]`,
+      vault_channel: "cash",
+    };
+  } catch {
+    return null;
+  }
 }
