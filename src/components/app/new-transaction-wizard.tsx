@@ -25,11 +25,11 @@ type Channel = "cash" | "bank";
 type Currency = "USD" | "EUR" | "LYD";
 
 type HolderCardHit = {
-  holder_account_id: number;
+  holder_account_id: string | number;
   account_number: string;
   currency: Currency;
   balance_minor: number;
-  account_holder_id: number;
+  account_holder_id: string | number;
   dahab_account_number: string;
   holder_name: string;
   phone: string | null;
@@ -141,11 +141,11 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
           .map((r) => {
             const holder = holderById.get(r.account_holder_id) ?? {};
             return {
-              holder_account_id: Number(r.id),
+              holder_account_id: r.id,
               account_number: r.account_number,
               currency: r.currency_code as Currency,
               balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
-              account_holder_id: Number(r.account_holder_id),
+              account_holder_id: r.account_holder_id,
               dahab_account_number:
                 holder.dahab_account_number ?? r.account_number ?? "",
               holder_name:
@@ -834,7 +834,7 @@ function CustomerStep({
 
   // Keep an internal "selected customer" derived from `picked` so the
   // SelectedCustomerCard + AccountTile grid persist after picking an account.
-  const [browseHolderId, setBrowseHolderId] = useState<number | null>(null);
+  const [browseHolderId, setBrowseHolderId] = useState<string | number | null>(null);
   const selectedHolderId = picked?.account_holder_id ?? browseHolderId;
 
   // When picking, mirror the holder id locally so the customer card stays.
@@ -845,7 +845,7 @@ function CustomerStep({
   // Group results by customer
   const customers = useMemo(() => {
     if (!results) return [];
-    const map = new Map<number, { holder: HolderCardHit; accountCount: number }>();
+    const map = new Map<string | number, { holder: HolderCardHit; accountCount: number }>();
     for (const r of results) {
       const ex = map.get(r.account_holder_id);
       if (ex) ex.accountCount += 1;
