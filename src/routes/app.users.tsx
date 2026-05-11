@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send } from "lucide-react";
+import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX } from "lucide-react";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
@@ -120,12 +120,19 @@ function UsersPage() {
 
   const grant = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: typeof ROLES[number] }) => {
-      if (isLambda) throw new Error(PENDING_MSG);
+      if (isLambda) {
+        if (role === "consumer") throw new Error("Consumer accounts are created from the Consumer Portal Accounts page.");
+        const res: any = await api.users.setRole(user_id, role as any);
+        return res;
+      }
       const { error } = await supabase.from("user_roles").insert({ user_id, role });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success(t("users.granted")); qc.invalidateQueries({ queryKey: ["users.profiles"] }); },
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: (res: any) => {
+      toast.success(res?.message ?? "User role updated.");
+      qc.invalidateQueries({ queryKey: ["users.profiles"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
   const revoke = useMutation({
@@ -135,11 +142,36 @@ function UsersPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success(t("users.revoked")); qc.invalidateQueries({ queryKey: ["users.profiles"] }); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const statusMut = useMutation({
+    mutationFn: async ({ user_id, status }: { user_id: string; status: "active" | "disabled" }) => {
+      if (!isLambda) throw new Error("Supported in lambda mode only.");
+      return await api.users.setStatus(user_id, status) as any;
+    },
+    onSuccess: (res: any) => {
+      toast.success(res?.message ?? "User status updated.");
+      qc.invalidateQueries({ queryKey: ["users.profiles"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
   async function onResetPassword(targetId: string, name: string) {
-    if (isLambda) { toast.message(PENDING_MSG); return; }
+    if (isLambda) {
+      if (!confirm(`Reset password for ${name}?`)) return;
+      setResettingId(targetId);
+      try {
+        const res: any = await api.users.passwordReset(targetId);
+        toast.success(res?.message ?? "User password reset.");
+        qc.invalidateQueries({ queryKey: ["users.profiles"] });
+      } catch (e: any) {
+        toast.error(e?.message ?? "Reset failed");
+      } finally {
+        setResettingId(null);
+      }
+      return;
+    }
     if (!confirm(`Reset password for ${name}? They will be signed out and emailed a reset link.`)) return;
     setResettingId(targetId);
     try {
