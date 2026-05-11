@@ -180,18 +180,29 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     enabled: DATA_BACKEND === "lambda",
     staleTime: 5 * 60_000,
   });
-  const cashVaultId = useMemo<string | null>(() => {
+  const cashVaultMatch = useMemo<any | null>(() => {
     if (!type || !picked) return null;
     const list = (vaultList ?? []) as Array<any>;
-    const match = list.find((v) => {
+    return list.find((v) => {
       if (v.currency_code !== currency) return false;
       const role = String(v.internal_role ?? "").toLowerCase();
       return type === "deposit"
         ? role.includes("receiv")
         : role.includes("pay");
-    });
-    return match ? String(match.id) : null;
+    }) ?? null;
   }, [vaultList, type, picked, currency]);
+  const cashVaultId = cashVaultMatch ? String(cashVaultMatch.id) : null;
+  const cashVaultName: string | null = cashVaultMatch
+    ? String(
+        cashVaultMatch.account_name ??
+          cashVaultMatch.name ??
+          cashVaultMatch.display_name ??
+          cashVaultMatch.account_number ??
+          (type === "deposit"
+            ? `Cash Receivable ${currency}`
+            : `Cash Payable ${currency}`),
+      )
+    : null;
   const cashVaultMissing = DATA_BACKEND === "lambda" && !!type && !!picked && !cashVaultId;
 
   // Auto-select Cash channel — bank vaults are not enabled in this phase.
@@ -390,6 +401,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
               type={type!} picked={picked} channel={channel} currency={currency}
               amountMinor={amountMinor} comment={trimmedComment}
               willPend={willPend} canViewBalances={canViewBalances}
+              cashVaultName={cashVaultName}
               onEdit={goToStep}
             />
           )}
