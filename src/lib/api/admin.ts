@@ -75,7 +75,15 @@ export const adminApi = {
           test_run_id?: string;
           source_system?: string;
         };
-        holder_accounts: Array<{
+        holder_accounts?: Array<{
+          id: string;
+          currency_code: string;
+          account_number?: string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        }>;
+        accounts?: Array<{
           id: string;
           currency_code: string;
           account_number?: string;
