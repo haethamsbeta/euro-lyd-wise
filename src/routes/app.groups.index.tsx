@@ -137,7 +137,12 @@ function GroupsPage() {
     },
   });
 
-  const groups = groupsQ.data ?? [];
+  const groupsEnvelope = groupsQ.data;
+  const groups: AccountGroup[] = Array.isArray(groupsEnvelope)
+    ? groupsEnvelope
+    : Array.isArray((groupsEnvelope as any)?.items)
+      ? ((groupsEnvelope as any).items as AccountGroup[])
+      : [];
 
   const filtered = useMemo(() => {
     let xs = groups.slice();
