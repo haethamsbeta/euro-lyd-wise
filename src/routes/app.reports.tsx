@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { BackendPending } from "@/components/app/backend-pending";
+import { useShowMasterTools } from "@/lib/admin-mode";
 import { formatMinor } from "@/lib/format";
 import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
 import { displayCurrency } from "@/lib/api/reports";
