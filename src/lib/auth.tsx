@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (matchingUser) fresh = normalizeLambdaUser(matchingUser, fresh);
       }
       localStorage.setItem("dahab.user", JSON.stringify(fresh));
-      window.dispatchEvent(new Event("dahab.auth.changed"));
+      applyLambdaAuthState();
     } catch (error) {
       if (import.meta.env.DEV) console.warn("[auth] Failed to refresh Lambda user", error);
     }
