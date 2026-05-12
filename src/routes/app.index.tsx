@@ -1217,6 +1217,7 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
 }
 
 function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const isLambda = DATA_BACKEND === "lambda";
   const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
@@ -1296,7 +1297,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
       ) : null}
       <div className="relative">
         <Search className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input className="h-9 ps-7 text-xs" placeholder="Search by DAHAB #, name…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input className="h-9 ps-7 text-xs" placeholder={t("dash.searchHolderPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border border-border bg-surface-2 p-1">
         {(results ?? []).filter((a: any) => !pinned.includes(a.id)).map((a: any) => (
@@ -1311,7 +1312,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
           </li>
         ))}
         {results && results.length === 0 ? (
-          <li className="px-2 py-3 text-center text-xs text-muted-foreground">No matches</li>
+          <li className="px-2 py-3 text-center text-xs text-muted-foreground">{t("dash.noMatches")}</li>
         ) : null}
       </ul>
     </div>
