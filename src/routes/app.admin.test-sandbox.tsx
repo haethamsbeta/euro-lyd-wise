@@ -358,8 +358,22 @@ function TestSandboxPage() {
   const activeFullFixture: Fixture | null = fixture
     ? {
         ...fixture,
-        holder: fixtureActivity?.holder ?? fixture.holder,
-        holder_accounts: activityAccounts.length > 0 ? activityAccounts : getFixtureAccounts(fixture),
+        holder: fixtureActivity?.holder
+          ? {
+              id: fixtureActivity.holder.id,
+              name:
+                fixtureActivity.holder.name ??
+                fixtureActivity.holder.canonical_name ??
+                fixture.holder?.name ??
+                "Test holder",
+              dahab_account_number: fixtureActivity.holder.dahab_account_number,
+              is_test: fixtureActivity.holder.is_test,
+              test_run_id: fixtureActivity.holder.test_run_id,
+              source_system: fixtureActivity.holder.source_system,
+            }
+          : fixture.holder,
+        holder_accounts:
+          activityAccounts.length > 0 ? activityAccounts : getFixtureAccounts(fixture),
         vaults: activityVaults.length > 0 ? activityVaults : getFixtureVaults(fixture),
       }
     : null;
