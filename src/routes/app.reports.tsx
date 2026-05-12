@@ -23,6 +23,7 @@ import { formatMinor } from "@/lib/format";
 import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
 import { displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import { useT } from "@/lib/i18n";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
@@ -95,6 +96,7 @@ export const Route = createFileRoute("/app/reports")({
 });
 
 function ReportsPage() {
+  const t = useT();
   const { data: overview, isLoading, isError: overviewIsError } = useReportsData();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
@@ -355,16 +357,16 @@ function ReportsPage() {
           </div>
         </div>
       )}
-      <PageHeader title="Reports & Insights" description="Analytics command center" />
+      <PageHeader title={t("reports.title")} description={t("reports.subtitle")} />
       <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 pb-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-gold" />
-              <span className="eyebrow">Analytics & Insights</span>
+              <span className="eyebrow">{t("reports.subtitle")}</span>
             </div>
-            <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">Reports & Insights</h1>
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">{t("reports.title")}</h1>
             <p className="text-text-secondary text-sm mt-1.5">
               Business performance, teller productivity, and operational metrics
             </p>
@@ -438,7 +440,7 @@ function ReportsPage() {
               <PremiumCard variant="premium" className="lg:col-span-2 p-6">
                 <div className="flex items-start justify-between mb-6">
                   <div>
-                    <h2 className="text-lg font-serif font-semibold text-foreground">Daily Transactions</h2>
+                    <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.dailyTx")}</h2>
                     <p className="text-sm text-text-secondary mt-0.5">Volume and count over the last 7 days</p>
                   </div>
                   <span className="flex items-center gap-1.5 text-xs text-text-secondary"><span className="w-2 h-2 rounded-full bg-gold" /> Volume</span>
@@ -466,7 +468,7 @@ function ReportsPage() {
               </PremiumCard>
 
               <PremiumCard className="p-6">
-                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Balance by Currency</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.balanceByCurrency")}</h2>
                 <p className="text-sm text-text-secondary mb-6">Network distribution</p>
                 {currencyDistributionRows.length === 0 ? (
                   <ReportEmpty endpoint="GET /reports/business/overview" status="No currency distribution rows returned." />
@@ -508,7 +510,7 @@ function ReportsPage() {
                 <div className="flex items-start justify-between mb-5">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-serif font-semibold text-foreground">Peak Hours</h2>
+                      <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.peakHours")}</h2>
                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[oklch(from_var(--gold)_l_c_h/0.10)] text-gold border border-[oklch(from_var(--gold)_l_c_h/0.30)] font-medium">Insight</span>
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">When transactions happen most — staff your tellers accordingly</p>
@@ -545,7 +547,7 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <div className="flex items-center gap-2 mb-1">
                   <Zap className="w-4 h-4 text-gold" />
-                  <h2 className="text-lg font-serif font-semibold text-foreground">Approval Speed</h2>
+                  <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.approvalSpeed")}</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">Avg turnaround per day (min)</p>
                 <BackendPending
@@ -558,7 +560,7 @@ function ReportsPage() {
             {/* Customer Growth + Top Accounts */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PremiumCard className="lg:col-span-2 p-6">
-                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Customer Growth</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.customerGrowth")}</h2>
                 <p className="text-sm text-text-secondary mb-6">New onboarded customers per month</p>
                 {customerGrowth7mRows.length === 0 ? (
                   <ReportEmpty endpoint="GET /reports/business/overview" status="No customer growth rows returned." />
@@ -577,7 +579,7 @@ function ReportsPage() {
               </PremiumCard>
 
               <PremiumCard variant="premium" className="p-6">
-                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Top Accounts</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.topAccounts")}</h2>
                 <p className="text-sm text-text-secondary mb-5">Highest balance holders</p>
                 {topAccounts.length === 0 ? (
                   <ReportEmpty endpoint="GET /reports/business/overview" status="No top account rows returned." />
@@ -622,7 +624,7 @@ function ReportsPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-gold" />
-                      <h2 className="text-lg font-serif font-semibold text-foreground">Cash Flow — Inflow vs Outflow</h2>
+                      <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.cashFlow")}</h2>
                       <CurrencyBadge currency={CASH_FLOW_CCY} />
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5">Deposits drive the network, withdrawals are the pulse of demand</p>
@@ -665,7 +667,7 @@ function ReportsPage() {
               </PremiumCard>
 
               <PremiumCard className="p-6">
-                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Transaction Mix</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.txMix")}</h2>
                 <p className="text-sm text-text-secondary mb-5">Breakdown by type</p>
                 <BackendPending
                   endpoint="GET /reports/transaction-mix"
@@ -678,7 +680,7 @@ function ReportsPage() {
             <PremiumCard className="p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Zap className="w-4 h-4 text-gold" />
-                <h2 className="text-lg font-serif font-semibold text-foreground">Liquidity Health</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.liquidity")}</h2>
               </div>
               <p className="text-sm text-text-secondary mb-5">Vault balances and days of cover by currency</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -792,7 +794,7 @@ function ReportsPage() {
             {tellers.length > 0 && <PremiumCard variant="premium" className="p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-5 h-5 text-gold" />
-                <h2 className="text-lg font-serif font-semibold text-foreground">Top Performers — Today</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.topPerformers")}</h2>
               </div>
               <p className="text-sm text-text-secondary mb-6">Ranked by transaction volume processed</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -834,7 +836,7 @@ function ReportsPage() {
               <div className="p-5 border-b border-border bg-[oklch(from_var(--surface-2)_l_c_h/0.3)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-gold" />
-                  <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Full Teller Performance</h2>
+                  <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">{t("reports.fullTellerPerf")}</h2>
                 </div>
                 <Button variant="outline" size="sm" className="text-xs"><Download className="w-3.5 h-3.5 mr-1.5" /> Export</Button>
               </div>
@@ -883,7 +885,7 @@ function ReportsPage() {
 
             {/* Volume by Teller */}
             <PremiumCard className="p-6">
-              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Volume by Teller (Today)</h2>
+              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.volumeByTeller")}</h2>
               <p className="text-sm text-text-secondary mb-5">Comparative throughput across the team</p>
               {tellers.length === 0 ? (
                 <ReportEmpty endpoint="GET /reports/tellers/today" status="No teller rows returned." />
@@ -906,7 +908,7 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <div className="flex items-center gap-2 mb-1">
                   <Clock className="w-4 h-4 text-gold" />
-                  <h2 className="text-lg font-serif font-semibold text-foreground">Processing Time Distribution</h2>
+                  <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.processingTime")}</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Transaction duration across all tellers</p>
                 {isLambda && processingTimeDist.length === 0 ? (
@@ -928,7 +930,7 @@ function ReportsPage() {
               <PremiumCard className="p-6">
                 <div className="flex items-center gap-2 mb-1">
                   <Target className="w-4 h-4 text-gold" />
-                  <h2 className="text-lg font-serif font-semibold text-foreground">Error & Correction Rate</h2>
+                  <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.errorRate")}</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">Percentage of transactions requiring supervisor override</p>
                 {isLambda && errorRateTrend.length === 0 ? (
@@ -976,7 +978,7 @@ function ReportsPage() {
             </div>
 
             <PremiumCard className="p-6">
-              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Compliance Health</h2>
+              <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.compliance")}</h2>
               <p className="text-sm text-text-secondary mb-5">Anomaly detection and review queue</p>
               <div className="space-y-4">
                 {[
@@ -1019,7 +1021,7 @@ function ReportsPage() {
               <PremiumCard className="lg:col-span-2 p-6">
                 <div className="flex items-center gap-2 mb-1">
                   <Activity className="w-4 h-4 text-gold" />
-                  <h2 className="text-lg font-serif font-semibold text-foreground">Alert Volume & Resolution</h2>
+                  <h2 className="text-lg font-serif font-semibold text-foreground">{t("reports.alertVolume")}</h2>
                 </div>
                 <p className="text-sm text-text-secondary mb-5">System-generated alerts vs compliance team resolutions</p>
                 {(compliance.alert_volume ?? []).length === 0 ? (
@@ -1051,7 +1053,7 @@ function ReportsPage() {
               </PremiumCard>
 
               <PremiumCard className="p-6">
-                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">Risk Typology</h2>
+                <h2 className="text-lg font-serif font-semibold text-foreground mb-1">{t("reports.riskTypology")}</h2>
                 <p className="text-sm text-text-secondary mb-5">Distribution of flagged activity</p>
                 {isLambda && riskTypology.length === 0 ? (
                   <ReportEmpty endpoint="GET /reports/compliance/overview" status="No risk typology rows returned." />
@@ -1087,7 +1089,7 @@ function ReportsPage() {
 
         {/* Saved Reports */}
         <PremiumCard className="p-6">
-          <h2 className="text-lg font-serif font-semibold text-foreground mb-4">Saved Reports</h2>
+          <h2 className="text-lg font-serif font-semibold text-foreground mb-4">{t("reports.savedReports")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               "Monthly Compliance Summary", "Teller Performance Report", "Customer KYC Status",

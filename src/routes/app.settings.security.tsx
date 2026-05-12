@@ -11,6 +11,7 @@ import {
   deleteMyPasskey,
 } from "@/server/webauthn.functions";
 import { passkeysSupported, registerPasskey } from "@/lib/passkey";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/settings/security")({
   component: SecurityPage,
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/app/settings/security")({
 });
 
 function SecurityPage() {
+  const t = useT();
   const qc = useQueryClient();
   const [supported, setSupported] = useState<boolean | null>(null);
 
@@ -61,8 +63,8 @@ function SecurityPage() {
   return (
     <div>
       <PageHeader
-        title="Security"
-        description="Manage Face ID, Touch ID, and other passkeys for this account."
+        title={t("settings.security.title")}
+        description={t("settings.security.subtitle")}
       />
       <div className="space-y-4 p-4 sm:p-6">
         <Card className="card-luxe">

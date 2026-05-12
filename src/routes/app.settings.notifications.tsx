@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { REALTIME_MODE, POLL_INTERVALS, DATA_BACKEND } from "@/lib/runtimeConfig";
 import { PageHeader, RoleGate } from "@/components/app/app-shell";
+import { useT } from "@/lib/i18n";
 import { BackendPending } from "@/components/app/backend-pending";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -45,11 +46,12 @@ export const Route = createFileRoute("/app/settings/notifications")({
 });
 
 function NotifSettingsLambdaPending() {
+  const t = useT();
   return (
     <>
       <PageHeader
-        title="Notifications"
-        description="Choose what to be notified about and customize reminders."
+        title={t("settings.notifications.title")}
+        description={t("settings.notifications.subtitle")}
       />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
         <BackendPending
@@ -92,6 +94,7 @@ type Prefs = {
 };
 
 function NotifSettingsPage() {
+  const t = useT();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [perm, setPerm] = useState<string>("default");
@@ -242,8 +245,8 @@ function NotifSettingsPage() {
   if (isLoading || !draft) {
     return (
       <>
-        <PageHeader title="Notifications" description="Choose what to be notified about and when." />
-        <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+        <PageHeader title={t("settings.notifications.title")} description={t("settings.notifications.subtitle")} />
+        <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
       </>
     );
   }
@@ -259,8 +262,8 @@ function NotifSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Notifications"
-        description="Choose what to be notified about and customize reminders."
+        title={t("settings.notifications.title")}
+        description={t("settings.notifications.subtitle")}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={sendSelfTest} disabled={testing}>

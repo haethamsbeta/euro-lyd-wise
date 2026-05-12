@@ -205,7 +205,13 @@ function Dashboard() {
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isAuditor;
-  const roleLabel = showMasterTools ? "Master Admin" : isAdmin ? "Admin" : isAuditor ? "Auditor" : isTeller ? "Teller" : "Operator";
+  const t = useT();
+  const roleLabel = showMasterTools
+    ? (t("usersNew.role.admin") + (t("usersNew.role.admin") === "Admin" ? " (Master)" : ""))
+    : isAdmin ? t("usersNew.role.admin")
+    : isAuditor ? t("usersNew.role.auditor")
+    : isTeller ? t("usersNew.role.teller")
+    : (t("nav.dashboard"));
   const accent = isAuditor ? "sky" : "gold";
 
   return (
@@ -225,7 +231,7 @@ function Dashboard() {
                   : "bg-gold/10 text-gold border-gold/30"
               )}
             >
-              {roleLabel} View
+              {roleLabel}
             </span>
           </div>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -251,6 +257,11 @@ function Dashboard() {
 
 function greeting() {
   const h = new Date().getHours();
+  if (typeof document !== "undefined" && document.documentElement.lang === "ar") {
+    if (h < 12) return "صباح الخير";
+    if (h < 18) return "مساء الخير";
+    return "مساء الخير";
+  }
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
@@ -287,6 +298,7 @@ function PendingApprovalsButton() {
 
 // ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
 function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashPrefs) => void }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   const totals = useTotals(data);
   const { data: dashSummary } = useDashboardSummary();
@@ -348,9 +360,9 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
           <div className="flex-1 lg:basis-5/12">
             <div className="flex items-center gap-2 mb-3">
               <LivePulse />
-              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Network Pulse</span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">{t("dash.networkPulse")}</span>
             </div>
-            <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance — LYD Equivalent</div>
+            <div className="text-sm text-muted-foreground mb-1">{t("dash.totalConsolidated")}</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
               {hasConsolidatedTotal ? (
                 networkLyd != null ? (
@@ -452,7 +464,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               <div className="font-serif text-2xl font-bold text-foreground tabular-nums">
                 {fmtTotal(k.value ?? null)}
               </div>
-              <div className="mt-1 text-[10px] text-muted-foreground">DAHABDB total</div>
+              <div className="mt-1 text-[10px] text-muted-foreground">{t("dash.dahabdbTotal")}</div>
             </PremiumCard>
           </Link>
         ))}
@@ -472,7 +484,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             ) : (
               <VaultGaugeCard
                 icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                title="Cash Vaults"
+                title={t("dash.cashVaults")}
                 percent={vaultUtilization(cashSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                   label: `${c} currency cash vault`,
@@ -488,7 +500,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             ) : (
               <VaultGaugeCard
                 icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                title="Bank Vaults"
+                title={t("dash.bankVaults")}
                 percent={vaultUtilization(bankSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                   label: c, value: formatMinorOrMissing(bankSource?.get(c) ?? 0, c),
@@ -545,6 +557,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
 
 // ─── TELLER DASHBOARD ────────────────────────────────────────────────────────
 function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   const { data: dashSummary } = useDashboardSummary();
   // Source-of-truth: summary.txns_today from /dashboard/staff. Never count
@@ -562,7 +575,7 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
               <LivePulse />
               <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Today's Shift</span>
             </div>
-            <div className="text-sm text-muted-foreground mb-1">Transactions Processed</div>
+            <div className="text-sm text-muted-foreground mb-1">{t("dash.txProcessed")}</div>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
               {todayCount === null ? (
                 <span className="text-muted-foreground text-2xl">—</span>
@@ -596,23 +609,23 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2"><UrgentApprovals title="My Queue" /></div>
+        <div className="lg:col-span-2"><UrgentApprovals title={t("dash.myQueue")} /></div>
         <div>
           <PremiumCard className="p-5">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-4">Operational Status</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-4">{t("dash.opStatus")}</h3>
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Branch Status</span>
+                <span className="text-muted-foreground">{t("dash.branchStatus")}</span>
                 <span className="text-emerald-400 font-medium flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Open
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Shift Started</span>
+                <span className="text-muted-foreground">{t("dash.shiftStarted")}</span>
                 <span className="text-foreground tabular-nums">08:00 AM</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Terminal ID</span>
+                <span className="text-muted-foreground">{t("dash.terminalId")}</span>
                 <span className="text-foreground font-mono bg-surface-2 px-2 py-0.5 rounded">TRM-04</span>
               </div>
             </div>
@@ -627,6 +640,7 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
 
 // ─── AUDITOR DASHBOARD ───────────────────────────────────────────────────────
 function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -640,7 +654,7 @@ function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
               </span>
-              <span className="text-[10px] tracking-[0.2em] uppercase text-sky-400 font-semibold">Integrity Pulse</span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-sky-400 font-semibold">{t("dash.integrityPulse")}</span>
             </div>
             <div className="text-sm text-muted-foreground mb-1">Anomalies Detected (24h)</div>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
@@ -650,7 +664,7 @@ function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
           <div className="flex items-center gap-6">
             <RadialGauge percentage={95} colorClass="stroke-sky-400" />
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">System Integrity Score</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("dash.systemIntegrity")}</div>
               <div className="text-sm text-foreground">Last full audit: <span className="tabular-nums">Today, 04:00 AM</span></div>
             </div>
           </div>
@@ -783,6 +797,7 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
 }
 
 function RecentAuditEvents() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["dash.recent.audit"],
     queryFn: async () => {
@@ -824,14 +839,14 @@ function RecentAuditEvents() {
   return (
     <PremiumCard className="p-0 overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex justify-between items-center">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Audit Events</h3>
-        <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">View Full Log →</Link>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">{t("dash.recentAuditEvents")}</h3>
+        <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">{t("nav.audit")} →</Link>
       </div>
       <div className="divide-y divide-border">
         {isLoading && events.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
         ) : events.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground text-center">No audit events yet.</div>
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("audit.empty")}</div>
         ) : null}
         {events.map((log) => (
           <div key={log.id} className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors">
@@ -900,16 +915,17 @@ function HoldingsSummary({
     return null; // backend pending in lambda mode
   }, [holderBalancesByCurrency, customerByCur, lambda]);
 
+  const t = useT();
   return (
     <PremiumCard className="p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Holdings Summary</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">{t("dash.holdingsSummary")}</h2>
       <div className="flex items-center gap-4 mb-6">
         <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
           <Users className="w-6 h-6 text-gold" />
         </div>
         <div>
           <div className="font-serif text-2xl font-bold text-foreground tabular-nums">{holderCount.toLocaleString()}</div>
-          <div className="text-sm text-muted-foreground">Total Active Holders</div>
+          <div className="text-sm text-muted-foreground">{t("dash.totalActiveHolders")}</div>
         </div>
       </div>
       {rows === null ? (
@@ -953,25 +969,26 @@ function HoldingsSummary({
 }
 
 function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: any[]; loading: boolean; redacted?: boolean }) {
+  const t = useT();
   return (
     <PremiumCard className="overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Transactions</h2>
-        <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">View All →</Link>
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">{t("dash.recentTransactions")}</h2>
+        <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">{t("nav.transactions")} →</Link>
       </div>
       <div className="overflow-x-auto lg:max-h-[420px] lg:overflow-y-auto">
         {loading ? (
-          <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
         ) : rows.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("dash.noTx")}</div>
         ) : (
           <table className="w-full text-sm text-left">
             <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em] lg:sticky lg:top-0 lg:z-10">
               <tr>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Transaction</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">Channel</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground text-right">Amount</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Status</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">{t("dash.col.transaction")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">{t("dash.col.channel")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground text-right">{t("dash.col.amount")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">{t("dash.col.status")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -1014,6 +1031,7 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
+  const t = useT();
   const isLambda = DATA_BACKEND === "lambda";
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const sortedKey = ids.slice().sort().join(",");
@@ -1065,7 +1083,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Star className="w-4 h-4 text-gold fill-gold" />
-          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">Pinned Customers</h2>
+          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">{t("dash.pinnedTitle")}</h2>
           <span className="chip chip-gold">{ids.length}</span>
         </div>
         <Users className="w-4 h-4 text-gold" />
@@ -1101,7 +1119,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
                   </button>
                 </div>
                 {accounts.length === 0 ? (
-                  <div className="p-3 text-xs text-muted-foreground">No accounts</div>
+                  <div className="p-3 text-xs text-muted-foreground">{t("dash.noAccounts")}</div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                     {accounts.map((a: any) => (
@@ -1137,6 +1155,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
 }
 
 function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: DashPrefs) => void }) {
+  const t = useT();
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -1146,12 +1165,12 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
       </SheetTrigger>
       <SheetContent className="overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-serif">Dashboard Settings</SheetTitle>
-          <SheetDescription>Configure visible currencies, widgets, and pinned customers.</SheetDescription>
+          <SheetTitle className="font-serif">{t("dash.settingsTitle")}</SheetTitle>
+          <SheetDescription>{t("dash.subtitle")}</SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">Visible Currencies</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.visibleCurrencies")}</div>
             <div className="space-y-2">
               {CURRENCIES.map((c) => (
                 <div key={c} className="flex items-center justify-between rounded-md border border-border bg-surface-2 p-2.5">
@@ -1162,18 +1181,18 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
             </div>
           </div>
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">Widgets</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.widgets")}</div>
             <div className="space-y-2">
               <ToggleRow label="Cash Vaults" checked={prefs.showCash} onChange={(v) => onChange({ ...prefs, showCash: v })} />
               <ToggleRow label="Bank Vaults" checked={prefs.showBank} onChange={(v) => onChange({ ...prefs, showBank: v })} />
               <ToggleRow label="Recent Transactions" checked={prefs.showRecent} onChange={(v) => onChange({ ...prefs, showRecent: v })} />
-              <ToggleRow label="Pinned Customers" checked={prefs.showPinnedCustomers} onChange={(v) => onChange({ ...prefs, showPinnedCustomers: v })} />
-              <ToggleRow label="Holdings Summary" checked={prefs.showHoldings} onChange={(v) => onChange({ ...prefs, showHoldings: v })} />
+              <ToggleRow label={t("dash.pinnedTitle")} checked={prefs.showPinnedCustomers} onChange={(v) => onChange({ ...prefs, showPinnedCustomers: v })} />
+              <ToggleRow label={t("dash.holdingsSummary")} checked={prefs.showHoldings} onChange={(v) => onChange({ ...prefs, showHoldings: v })} />
             </div>
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Pinned Customers</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.pinnedTitle")}</div>
               <span className="text-[10px] text-muted-foreground">{prefs.pinnedAccountIds.length} pinned</span>
             </div>
             <PinAccountPicker
@@ -1198,6 +1217,7 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
 }
 
 function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const isLambda = DATA_BACKEND === "lambda";
   const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
@@ -1277,7 +1297,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
       ) : null}
       <div className="relative">
         <Search className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input className="h-9 ps-7 text-xs" placeholder="Search by DAHAB #, name…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input className="h-9 ps-7 text-xs" placeholder={t("dash.searchHolderPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border border-border bg-surface-2 p-1">
         {(results ?? []).filter((a: any) => !pinned.includes(a.id)).map((a: any) => (
@@ -1292,7 +1312,7 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
           </li>
         ))}
         {results && results.length === 0 ? (
-          <li className="px-2 py-3 text-center text-xs text-muted-foreground">No matches</li>
+          <li className="px-2 py-3 text-center text-xs text-muted-foreground">{t("dash.noMatches")}</li>
         ) : null}
       </ul>
     </div>
