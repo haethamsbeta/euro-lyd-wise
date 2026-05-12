@@ -1148,6 +1148,66 @@ function TestSandboxPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRejectTarget(null);
+            setRejectReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject sandbox transaction</DialogTitle>
+            <DialogDescription>
+              {rejectTarget?.tx_number ? `Tx ${rejectTarget.tx_number}` : "Sandbox transaction"} —
+              provide a reason. This calls the sandbox-only reject endpoint.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reject reason (required)"
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitReject}
+              disabled={!rejectReason.trim() || rowBusy === rejectTarget?.id}
+            >
+              {rowBusy === rejectTarget?.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDeleteAll} onOpenChange={setConfirmDeleteAll}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all sandbox data?</DialogTitle>
+            <DialogDescription>
+              This calls DELETE /admin/test-fixtures and removes every sandbox fixture from the
+              backend. Production data is not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDeleteAll(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={deleteAllFixtures} disabled={busy === "delete-all"}>
+              {busy === "delete-all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 />}
+              Delete all
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
