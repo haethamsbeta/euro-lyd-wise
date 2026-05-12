@@ -513,10 +513,17 @@ function GroupCard({
   const totals = (g.totals_by_currency ?? [])
     .map((t) => ({ currency: t.currency, balance: Number(t.total_minor ?? 0) }))
     .sort((a, b) => b.balance - a.balance);
-  const primary = totals[0];
-  const secondary = totals.slice(1, 3);
+  const visibleTotals = totals.slice(0, 3);
   const overflow = Math.max(0, totals.length - 3);
-  const hasNegative = totals.some((a) => a.balance < 0);
+  const accountCount = g.member_count ?? 0;
+  const lydEntry = totals.find((b) => b.currency === "LYD");
+  const lydTotal = lydEntry?.balance ?? 0;
+
+  // Avatars derived from member_count (no member objects on AccountGroup type)
+  const avatarSlots = Math.min(accountCount, 4);
+  const avatarOverflow = Math.max(0, accountCount - 4);
+
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div
@@ -525,16 +532,18 @@ function GroupCard({
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className={cn(
-        "group relative flex cursor-pointer flex-col gap-4 rounded-2xl border bg-card/70 p-5 text-left outline-none transition-all hover:bg-card hover:border-gold/40 focus-visible:ring-2 focus-visible:ring-gold/40 animate-fade-in",
-        g.is_pinned ? cn(meta.border, meta.glow) : "border-gold/15 hover:shadow-[0_10px_30px_-18px_var(--gold)]",
+        "group relative flex cursor-pointer flex-col rounded-xl border bg-card/70 p-5 outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-gold/40",
+        g.is_pinned
+          ? cn("border-gold/40", meta.glow)
+          : "border-border hover:border-gold/30 hover:shadow-[0_0_20px_rgba(212,168,87,0.08)]",
       )}
     >
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border", meta.bg, meta.border, meta.tone)}>
-          <meta.Icon className="h-5 w-5" />
+      {/* Top row */}
+      <div className="mb-4 flex items-start justify-between">
+        <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl border", meta.bg, meta.border)}>
+          <meta.Icon className={cn("h-5 w-5", meta.tone)} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="relative flex items-center gap-1">
           {canMutate && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -544,141 +553,154 @@ function GroupCard({
                   onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onTogglePin(); }}
                   aria-label={g.is_pinned ? "Unpin group" : "Pin group"}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-                    g.is_pinned ? "text-gold hover:bg-gold/10" : "text-muted-foreground hover:bg-gold/10 hover:text-gold",
+                    "rounded-lg p-1.5 transition-all disabled:cursor-not-allowed disabled:opacity-40",
+                    g.is_pinned
+                      ? "text-gold"
+                      : "text-muted-foreground opacity-0 hover:text-gold group-hover:opacity-100",
                   )}
                 >
-                  <Star className={cn("h-4 w-4", g.is_pinned && "fill-current")} />
+                  {g.is_pinned ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
                 </button>
               </TooltipTrigger>
-              {writesDisabled && <TooltipContent>Backend endpoint pending</TooltipContent>}
+              <TooltipContent>{writesDisabled ? "Backend endpoint pending" : g.is_pinned ? "Unpin" : "Pin"}</TooltipContent>
             </Tooltip>
           )}
           {canMutate && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-gold/10 hover:text-gold focus:opacity-100 group-hover:opacity-100 md:opacity-0"
-                  aria-label="Group actions"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="border-gold/20" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
-                  <FolderOpen className="h-4 w-4" /> View details
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={writesDisabled}
-                  onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onEdit(); }}
-                >
-                  <Pencil className="h-4 w-4" /> Edit group
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={writesDisabled}
-                  onClick={(e) => { e.stopPropagation(); if (!writesDisabled) onDelete(); }}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+              className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-gold/10 hover:text-gold focus:opacity-100 group-hover:opacity-100"
+              aria-label="Group actions"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
           )}
+
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="absolute right-0 top-full z-40 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-surface-2 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    disabled={writesDisabled}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); if (!writesDisabled) onEdit(); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-foreground hover:bg-gold/10 hover:text-gold disabled:opacity-40"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={writesDisabled}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); if (!writesDisabled) onDelete(); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-rose-400 hover:bg-rose-500/10 disabled:opacity-40"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Title + type pill */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h3 className="line-clamp-1 font-playfair text-lg font-semibold text-foreground">{g.name}</h3>
-          {g.is_pinned && <Pin className="h-3.5 w-3.5 text-gold" />}
-        </div>
-        <span className={cn("mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", meta.pillBg, meta.pillBorder, meta.pillText)}>
-          <meta.Icon className="h-3 w-3" />
+      {/* Name + type pill + description */}
+      <h3 className="truncate text-lg font-semibold text-foreground">{g.name}</h3>
+      <div className="mb-3 mt-1">
+        <span className={cn(
+          "inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider border",
+          meta.pillBg, meta.pillBorder, meta.pillText,
+        )}>
           {meta.label}
         </span>
       </div>
-
-      {/* Description */}
-      <p className="line-clamp-2 min-h-[2.5rem] text-xs text-muted-foreground">
+      <p className="mb-4 line-clamp-2 min-h-[32px] text-xs leading-relaxed text-muted-foreground">
         {g.description || "No description provided."}
       </p>
 
-      {/* Status chips */}
-      {(g.member_count > 0 || hasNegative) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {g.member_count > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-gold/20 bg-gold/5 px-2 py-0.5 text-[10px] font-medium text-gold">
-              {g.member_count} acct{g.member_count === 1 ? "" : "s"}
-            </span>
-          )}
-          {hasNegative && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-rose-400/30 bg-rose-400/10 px-2 py-0.5 text-[10px] font-medium text-rose-300">
-              <ShieldAlert className="h-3 w-3" /> Negative balance
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Hero balances */}
-      {canViewBalances ? (
-        totals.length === 0 ? (
-          <div className="rounded-xl border border-gold/10 bg-surface-2/50 px-3 py-3 text-center text-xs text-muted-foreground">
-            No balances yet
-          </div>
+      {/* Member avatars row */}
+      <div className="mb-4 flex items-center justify-between">
+        {avatarSlots === 0 ? (
+          <span className="text-xs italic text-muted-foreground/70">No members yet</span>
         ) : (
-          <div className="rounded-xl border border-gold/15 bg-surface-2/40 p-4">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Total balance</span>
-              <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-[10px] font-bold", meta.pillBg, meta.pillBorder, meta.pillText)}>
-                {primary.currency}
-              </span>
-            </div>
-            <div className={cn(
-              "font-playfair font-semibold tabular-nums leading-tight",
-              "text-2xl md:text-3xl",
-              primary.balance < 0 ? "text-rose-300" : "text-foreground",
-            )}>
-              {primary.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-            </div>
-
-            {secondary.length > 0 && (
-              <div className="mt-3 space-y-1.5 border-t border-gold/10 pt-2.5">
-                {secondary.map((a) => (
-                  <div key={a.currency} className="flex items-center justify-between gap-2">
-                    <span className={cn("inline-flex items-center rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold", meta.pillBg, meta.pillBorder, meta.pillText)}>
-                      {a.currency}
-                    </span>
-                    <span className={cn(
-                      "font-mono text-base tabular-nums",
-                      a.balance < 0 ? "text-rose-300" : "text-foreground",
-                    )}>
-                      {a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-                {overflow > 0 && (
-                  <div className="text-right text-xs text-muted-foreground">+ {overflow} more currenc{overflow === 1 ? "y" : "ies"}</div>
-                )}
+          <div className="flex -space-x-2">
+            {Array.from({ length: avatarSlots }).map((_, i) => (
+              <div
+                key={i}
+                style={{ zIndex: 10 - i }}
+                className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-surface-2 text-[10px] font-semibold text-gold"
+              >
+                {String.fromCharCode(65 + i)}
+              </div>
+            ))}
+            {avatarOverflow > 0 && (
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-surface-2 text-[10px] font-semibold text-muted-foreground">
+                +{avatarOverflow}
               </div>
             )}
           </div>
-        )
-      ) : (
-        <div className="rounded-lg border border-gold/10 bg-surface-2/50 px-3 py-2 text-[11px] text-muted-foreground">
-          {g.member_count} member{g.member_count === 1 ? "" : "s"}
-        </div>
-      )}
-
-      {/* Members footer */}
-      <div className="flex items-center justify-between border-t border-gold/10 pt-3">
-        <span className="text-[11px] text-muted-foreground">
-          {g.member_count > 0 ? `${g.member_count} member${g.member_count === 1 ? "" : "s"}` : "No members yet"}
+        )}
+        <span className="text-xs text-muted-foreground">
+          {accountCount} member{accountCount === 1 ? "" : "s"}
         </span>
-        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
+      </div>
+
+      {/* Currency breakdown strip */}
+      {canViewBalances && (totals.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-surface-2/50 p-3 text-center text-[10px] italic text-muted-foreground/70">
+          No accounts in this group yet
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border bg-surface-2/50">
+          <div className="flex items-center justify-between border-b border-border bg-surface-2/40 px-3 py-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Balances · 30d Activity
+            </span>
+            <span className="text-[10px] tabular-nums text-muted-foreground">
+              {accountCount} acct{accountCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="divide-y divide-border/60">
+            {visibleTotals.map((b) => (
+              <div key={b.currency} className="flex items-center gap-3 px-3 py-2">
+                <CurrencyBadge currency={b.currency} />
+                <span className="flex-1 truncate text-sm font-semibold tabular-nums text-foreground">
+                  {formatCompactCurrency(b.balance, b.currency)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {overflow > 0 && (
+            <div className="px-3 py-1.5 text-center text-[10px] text-muted-foreground">
+              + {overflow} more currenc{overflow === 1 ? "y" : "ies"}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Footer */}
+      <div className="mt-4 flex items-end justify-between border-t border-border pt-3">
+        <div>
+          <div className="mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            LYD Equivalent
+          </div>
+          <div className="text-sm font-semibold tabular-nums text-foreground">
+            {lydTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} LYD
+          </div>
+        </div>
+        <span className="flex items-center gap-1 text-xs font-medium text-gold">
+          View accounts
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+        </span>
       </div>
     </div>
   );
