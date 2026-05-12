@@ -621,8 +621,22 @@ function TestSandboxPage() {
       {/* Card 2 — Details */}
       {fixture && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Fixture details</CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => activityQuery.refetch()}
+              disabled={activityQuery.isFetching}
+              title="Reload sandbox activity"
+            >
+              {activityQuery.isFetching ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <RefreshCw />
+              )}
+              Refresh activity
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="flex flex-wrap items-center gap-3">
@@ -648,29 +662,127 @@ function TestSandboxPage() {
               ) : null}
             </div>
 
+            {/* Activity-basic load states */}
+            {activityQuery.isLoading ? (
+              <p className="text-xs text-muted-foreground">Loading sandbox activity…</p>
+            ) : activityQuery.error ? (
+              isPendingError(activityQuery.error) ? (
+                <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/activity-basic" />
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-destructive">
+                  <span>{(activityQuery.error as Error).message}</span>
+                  <Button size="sm" variant="ghost" onClick={() => activityQuery.refetch()}>
+                    Retry
+                  </Button>
+                </div>
+              )
+            ) : null}
+
+            {/* A. Sandbox balance summary */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Sandbox balances
+              </div>
+              <CurrencyTotalsStrip
+                totals={activityBalances.map((b) => ({
+                  currency: b.currency_code,
+                  total_balance:
+                    b.holder_balance ??
+                    b.holder_balance_minor ??
+                    0,
+                }))}
+                emptyText="No balances yet."
+                size="sm"
+              />
+            </div>
+
+            {/* D. Fixture status / totals */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                {
+                  label: "Accounts",
+                  value:
+                    activityTotals.holder_account_count ??
+                    activityTotals.account_count ??
+                    activityAccounts.length,
+                },
+                {
+                  label: "Vaults",
+                  value: activityTotals.vault_account_count ?? activityVaults.length,
+                },
+                {
+                  label: "Transactions",
+                  value: activityTotals.transaction_count ?? activityTransactions.length,
+                },
+                {
+                  label: "Pending",
+                  value: activityTotals.pending_count ?? activityPending.length,
+                },
+              ].map((kpi) => (
+                <div
+                  key={kpi.label}
+                  className="rounded border border-border/40 p-2"
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {kpi.label}
+                  </div>
+                  <div className="font-mono text-base">{Number(kpi.value ?? 0)}</div>
+                </div>
+              ))}
+            </div>
+
             <div>
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
                 Linked test accounts
               </div>
-              <ul className="space-y-1">
-                {accounts.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3">
-                    <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
-                      {a.currency_code}
-                    </span>
-                    <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
-                      TEST
-                    </span>
-                    {a.account_number && (
-                      <span className="font-mono text-[11px]">{a.account_number}</span>
-                    )}
-                    <span className="font-mono text-[10px] text-muted-foreground">{a.id}</span>
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              {accounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No test holder accounts.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {accounts.map((a: any) => (
+                    <li key={a.id} className="flex flex-wrap items-center gap-3">
+                      <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
+                        {a.currency_code}
+                      </span>
+                      <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                        TEST
+                      </span>
+                      {a.account_number && (
+                        <span className="font-mono text-[11px]">{a.account_number}</span>
+                      )}
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {a.id}
+                      </span>
+                      {(a.current_balance !== undefined ||
+                        a.current_balance_minor !== undefined) && (
+                        <span className="font-mono text-[11px]">
+                          bal:{" "}
+                          {Number(
+                            a.current_balance ?? a.current_balance_minor ?? 0,
+                          ).toLocaleString()}
+                        </span>
+                      )}
+                      {a.source_system && (
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {a.source_system}
+                        </span>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => copyText(a.id)}
+                        aria-label="Copy account id"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
@@ -695,6 +807,28 @@ function TestSandboxPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* E. Recent test transactions (read-only) */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Recent test transactions
+              </div>
+              <SandboxTxTable
+                rows={activityTransactions}
+                emptyText="No sandbox transactions yet."
+              />
+            </div>
+
+            {/* F. Pending test transactions (read-only) */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Pending test transactions
+              </div>
+              <SandboxTxTable
+                rows={activityPending}
+                emptyText="No pending sandbox transactions."
+              />
             </div>
           </CardContent>
         </Card>
