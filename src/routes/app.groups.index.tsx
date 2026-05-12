@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { useT } from "@/lib/i18n";
 import { useDebounced } from "@/hooks/use-debounced";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,7 @@ type SortKey = "pinned" | "newest" | "name" | "members";
 // ────────────────────────────────────────────────────────────────────────────
 
 function GroupsPage() {
+  const t = useT();
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
