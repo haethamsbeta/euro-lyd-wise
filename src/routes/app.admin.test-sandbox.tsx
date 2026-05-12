@@ -129,6 +129,11 @@ function TestSandboxPage() {
   const [bigAmount, setBigAmount] = useState("999999999"); // designed to exceed limits
   const [log, setLog] = useState<LogRow[]>([]);
 
+  // TEMP: Sandbox transaction posting disabled while backend isolation is hardened.
+  const TX_POSTING_DISABLED = true;
+  const TX_DISABLED_MSG =
+    "Sandbox transaction posting is temporarily disabled while backend isolation is being hardened.";
+
   const fixturesQuery = useQuery({
     queryKey: ["admin", "test-fixtures"],
     queryFn: () => api.admin.testFixtures.list(),
@@ -280,6 +285,10 @@ function TestSandboxPage() {
     amountMinor: number;
     expectStatus: "posted" | "pending";
   }) {
+    if (TX_POSTING_DISABLED) {
+      toast.error(TX_DISABLED_MSG);
+      return;
+    }
     if (!fixture) return;
     const ha = findHolderAccount(currency);
     const v = opts.direction === "deposit" ? findReceivable(currency) : findPayable(currency);
@@ -380,6 +389,13 @@ function TestSandboxPage() {
       />
 
       {pendingErr && <BackendPending endpoint={pendingErr} />}
+
+      {TX_POSTING_DISABLED && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{TX_DISABLED_MSG}</span>
+        </div>
+      )}
 
       {/* Card 1 — Lifecycle */}
       <Card>
@@ -501,8 +517,11 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || !canRunRow}
+                      disabled={TX_POSTING_DISABLED || busy !== null || !canRunRow}
                       title={
+                        TX_POSTING_DISABLED
+                          ? TX_DISABLED_MSG
+                          :
                         canRunRow
                           ? "Run a test deposit using this fixture"
                           : "Open or recreate fixture to load test accounts and vaults"
@@ -516,7 +535,8 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || !canRunRow}
+                      disabled={TX_POSTING_DISABLED || busy !== null || !canRunRow}
+                      title={TX_POSTING_DISABLED ? TX_DISABLED_MSG : undefined}
                       onClick={() =>
                         runFromFixtureRow(f, "withdraw", Number(normalAmount), "posted", "Cash withdrawal")
                       }
@@ -526,7 +546,8 @@ function TestSandboxPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy !== null || !canRunRow}
+                      disabled={TX_POSTING_DISABLED || busy !== null || !canRunRow}
+                      title={TX_POSTING_DISABLED ? TX_DISABLED_MSG : undefined}
                       onClick={() =>
                         runFromFixtureRow(f, "withdraw", Number(bigAmount), "pending", "Pending approval")
                       }
@@ -690,7 +711,8 @@ function TestSandboxPage() {
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
-                disabled={busy !== null || depositDisabled || !normalAmount}
+                disabled={TX_POSTING_DISABLED || busy !== null || depositDisabled || !normalAmount}
+                title={TX_POSTING_DISABLED ? TX_DISABLED_MSG : undefined}
                 onClick={() => runTx({
                   action: "Cash deposit",
                   direction: "deposit",
@@ -702,7 +724,8 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || withdrawDisabled || !normalAmount}
+                disabled={TX_POSTING_DISABLED || busy !== null || withdrawDisabled || !normalAmount}
+                title={TX_POSTING_DISABLED ? TX_DISABLED_MSG : undefined}
                 onClick={() => runTx({
                   action: "Cash withdrawal",
                   direction: "withdraw",
@@ -714,7 +737,8 @@ function TestSandboxPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={busy !== null || withdrawDisabled || !bigAmount}
+                disabled={TX_POSTING_DISABLED || busy !== null || withdrawDisabled || !bigAmount}
+                title={TX_POSTING_DISABLED ? TX_DISABLED_MSG : undefined}
                 onClick={() => runTx({
                   action: "Pending approval",
                   direction: "withdraw",
