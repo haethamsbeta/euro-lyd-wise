@@ -105,5 +105,104 @@ export const adminApi = {
       apiFetch<{ ok: true }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}`, {
         method: "DELETE",
       }),
+    /**
+     * Master Admin–only sandbox activity.
+     * GET /admin/test-fixtures/:testRunId/activity-basic
+     *
+     * Do NOT call /activity or /activity-lite — both are deprecated/broken.
+     */
+    activityBasic: (testRunId: string) =>
+      apiFetch<{
+        test_run_id: string;
+        holder: {
+          id: string;
+          canonical_name?: string;
+          name?: string;
+          dahab_account_number?: string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        } | null;
+        accounts: Array<{
+          id: string;
+          currency_code: string;
+          account_number?: string;
+          current_balance?: number | string;
+          current_balance_minor?: number | string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        }>;
+        vaults: Array<{
+          id: string;
+          currency_code: string;
+          name?: string;
+          account_number?: string;
+          internal_role?: string;
+          vault_role?: string;
+          source_account_code?: string;
+          current_balance?: number | string;
+          current_balance_minor?: number | string;
+          is_test?: boolean;
+          test_run_id?: string;
+          source_system?: string;
+        }>;
+        vault_rules: Array<{
+          id?: string;
+          currency_code: string;
+          direction?: string;
+          vault_role?: string;
+          vault_account_id?: string;
+          source_entry_type_id?: string;
+          source_entry_type_name?: string;
+          is_active?: boolean;
+          is_test?: boolean;
+          test_run_id?: string;
+        }>;
+        balances_by_currency: Array<{
+          currency_code: string;
+          holder_balance?: number;
+          holder_balance_minor?: number | string;
+          vault_balance?: number;
+          vault_balance_minor?: number | string;
+          receivable_balance_minor?: number | string;
+          payable_balance_minor?: number | string;
+        }>;
+        transactions: Array<{
+          id?: string;
+          tx_number?: string;
+          created_at?: string;
+          posted_at?: string;
+          direction?: string;
+          currency_code?: string;
+          holder_currency_code?: string;
+          vault_currency_code?: string;
+          amount_minor?: number | string;
+          status?: string;
+          comment?: string;
+          review_reason?: string;
+        }>;
+        pending_transactions: Array<{
+          id?: string;
+          tx_number?: string;
+          created_at?: string;
+          posted_at?: string;
+          direction?: string;
+          currency_code?: string;
+          holder_currency_code?: string;
+          vault_currency_code?: string;
+          amount_minor?: number | string;
+          status?: string;
+          comment?: string;
+          review_reason?: string;
+        }>;
+        totals: {
+          holder_account_count?: number;
+          vault_account_count?: number;
+          account_count?: number;
+          transaction_count?: number;
+          pending_count?: number;
+        };
+      }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}/activity-basic`),
   },
 };
