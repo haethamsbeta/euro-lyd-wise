@@ -192,9 +192,9 @@ function GroupsPage() {
           <div>
             <div className="mb-1 inline-flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-gold" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">Customer organisation</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">{t("groups.subtitle")}</span>
             </div>
-            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">Groups</h1>
+            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">{t("groups.title")}</h1>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
               Organise related customers and accounts into curated groups for monitoring and reporting. No financial linkage between members.
             </p>
@@ -205,7 +205,7 @@ function GroupsPage() {
                 <TooltipTrigger asChild>
                   <span className="self-start md:self-auto">
                     <Button variant="gold" disabled>
-                      <Plus className="h-4 w-4" /> New Group
+                      <Plus className="h-4 w-4" /> {t("groups.new")}
                     </Button>
                   </span>
                 </TooltipTrigger>
