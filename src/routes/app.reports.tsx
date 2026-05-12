@@ -96,6 +96,7 @@ export const Route = createFileRoute("/app/reports")({
 });
 
 function ReportsPage() {
+  const t = useT();
   const { data: overview, isLoading, isError: overviewIsError } = useReportsData();
   const { data: dashSummary } = useDashboardSummary();
   const [lens, setLens] = useState<"business" | "tellers" | "compliance">("business");
