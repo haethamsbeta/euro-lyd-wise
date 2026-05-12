@@ -218,7 +218,7 @@ export function AppShell() {
       <TooltipProvider delayDuration={150}>
         <div className="min-h-screen bg-background">
           {/* Full-width sticky toolbar — fixed-width brand on the left, nav after, actions on the right */}
-          <header className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl relative">
+          <header dir="ltr" className="sticky top-0 z-40 w-full border-b border-gold/20 bg-card/90 shadow-[0_4px_24px_-12px_oklch(0.18_0.02_70/0.6)] backdrop-blur-xl relative">
             <div className="flex h-16 w-full items-center gap-1 px-2.5 sm:h-[68px] sm:gap-3 sm:px-5 lg:h-[72px] lg:px-8">
               {/* Left cluster: hamburger (More) → logo. Stationary on every breakpoint. */}
               <div className="flex h-full shrink-0 items-center gap-1.5 sm:gap-3">
