@@ -29,14 +29,14 @@ type DockItemDef = {
 type DockKey = "Dashboard" | "Transactions" | "Holders" | "Vaults" | "Approvals" | "Audit" | "MyActivity" | "Groups";
 
 const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
-  Dashboard:    { key: "Dashboard",    to: "/app",              labelKey: "nav.dashboard",    icon: LayoutDashboard },
-  Transactions: { key: "Transactions", to: "/app/transactions", labelKey: "nav.transactions", icon: ArrowRightLeft },
-  Holders:      { key: "Holders",      to: "/app/holders",      labelKey: "nav.holders",      icon: UsersIcon },
-  Vaults:       { key: "Vaults",       to: "/app/vaults",       labelKey: "nav.vaults",       icon: Wallet },
-  Approvals:    { key: "Approvals",    to: "/app/approvals",    labelKey: "nav.approvals",    icon: ClipboardCheck },
-  Audit:        { key: "Audit",        to: "/app/audit",        labelKey: "nav.audit",        icon: ScrollText },
-  MyActivity:   { key: "MyActivity",   to: "/app/me/activity",  labelKey: "nav.myActivity",   icon: Activity },
-  Groups:       { key: "Groups",       to: "/app/groups",       labelKey: "nav.groups",       icon: Layers },
+  Dashboard:    { key: "Dashboard",    to: "/app",              labelKey: "dock.dashboard",    icon: LayoutDashboard },
+  Transactions: { key: "Transactions", to: "/app/transactions", labelKey: "dock.transactions", icon: ArrowRightLeft },
+  Holders:      { key: "Holders",      to: "/app/holders",      labelKey: "dock.holders",      icon: UsersIcon },
+  Vaults:       { key: "Vaults",       to: "/app/vaults",       labelKey: "dock.vaults",       icon: Wallet },
+  Approvals:    { key: "Approvals",    to: "/app/approvals",    labelKey: "dock.approvals",    icon: ClipboardCheck },
+  Audit:        { key: "Audit",        to: "/app/audit",        labelKey: "dock.audit",        icon: ScrollText },
+  MyActivity:   { key: "MyActivity",   to: "/app/me/activity",  labelKey: "dock.myActivity",   icon: Activity },
+  Groups:       { key: "Groups",       to: "/app/groups",       labelKey: "dock.groups",       icon: Layers },
 };
 
 const DOCK_CONFIG: Record<AppRole, { left: DockKey[]; right: DockKey[]; showFab: boolean }> = {
@@ -94,7 +94,7 @@ function DockItem({ item, active, t }: { item: DockItemDef; active: boolean; t: 
           </span>
         ) : null}
       </div>
-      <span className="text-[10px] sm:text-[10px] font-medium tracking-wide truncate max-w-[58px] sm:max-w-[68px]">{label}</span>
+      <span className="text-[10px] sm:text-[10px] font-medium tracking-wide leading-tight text-center max-w-[68px] sm:max-w-[80px] truncate">{label}</span>
     </Link>
   );
 }
