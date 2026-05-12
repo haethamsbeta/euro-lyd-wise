@@ -129,7 +129,6 @@ export const en = {
   "common.search": "Search",
   "common.actions": "Actions",
   "common.status": "Status",
-  "common.email": "Email",
   "common.phone": "Phone",
   "common.name": "Name",
   "common.role": "Role",
