@@ -120,6 +120,16 @@ export const en = {
   "nav.branches": "Branches",
  "nav.testSandbox": "Test Sandbox",
 
+  // short labels used by the bottom dock so phone labels never truncate
+  "dock.dashboard": "Home",
+  "dock.transactions": "Txns",
+  "dock.holders": "Holders",
+  "dock.vaults": "Vaults",
+  "dock.approvals": "Approvals",
+  "dock.audit": "Audit",
+  "dock.myActivity": "Activity",
+  "dock.groups": "Groups",
+
   // common buttons / shared
   "common.back": "Back",
   "common.save": "Save",
