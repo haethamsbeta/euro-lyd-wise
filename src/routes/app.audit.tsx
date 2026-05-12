@@ -184,7 +184,7 @@ function Audit() {
                 {r.details && Object.keys(r.details).length > 0 && (
                   <details className="mt-2">
                     <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                      View raw details
+                      {t("audit.viewRaw")}
                     </summary>
                     <pre className="mt-2 overflow-x-auto rounded bg-muted/40 p-3 text-xs">
 {JSON.stringify(r.details, null, 2)}
