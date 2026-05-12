@@ -122,8 +122,7 @@ function Audit() {
 
   return (
     <div>
-      <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
-      {/* Title is overridden via i18n below; keep PageHeader unchanged for layout */}
+      <PageHeader title={t("audit.title")} description={t("audit.subtitle")} />
       <div className="p-4 sm:p-6 space-y-3">
         {pending && <BackendPending endpoint="GET /audit" />}
         <div className="flex justify-end">
@@ -197,12 +196,12 @@ function Audit() {
           );
         })}
         {!pending && rows.length === 0 && !isFetching && (
-          <Card><CardContent className="p-6 text-sm text-muted-foreground">No audit entries yet.</CardContent></Card>
+          <Card><CardContent className="p-6 text-sm text-muted-foreground">{t("audit.empty")}</CardContent></Card>
         )}
         {!pending && nextOffset != null && (
           <div className="flex justify-center">
             <Button variant="outline" size="sm" disabled={isFetching} onClick={() => setOffset(nextOffset)}>
-              {isFetching ? "Loading…" : "Load more"}
+              {isFetching ? t("common.loading") : t("common.loadMore")}
             </Button>
           </div>
         )}

@@ -267,8 +267,7 @@ function UsersPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          DAHAB Family portal users (admin, teller, auditor) are created here.
-          Consumer accounts are created from the Consumer Portal Accounts page.
+          {t("users.consumerNote")}
         </p>
         <Card>
           <CardContent className="p-0">
