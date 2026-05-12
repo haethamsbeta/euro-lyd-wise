@@ -199,6 +199,9 @@ function TestSandboxPage() {
       appendLog({ action: "Create fixture", status: "ok", detail: `test_run_id=${normalized.test_run_id}` });
       toast.success("Test fixture created");
       fixturesQuery.refetch();
+      // Pull fresh holder/accounts/vaults/balances/transactions from the
+      // Master-Admin-only activity-basic endpoint.
+      activityQuery.refetch();
     } catch (e) {
       handleError("Create fixture", e, "POST /admin/test-fixtures/e2e");
     } finally {
