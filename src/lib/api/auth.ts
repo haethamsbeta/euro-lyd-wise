@@ -21,6 +21,8 @@ export interface MeResponse {
   fullName: string | null;
   roles: string[];
   mustChangePassword: boolean;
+  role?: string;
+  is_master_admin?: boolean;
 }
 
 export const authApi = {
