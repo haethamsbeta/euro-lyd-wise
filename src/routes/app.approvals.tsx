@@ -59,6 +59,9 @@ function Approvals() {
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["approvals", offset],
     queryFn: async () => {
+      // Backend contract: GET /approvals/pending MUST exclude sandbox rows
+      // (is_test=true, source_system='DAHAB_TEST', test_run_id starting
+      // 'TEST-', TST-H-* accounts, TST-V-* vaults). No client-side filter.
       if (DATA_BACKEND === "lambda") {
         const r = await api.approvals.pendingPaged({ limit: PAGE, offset });
         const items = (r.items ?? []).map((r: any) => ({
