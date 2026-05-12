@@ -70,4 +70,8 @@ export const usersApi = {
     }),
   forcePasswordReset: (id: string) =>
     apiFetch<{ ok: true }>(`/users/${id}/force-password-reset`, { method: "POST" }),
+  // DELETE /users/:id — soft delete (backend disables the user, preserves history).
+  // Master Admin only.
+  remove: (id: string) =>
+    apiFetchEnvelope<{ ok: true }>(`/users/${id}`, { method: "DELETE" }),
 };

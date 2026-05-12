@@ -15,7 +15,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX } from "lucide-react";
+import { useIsRealMasterAdmin } from "@/lib/admin-mode";
+import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX, Trash2 } from "lucide-react";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
@@ -37,11 +38,13 @@ function UsersPage() {
   const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const isMasterAdmin = useIsRealMasterAdmin();
   const [search, setSearch] = useState("");
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [emailEdit, setEmailEdit] = useState<{ id: string; current: string | null } | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const listEmails = useServerFn(adminListUserEmails);
   const changeEmail = useServerFn(adminChangeUserEmail);
@@ -69,6 +72,8 @@ function UsersPage() {
             created_at: u.created_at,
             status: u.status ?? (u.is_active === false ? "disabled" : "active"),
             last_login_at: u.last_login_at ?? null,
+            email: u.email ?? null,
+            is_master_admin: u.is_master_admin === true,
           })),
           roles: rows.flatMap((u: any) =>
             rolesFor(u).map((role: string) => ({
@@ -160,6 +165,22 @@ function UsersPage() {
       qc.invalidateQueries({ queryKey: ["users.profiles"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      setDeletingId(id);
+      try {
+        return await api.users.remove(id);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    onSuccess: (res: any) => {
+      toast.success(res?.message ?? "User disabled.");
+      qc.invalidateQueries({ queryKey: ["users.profiles"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to delete user"),
   });
 
   async function onResetPassword(targetId: string, name: string) {
@@ -462,6 +483,31 @@ function UsersPage() {
                                 </TooltipTrigger>
                               </Tooltip>
                             </TooltipProvider>
+                            {(() => {
+                              const targetEmail = ((p as any).email ?? "").toString().toLowerCase();
+                              const targetIsMaster = (p as any).is_master_admin === true;
+                              const canDelete =
+                                isMasterAdmin &&
+                                !isSelf &&
+                                !targetIsMaster &&
+                                targetEmail !== "admin@demo.test";
+                              if (!canDelete) return null;
+                              return (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="gap-1.5"
+                                  disabled={deletingId === p.id}
+                                  onClick={() => {
+                                    if (!confirm("This will disable the user and preserve audit/history. Continue?")) return;
+                                    deleteMut.mutate(p.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  {deletingId === p.id ? "Deleting…" : "Delete"}
+                                </Button>
+                              );
+                            })()}
                             </>
                           );
                           })()}
