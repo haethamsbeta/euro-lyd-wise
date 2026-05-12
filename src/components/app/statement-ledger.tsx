@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { formatMinor, formatDateTime } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export type StatementTx = {
@@ -29,6 +30,7 @@ export function StatementLedger({
   currency: string;
   emptyText?: string;
 }) {
+  const t = useT();
   // Compute running balance oldest -> newest, then display newest -> oldest.
   const rows = useMemo(() => {
     const sorted = [...transactions].sort(
@@ -45,7 +47,11 @@ export function StatementLedger({
   }, [transactions]);
 
   if (rows.length === 0) {
-    return <div className="p-6 text-center text-sm text-muted-foreground">{emptyText}</div>;
+    return (
+      <div className="p-6 text-center text-sm text-muted-foreground">
+        {emptyText && emptyText !== "No transactions yet." ? emptyText : t("ledger.empty")}
+      </div>
+    );
   }
 
   return (
@@ -53,13 +59,13 @@ export function StatementLedger({
       <table className="w-full min-w-[760px] text-sm">
         <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-start">Date &amp; time</th>
-            <th className="px-3 py-2 text-start">TX #</th>
-            <th className="px-3 py-2 text-start">Description</th>
-            <th className="px-3 py-2 text-end">Debit</th>
-            <th className="px-3 py-2 text-end">Credit</th>
-            <th className="px-3 py-2 text-start">Status</th>
-            <th className="px-3 py-2 text-end">Balance after</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.dateTime")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.tx")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.description")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.debit")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.credit")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.status")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.balanceAfter")}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -73,7 +79,7 @@ export function StatementLedger({
                 </td>
                 <td className="px-3 py-2 font-mono text-[13px]">{t.tx_number}</td>
                 <td className="max-w-[20rem] px-3 py-2">
-                  <div className="capitalize">{t.direction} · {t.channel}</div>
+                  <div>{useTxLabels(t.direction, t.channel)}</div>
                   {t.comment ? (
                     <div className="truncate text-xs text-muted-foreground">{t.comment}</div>
                   ) : null}
