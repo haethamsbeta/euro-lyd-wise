@@ -140,7 +140,7 @@ function TestSandboxPage() {
   const [log, setLog] = useState<LogRow[]>([]);
 
   // TEMP: Sandbox transaction posting disabled while backend isolation is hardened.
-  const TX_POSTING_DISABLED = true;
+  const TX_POSTING_DISABLED = false;
   const TX_DISABLED_MSG =
     "Sandbox transaction posting is temporarily disabled while backend isolation is being hardened.";
 
@@ -425,6 +425,8 @@ function TestSandboxPage() {
       });
       if (pass) toast.success(`${opts.action}: ${status}`);
       else toast.error(`${opts.action}: got ${status}, expected ${opts.expectStatus}`);
+      activityQuery.refetch();
+      sandboxTransactionsQuery.refetch();
     } catch (e) {
       handleError(opts.action, e, "POST /transactions");
     } finally {
