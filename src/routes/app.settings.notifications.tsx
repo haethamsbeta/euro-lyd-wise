@@ -94,6 +94,7 @@ type Prefs = {
 };
 
 function NotifSettingsPage() {
+  const t = useT();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [perm, setPerm] = useState<string>("default");
