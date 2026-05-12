@@ -8,6 +8,26 @@ export function formatMinor(amountMinor: number | null | undefined, currency: st
   }).format(n);
 }
 
+/* ------------------------------------------------------------------
+ * Localized labels for backend-driven enums.
+ * The backend value (e.g. "posted") is never mutated — these helpers
+ * only translate the visible label using the existing i18n dictionary
+ * keys: tx.status.*, tx.channel.*, tx.direction.*.
+ * ------------------------------------------------------------------ */
+type TFn = (key: string) => string;
+export function tStatus(t: TFn, status: string | null | undefined): string {
+  if (!status) return "—";
+  return t(`tx.status.${status}`);
+}
+export function tChannel(t: TFn, channel: string | null | undefined): string {
+  if (!channel) return "—";
+  return t(`tx.channel.${channel}`);
+}
+export function tDirection(t: TFn, direction: string | null | undefined): string {
+  if (!direction) return "—";
+  return t(`tx.direction.${direction}`);
+}
+
 /** Allowed currencies in DAHAB. Anything else is treated as missing. */
 export const ALLOWED_CURRENCIES = ["LYD", "USD", "EUR", "GBP"] as const;
 
