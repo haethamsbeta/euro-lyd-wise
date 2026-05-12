@@ -22,6 +22,9 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
+
 const CURRENCY_TINT: Record<string, { ring: string; text: string; gradient: string }> = {
   LYD: { ring: "border-[oklch(0.82_0.14_85/0.4)]", text: "text-gold", gradient: "from-[oklch(0.82_0.14_85/0.18)] via-transparent to-transparent" },
   USD: { ring: "border-[oklch(0.7_0.18_150/0.35)]", text: "text-[var(--success)]", gradient: "from-[oklch(0.7_0.18_150/0.16)] via-transparent to-transparent" },
@@ -133,6 +136,21 @@ function HolderDetail() {
     () => (holder?.holder_accounts ?? []).map((a: any) => a.id),
     [holder],
   );
+
+  const holderUuid = isUuid(holder?.id) ? (holder!.id as string) : null;
+
+  useEffect(() => {
+    if (holderUuid && import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.log("[holder-accounts]", `/holders/${holderUuid}/accounts`);
+    }
+  }, [holderUuid]);
+
+  const linkedAccountsQuery = useQuery({
+    queryKey: ["holder-accounts.byHolder", holderUuid],
+    enabled: !!holderUuid && activeTab === "Linked Accounts",
+    queryFn: () => api.holders.accounts(holderUuid!),
+  });
 
   const [ledgerOffset, setLedgerOffset] = useState(0);
   const [ledgerAcc, setLedgerAcc] = useState<any[]>([]);
@@ -333,14 +351,47 @@ function HolderDetail() {
             />
           )}
           {activeTab === "Linked Accounts" && (
-            <AccountListBlock
-              accounts={accounts}
-              isReadOnly={isReadOnly}
-              isAdmin={isAdmin}
-              isTeller={isTeller}
-              holderId={holder.id}
-              highlightedAccountId={highlightedAccountId}
-            />
+            isLoading || !holder ? (
+              <p className="text-sm text-muted-foreground">Loading holder…</p>
+            ) : !holderUuid ? (
+              <p className="text-sm text-muted-foreground">
+                Holder identifier is not yet resolved.
+              </p>
+            ) : linkedAccountsQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading linked accounts…</p>
+            ) : linkedAccountsQuery.isError ? (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Unable to load linked accounts right now. Please refresh.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {((linkedAccountsQuery.error as any)?.message ?? "unknown error")
+                        .toString()
+                        .slice(0, 200)}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => linkedAccountsQuery.refetch()}
+                    disabled={linkedAccountsQuery.isFetching}
+                  >
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <AccountListBlock
+                accounts={linkedAccountsQuery.data ?? []}
+                isReadOnly={isReadOnly}
+                isAdmin={isAdmin}
+                isTeller={isTeller}
+                holderId={holder.id}
+                highlightedAccountId={highlightedAccountId}
+              />
+            )
           )}
           {activeTab === "Transactions" && (
             <TransactionsTab
