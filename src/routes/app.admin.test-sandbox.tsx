@@ -7,6 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -156,6 +165,12 @@ function TestSandboxPage() {
     enabled: showMaster && !!fixture?.test_run_id,
     retry: false,
   });
+  const sandboxTransactionsQuery = pendingTxQuery;
+
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; tx_number?: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
@@ -190,7 +205,7 @@ function TestSandboxPage() {
     setBusy("create");
     setPendingErr(null);
     try {
-      const raw: any = await api.admin.testFixtures.create();
+      const raw: any = await api.admin.testFixtures.createE2E({ starting_balance: 10000 });
       const created = raw?.data ?? raw;
       const accounts = getFixtureAccounts(created);
       const vaults = getFixtureVaults(created);
@@ -222,7 +237,7 @@ function TestSandboxPage() {
     if (!fixture) return;
     setBusy("cleanup");
     try {
-      await api.admin.testFixtures.cleanup(fixture.test_run_id);
+      await api.admin.testFixtures.delete(fixture.test_run_id);
       appendLog({ action: "Cleanup fixture", status: "ok", detail: fixture.test_run_id });
       persist(null);
       toast.success("Test fixture removed");
@@ -237,7 +252,7 @@ function TestSandboxPage() {
   async function deleteFixtureById(testRunId: string) {
     setBusy(`del-${testRunId}`);
     try {
-      await api.admin.testFixtures.cleanup(testRunId);
+      await api.admin.testFixtures.delete(testRunId);
       appendLog({ action: "Delete fixture", status: "ok", detail: testRunId });
       toast.success("Fixture deleted");
       if (fixture?.test_run_id === testRunId) persist(null);
@@ -246,6 +261,69 @@ function TestSandboxPage() {
       handleError("Delete fixture", e, `DELETE /admin/test-fixtures/${testRunId}`);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function deleteAllFixtures() {
+    setBusy("delete-all");
+    try {
+      await api.admin.testFixtures.deleteAll();
+      appendLog({ action: "Delete all fixtures", status: "ok", detail: "DELETE /admin/test-fixtures" });
+      toast.success("All sandbox fixtures deleted");
+      persist(null);
+      fixturesQuery.refetch();
+    } catch (e) {
+      handleError("Delete all fixtures", e, "DELETE /admin/test-fixtures");
+    } finally {
+      setBusy(null);
+      setConfirmDeleteAll(false);
+    }
+  }
+
+  function refetchSandbox() {
+    fixturesQuery.refetch();
+    activityQuery.refetch();
+    sandboxTransactionsQuery.refetch();
+  }
+
+  async function approvePending(tx: { id?: string; tx_number?: string }) {
+    if (!fixture || !tx.id) return;
+    setRowBusy(tx.id);
+    try {
+      await api.admin.testFixtures.approveTransaction(fixture.test_run_id, tx.id);
+      toast.success(`Approved ${tx.tx_number ?? tx.id}`);
+      appendLog({ action: "Approve sandbox tx", status: "ok", detail: tx.tx_number ?? tx.id });
+      refetchSandbox();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Approve failed";
+      appendLog({ action: "Approve sandbox tx", status: "error", detail: msg });
+      toast.error(msg);
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function submitReject() {
+    if (!fixture || !rejectTarget?.id) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      toast.error("Reject reason is required");
+      return;
+    }
+    setRowBusy(rejectTarget.id);
+    try {
+      await api.admin.testFixtures.rejectTransaction(fixture.test_run_id, rejectTarget.id, reason);
+      toast.success(`Rejected ${rejectTarget.tx_number ?? rejectTarget.id}`);
+      appendLog({ action: "Reject sandbox tx", status: "ok", detail: rejectTarget.tx_number ?? rejectTarget.id });
+      setRejectTarget(null);
+      setRejectReason("");
+      refetchSandbox();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Reject failed";
+      appendLog({ action: "Reject sandbox tx", status: "error", detail: msg });
+      toast.error(msg);
+    } finally {
+      setRowBusy(null);
     }
   }
 
