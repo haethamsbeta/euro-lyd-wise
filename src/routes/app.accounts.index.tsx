@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { api } from "@/lib/api";
@@ -38,7 +38,7 @@ function AccountsList() {
     setOffset(0);
   }, [dq, currency, status, pageSize]);
 
-  const { data, isLoading, isFetching, isError, error } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ["holder-accounts.list", offset, pageSize, dq, currency, status],
     queryFn: () => {
       if (DATA_BACKEND !== "lambda") {
@@ -60,6 +60,20 @@ function AccountsList() {
     },
     placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (isError && import.meta.env.DEV) {
+      const e = error as any;
+      // eslint-disable-next-line no-console
+      console.warn("[/app/accounts] /holder-accounts failed", {
+        message: e?.message,
+        status: e?.status,
+        details: e?.details,
+      });
+    }
+  }, [isError, error]);
+
+  const hasFilters = !!(dq.trim() || currency || status);
 
   const items: any[] = (data?.items ?? []).filter((r: any) => !isTestRow(r));
   const total = data?.total ?? dashSummary?.holderAccountCount ?? null;
@@ -170,13 +184,33 @@ function AccountsList() {
         </div>
 
         {isError ? (
-          <p className="text-sm text-destructive">
-            Failed to load linked accounts: {(error as Error)?.message ?? "unknown error"}
-          </p>
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Unable to load accounts right now. Please refresh.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {((error as any)?.message ?? "unknown error").toString().slice(0, 200)}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={`me-1 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No linked accounts found.</p>
+          <p className="text-sm text-muted-foreground">
+            {hasFilters ? "No accounts match your filters." : "No linked accounts yet."}
+          </p>
         ) : (
           <Card className="card-luxe">
             <CardContent className="p-0">
