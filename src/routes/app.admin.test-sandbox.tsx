@@ -635,11 +635,14 @@ function TestSandboxPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => activityQuery.refetch()}
-              disabled={activityQuery.isFetching}
+              onClick={() => {
+                activityQuery.refetch();
+                pendingTxQuery.refetch();
+              }}
+              disabled={activityQuery.isFetching || pendingTxQuery.isFetching}
               title="Reload sandbox activity"
             >
-              {activityQuery.isFetching ? (
+              {activityQuery.isFetching || pendingTxQuery.isFetching ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <RefreshCw />
@@ -831,13 +834,34 @@ function TestSandboxPage() {
 
             {/* F. Pending test transactions (read-only) */}
             <div>
-              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                Pending test transactions
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Pending test transactions
+                </div>
+                <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                  <AlertTriangle className="h-3 w-3" />
+                  Sandbox approval endpoint pending.
+                </span>
               </div>
-              <SandboxTxTable
-                rows={activityPending}
-                emptyText="No pending sandbox transactions."
-              />
+              {pendingTxQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground">Loading sandbox pending…</p>
+              ) : pendingTxQuery.error ? (
+                isPendingError(pendingTxQuery.error) ? (
+                  <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/transactions" />
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-destructive">
+                    <span>{(pendingTxQuery.error as Error).message}</span>
+                    <Button size="sm" variant="ghost" onClick={() => pendingTxQuery.refetch()}>
+                      Retry
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <SandboxTxTable
+                  rows={asArray(pendingTxQuery.data?.pending_items)}
+                  emptyText="No pending sandbox transactions."
+                />
+              )}
             </div>
           </CardContent>
         </Card>
