@@ -121,6 +121,16 @@ export const ar: Dict = {
   "nav.branches": "الفروع",
   "nav.testSandbox": "بيئة الاختبار",
 
+  // short labels used by the bottom dock so phone labels never truncate
+  "dock.dashboard": "الرئيسية",
+  "dock.transactions": "المعاملات",
+  "dock.holders": "العملاء",
+  "dock.vaults": "الخزائن",
+  "dock.approvals": "الموافقات",
+  "dock.audit": "السجل",
+  "dock.myActivity": "نشاطي",
+  "dock.groups": "المجموعات",
+
   // common buttons / shared
   "common.back": "رجوع",
   "common.save": "حفظ",
