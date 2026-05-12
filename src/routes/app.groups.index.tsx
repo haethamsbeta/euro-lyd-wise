@@ -24,8 +24,12 @@ import {
 import {
   Layers, Plus, Search, X, Star, Pin, MoreVertical, Pencil, Trash2, Users,
   Briefcase, Home, TrendingUp, PiggyBank, Building2, Crown, Sparkles, ArrowRight,
-  FolderOpen, FilterX, ShieldAlert,
+  FolderOpen, FilterX, ShieldAlert, FolderTree, Activity, Filter, ArrowUpDown,
+  TrendingDown, StarOff,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { useT } from "@/lib/i18n";
@@ -77,6 +81,14 @@ export function initials(name: string) {
 }
 
 type SortKey = "pinned" | "newest" | "name" | "members";
+type GroupSort = "name" | "members" | "balance" | "newest";
+
+function formatCompactCurrency(value: number, _currency?: string) {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Page
@@ -95,7 +107,7 @@ function GroupsPage() {
   const [search, setSearch] = useState("");
   const dq = useDebounced(search, 200).trim().toLowerCase();
   const [typeFilter, setTypeFilter] = useState<"all" | GroupType>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("pinned");
+  const [sortKey, setSortKey] = useState<GroupSort>("newest");
 
   const [editing, setEditing] = useState<AccountGroup | null>(null);
   const [creating, setCreating] = useState(false);
@@ -156,21 +168,25 @@ function GroupsPage() {
         (g.group_type ?? "").toLowerCase().includes(dq),
       );
     }
+    const sumBalance = (g: AccountGroup) =>
+      (g.totals_by_currency ?? []).reduce((s, t) => s + Number(t.total_minor ?? 0), 0);
     xs.sort((a, b) => {
-      if (sortKey === "pinned") {
-        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
+      // Pinned cards always float to top
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
       if (sortKey === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (sortKey === "name") return a.name.localeCompare(b.name);
       if (sortKey === "members") return (b.member_count ?? 0) - (a.member_count ?? 0);
+      if (sortKey === "balance") return sumBalance(b) - sumBalance(a);
       return 0;
     });
     return xs;
   }, [groups, typeFilter, dq, sortKey]);
 
   const totalMembers = useMemo(() => groups.reduce((s, g) => s + (g.member_count ?? 0), 0), [groups]);
-  const pinnedCount = groups.filter((g) => g.is_pinned).length;
+  const createdLast14d = useMemo(() => {
+    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    return groups.filter((g) => new Date(g.created_at).getTime() >= cutoff).length;
+  }, [groups]);
 
   // Aggregate managed balance — top currency across all groups
   const managedTotals = useMemo(() => {
@@ -186,17 +202,17 @@ function GroupsPage() {
   return (
     <TooltipProvider delayDuration={150}>
     <div className="min-h-[calc(100vh-7rem)]">
-      <div className="mx-auto max-w-7xl px-4 pt-6 md:px-8 md:pt-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 pt-6 pb-12 md:px-8 md:pt-8">
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="mb-1 inline-flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-gold" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold">{t("groups.subtitle")}</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-gold">Organization</span>
             </div>
-            <h1 className="font-playfair text-3xl font-semibold text-foreground md:text-4xl">{t("groups.title")}</h1>
+            <h1 className="font-playfair text-2xl font-semibold text-foreground">{t("groups.title")}</h1>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-              Organise related customers and accounts into curated groups for monitoring and reporting. No financial linkage between members.
+              Organize holders into families, corporate groups, trusts, branches, and VIP tiers.
             </p>
           </div>
           {canMutate && (
@@ -204,7 +220,7 @@ function GroupsPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="self-start md:self-auto">
-                    <Button variant="gold" disabled>
+                    <Button variant="gold" disabled className="gap-2">
                       <Plus className="h-4 w-4" /> {t("groups.new")}
                     </Button>
                   </span>
@@ -212,7 +228,7 @@ function GroupsPage() {
                 <TooltipContent>Backend endpoint pending</TooltipContent>
               </Tooltip>
             ) : (
-              <Button variant="gold" className="self-start md:self-auto" onClick={() => setCreating(true)}>
+              <Button variant="gold" className="gap-2 self-start md:self-auto" onClick={() => setCreating(true)}>
                 <Plus className="h-4 w-4" /> New Group
               </Button>
             )
@@ -220,81 +236,88 @@ function GroupsPage() {
         </div>
 
         {/* KPI strip */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <KpiCard label="Total Groups" value={groups.length} icon={<Layers className="h-4 w-4" />} />
-          <KpiCard label="Total Members" value={totalMembers} icon={<Users className="h-4 w-4" />} />
-          <KpiCard label="Pinned" value={pinnedCount} icon={<Pin className="h-4 w-4" />} />
-          {canViewBalances ? (
-            <ManagedBalanceKpi totals={managedTotals} />
-          ) : (
-            <KpiCard label="Active Groups" value={groups.length} icon={<FolderOpen className="h-4 w-4" />} />
-          )}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            { label: "Total Groups", value: groups.length.toString(), Icon: FolderTree },
+            { label: "Unique Members", value: totalMembers.toLocaleString(), Icon: Users },
+            canViewBalances && managedTotals[0]
+              ? { label: "Combined Balance", value: `${formatCompactCurrency(managedTotals[0][1])} ${managedTotals[0][0]}`, Icon: TrendingUp }
+              : { label: "Active Groups", value: groups.length.toString(), Icon: FolderOpen },
+            { label: "Created (14d)", value: createdLast14d.toString(), Icon: Activity },
+          ].map((k, i) => (
+            <motion.div
+              key={k.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <KpiCard label={k.label} value={k.value} icon={<k.Icon className="h-4 w-4" />} />
+            </motion.div>
+          ))}
         </div>
 
         {/* Filter bar */}
-        <div className="mt-6 space-y-3">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <Card className="border-border bg-card/70 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            {/* Search */}
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search groups by name, description, or type…"
+                placeholder="Search groups by name or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 rounded-xl border-gold/20 bg-card/60 pl-11 pr-10 placeholder:text-muted-foreground/70 focus-visible:ring-gold/40 focus-visible:border-gold/60"
+                className="h-10 rounded-lg border-border bg-surface-2 pl-10 pr-9 text-sm focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold/30"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
                   aria-label="Clear search"
-                  className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-gold/10 hover:text-foreground"
+                  className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-gold/10 hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
-            <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-              <SelectTrigger className="h-11 w-full rounded-xl border-gold/20 bg-card/60 md:w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pinned">Pinned first</SelectItem>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="members">Member count</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-            <TypePill
-              active={typeFilter === "all"}
-              onClick={() => setTypeFilter("all")}
-              label="All"
-              count={groups.length}
-              tone="bg-gold/10 border-gold/30 text-gold"
-            />
-            {TYPE_ORDER.map((t) => {
-              const m = TYPE_META[t];
-              const c = groups.filter((g) => (g.group_type || "general") === t).length;
-              if (c === 0 && typeFilter !== t) return null;
-              return (
-                <TypePill
-                  key={t}
-                  active={typeFilter === t}
-                  onClick={() => setTypeFilter(t)}
-                  label={m.label}
-                  count={c}
-                  tone={cn(m.pillBg, m.pillBorder, m.pillText)}
-                  Icon={m.Icon}
-                />
-              );
-            })}
+            {/* Type chips */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none lg:flex-wrap lg:overflow-visible">
+              <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <TypeChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")} label="All" />
+              {TYPE_ORDER.map((tk) => {
+                const m = TYPE_META[tk];
+                const c = groups.filter((g) => (g.group_type || "general") === tk).length;
+                if (c === 0 && typeFilter !== tk) return null;
+                return (
+                  <TypeChip
+                    key={tk}
+                    active={typeFilter === tk}
+                    onClick={() => setTypeFilter(tk)}
+                    label={m.label}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as GroupSort)}
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs text-foreground focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
+              >
+                <option value="name">Name (A→Z)</option>
+                <option value="members">Most Members</option>
+                <option value="balance">Highest Balance</option>
+                <option value="newest">Recently Created</option>
+              </select>
+            </div>
           </div>
-        </div>
+        </Card>
 
         {/* Cards grid / empty / pending states */}
-        <div className="mt-6 pb-12">
+        <div>
           {listPending ? (
             <BackendPending
               endpoint="GET /api/groups"
@@ -311,21 +334,32 @@ function GroupsPage() {
           ) : groups.length === 0 ? (
             <EmptyZeroState canCreate={canMutate && !writesDisabled} onCreate={() => setCreating(true)} />
           ) : filtered.length === 0 ? (
-            <EmptyFilteredState onClear={() => { setSearch(""); setTypeFilter("all"); }} />
+            <EmptyFilteredState
+              searchTerm={search}
+              canCreate={canMutate && !writesDisabled && !search}
+              onCreate={() => setCreating(true)}
+              onClear={() => { setSearch(""); setTypeFilter("all"); }}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((g) => (
-                <GroupCard
+              {filtered.map((g, i) => (
+                <motion.div
                   key={String(g.id)}
-                  g={g}
-                  canMutate={canMutate}
-                  canViewBalances={canViewBalances}
-                  writesDisabled={writesDisabled}
-                  onOpen={() => navigate({ to: "/app/groups/$id", params: { id: String(g.id) } })}
-                  onEdit={() => setEditing(g)}
-                  onDelete={() => setDeleting(g)}
-                  onTogglePin={() => togglePin.mutate(g)}
-                />
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <GroupCard
+                    g={g}
+                    canMutate={canMutate}
+                    canViewBalances={canViewBalances}
+                    writesDisabled={writesDisabled}
+                    onOpen={() => navigate({ to: "/app/groups/$id", params: { id: String(g.id) } })}
+                    onEdit={() => setEditing(g)}
+                    onDelete={() => setDeleting(g)}
+                    onTogglePin={() => togglePin.mutate(g)}
+                  />
+                </motion.div>
               ))}
             </div>
           )}
