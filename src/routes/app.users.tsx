@@ -483,6 +483,31 @@ function UsersPage() {
                                 </TooltipTrigger>
                               </Tooltip>
                             </TooltipProvider>
+                            {(() => {
+                              const targetEmail = ((p as any).email ?? "").toString().toLowerCase();
+                              const targetIsMaster = (p as any).is_master_admin === true;
+                              const canDelete =
+                                isMasterAdmin &&
+                                !isSelf &&
+                                !targetIsMaster &&
+                                targetEmail !== "admin@demo.test";
+                              if (!canDelete) return null;
+                              return (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="gap-1.5"
+                                  disabled={deletingId === p.id}
+                                  onClick={() => {
+                                    if (!confirm("This will disable the user and preserve audit/history. Continue?")) return;
+                                    deleteMut.mutate(p.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  {deletingId === p.id ? "Deleting…" : "Delete"}
+                                </Button>
+                              );
+                            })()}
                             </>
                           );
                           })()}
