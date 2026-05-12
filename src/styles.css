@@ -79,7 +79,7 @@
      numeric strings render in the same sharp Inter face as the rest of the UI.
      Tabular figures are still applied via font-variant-numeric. */
   --font-mono: "Inter", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
-  --font-arabic: "Cairo", "Amiri", "Segoe UI", Tahoma, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Cairo", "Segoe UI", Tahoma, sans-serif;
 }
 
 /* Light mode — ivory + champagne gold (still elegant for daytime) */
@@ -384,16 +384,26 @@ html.theme-night .surface-cream {
   h3 { font-weight: 600; letter-spacing: -0.025em; }
   h4 { font-weight: 600; letter-spacing: -0.02em; }
 
-  /* Arabic typography: use Cairo for body, Amiri for serif headings.
-     Triggered by <html lang="ar"> set by the LanguageProvider. */
+  /* Arabic typography: banking-grade sans (IBM Plex Sans Arabic + Cairo).
+     Triggered by <html lang="ar"> set by the LanguageProvider. No layout
+     changes — only swaps the Arabic glyph rendering. */
   html[lang="ar"] body {
     font-family: var(--font-arabic);
   }
   html[lang="ar"] .font-serif,
   html[lang="ar"] h1,
-  html[lang="ar"] h2 {
-    font-family: "Amiri", var(--font-arabic);
+  html[lang="ar"] h2,
+  html[lang="ar"] h3,
+  html[lang="ar"] h4 {
+    font-family: var(--font-arabic);
     letter-spacing: 0;
+  }
+  /* Always render numeric / identifier strings LTR even inside RTL rows so
+     account numbers, IBANs, currency codes and amounts read correctly. */
+  [lang="ar"] .num,
+  [dir="rtl"] .num {
+    direction: ltr;
+    unicode-bidi: isolate;
   }
   /* Keep "DAHAB" wordmark in serif Latin even in Arabic mode */
   html[lang="ar"] .gold-text[lang="en"] {
