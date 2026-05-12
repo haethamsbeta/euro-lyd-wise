@@ -1031,6 +1031,7 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
+  const t = useT();
   const isLambda = DATA_BACKEND === "lambda";
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const sortedKey = ids.slice().sort().join(",");
@@ -1082,7 +1083,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Star className="w-4 h-4 text-gold fill-gold" />
-          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">Pinned Customers</h2>
+          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">{t("dash.pinnedTitle")}</h2>
           <span className="chip chip-gold">{ids.length}</span>
         </div>
         <Users className="w-4 h-4 text-gold" />
@@ -1118,7 +1119,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
                   </button>
                 </div>
                 {accounts.length === 0 ? (
-                  <div className="p-3 text-xs text-muted-foreground">No accounts</div>
+                  <div className="p-3 text-xs text-muted-foreground">{t("dash.noAccounts")}</div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                     {accounts.map((a: any) => (
