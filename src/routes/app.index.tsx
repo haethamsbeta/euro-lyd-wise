@@ -298,6 +298,7 @@ function PendingApprovalsButton() {
 
 // ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
 function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashPrefs) => void }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   const totals = useTotals(data);
   const { data: dashSummary } = useDashboardSummary();
