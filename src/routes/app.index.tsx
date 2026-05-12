@@ -969,25 +969,26 @@ function HoldingsSummary({
 }
 
 function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: any[]; loading: boolean; redacted?: boolean }) {
+  const t = useT();
   return (
     <PremiumCard className="overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Transactions</h2>
-        <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">View All →</Link>
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">{t("dash.recentTransactions")}</h2>
+        <Link to="/app/transactions" className="text-xs text-gold hover:text-gold-soft font-medium">{t("nav.transactions")} →</Link>
       </div>
       <div className="overflow-x-auto lg:max-h-[420px] lg:overflow-y-auto">
         {loading ? (
-          <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
         ) : rows.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground">No transactions yet.</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("dash.noTx")}</div>
         ) : (
           <table className="w-full text-sm text-left">
             <thead className="text-[10px] bg-surface-2/50 border-b border-border uppercase tracking-[0.14em] lg:sticky lg:top-0 lg:z-10">
               <tr>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Transaction</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">Channel</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground text-right">Amount</th>
-                <th className="px-5 py-2.5 font-semibold text-muted-foreground">Status</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">{t("dash.col.transaction")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground hidden sm:table-cell">{t("dash.col.channel")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground text-right">{t("dash.col.amount")}</th>
+                <th className="px-5 py-2.5 font-semibold text-muted-foreground">{t("dash.col.status")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
