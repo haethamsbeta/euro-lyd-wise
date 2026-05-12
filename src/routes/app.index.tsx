@@ -205,7 +205,13 @@ function Dashboard() {
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const isTeller = hasAnyRole(roles, ["teller"]) && !isAdmin && !isAuditor;
-  const roleLabel = showMasterTools ? "Master Admin" : isAdmin ? "Admin" : isAuditor ? "Auditor" : isTeller ? "Teller" : "Operator";
+  const t = useT();
+  const roleLabel = showMasterTools
+    ? (t("usersNew.role.admin") + (t("usersNew.role.admin") === "Admin" ? " (Master)" : ""))
+    : isAdmin ? t("usersNew.role.admin")
+    : isAuditor ? t("usersNew.role.auditor")
+    : isTeller ? t("usersNew.role.teller")
+    : (t("nav.dashboard"));
   const accent = isAuditor ? "sky" : "gold";
 
   return (
@@ -225,7 +231,7 @@ function Dashboard() {
                   : "bg-gold/10 text-gold border-gold/30"
               )}
             >
-              {roleLabel} View
+              {roleLabel}
             </span>
           </div>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -251,6 +257,11 @@ function Dashboard() {
 
 function greeting() {
   const h = new Date().getHours();
+  if (typeof document !== "undefined" && document.documentElement.lang === "ar") {
+    if (h < 12) return "صباح الخير";
+    if (h < 18) return "مساء الخير";
+    return "مساء الخير";
+  }
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
