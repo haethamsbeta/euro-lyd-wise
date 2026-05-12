@@ -1,103 +1,169 @@
 ## Goal
 
-Enable the full Master-Admin Test Sandbox workflow using only sandbox-isolated endpoints. Add the missing sandbox API methods (`createE2E`, `delete`, `deleteAll`, `transactions(params?)`, `approveTransaction`, `rejectTransaction`), and wire approve/reject controls on pending sandbox transactions. Keep the `TX_POSTING_DISABLED` flag for Deposit/Withdraw/Pending-create buttons.
+Stop the "Failed to load linked accounts: API error" crash on `/app/accounts` and wire the holder detail Linked Accounts tab to the confirmed-working per-holder endpoint.
 
-## Scope (frontend only)
+## Scope (frontend only, no Supabase, no backend changes)
 
-- `src/lib/api/admin.ts`
-- `src/routes/app.admin.test-sandbox.tsx`
-- New small component for the reject-reason dialog (sandbox-only)
+1. `src/routes/app.accounts.index.tsx` — global list, keeps `GET /holder-accounts`
+2. `src/routes/app.holders.$id.tsx` — Linked Accounts tab uses `GET /holders/{holder.id}/accounts`
+3. `src/lib/api/holders.ts` — `accounts()` adapter handles `{ items, next_cursor }` envelope
 
-No changes to production routes, no Supabase, no production approvals/transactions calls.
+No other pages touched.
 
-## Changes
+---
 
-### 1. `src/lib/api/admin.ts`
+## 1) `/app/accounts` — resilient global list
 
-Restructure `adminApi.testFixtures` to expose exactly these methods. All methods unwrap `{ success, data, message }`, return `data`, throw on `success === false`, and URL-encode path params.
+Keep the existing `api.holderAccounts.list({...})` call hitting `GET /holder-accounts`. Do NOT aggregate per-holder. Replace the error rendering block:
 
-- `list()` → `GET /admin/test-fixtures` (keep current normalization to `{ items, total }`)
-- `createE2E({ starting_balance })` → `POST /admin/test-fixtures/e2e` with body `{ starting_balance }`. Replaces current `create()` (alias `create` kept for back-compat call sites during this change, then removed).
-- `delete(testRunId)` → `DELETE /admin/test-fixtures/:testRunId`. Replaces `cleanup()`.
-- `deleteAll()` → `DELETE /admin/test-fixtures` (new; wired to a "Delete all sandbox data" destructive button).
-- `activityBasic(testRunId)` → unchanged shape, ensure envelope unwrap.
-- `transactions(testRunId, params?)` → `GET /admin/test-fixtures/:testRunId/transactions{qs(params)}`. Returns `{ items, pending_items, posted_items, totals }`.
-- `approveTransaction(testRunId, txId)` → `POST /admin/test-fixtures/:testRunId/transactions/:txId/approve`, empty body.
-- `rejectTransaction(testRunId, txId, rejectReason)` → `POST /admin/test-fixtures/:testRunId/transactions/:txId/reject`, body `{ reject_reason: rejectReason }`.
+- On `isError`: show a soft inline card:
+  - Message: "Unable to load accounts right now. Please refresh."
+  - Secondary muted line with the backend message (truncated) for context
+  - "Retry" button calling `refetch()` from the `useQuery` result
+- On success with `items.length === 0` and no active filters: clean empty state ("No linked accounts yet.")
+- On success with empty items but active search/filters: "No accounts match your filters."
+- Keep table, pagination, search, currency/status filters, and PageHeader rendered above the data area so the page never goes blank.
+- Dev-only logging: when `import.meta.env.DEV`, log the resolved request URL and the `ApiError.message` / `details` on failure. Use the existing `[apiFetch]` log already in `dahabApi.ts`; add one extra `console.warn("[/app/accounts] holder-accounts failed", { message, status, details })` inside an `onError`-style effect or directly in the error branch.
+- Pull `refetch` from `useQuery` destructure.
 
-Add a small local helper `unwrap<T>(res): T` that returns `res.data` when the response looks like an envelope and throws `new Error(res.message ?? "Request failed")` when `success === false`. Use it from each method.
+No change to query key, page-size, filter, or pagination logic.
 
-### 2. `src/routes/app.admin.test-sandbox.tsx`
+## 2) `/app/holders/$id` — Linked Accounts tab via per-holder endpoint
 
-- Replace calls: `create()` → `createE2E({ starting_balance: 10000 })`, `cleanup(id)` → `delete(id)`.
-- Add a new "Delete all sandbox data" destructive button next to "Cleanup Fixture", calling `deleteAll()` with a confirm dialog; on success clear active fixture, refetch `fixturesQuery`.
-- Keep `fixturesQuery`, `activityQuery`, `sandboxTransactionsQuery` (rename `pendingTxQuery` → `sandboxTransactionsQuery`). Both activity and transactions queries gated on `showMaster && !!fixture?.test_run_id`.
-- Use `sandboxTransactionsQuery.data.items` (or `posted_items`) for the "Recent test transactions" table instead of `activity-basic.transactions` so sandbox history is sourced from the dedicated transactions endpoint. Keep the `activity-basic` totals/balances/accounts/vaults sections as-is.
-- For the "Pending test transactions" section, render `sandboxTransactionsQuery.data.pending_items` as a real table with per-row controls:
-  - tx_number, direction, amount_minor, vault_role, status, review_reason
-  - **Approve** button → calls `approveTransaction(test_run_id, tx.id)`. On success: success toast, refetch `fixturesQuery`, `activityQuery`, `sandboxTransactionsQuery`. On error: toast with backend message.
-  - **Reject** button → opens a small Dialog with a Textarea for `reject_reason` (required, non-empty). Submitting calls `rejectTransaction(test_run_id, tx.id, reason)`. Same refetch/error behavior.
-  - Remove the "Sandbox approval endpoint pending." badge since endpoints are now live.
-- Per-row busy state keyed by `tx.id` so only the active row spins.
-- Keep `TX_POSTING_DISABLED = true` and the existing Deposit/Withdraw/Pending create buttons disabled with tooltip. Approve/Reject are NOT gated by this flag.
-- Master Admin gating via `useShowMasterTools()` is unchanged: redirect non-master, return null.
-- Keep `BackendPending` fallbacks for activity-basic and transactions endpoints when 404/501.
+Today the tab reads `holder.holder_accounts` returned inline by `api.holders.get(id)`. Switch it to a dedicated query against `GET /holders/{holder.id}/accounts`, gated on a real UUID.
 
-### 3. New component (collocated)
+- Keep the existing holder query (`api.holders.get(id)`) — it already accepts non-UUID identifiers (e.g. `dahab_account_number`) and returns the canonical `holder.id` (UUID).
+- Add a UUID guard helper in the file:
+  ```ts
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const isUuid = (v: unknown) => typeof v === "string" && UUID_RE.test(v);
+  ```
+- Add a new query, only enabled once the holder query has resolved and `holder.id` is a UUID:
+  ```ts
+  const holderUuid = isUuid(holder?.id) ? (holder!.id as string) : null;
+  const accountsQuery = useQuery({
+    queryKey: ["holder-accounts.byHolder", holderUuid],
+    enabled: !!holderUuid,
+    queryFn: () => api.holders.accounts(holderUuid!),
+  });
+  ```
+- Never call this endpoint with `dahab_account_number`, the route param, `undefined`, or `null`. The `enabled` flag enforces this.
+- Replace `accounts = holder.holder_accounts ?? []` (used by the Linked Accounts tab and Overview tab) with `accountsQuery.data ?? []` for the Linked Accounts tab. Overview tab keeps the inline list to avoid a second blocking request on first paint; only the Linked Accounts tab uses the dedicated endpoint.
+- Loading / empty / error states inside the Linked Accounts tab content:
+  - While the holder query is loading: "Loading holder…"
+  - Holder loaded, `accountsQuery.isLoading`: "Loading linked accounts…"
+  - `accountsQuery.isError`: soft inline message + Retry button (`accountsQuery.refetch()`); never crash the tab.
+  - Holder loaded, success, empty array: existing empty state ("No linked accounts yet.").
+- Dev-only: `if (import.meta.env.DEV) console.log("[holder-accounts]", "/holders/" + holderUuid + "/accounts");` inside an effect that fires when `holderUuid` changes.
 
-`SandboxRejectDialog` inside the sandbox route file (or `src/components/app/sandbox-reject-dialog.tsx` if reused). Props: `open`, `onOpenChange`, `txNumber`, `onConfirm(reason: string) => Promise<void>`. Built on existing `Dialog` + `Textarea` + `Button` primitives.
+No changes to Overview, Transactions, Activity, or Notes tabs.
+
+## 3) `src/lib/api/holders.ts` — adapter envelope
+
+`accounts()` currently types as `HolderAccount[]`, but the confirmed response is:
+
+```
+{ success, data: { items: [...], next_cursor: null }, message }
+```
+
+`apiFetch` already unwraps `data`. Update the adapter to normalize either shape (array OR `{items}`) and always return `HolderAccount[]`:
+
+```ts
+accounts: (id: string | number) =>
+  apiFetch<HolderAccount[] | { items: HolderAccount[]; next_cursor?: string | null }>(
+    `/holders/${encodeURIComponent(String(id))}/accounts`,
+  ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
+```
+
+URL-encode the path param. No other adapter methods change.
 
 ## Out of scope
 
-- Re-enabling sandbox transaction posting (`TX_POSTING_DISABLED` stays `true`).
-- Any change to `/app/approvals` or production transaction lists.
-- Supabase usage.
-- Non-admin routes.
+- Per-holder aggregation on `/app/accounts`
+- Backend changes
+- Re-fetching holder data via Supabase
+- Touching Overview, Transactions, Activity, Notes tabs on holder detail
+- Any other page (vaults, approvals, sandbox, portal, etc.)
 
 ## Acceptance
 
-- Network tab on `/app/admin/test-sandbox` shows only:
-  - `GET /admin/test-fixtures`
-  - `POST /admin/test-fixtures/e2e`
-  - `DELETE /admin/test-fixtures/:testRunId`
-  - `DELETE /admin/test-fixtures` (when "Delete all" used)
-  - `GET /admin/test-fixtures/:testRunId/activity-basic`
-  - `GET /admin/test-fixtures/:testRunId/transactions`
-  - `POST /admin/test-fixtures/:testRunId/transactions/:txId/approve`
-  - `POST /admin/test-fixtures/:testRunId/transactions/:txId/reject`
-- No calls to `/activity`, `/activity-lite`, `/approvals/*`, or production transactions list.
-- Master Admin sees full page; non-master sees nothing (existing gating).
-- Pending sandbox rows can be approved/rejected; on success all three sandbox queries refetch.
-- Deposit/Withdraw/Pending create buttons remain disabled.
-- Production pages unchanged.
+- `/app/accounts` keeps calling `GET /holder-accounts`; on failure it shows a soft message + Retry, never a raw "API error"; empty results show clean empty state; dev console logs the URL + backend error.
+- `/app/holders/:id` Linked Accounts tab calls `GET /holders/{UUID}/accounts` exactly once per holder, only after the holder UUID is resolved; never called with `undefined`, `null`, `dahab_account_number`, or any non-UUID value.
+- Holder loading shows "Loading holder…"; empty linked accounts shows empty state, not an API error.
+- No Supabase calls added; no new aggregation loops.  
 
-verification checklist:
+&nbsp;
 
-- 1. Login as Master Admin.
-  2. Open:
-  /app/admin/test-sandbox
-  3. Confirm the page loads and only calls:
-  GET /admin/test-fixtures
-  GET /admin/test-fixtures/:testRunId/activity-basic
-  GET /admin/test-fixtures/:testRunId/transactions
-  4. Confirm Network tab shows no calls to:
-  - /activity
-  - /activity-lite
-  - production /approvals
-  - production /transactions for sandbox history
-  5. Confirm active fixture shows:
-  - holder
-  - 4 test holder accounts
-  - 8 test cash vaults
-  - balances by currency
-  - totals
-  - sandbox transactions
-  - pending sandbox transactions
-  6. Confirm the existing test transactions show:
-  - deposit 100 LYD
-  - withdrawal 50 LYD
-  - pending/rejected/approved sandbox items if available
-  7. Confirm pending sandbox items use only:
-  POST /admin/test-fixtures/:testRunId/transactions/:txId/approve
-  POST /admin/test-fixtures/:testRunId/transactions/:txId/reject
-  8. Confirm non-master users cannot access the Test Sandbox page.
+Confirmed plan:
+
+1. /app/accounts
+
+Keep using:
+
+GET /holder-accounts
+
+Do not replace it with per-holder aggregation.
+
+Add:
+
+- loading state
+
+- clean empty state
+
+- soft error state
+
+- retry button
+
+- development-only logging of the actual request URL and backend message
+
+Do not show raw “API error” to the client.
+
+2. Holder detail Linked Accounts tab
+
+Use:
+
+GET /holders/{holder.id}/accounts
+
+Only call it with the resolved account holder UUID.
+
+Do not pass:
+
+- dahab_account_number
+
+- account_number
+
+- holder account id
+
+- undefined
+
+- null
+
+3. No per-holder aggregation
+
+Do not load all holders and loop through /holders/{id}/accounts.
+
+Reason:
+
+It is slower, creates many requests, complicates pagination, and is not ideal for the live demo.
+
+4. Backend
+
+If /holder-accounts still returns an API error, that is a backend issue to patch directly.
+
+Frontend should not work around it with aggregation.
+
+5. Acceptance
+
+- /app/accounts no longer crashes.
+
+- /app/accounts still calls only GET /holder-accounts.
+
+- Holder detail Linked Accounts tab calls GET /holders/{holder.id}/accounts.
+
+- Clean loading/empty/error/retry states.
+
+- No Supabase.
+
+- No production route changes outside the accounts/holder linked-account UI.
+
+&nbsp;

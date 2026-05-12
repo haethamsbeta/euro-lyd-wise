@@ -33,7 +33,17 @@ export const holdersApi = {
     apiFetch<Holder>("/holders", { method: "POST", body: JSON.stringify(body) }),
   update: (id: string | number, body: Partial<Holder>) =>
     apiFetch<Holder>(`/holders/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  accounts: (id: string | number) => apiFetch<HolderAccount[]>(`/holders/${id}/accounts`),
+  accounts: (id: string | number) =>
+    apiFetch<HolderAccount[] | { items: HolderAccount[]; next_cursor?: string | null }>(
+      `/holders/${encodeURIComponent(String(id))}/accounts`,
+    ).then((res) => {
+      const items = Array.isArray(res) ? res : (res?.items ?? []);
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log("[holders.accounts]", `/holders/${id}/accounts`, items.length, "items");
+      }
+      return items;
+    }),
   addAccount: (id: string | number, body: Partial<HolderAccount>) =>
     apiFetch<HolderAccount>(`/holders/${id}/accounts`, {
       method: "POST",
