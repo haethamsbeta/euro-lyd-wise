@@ -993,3 +993,70 @@ function VaultCell({
     </div>
   );
 }
+
+type SandboxTxRow = {
+  id?: string;
+  tx_number?: string;
+  created_at?: string;
+  posted_at?: string;
+  direction?: string;
+  currency_code?: string;
+  holder_currency_code?: string;
+  vault_currency_code?: string;
+  amount_minor?: number | string;
+  status?: string;
+  comment?: string;
+};
+
+function SandboxTxTable({
+  rows,
+  emptyText,
+}: {
+  rows: SandboxTxRow[];
+  emptyText: string;
+}) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return <p className="text-xs text-muted-foreground">{emptyText}</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded border border-border/40">
+      <table className="w-full text-[11px]">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-2 py-1 text-left font-medium">When</th>
+            <th className="px-2 py-1 text-left font-medium">Tx</th>
+            <th className="px-2 py-1 text-left font-medium">Dir</th>
+            <th className="px-2 py-1 text-left font-medium">Cur</th>
+            <th className="px-2 py-1 text-right font-medium">Amount</th>
+            <th className="px-2 py-1 text-left font-medium">Status</th>
+            <th className="px-2 py-1 text-left font-medium">Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const ts = r.created_at ?? r.posted_at ?? "";
+            const cur =
+              r.currency_code ?? r.holder_currency_code ?? r.vault_currency_code ?? "";
+            return (
+              <tr key={r.id ?? r.tx_number ?? i} className="border-t border-border/30">
+                <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">
+                  {ts}
+                </td>
+                <td className="px-2 py-1 font-mono">{r.tx_number ?? r.id ?? "—"}</td>
+                <td className="px-2 py-1">{r.direction ?? "—"}</td>
+                <td className="px-2 py-1">{cur}</td>
+                <td className="px-2 py-1 text-right font-mono">
+                  {r.amount_minor !== undefined
+                    ? Number(r.amount_minor).toLocaleString()
+                    : "—"}
+                </td>
+                <td className="px-2 py-1">{r.status ?? "—"}</td>
+                <td className="px-2 py-1 text-muted-foreground">{r.comment ?? ""}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
