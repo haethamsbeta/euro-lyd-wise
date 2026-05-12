@@ -1014,10 +1014,40 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
-  const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const isLambda = DATA_BACKEND === "lambda";
-  const { data, isLoading } = useQuery({
-    queryKey: ["dash.pinned.holders.v3", ids.slice().sort().join(",")],
+  const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  const sortedKey = ids.slice().sort().join(",");
+  // Lambda-backed fetch — per-id holder + accounts lookup, parallelised.
+  const lambdaQ = useQuery({
+    queryKey: ["dash.pinned.holders.lambda", sortedKey],
+    enabled: ids.length > 0 && isLambda,
+    queryFn: async () => {
+      const rows = await Promise.all(
+        ids.map(async (id) => {
+          const [h, accts] = await Promise.all([
+            api.holders.get(id).catch(() => null),
+            api.holders.accounts(id).catch(() => [] as any[]),
+          ]);
+          if (!h) return null;
+          return {
+            id: (h as any).id,
+            canonical_name: (h as any).holder_name ?? (h as any).canonical_name,
+            dahab_account_number: (h as any).dahab_account_number,
+            holder_accounts: (accts as any[]).map((a) => ({
+              id: a.id,
+              currency_code: a.currency_code,
+              current_balance: a.current_balance,
+              account_display_name: a.account_display_name,
+              account_nature: a.account_nature,
+            })),
+          };
+        }),
+      );
+      return rows.filter(Boolean) as any[];
+    },
+  });
+  const supaQ = useQuery({
+    queryKey: ["dash.pinned.holders.v3", sortedKey],
     enabled: numericIds.length > 0 && !isLambda,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -1028,25 +1058,19 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
       return data ?? [];
     },
   });
-  if (isLambda) {
-    return (
-      <BackendPending
-        endpoint="GET /holder-accounts/:id + GET /holders/:id/totals (per-pin batched lookup)"
-        note="Pinned customer cards require a per-id lookup batch. The Supabase fallback is disabled in lambda mode; this section will populate once a backend batch endpoint or the per-id calls are wired."
-      />
-    );
-  }
+  const data = isLambda ? lambdaQ.data : supaQ.data;
+  const isLoading = isLambda ? lambdaQ.isLoading : supaQ.isLoading;
   return (
     <PremiumCard className="p-5 border-gold/40 bg-[linear-gradient(135deg,oklch(0.74_0.135_82/0.10),transparent_60%)] shadow-[0_10px_40px_-20px_var(--gold)]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Star className="w-4 h-4 text-gold fill-gold" />
           <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">Pinned Customers</h2>
-          <span className="chip chip-gold">{numericIds.length}</span>
+          <span className="chip chip-gold">{ids.length}</span>
         </div>
         <Users className="w-4 h-4 text-gold" />
       </div>
-      {numericIds.length === 0 ? (
+      {ids.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gold/30 bg-surface-2/50 p-4 text-center">
           <Star className="w-5 h-5 text-gold/60 mx-auto mb-2" />
           <p className="text-xs text-muted-foreground">Pin customers via the Customize panel to see their accounts here.</p>
@@ -1175,11 +1199,28 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
 
 function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
   const [q, setQ] = useState("");
+  const isLambda = DATA_BACKEND === "lambda";
   const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  // Debounce search input so we don't hit the backend on every keystroke.
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 220);
+    return () => clearTimeout(t);
+  }, [q]);
   const { data: results } = useQuery({
-    queryKey: ["dash.pin.holders.search.v3", q],
+    queryKey: ["dash.pin.holders.search.v4", isLambda, debounced],
     queryFn: async () => {
-      const term = q.trim();
+      if (isLambda) {
+        const list = await api.holders
+          .list({ q: debounced || undefined, limit: 15 })
+          .catch(() => [] as any[]);
+        return (list as any[]).map((h) => ({
+          id: String(h.id),
+          name: h.holder_name ?? h.canonical_name,
+          account_number: h.dahab_account_number,
+        }));
+      }
+      const term = debounced;
       if (term) {
         const { data } = await supabase
           .from("account_holders")
@@ -1197,9 +1238,19 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
     },
   });
   const { data: pinnedRows } = useQuery({
-    queryKey: ["dash.pin.holders.list.v3", pinned.slice().sort().join(",")],
-    enabled: numericPinned.length > 0,
+    queryKey: ["dash.pin.holders.list.v4", isLambda, pinned.slice().sort().join(",")],
+    enabled: pinned.length > 0,
     queryFn: async () => {
+      if (isLambda) {
+        const rows = await Promise.all(
+          pinned.map((id) => api.holders.get(id).catch(() => null)),
+        );
+        return rows.filter(Boolean).map((h: any) => ({
+          id: String(h.id),
+          name: h.holder_name ?? h.canonical_name,
+          account_number: h.dahab_account_number,
+        }));
+      }
       const { data } = await supabase
         .from("account_holders")
         .select("id, dahab_account_number, canonical_name")

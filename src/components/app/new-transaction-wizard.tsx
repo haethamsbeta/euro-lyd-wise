@@ -106,35 +106,25 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   }, [search]);
 
   const { data: results, isFetching, isError } = useQuery({
-    enabled: stepIdx === 1,
+    // Only run a search once we have a step active AND at least 2 characters
+    // typed. This avoids the heavy initial "list everything" fetch that made
+    // the customer step feel frozen.
+    enabled: stepIdx === 1 && debounced.length >= 2,
     queryKey: ["holder_cards.search", debounced],
+    staleTime: 30_000,
     queryFn: async () => {
       const term = debounced;
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode — search via backend endpoints (no Supabase reads).
+        // Lambda mode — lightweight search via backend endpoints. We rely on
+        // the fields already returned by /holder-accounts (account_display_name,
+        // account_number, currency, balance) and avoid per-holder fetches.
         const [accountsRes, holdersRes] = await Promise.all([
-          api.accounts.list({ q: term || undefined, limit: 60 }),
-          term
-            ? api.holders.list({ q: term, limit: 30 }).catch(() => [])
-            : Promise.resolve([] as any[]),
+          api.accounts.list({ q: term, limit: 30 }),
+          api.holders.list({ q: term, limit: 20 }).catch(() => [] as any[]),
         ]);
         const accountItems: any[] = (accountsRes as any)?.items ?? [];
         const holderById = new Map<string | number, any>();
         for (const h of holdersRes as any[]) holderById.set(h.id, h);
-        // Fetch any holders referenced by accounts but missing from search hit.
-        const missingIds = Array.from(
-          new Set(
-            accountItems
-              .map((a) => a.account_holder_id)
-              .filter((id) => id != null && !holderById.has(id)),
-          ),
-        ).slice(0, 20);
-        if (missingIds.length > 0) {
-          const fetched = await Promise.all(
-            missingIds.map((id) => api.holders.get(id).catch(() => null)),
-          );
-          for (const h of fetched) if (h) holderById.set((h as any).id, h);
-        }
         const allowed = new Set(["USD", "EUR", "LYD"]);
         return accountItems
           .filter((r) => allowed.has(String(r.currency_code)))

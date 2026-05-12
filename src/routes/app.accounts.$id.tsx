@@ -206,8 +206,8 @@ function AccountDetail() {
         description={`Account · ${a.account_number}`}
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link to="/app/holders/$id" params={{ id: String(a.account_holder_id) }}>
-              <ArrowLeft className="h-4 w-4 me-1" /> Holder
+            <Link to="/app/accounts">
+              <ArrowLeft className="h-4 w-4 me-1" /> Back to Linked Accounts
             </Link>
           </Button>
         }
