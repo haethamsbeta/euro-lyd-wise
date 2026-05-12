@@ -1,73 +1,72 @@
 ## Goal
 
-Translate the inside of every page (titles, section headings, KPI labels, table headers, buttons, empty/loading states, toasts, tab labels, helper text) into Arabic — not just the side menu and bottom dock. Keep design, layout, icon placement, and backend payloads unchanged.
+Restyle `/app/groups` (file: `src/routes/app.groups.index.tsx`) to match the supplied DAHAB Groups Landing visual brief. Pure presentation work — keep all existing data fetching (`api.groups.list`), mutations (pin/edit/delete), filter/sort state, role checks, modals, and navigation handlers exactly as they are.
 
-## Approach
+## Scope
 
-Existing infra: `src/lib/i18n/{en,ar}.ts` + `useT()` hook. The dock/sidebar already use it. The pages don't — strings are hardcoded English.
+Only `src/routes/app.groups.index.tsx`. No changes to `src/lib/api/groups.ts`, route tree, modals' internal logic, or any backend/types. i18n keys reused where they already exist; new visible labels added inline as English strings (matches current file convention — translation can be a follow-up).
 
-Strategy per page:
-1. Add new keys to `en.ts` and `ar.ts` under a page namespace (e.g. `reports.*`, `dashboard.*`, `transactions.*`, `vaults.*`, `accounts.*`, `groups.*`, `approvals.*`, `settings.*`, `admin.*`, `portal.*`, `auth.*`).
-2. Replace hardcoded strings in the JSX with `t("...")` calls.
-3. For backend enums (status, channel, direction, role) keep the existing helpers `tStatus / tChannel / tDirection` and extend if missing values appear.
-4. Leave anything that is real backend data (names, account numbers, currency codes, IDs, IBANs) untouched.
+## Changes
 
-## Scope (every page)
+### 1. Page frame
+- Outer `space-y-6 pb-12` inside existing shell wrapper. Keep `max-w-7xl` container.
 
-Auth & shell
-- `login.tsx`, `forgot-password.tsx`, `reset-password.tsx`, `change-password.tsx`
-- `m.login.tsx`, `m.dashboard.tsx`, `m.index.tsx`
+### 2. Header
+- Eyebrow: small gold `Sparkles` + `Organization` (`text-[10px] tracking-[0.25em] uppercase text-gold`).
+- H1: `Groups` — `text-2xl font-playfair font-semibold text-primary`.
+- Subtitle replaced with: "Organize holders into families, corporate groups, trusts, branches, and VIP tiers."
+- Keep existing `New Group` button + role/writesDisabled tooltip logic; just align styling (`gap-2`, Plus icon).
 
-Main app
-- `app.index.tsx` — greeting, KPI titles ("Cash Vaults", "Bank Vaults", "Holdings Summary", "Recent Transactions", "Pinned Customers", "My Queue"), tab labels, empty states
-- `app.transactions.index.tsx` + `app.transactions.$id.tsx` + new transaction wizard pages
-- `app.holders.$id.tsx` + `app.holders.new.tsx`
-- `app.accounts.index.tsx` + `app.accounts.$id.tsx`
-- `app.vaults.index.tsx` + `app.vaults.$id.tsx`
-- `app.groups.index.tsx` + `app.groups.$id.tsx`
-- `app.approvals.tsx` (button tooltips, dialogs)
-- `app.reports.tsx` — every section heading ("Reports & Insights", "Daily Transactions", "Balance by Currency", "Peak Hours", "Approval Speed", "Customer Growth", "Top Accounts", "Cash Flow", "Transaction Mix", "Liquidity Health", "Top Performers", "Volume by Teller", "Processing Time Distribution", "Error & Correction Rate", "Compliance Health", "Alert Volume & Resolution", "Risk Typology", "Saved Reports", etc.) plus tab/filter labels
-- `app.audit.tsx` (extend existing keys)
-- `app.me.activity.tsx`
-- `app.users.tsx`, `app.users.new.tsx`, `app.users.new-consumer.tsx`
-- `app.settings.notifications.tsx`, `app.settings.security.tsx`
-- `app.about.tsx`
-- `app.portal-accounts.tsx`
-- `portal.tsx`, `portal.$accountId.$currency.tsx`
+### 3. KPI strip (4 cards, framer-motion stagger)
+Replace current `KpiCard` usage with new spec-compliant cards (`grid-cols-2 lg:grid-cols-4 gap-4`, `p-5`, gold icon chip 8×8, eyebrow label, `text-2xl tabular-nums` value, fade-up `delay: i*0.05`):
+1. Total Groups — `FolderTree`
+2. Unique Members — `Users` (use existing `totalMembers`)
+3. Combined Balance — `TrendingUp` (top-currency LYD-formatted from `managedTotals`)
+4. Created (14d) — `Activity` (compute client-side from `groups` `created_at`, no backend change)
 
-Admin tools
-- `app.admin.branches.tsx`, `app.admin.fx-rates.tsx`
-- `app.admin.test-sandbox.tsx` (long page — translate visible labels only, keep diagnostic raw output as-is)
+Hide balance card behind `canViewBalances` like today (fall back to existing alt KPI).
 
-Shared components used inside pages
-- `components/app/new-transaction-wizard.tsx`
-- `components/app/statement-ledger.tsx` (already partly done — finish remaining strings)
-- `components/app/kpi-card.tsx`, `currency-totals-strip.tsx`, `notification-bell.tsx`, `global-search.tsx`, `idle-warning-dialog.tsx`, `add-linked-account-dialog.tsx`, `account-menu.tsx`, `backend-pending.tsx`, `export-pdf.tsx`
+### 4. Filter bar
+Single `Card p-4` with flex row:
+- Search input (flex-1) with absolute magnifier, gold focus ring, placeholder updated.
+- Type chip row (horizontally scrollable, `scrollbar-none`) led by `Filter` icon. Chips: All, Family, Corporate, Trust (map to existing `business`/`investment`?), Branch, VIP. Use `TYPE_ORDER` to render only existing types — keep current filter behaviour; relabel chips per brief where types match (`family`, `corporate`, `vip`); keep `general/business/investment/savings` chips as-is to avoid functional change.
+- Sort: native `<select>` styled per brief (replace current shadcn `Select` to match the spec exactly) with `ArrowUpDown` icon. Options: Name (A→Z) → `name`, Most Members → `members`, Highest Balance → new client-side sort by sum of `totals_by_currency`, Recently Created → `newest`. Keep `pinned` as default ordering applied on top regardless (so star-pinned cards float to top — matches spec section 10).
 
-## Out of scope (intentionally not touched)
+### 5. Empty state
+Wrap existing `EmptyZeroState` / `EmptyFilteredState` in a single `Card p-12`. Texts updated:
+- "No groups found" / dynamic description with search term / "Create Group" CTA gated on no-search + canMutate.
 
-- Backend payloads, table/column names, API field names
-- Icon placement, layout, spacing, colors, fonts
-- Real data values (names, IBANs, currency codes, IDs)
-- Developer-only diagnostic JSON in admin sandbox
+### 6. Grid
+`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4`, motion stagger `delay: i*0.04`.
 
-## Execution order
+### 7. GroupCard rebuild (in-file component)
+Restructure the existing `GroupCard`:
+- Wrapper: `relative p-5 rounded-xl border bg-surface cursor-pointer transition-all duration-300 group`; pinned uses `border-gold/40` + type glow ring from `TYPE_META`.
+- Top row: 11×11 type-icon square (tinted bg/border from TYPE_META); right side has Pin star (filled gold when pinned, fade-in on hover otherwise) + 3-dot `MoreVertical` menu (hover-revealed). Both buttons keep `e.stopPropagation()` and existing handlers. Replace current `DropdownMenu` shadcn with custom absolute panel + click-shield as specified, using framer-motion `AnimatePresence`.
+- Name (`text-lg font-semibold text-primary truncate`) + type pill (`uppercase text-[10px] tracking-wider`) + description (`text-xs text-text-secondary line-clamp-2 min-h-[32px]`).
+- Member avatars row: overlapping (`-space-x-2`) up to 4 avatars from `g.members` (only if available — current `AccountGroup` type has `member_count` but no member objects; fall back to N initialled placeholders using `member_count`). Overflow `+N` chip. Right-side `{N} members` count. If 0 → italic placeholder.
+- Currency breakdown strip:
+  - Header `Balances · 30d Activity` + `{accountCount} acct(s)`.
+  - Up to 3 rows from `g.totals_by_currency` rendered with `CurrencyBadge`, `formatCompactCurrency`, and 30d credits/debits. The 30d numbers don't exist on `AccountGroup` today; render the slot only if data present (gracefully omit), so no backend dependency is added.
+  - Footer `+ N more currency/currencies` if >3.
+  - Empty: dashed-border placeholder "No accounts in this group yet".
+- Footer: left `LYD Equivalent` label + LYD-converted total (use existing `managedTotals` logic per group, or sum LYD entry directly); right `View accounts →` gold link with hover translate.
 
-Because there are ~14k lines across 28 routes, this will be done in batches so the build stays green:
+### 8. TYPE_META
+Keep existing palette (already covers more types than the brief). Apply per spec to icon square / pill / pinned glow.
 
-1. Expand `en.ts` + `ar.ts` with all new namespaced keys.
-2. Batch A — Dashboard, Transactions list/detail/new wizard.
-3. Batch B — Holders detail/new, Accounts list/detail, Vaults list/detail.
-4. Batch C — Reports (largest), Approvals, Audit, My Activity.
-5. Batch D — Groups list/detail, Users (list + new + new-consumer), Settings, About.
-6. Batch E — Auth pages, Portal pages, Mobile (`m.*`) pages, Admin tools.
-7. Batch F — Shared components inside pages.
+### 9. Motion
+Add framer-motion to KPI cards, group cards, and dropdown. `framer-motion` is already used elsewhere in project — verify import works (no install needed if present; otherwise add via `bun add framer-motion`).
 
-After each batch: visual sanity check in preview (AR + EN) to confirm no layout regressions.
+### 10. Out of scope (unchanged)
+- API calls, query keys, mutation logic, modals (`GroupModal`, delete `AlertDialog`).
+- Role/permission rules.
+- Routing.
+- `src/lib/api/groups.ts` and `AccountGroup` type.
+- Top toolbar / bottom dock.
 
-## Acceptance criteria
-
-- Switching language to Arabic translates every visible heading, label, button, tab, empty/loading message, and toast on every page listed above.
-- No icon, button position, color, or layout changes.
-- No backend request/response shape changes.
-- English remains identical to current copy.
+## Acceptance
+- Visual layout matches brief sections 1–10.
+- All existing buttons/links still navigate and mutate identically.
+- No new network calls, no new fields required from backend.
+- Build passes; no console errors.
