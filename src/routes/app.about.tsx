@@ -11,6 +11,7 @@ import {
   REALTIME_MODE,
 } from "@/lib/runtimeConfig";
 import { apiFetch } from "@/lib/api/_shared";
+import { useT } from "@/lib/i18n";
 
 const APP_VERSION = "1.0.0";
 const BUILD_DATE = "April 2026";
@@ -23,9 +24,10 @@ export const Route = createFileRoute("/app/about")({
 });
 
 function AboutPage() {
+  const t = useT();
   return (
     <div>
-      <PageHeader title="About" description="App version and developer information." />
+      <PageHeader title={t("about.title")} description={t("about.subtitle")} />
       <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
         <Card>
           <CardHeader>
