@@ -1199,11 +1199,28 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
 
 function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd: (id: string) => void; onRemove: (id: string) => void }) {
   const [q, setQ] = useState("");
+  const isLambda = DATA_BACKEND === "lambda";
   const numericPinned = pinned.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  // Debounce search input so we don't hit the backend on every keystroke.
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 220);
+    return () => clearTimeout(t);
+  }, [q]);
   const { data: results } = useQuery({
-    queryKey: ["dash.pin.holders.search.v3", q],
+    queryKey: ["dash.pin.holders.search.v4", isLambda, debounced],
     queryFn: async () => {
-      const term = q.trim();
+      if (isLambda) {
+        const list = await api.holders
+          .list({ q: debounced || undefined, limit: 15 })
+          .catch(() => [] as any[]);
+        return (list as any[]).map((h) => ({
+          id: String(h.id),
+          name: h.holder_name ?? h.canonical_name,
+          account_number: h.dahab_account_number,
+        }));
+      }
+      const term = debounced;
       if (term) {
         const { data } = await supabase
           .from("account_holders")
@@ -1221,9 +1238,19 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
     },
   });
   const { data: pinnedRows } = useQuery({
-    queryKey: ["dash.pin.holders.list.v3", pinned.slice().sort().join(",")],
-    enabled: numericPinned.length > 0,
+    queryKey: ["dash.pin.holders.list.v4", isLambda, pinned.slice().sort().join(",")],
+    enabled: pinned.length > 0,
     queryFn: async () => {
+      if (isLambda) {
+        const rows = await Promise.all(
+          pinned.map((id) => api.holders.get(id).catch(() => null)),
+        );
+        return rows.filter(Boolean).map((h: any) => ({
+          id: String(h.id),
+          name: h.holder_name ?? h.canonical_name,
+          account_number: h.dahab_account_number,
+        }));
+      }
       const { data } = await supabase
         .from("account_holders")
         .select("id, dahab_account_number, canonical_name")
