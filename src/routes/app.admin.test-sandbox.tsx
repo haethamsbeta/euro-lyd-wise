@@ -149,6 +149,14 @@ function TestSandboxPage() {
     retry: false,
   });
 
+  // Sandbox-only pending transactions. Isolated from production /approvals.
+  const pendingTxQuery = useQuery({
+    queryKey: ["admin", "test-fixtures", fixture?.test_run_id, "transactions"],
+    queryFn: () => api.admin.testFixtures.transactions(fixture!.test_run_id),
+    enabled: showMaster && !!fixture?.test_run_id,
+    retry: false,
+  });
+
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
   }, [showMaster, nav]);
@@ -202,6 +210,7 @@ function TestSandboxPage() {
       // Pull fresh holder/accounts/vaults/balances/transactions from the
       // Master-Admin-only activity-basic endpoint.
       activityQuery.refetch();
+      pendingTxQuery.refetch();
     } catch (e) {
       handleError("Create fixture", e, "POST /admin/test-fixtures/e2e");
     } finally {
