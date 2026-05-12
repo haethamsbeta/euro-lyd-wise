@@ -17,6 +17,7 @@ import {
 import { SectionHeader } from "@/components/app/section-header";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { useShowMasterTools } from "@/lib/admin-mode";
+import { CurrencyTotalsStrip } from "@/components/app/currency-totals-strip";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/dahabApi";
 
@@ -138,6 +139,13 @@ function TestSandboxPage() {
     queryKey: ["admin", "test-fixtures"],
     queryFn: () => api.admin.testFixtures.list(),
     enabled: showMaster,
+    retry: false,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ["admin", "test-fixtures", fixture?.test_run_id, "activity-basic"],
+    queryFn: () => api.admin.testFixtures.activityBasic(fixture!.test_run_id),
+    enabled: showMaster && !!fixture?.test_run_id,
     retry: false,
   });
 
