@@ -23,6 +23,7 @@ import { formatMinor } from "@/lib/format";
 import { reportsApi, type ComplianceOverview } from "@/lib/api/reports";
 import { displayCurrency } from "@/lib/api/reports";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import { useT } from "@/lib/i18n";
 
 /**
  * Reports & Insights — admin/auditor analytics command center.
