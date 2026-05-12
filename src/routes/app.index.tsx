@@ -1155,6 +1155,7 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
 }
 
 function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: DashPrefs) => void }) {
+  const t = useT();
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -1164,12 +1165,12 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
       </SheetTrigger>
       <SheetContent className="overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-serif">Dashboard Settings</SheetTitle>
-          <SheetDescription>Configure visible currencies, widgets, and pinned customers.</SheetDescription>
+          <SheetTitle className="font-serif">{t("dash.settingsTitle")}</SheetTitle>
+          <SheetDescription>{t("dash.subtitle")}</SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">Visible Currencies</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.visibleCurrencies")}</div>
             <div className="space-y-2">
               {CURRENCIES.map((c) => (
                 <div key={c} className="flex items-center justify-between rounded-md border border-border bg-surface-2 p-2.5">
@@ -1180,18 +1181,18 @@ function CustomizeSheet({ prefs, onChange }: { prefs: DashPrefs; onChange: (p: D
             </div>
           </div>
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">Widgets</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.widgets")}</div>
             <div className="space-y-2">
               <ToggleRow label="Cash Vaults" checked={prefs.showCash} onChange={(v) => onChange({ ...prefs, showCash: v })} />
               <ToggleRow label="Bank Vaults" checked={prefs.showBank} onChange={(v) => onChange({ ...prefs, showBank: v })} />
               <ToggleRow label="Recent Transactions" checked={prefs.showRecent} onChange={(v) => onChange({ ...prefs, showRecent: v })} />
-              <ToggleRow label="Pinned Customers" checked={prefs.showPinnedCustomers} onChange={(v) => onChange({ ...prefs, showPinnedCustomers: v })} />
-              <ToggleRow label="Holdings Summary" checked={prefs.showHoldings} onChange={(v) => onChange({ ...prefs, showHoldings: v })} />
+              <ToggleRow label={t("dash.pinnedTitle")} checked={prefs.showPinnedCustomers} onChange={(v) => onChange({ ...prefs, showPinnedCustomers: v })} />
+              <ToggleRow label={t("dash.holdingsSummary")} checked={prefs.showHoldings} onChange={(v) => onChange({ ...prefs, showHoldings: v })} />
             </div>
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Pinned Customers</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">{t("dash.pinnedTitle")}</div>
               <span className="text-[10px] text-muted-foreground">{prefs.pinnedAccountIds.length} pinned</span>
             </div>
             <PinAccountPicker
