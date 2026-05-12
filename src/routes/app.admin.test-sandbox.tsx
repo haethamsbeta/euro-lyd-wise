@@ -285,6 +285,10 @@ function TestSandboxPage() {
     amountMinor: number;
     expectStatus: "posted" | "pending";
   }) {
+    if (TX_POSTING_DISABLED) {
+      toast.error(TX_DISABLED_MSG);
+      return;
+    }
     if (!fixture) return;
     const ha = findHolderAccount(currency);
     const v = opts.direction === "deposit" ? findReceivable(currency) : findPayable(currency);
