@@ -110,6 +110,7 @@ function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
 }
 
 function TxList() {
+  const t = useT();
   const roles = useEffectiveRoles();
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const { data: dashSummary } = useDashboardSummary();
