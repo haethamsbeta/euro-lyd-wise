@@ -1,74 +1,119 @@
-# Cross-Device Visual QA & Optimization Pass
+# Credit limit + Balance limit refactor
 
-A pure visual/layout audit of the app across desktop, tablet, and phone viewports. No backend, no functionality changes — only responsive polish where issues are found.
+Replace the current `debit_limit` / `credit_limit` / `withdraw_limit_amount` / `withdraw_limit_enabled` model with two explicit, backend-enforced concepts:
 
-## Scope
+- **Balance limit** — protected minimum customer balance.
+- **Credit limit** — revolving extra withdrawal capacity, tracked via `credit_used`.
 
-Audit every primary surface at three breakpoints and fix only what's visibly broken or off (overflow, cramped spacing, illegible text, broken grids, RTL issues, dock collisions, modal sizing). Designs stay as they are.
+Backend is the source of truth. UI only renders derived values and disabled states.
 
-## Devices to test
+---
 
-- Desktop: 1440×900 and 1920×1080
-- Tablet: 820×1180 (portrait) and 1024×768 (landscape)
-- Phone: 390×844 (iPhone) and 360×800 (Android)
+## Open questions (need your decision before I implement)
 
-Each in both LTR (English) and RTL (Arabic), light + dark.
+1. **Deposit policy** — when a customer deposits while `credit_used > 0`:
+   - **A) Auto-repay-first** (recommended): deposit reduces `credit_used` first, remainder increases balance.
+   - **B) Separate repayment**: deposit always increases balance; credit is repaid only via a dedicated "Repay credit" action.
 
-## Pages to audit
+2. **Migration of existing data** — today the `holder_accounts` table has `credit_limit`, `debit_limit`, `withdraw_limit_amount`, `withdraw_limit_enabled`. Which mapping do you want?
+   - **A) Treat current `debit_limit` as the new `balance_limit`** and keep `credit_limit` as the new `credit_limit`. Drop `withdraw_limit_*` (or alias to `balance_limit` if enabled).
+   - **B) Treat `withdraw_limit_amount` (when enabled) as the new `balance_limit`** and keep `credit_limit`. Drop `debit_limit`.
+   - **C) Start everything at zero** and let admins re-enter limits.
 
-Authenticated app shell:
-1. `/app` — Dashboard (KPIs, currency strip, charts)
-2. `/app/transactions/new` — Wizard, all 5 steps
-3. `/app/transactions` — List + filters
-4. `/app/transactions/$id` — Detail
-5. `/app/holders` + `/app/holders/$id` + `/app/holders/new`
-6. `/app/accounts` + `/app/accounts/$id` (ledger view — pay attention)
-7. `/app/vaults` + `/app/vaults/$id`
-8. `/app/groups` + `/app/groups/$id` (newly redesigned)
-9. `/app/approvals`
-10. `/app/me/activity`
-11. `/app/audit`
-12. `/app/reports`
-13. `/app/users`, `/app/portal-accounts`
-14. `/app/admin/fx-rates`, `/app/admin/branches`
-15. `/app/settings/notifications`, `/app/settings/security`, `/app/about`
+3. **Scope of "account"** — should this apply to:
+   - **only `holder_accounts`** (per-currency customer accounts shown on `/app/accounts/$id` and `/app/holders/$id`), OR
+   - **also `accounts` + `account_balances`** (the older ledger model in the `accounts` table)?
 
-Public / portal:
-16. `/login`, `/forgot-password`, `/reset-password`, `/change-password`
-17. `/portal` and `/portal/$accountId/$currency`
-18. `/m` mobile shell routes (`/m/login`, `/m/dashboard`)
+   I recommend **holder_accounts only** since that's where the limit UI lives today.
 
-## What to check on each page
+---
 
-- **Header toolbar**: hamburger + logo + search + actions don't wrap or clip; search collapses correctly on phone.
-- **Bottom dock**: doesn't cover content (main `pb-*` is sufficient); raised center action sits correctly; hidden on `/app/transactions/new`.
-- **Tables**: horizontal scroll on phone instead of squished columns; sticky headers behave; ledger rows in `/app/accounts/$id` stay readable.
-- **Cards & grids**: 1 col phone / 2 col tablet / 3–4 col desktop; no orphaned cards; equal heights.
-- **Wizard steps**: stepper visible on phone; sticky next/back buttons don't overlap dock; numeric keypad inputs on amounts.
-- **Modals/sheets/dialogs**: full-height on phone, centered on desktop; close button reachable; long forms scrollable.
-- **Typography**: serif headings don't break awkwardly; line-height comfortable; no truncation hiding key data.
-- **RTL**: icons mirrored where appropriate; padding/margin flipped; numbers stay LTR; toolbar still LTR-locked.
-- **Theme**: gold tokens contrast properly in dark; borders visible; no white-on-white in light.
-- **Touch targets**: ≥44px on phone for all interactive elements.
+## What changes
 
-## Process
+### Database (migration)
 
-1. Use `browser--navigate_to_sandbox` + `browser--set_viewport_size` to walk each page at each breakpoint.
-2. Screenshot issues only (not every page).
-3. Compile a findings list grouped by severity:
-   - **P1** — broken/unusable (overflow, hidden content, dock collision)
-   - **P2** — cramped/ugly but functional
-   - **P3** — minor polish
-4. Fix P1s and P2s with minimal Tailwind/CSS-token changes (no design changes, no logic). P3s reported but only fixed if cheap.
-5. Re-screenshot fixed pages to confirm.
+On `holder_accounts`:
+- Add `balance_limit numeric(20,2) not null default 0`.
+- Add `credit_used numeric(20,2) not null default 0`.
+- Keep `credit_limit` (semantics unchanged).
+- Backfill `balance_limit` per chosen mapping (Q2).
+- Drop or deprecate `debit_limit`, `withdraw_limit_amount`, `withdraw_limit_enabled` (kept as nullable aliases for one release if you prefer a soft cutover — say which).
+- Add CHECK-equivalent triggers: `balance_limit >= 0`, `credit_limit >= 0`, `credit_used >= 0`.
 
-## Out of scope
+New SQL function `sp_account_limits(account_id)` returning derived fields:
+`balance, balance_limit, credit_limit, credit_used, spendable_balance, available_credit, available_to_withdraw, over_limit`.
 
-- Any backend/API/data wiring
-- New features, new copy beyond fixing truncation
-- Visual redesigns of components
-- Translation content (already covered in prior turns)
+Update `sp_set_holder_withdraw_limit` → replaced by `sp_set_account_limits(account_id, balance_limit, credit_limit)` (admin-only via existing RLS).
 
-## Deliverable
+Update the withdrawal posting procedure to:
+1. Re-compute `available_to_withdraw` server-side.
+2. Reject if `amount > available_to_withdraw` or `over_limit`.
+3. Consume spendable balance first, then credit.
+4. Increment `credit_used` by the credit-funded portion.
+5. Persist split (`from_balance_minor`, `from_credit_minor`) on the ledger entry for audit.
 
-A short report listing what was checked, what was found per device, and what was fixed — plus screenshots of before/after for any P1/P2 fixes.
+For deposits, apply the chosen policy (Q1).
+
+### Backend API (TanStack server functions)
+
+Add server functions in `src/lib/api/accounts.ts` (or a new `src/lib/api/limits.functions.ts`):
+- `getAccountLimits(accountId)` → derived snapshot.
+- `setAccountLimits(accountId, { balance_limit, credit_limit })` — admin-only.
+- `quoteWithdrawal(accountId, amount)` → `{ from_balance, from_credit, available_to_withdraw_after, blocked, reason }`.
+- Existing withdrawal commit path calls the new server validation; never trusts client.
+- Optional `repayCredit(accountId, amount)` if you pick deposit policy B.
+
+### Frontend
+
+**`src/routes/app.accounts.$id.tsx`** (and the equivalent card on `app.holders.$id.tsx`):
+- Remove the existing "Withdraw limit" + old "Credit/Debit limits" cards.
+- Replace with one **Limits** card with two inputs:
+  - **Credit limit** — helper: "Extra amount this customer can withdraw beyond spendable balance."
+  - **Balance limit** — helper: "Minimum balance to protect before credit is used."
+- Below it, a read-only **Summary** showing: Current balance, Balance limit, Spendable balance, Credit limit, Credit used, Available credit, **Available to withdraw**.
+- Save / Cancel; save disabled while invalid; success toast; refresh summary on save.
+- Inline validation: non-negative numbers, currency precision matches account.
+
+**`src/components/app/new-transaction-wizard.tsx`**:
+- Replace `withdraw_limit_*` plumbing with `available_to_withdraw` from the new quote endpoint.
+- On amount change → call `quoteWithdrawal` (debounced).
+- Show split preview "From balance: X · From credit: Y".
+- Disable Submit when amount empty, ≤ 0, > `available_to_withdraw`, or account over limit; show precise error copy.
+- Keep approval/pending flow unchanged.
+
+**i18n**: update `src/lib/i18n/en.ts` + `ar.ts` — remove "debit limit" / "withdraw limit" keys; add `creditLimit`, `balanceLimit`, `spendableBalance`, `availableCredit`, `creditUsed`, `availableToWithdraw`, helper copy, error messages.
+
+**Other UI touchpoints** (label-only updates, no logic change): `app.approvals.tsx`, `app.accounts.index.tsx`, `app.holders.$id.tsx` listings.
+
+### Docs
+- Update `docs/DATABASE_CONTRACT.md`, `docs/API_CONTRACT.md`, `docs/DATA_INTEGRITY_RULES.md`, `docs/backend/openapi.yaml` to reflect the new fields, endpoints, and rules.
+
+---
+
+## Acceptance criteria
+
+- No "debit limit" / "withdraw limit" copy remains in the staff UI.
+- Only **Credit limit** and **Balance limit** are editable on the account page.
+- Backend returns `spendable_balance`, `available_credit`, `available_to_withdraw`.
+- Withdrawal of `> available_to_withdraw` is blocked **server-side**, with a clear reason.
+- Mixed withdrawals correctly split balance vs credit and bump `credit_used`.
+- Deposits behave per the chosen policy (Q1).
+- Existing accounts migrate without losing balances or breaking historical transactions.
+- Admin-only edit of limits enforced via existing `holder_accounts admin write` RLS.
+- No service-role keys exposed to the browser.
+
+---
+
+## Suggested rollout (small, testable blocks)
+
+1. **Migration + read API** — add fields, backfill, expose `getAccountLimits`. UI still reads old fields.
+2. **Limits editor UI** — new card on account page, calls `setAccountLimits`. Old card hidden.
+3. **Withdrawal quote + enforcement** — `quoteWithdrawal` + server-side enforcement in posting procedure; wizard wired to quote.
+4. **Deposit policy** (A or B).
+5. **Cleanup** — drop deprecated columns, remove old i18n keys, refresh docs.
+
+Each step is independently shippable and revertable on the frontend; only step 1 and step 5 touch schema.
+
+---
+
+**Please answer Q1, Q2, and Q3 and confirm the rollout order, then I'll implement step 1 first.**

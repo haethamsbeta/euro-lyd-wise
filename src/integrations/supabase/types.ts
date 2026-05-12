@@ -572,8 +572,10 @@ export type Database = {
           account_holder_id: number
           account_nature: string
           account_number: string
+          balance_limit: number
           created_at: string
           credit_limit: number
+          credit_used: number
           currency_code: string
           current_balance: number
           dahab_account_number: string | null
@@ -591,8 +593,10 @@ export type Database = {
           account_holder_id: number
           account_nature: string
           account_number: string
+          balance_limit?: number
           created_at?: string
           credit_limit?: number
+          credit_used?: number
           currency_code: string
           current_balance?: number
           dahab_account_number?: string | null
@@ -610,8 +614,10 @@ export type Database = {
           account_holder_id?: number
           account_nature?: string
           account_number?: string
+          balance_limit?: number
           created_at?: string
           credit_limit?: number
+          credit_used?: number
           currency_code?: string
           current_balance?: number
           dahab_account_number?: string | null
@@ -1561,6 +1567,29 @@ export type Database = {
       seed_demo_ledger: {
         Args: { p_admin_id: string; p_consumer_id: string; p_teller_id: string }
         Returns: Json
+      }
+      sp_account_limits: {
+        Args: { p_account_id: number }
+        Returns: {
+          account_id: number
+          available_credit: number
+          available_to_withdraw: number
+          balance: number
+          balance_limit: number
+          credit_limit: number
+          credit_used: number
+          currency_code: string
+          over_limit: boolean
+          spendable_balance: number
+        }[]
+      }
+      sp_set_account_limits: {
+        Args: {
+          p_account_id: number
+          p_balance_limit: number
+          p_credit_limit: number
+        }
+        Returns: undefined
       }
       sp_set_holder_withdraw_limit: {
         Args: {
