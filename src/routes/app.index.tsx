@@ -915,16 +915,17 @@ function HoldingsSummary({
     return null; // backend pending in lambda mode
   }, [holderBalancesByCurrency, customerByCur, lambda]);
 
+  const t = useT();
   return (
     <PremiumCard className="p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">Holdings Summary</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-4">{t("dash.holdingsSummary")}</h2>
       <div className="flex items-center gap-4 mb-6">
         <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center">
           <Users className="w-6 h-6 text-gold" />
         </div>
         <div>
           <div className="font-serif text-2xl font-bold text-foreground tabular-nums">{holderCount.toLocaleString()}</div>
-          <div className="text-sm text-muted-foreground">Total Active Holders</div>
+          <div className="text-sm text-muted-foreground">{t("dash.totalActiveHolders")}</div>
         </div>
       </div>
       {rows === null ? (
