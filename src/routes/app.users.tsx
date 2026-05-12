@@ -38,11 +38,13 @@ function UsersPage() {
   const t = useT();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const isMasterAdmin = useIsRealMasterAdmin();
   const [search, setSearch] = useState("");
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [emailEdit, setEmailEdit] = useState<{ id: string; current: string | null } | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const listEmails = useServerFn(adminListUserEmails);
   const changeEmail = useServerFn(adminChangeUserEmail);
@@ -70,6 +72,8 @@ function UsersPage() {
             created_at: u.created_at,
             status: u.status ?? (u.is_active === false ? "disabled" : "active"),
             last_login_at: u.last_login_at ?? null,
+            email: u.email ?? null,
+            is_master_admin: u.is_master_admin === true,
           })),
           roles: rows.flatMap((u: any) =>
             rolesFor(u).map((role: string) => ({
@@ -161,6 +165,22 @@ function UsersPage() {
       qc.invalidateQueries({ queryKey: ["users.profiles"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      setDeletingId(id);
+      try {
+        return await api.users.remove(id);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    onSuccess: (res: any) => {
+      toast.success(res?.message ?? "User disabled.");
+      qc.invalidateQueries({ queryKey: ["users.profiles"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to delete user"),
   });
 
   async function onResetPassword(targetId: string, name: string) {
