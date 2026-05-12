@@ -15,7 +15,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX } from "lucide-react";
+import { useIsRealMasterAdmin } from "@/lib/admin-mode";
+import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX, Trash2 } from "lucide-react";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
