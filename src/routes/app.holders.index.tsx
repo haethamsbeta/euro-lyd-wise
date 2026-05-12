@@ -11,6 +11,7 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { Button } from "@/components/ui/button";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { useT } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/app/holders/")({ component: HoldersList }
 
 function HoldersList() {
   const [q, setQ] = useState("");
+  const t = useT();
   const dq = useDebounced(q, 250);
   const PAGE_SIZE = 50;
   const roles = useEffectiveRoles();
@@ -99,13 +101,13 @@ function HoldersList() {
   return (
     <div>
       <PageHeader
-        title="DAHAB Holders"
-        description="Customer profiles and their linked currency accounts."
+        title={t("holders.title")}
+        description={t("holders.subtitle")}
         actions={
           isAdmin ? (
             <Button asChild className="bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95">
               <Link to="/app/holders/new">
-                <UserPlus className="h-4 w-4 me-1" /> New holder
+                <UserPlus className="h-4 w-4 me-1" /> {t("holders.new")}
               </Link>
             </Button>
           ) : undefined
@@ -114,29 +116,29 @@ function HoldersList() {
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Badge variant="secondary" className="text-sm">
-            Total holders: {fmtTotal(dashSummary?.holderCount ?? null)} ·
-            Linked accounts: {fmtTotal(dashSummary?.holderAccountCount ?? null)}
+            {t("holders.totalHolders")}: {fmtTotal(dashSummary?.holderCount ?? null)} ·
+            {" "}{t("holders.linkedAccounts")}: {fmtTotal(dashSummary?.holderAccountCount ?? null)}
           </Badge>
           <Link
             to="/app/accounts"
             className="text-[11px] text-gold underline-offset-2 hover:underline"
           >
-            View all linked accounts →
+            {t("holders.viewAllLinked")}
           </Link>
         </div>
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by DAHAB #, name, account #, phone, or email" className="ps-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("holders.searchPlaceholder")} className="ps-9" />
         </div>
         {!dq.trim() && (
           <p className="text-xs text-muted-foreground">
-            Use search to find a specific holder.
+            {t("holders.useSearchHint")}
           </p>
         )}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No holders yet. Use Account Import to load accounts from Excel.</p>
+          <p className="text-sm text-muted-foreground">{t("holders.empty")}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((h: any) => (
@@ -154,7 +156,7 @@ function HoldersList() {
                         ) : null}
                         {h.created_at && (
                           <div className="mt-0.5 text-[10px] text-muted-foreground">
-                            Created {new Date(h.created_at).toLocaleString()}
+                            {t("holders.created")} {new Date(h.created_at).toLocaleString()}
                           </div>
                         )}
                       </div>
@@ -168,7 +170,7 @@ function HoldersList() {
                           : "Backend did not return linked_account_count"
                       }
                     >
-                      Linked accounts:{" "}
+                      {t("holders.linkedCount")}{" "}
                       {typeof h.linked_account_count === "number"
                         ? h.linked_account_count
                         : "—"}

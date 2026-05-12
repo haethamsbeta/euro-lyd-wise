@@ -10,6 +10,7 @@ import { ExportPdfButton } from "@/components/app/export-pdf";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/audit")({
   component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
@@ -82,6 +83,7 @@ function describe(action: string, d: any, actorName: string): string {
 }
 
 function Audit() {
+  const t = useT();
   const PAGE = 100;
   const [offset, setOffset] = useState(0);
   const [acc, setAcc] = useState<AuditRow[]>([]);
@@ -121,6 +123,7 @@ function Audit() {
   return (
     <div>
       <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
+      {/* Title is overridden via i18n below; keep PageHeader unchanged for layout */}
       <div className="p-4 sm:p-6 space-y-3">
         {pending && <BackendPending endpoint="GET /audit" />}
         <div className="flex justify-end">
