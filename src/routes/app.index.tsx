@@ -557,6 +557,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
 
 // ─── TELLER DASHBOARD ────────────────────────────────────────────────────────
 function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   const { data: dashSummary } = useDashboardSummary();
   // Source-of-truth: summary.txns_today from /dashboard/staff. Never count
@@ -574,7 +575,7 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
               <LivePulse />
               <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Today's Shift</span>
             </div>
-            <div className="text-sm text-muted-foreground mb-1">Transactions Processed</div>
+            <div className="text-sm text-muted-foreground mb-1">{t("dash.txProcessed")}</div>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
               {todayCount === null ? (
                 <span className="text-muted-foreground text-2xl">—</span>
@@ -608,23 +609,23 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2"><UrgentApprovals title="My Queue" /></div>
+        <div className="lg:col-span-2"><UrgentApprovals title={t("dash.myQueue")} /></div>
         <div>
           <PremiumCard className="p-5">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-4">Operational Status</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-4">{t("dash.opStatus")}</h3>
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Branch Status</span>
+                <span className="text-muted-foreground">{t("dash.branchStatus")}</span>
                 <span className="text-emerald-400 font-medium flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Open
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Shift Started</span>
+                <span className="text-muted-foreground">{t("dash.shiftStarted")}</span>
                 <span className="text-foreground tabular-nums">08:00 AM</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Terminal ID</span>
+                <span className="text-muted-foreground">{t("dash.terminalId")}</span>
                 <span className="text-foreground font-mono bg-surface-2 px-2 py-0.5 rounded">TRM-04</span>
               </div>
             </div>
