@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { formatMinor, formatDateTime } from "@/lib/format";
+import { formatMinor, formatDateTime, tStatus, tDirection, tChannel } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export type StatementTx = {
@@ -29,6 +30,7 @@ export function StatementLedger({
   currency: string;
   emptyText?: string;
 }) {
+  const t = useT();
   // Compute running balance oldest -> newest, then display newest -> oldest.
   const rows = useMemo(() => {
     const sorted = [...transactions].sort(
@@ -45,7 +47,11 @@ export function StatementLedger({
   }, [transactions]);
 
   if (rows.length === 0) {
-    return <div className="p-6 text-center text-sm text-muted-foreground">{emptyText}</div>;
+    return (
+      <div className="p-6 text-center text-sm text-muted-foreground">
+        {emptyText && emptyText !== "No transactions yet." ? emptyText : t("ledger.empty")}
+      </div>
+    );
   }
 
   return (
@@ -53,51 +59,51 @@ export function StatementLedger({
       <table className="w-full min-w-[760px] text-sm">
         <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-start">Date &amp; time</th>
-            <th className="px-3 py-2 text-start">TX #</th>
-            <th className="px-3 py-2 text-start">Description</th>
-            <th className="px-3 py-2 text-end">Debit</th>
-            <th className="px-3 py-2 text-end">Credit</th>
-            <th className="px-3 py-2 text-start">Status</th>
-            <th className="px-3 py-2 text-end">Balance after</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.dateTime")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.tx")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.description")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.debit")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.credit")}</th>
+            <th className="px-3 py-2 text-start">{t("ledger.col.status")}</th>
+            <th className="px-3 py-2 text-end">{t("ledger.col.balanceAfter")}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
-          {rows.map((t) => {
-            const isDeposit = t.direction === "deposit";
-            const muted = !t.counted;
+          {rows.map((row) => {
+            const isDeposit = row.direction === "deposit";
+            const muted = !row.counted;
             return (
-              <tr key={t.id} className={cn(muted && "opacity-60")}>
+              <tr key={row.id} className={cn(muted && "opacity-60")}>
                 <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                  {formatDateTime(t.created_at)}
+                  {formatDateTime(row.created_at)}
                 </td>
-                <td className="px-3 py-2 font-mono text-[13px]">{t.tx_number}</td>
+                <td className="px-3 py-2 font-mono text-[13px]">{row.tx_number}</td>
                 <td className="max-w-[20rem] px-3 py-2">
-                  <div className="capitalize">{t.direction} · {t.channel}</div>
-                  {t.comment ? (
-                    <div className="truncate text-xs text-muted-foreground">{t.comment}</div>
+                  <div>{tDirection(t, row.direction)} · {tChannel(t, row.channel)}</div>
+                  {row.comment ? (
+                    <div className="truncate text-xs text-muted-foreground">{row.comment}</div>
                   ) : null}
                 </td>
                 <td className="px-3 py-2 text-end num text-destructive">
-                  {!isDeposit ? formatMinor(t.amount_minor, t.currency) : ""}
+                  {!isDeposit ? formatMinor(row.amount_minor, row.currency) : ""}
                 </td>
                 <td className="px-3 py-2 text-end num text-success">
-                  {isDeposit ? formatMinor(t.amount_minor, t.currency) : ""}
+                  {isDeposit ? formatMinor(row.amount_minor, row.currency) : ""}
                 </td>
                 <td className="px-3 py-2">
                   <span
                     className={cn(
                       "chip",
-                      t.status === "posted" && "chip-gold",
-                      t.status === "rejected" && "!border-destructive/40 !text-destructive",
-                      t.status === "reversed" && "!border-warning/40 !text-warning",
+                      row.status === "posted" && "chip-gold",
+                      row.status === "rejected" && "!border-destructive/40 !text-destructive",
+                      row.status === "reversed" && "!border-warning/40 !text-warning",
                     )}
                   >
-                    {t.status}
+                    {tStatus(t, row.status)}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-end num font-semibold">
-                  {t.counted ? formatMinor(t.balance_after, currency) : "—"}
+                  {row.counted ? formatMinor(row.balance_after, currency) : "—"}
                 </td>
               </tr>
             );

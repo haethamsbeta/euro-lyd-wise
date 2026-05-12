@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { ApiError } from "@/lib/dahabApi";
+import { useT } from "@/lib/i18n";
 
 const isLambda = DATA_BACKEND === "lambda";
 const SUPABASE_DISABLED_MSG =
@@ -40,6 +41,7 @@ type StaffRole = "admin" | "teller" | "auditor";
 
 export function NewMemberPage() {
   const nav = useNavigate();
+  const t = useT();
   const qc = useQueryClient();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -71,7 +73,7 @@ export function NewMemberPage() {
     onSuccess: async (res: any) => {
       // eslint-disable-next-line no-console
       console.log("[create dahab member] success", res);
-      toast.success(res?.message ?? "User created.");
+      toast.success(res?.message ?? t("usersNew.created"));
       await qc.invalidateQueries({ queryKey: ["users.profiles"] });
       nav({ to: "/app/users" });
     },
@@ -79,7 +81,7 @@ export function NewMemberPage() {
       const httpStatus = e instanceof ApiError ? e.status : undefined;
       // eslint-disable-next-line no-console
       console.error("[create dahab member] failed", { httpStatus, message: e?.message, details: e?.details, error: e });
-      toast.error(e?.message ?? "Failed to create member");
+      toast.error(e?.message ?? t("usersNew.createFailed"));
     },
   });
 
@@ -94,12 +96,12 @@ export function NewMemberPage() {
   return (
     <div>
       <PageHeader
-        title="Add DAHAB member"
-        description="Create a DAHAB Family portal staff account (admin, teller, or auditor). Admin only."
+        title={t("usersNew.title")}
+        description={t("usersNew.subtitle")}
         actions={
           <Button asChild variant="outline" size="sm">
             <Link to="/app/users">
-              <ArrowLeft className="me-1 h-4 w-4" /> Back
+              <ArrowLeft className="me-1 h-4 w-4" /> {t("common.back")}
             </Link>
           </Button>
         }
@@ -113,9 +115,9 @@ export function NewMemberPage() {
         ) : null}
         {submit.isError ? (
           <Alert variant="destructive">
-            <AlertTitle>Create failed</AlertTitle>
+            <AlertTitle>{t("usersNew.createFailed")}</AlertTitle>
             <AlertDescription>
-              {(submit.error as any)?.message ?? "Unknown error from backend."}
+              {(submit.error as any)?.message ?? t("common.unknownError")}
               {submit.error instanceof ApiError ? (
                 <span className="ms-1 opacity-70">(HTTP {submit.error.status})</span>
               ) : null}
@@ -125,56 +127,56 @@ export function NewMemberPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Member details</CardTitle>
+            <CardTitle className="text-base">{t("usersNew.memberDetails")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Username</Label>
+              <Label>{t("common.username")}</Label>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="e.g. ahmed.a"
                 autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">Unique. Lowercased automatically.</p>
+              <p className="text-xs text-muted-foreground">{t("usersNew.usernameHint")}</p>
             </div>
             <div className="space-y-1.5">
-              <Label>Display name</Label>
+              <Label>{t("usersNew.displayName")}</Label>
               <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t("common.email")}</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Role</Label>
+                <Label>{t("common.role")}</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as StaffRole)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="teller">Teller</SelectItem>
-                    <SelectItem value="auditor">Auditor</SelectItem>
+                    <SelectItem value="admin">{t("usersNew.role.admin")}</SelectItem>
+                    <SelectItem value="teller">{t("usersNew.role.teller")}</SelectItem>
+                    <SelectItem value="auditor">{t("usersNew.role.auditor")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label>{t("common.status")}</Label>
                 <Select value={status} onValueChange={(v) => setStatus(v as "active" | "disabled")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="disabled">Disabled</SelectItem>
+                    <SelectItem value="active">{t("usersNew.status.active")}</SelectItem>
+                    <SelectItem value="disabled">{t("usersNew.status.disabled")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Temporary password</Label>
+              <Label>{t("usersNew.tempPassword")}</Label>
               <div className="flex gap-2">
                 <Input value={password} onChange={(e) => setPassword(e.target.value)} className="font-mono" />
                 <Button type="button" variant="outline" onClick={() => setPassword(genPassword())}>
-                  <Sparkles className="me-1 h-4 w-4" /> Generate
+                  <Sparkles className="me-1 h-4 w-4" /> {t("usersNew.generate")}
                 </Button>
               </div>
             </div>
@@ -183,14 +185,14 @@ export function NewMemberPage() {
                 checked={mustChange}
                 onCheckedChange={(v) => setMustChange(v === true)}
               />
-              <span>Require password change on first sign-in</span>
+              <span>{t("usersNew.mustChange")}</span>
             </label>
           </CardContent>
         </Card>
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" asChild>
-            <Link to="/app/users">Cancel</Link>
+            <Link to="/app/users">{t("common.cancel")}</Link>
           </Button>
           <Button
             disabled={disableSubmit}
@@ -204,7 +206,7 @@ export function NewMemberPage() {
             }}
           >
             {submit.isPending ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : null}
-            Create DAHAB member
+            {t("usersNew.create")}
           </Button>
         </div>
       </div>

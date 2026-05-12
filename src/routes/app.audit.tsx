@@ -10,6 +10,7 @@ import { ExportPdfButton } from "@/components/app/export-pdf";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/audit")({
   component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
@@ -82,6 +83,7 @@ function describe(action: string, d: any, actorName: string): string {
 }
 
 function Audit() {
+  const t = useT();
   const PAGE = 100;
   const [offset, setOffset] = useState(0);
   const [acc, setAcc] = useState<AuditRow[]>([]);
@@ -120,7 +122,7 @@ function Audit() {
 
   return (
     <div>
-      <PageHeader title="Audit log" description="A plain-language record of every change in the system." />
+      <PageHeader title={t("audit.title")} description={t("audit.subtitle")} />
       <div className="p-4 sm:p-6 space-y-3">
         {pending && <BackendPending endpoint="GET /audit" />}
         <div className="flex justify-end">
@@ -182,7 +184,7 @@ function Audit() {
                 {r.details && Object.keys(r.details).length > 0 && (
                   <details className="mt-2">
                     <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                      View raw details
+                      {t("audit.viewRaw")}
                     </summary>
                     <pre className="mt-2 overflow-x-auto rounded bg-muted/40 p-3 text-xs">
 {JSON.stringify(r.details, null, 2)}
@@ -194,12 +196,12 @@ function Audit() {
           );
         })}
         {!pending && rows.length === 0 && !isFetching && (
-          <Card><CardContent className="p-6 text-sm text-muted-foreground">No audit entries yet.</CardContent></Card>
+          <Card><CardContent className="p-6 text-sm text-muted-foreground">{t("audit.empty")}</CardContent></Card>
         )}
         {!pending && nextOffset != null && (
           <div className="flex justify-center">
             <Button variant="outline" size="sm" disabled={isFetching} onClick={() => setOffset(nextOffset)}>
-              {isFetching ? "Loading…" : "Load more"}
+              {isFetching ? t("common.loading") : t("common.loadMore")}
             </Button>
           </div>
         )}
