@@ -373,9 +373,9 @@ function TxList() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-playfair font-semibold text-foreground">
-              Transactions
+              {t("nav.transactions")}
             </h1>
-            <p className="mt-1 text-sm text-text-secondary">All Transactions</p>
+            <p className="mt-1 text-sm text-text-secondary">{t("tx.list.allTransactions")}</p>
           </div>
           <div className="flex items-center gap-2">
             {!isAdmin ? (
@@ -384,7 +384,7 @@ function TxList() {
               </span>
             ) : null}
             <ExportPdfButton
-              title="Transactions"
+              title={t("nav.transactions")}
               filenamePrefix="transactions"
               columns={[
                 { header: "TX #", width: 70 },
@@ -527,7 +527,7 @@ function TxList() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
                 <Input
                   className="pl-10 bg-surface-2 border-border focus-visible:border-[var(--gold)] focus-visible:ring-1 focus-visible:ring-[oklch(from_var(--gold)_l_c_h/0.30)]"
-                  placeholder="Search TX #, DAHAB #, customer, amount…"
+                  placeholder={t("tx.list.searchPlaceholder")}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                 />
@@ -538,11 +538,11 @@ function TxList() {
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                 className="h-9 rounded-md border border-border bg-surface-2 px-2.5 text-xs text-foreground"
               >
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="posted">Posted</option>
-                <option value="rejected">Rejected</option>
-                <option value="reversed">Reversed</option>
+                <option value="all">{t("tx.list.allStatuses")}</option>
+                <option value="pending">{t("tx.status.pending")}</option>
+                <option value="posted">{t("tx.status.posted")}</option>
+                <option value="rejected">{t("tx.status.rejected")}</option>
+                <option value="reversed">{t("tx.status.reversed")}</option>
               </select>
 
               <select
@@ -550,9 +550,9 @@ function TxList() {
                 onChange={(e) => setDirectionFilter(e.target.value as DirectionFilter)}
                 className="h-9 rounded-md border border-border bg-surface-2 px-2.5 text-xs text-foreground"
               >
-                <option value="all">All directions</option>
-                <option value="deposit">Deposits (credit)</option>
-                <option value="withdraw">Withdrawals (debit)</option>
+                <option value="all">{t("tx.list.allDirections")}</option>
+                <option value="deposit">{t("activity.deposits")}</option>
+                <option value="withdraw">{t("activity.withdrawals")}</option>
               </select>
 
               <Popover>
@@ -582,7 +582,7 @@ function TxList() {
                 <PopoverContent className="w-auto p-3" align="start">
                   <div className="flex flex-col gap-3 w-64">
                     <div>
-                      <Label className="text-xs text-text-secondary">From</Label>
+                      <Label className="text-xs text-text-secondary">{t("common.from")}</Label>
                       <Input
                         type="date"
                         value={customFrom ? customFrom.toISOString().slice(0, 10) : ""}
@@ -593,7 +593,7 @@ function TxList() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-text-secondary">To</Label>
+                      <Label className="text-xs text-text-secondary">{t("common.to")}</Label>
                       <Input
                         type="date"
                         value={customTo ? customTo.toISOString().slice(0, 10) : ""}
@@ -623,14 +623,14 @@ function TxList() {
             <table className="w-full min-w-[860px] text-sm text-left">
               <thead className="text-[10px] uppercase tracking-wider text-text-secondary bg-[color:var(--surface-2)]/60 border-b border-border">
                <tr>
-                 <th className="px-4 py-3">TX #</th>
-                 <th className="px-4 py-3">Date</th>
-                 <th className="px-4 py-3">Time</th>
-                 <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Status</th>
-                 {isAdmin ? <th className="px-4 py-3 text-right">Actions</th> : null}
+                 <th className="px-4 py-3">{t("ledger.col.tx")}</th>
+                 <th className="px-4 py-3">{t("tx.col.date")}</th>
+                 <th className="px-4 py-3">{t("tx.col.time")}</th>
+                 <th className="px-4 py-3">{t("tx.col.customer")}</th>
+                  <th className="px-4 py-3">{t("tx.col.description")}</th>
+                  <th className="px-4 py-3 text-right">{t("tx.col.amount")}</th>
+                  <th className="px-4 py-3">{t("tx.col.status")}</th>
+                 {isAdmin ? <th className="px-4 py-3 text-right">{t("tx.col.actions")}</th> : null}
                 </tr>
               </thead>
               <tbody>
