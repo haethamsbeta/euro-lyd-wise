@@ -905,6 +905,7 @@ function KpiTile({
 /* ---------------- Correction dialog (unchanged) ---------------- */
 
 function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void }) {
+  const t = useT();
   const qc = useQueryClient();
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
@@ -956,7 +957,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     <Dialog open={!!tx} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Correct transaction</DialogTitle>
+          <DialogTitle>{t("tx.correctTitle")}</DialogTitle>
           <DialogDescription>
             Posted entries are immutable. This will post a reversing entry that cancels{" "}
             <span className="font-mono">{tx?.tx_number}</span>, then post a new corrected entry.
@@ -968,19 +969,19 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
             <div className="rounded-md border bg-muted/30 p-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-xs uppercase text-muted-foreground">Direction</div>
+                  <div className="text-xs uppercase text-muted-foreground">{t("tx.field.direction")}</div>
                   <div className="capitalize">{tx.direction}</div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase text-muted-foreground">Channel</div>
+                  <div className="text-xs uppercase text-muted-foreground">{t("tx.field.channel")}</div>
                   <div className="capitalize">{tx.channel}</div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase text-muted-foreground">Currency</div>
+                  <div className="text-xs uppercase text-muted-foreground">{t("tx.field.currency")}</div>
                   <div>{tx.currency}</div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase text-muted-foreground">Original</div>
+                  <div className="text-xs uppercase text-muted-foreground">{t("tx.field.original")}</div>
                   <div className="font-mono">{formatMinorOrMissing(tx.amount_minor, tx.currency)}</div>
                 </div>
               </div>
@@ -1001,7 +1002,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
             </div>
 
             <div>
-              <Label htmlFor="new-comment">Corrected comment</Label>
+              <Label htmlFor="new-comment">{t("tx.field.correctedComment")}</Label>
               <Input
                 id="new-comment"
                 className="mt-1.5"
@@ -1017,7 +1018,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
                 id="reason"
                 rows={3}
                 className="mt-1.5"
-                placeholder="Explain why this correction is needed (min 10 chars)."
+                placeholder={t("tx.correctPlaceholder")}
                 value={reason}
                 maxLength={500}
                 onChange={(e) => setReason(e.target.value)}
@@ -1026,7 +1027,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
 
             <Alert>
               <ShieldAlert className="h-4 w-4" />
-              <AlertTitle>Financial controls still apply</AlertTitle>
+              <AlertTitle>{t("tx.controlsApply")}</AlertTitle>
               <AlertDescription>
                 If the corrected amount overdrafts the account or exceeds its debit limit, the
                 new entry will be queued for admin approval.
