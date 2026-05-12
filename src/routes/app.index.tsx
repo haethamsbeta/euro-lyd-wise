@@ -797,6 +797,7 @@ function UrgentApprovals({ title = "Urgent Approvals" }: { title?: string }) {
 }
 
 function RecentAuditEvents() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["dash.recent.audit"],
     queryFn: async () => {
@@ -838,14 +839,14 @@ function RecentAuditEvents() {
   return (
     <PremiumCard className="p-0 overflow-hidden">
       <div className="p-4 border-b border-border bg-surface-2/30 flex justify-between items-center">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">Recent Audit Events</h3>
-        <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">View Full Log →</Link>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.18em]">{t("dash.recentAuditEvents")}</h3>
+        <Link to="/app/audit" className="text-xs text-sky-400 hover:text-sky-300">{t("nav.audit")} →</Link>
       </div>
       <div className="divide-y divide-border">
         {isLoading && events.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground text-center">Loading…</div>
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
         ) : events.length === 0 ? (
-          <div className="p-6 text-sm text-muted-foreground text-center">No audit events yet.</div>
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("audit.empty")}</div>
         ) : null}
         {events.map((log) => (
           <div key={log.id} className="flex items-center justify-between p-4 hover:bg-surface-2/50 transition-colors">
