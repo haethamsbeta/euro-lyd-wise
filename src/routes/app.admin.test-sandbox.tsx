@@ -543,6 +543,15 @@ function TestSandboxPage() {
             {busy === "cleanup" ? <Loader2 className="animate-spin" /> : <Trash2 />}
             Cleanup Fixture
           </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDeleteAll(true)}
+            disabled={busy !== null}
+            title="Delete every sandbox fixture from the backend"
+          >
+            {busy === "delete-all" ? <Loader2 className="animate-spin" /> : <Trash2 />}
+            Delete all sandbox data
+          </Button>
           {fixture && (
             <span className="ml-auto self-center font-mono text-xs text-muted-foreground">
               test_run_id: {fixture.test_run_id}
@@ -904,10 +913,29 @@ function TestSandboxPage() {
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
                 Recent test transactions
               </div>
-              <SandboxTxTable
-                rows={activityTransactions}
-                emptyText="No sandbox transactions yet."
-              />
+              {sandboxTransactionsQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground">Loading sandbox transactions…</p>
+              ) : sandboxTransactionsQuery.error ? (
+                isPendingError(sandboxTransactionsQuery.error) ? (
+                  <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/transactions" />
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-destructive">
+                    <span>{(sandboxTransactionsQuery.error as Error).message}</span>
+                    <Button size="sm" variant="ghost" onClick={() => sandboxTransactionsQuery.refetch()}>
+                      Retry
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <SandboxTxTable
+                  rows={
+                    asArray(sandboxTransactionsQuery.data?.posted_items).length > 0
+                      ? asArray(sandboxTransactionsQuery.data?.posted_items)
+                      : asArray(sandboxTransactionsQuery.data?.items)
+                  }
+                  emptyText="No sandbox transactions yet."
+                />
+              )}
             </div>
 
             {/* F. Pending test transactions (read-only) */}
@@ -916,30 +944,85 @@ function TestSandboxPage() {
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">
                   Pending test transactions
                 </div>
-                <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
-                  <AlertTriangle className="h-3 w-3" />
-                  Sandbox approval endpoint pending.
-                </span>
               </div>
-              {pendingTxQuery.isLoading ? (
+              {sandboxTransactionsQuery.isLoading ? (
                 <p className="text-xs text-muted-foreground">Loading sandbox pending…</p>
-              ) : pendingTxQuery.error ? (
-                isPendingError(pendingTxQuery.error) ? (
+              ) : sandboxTransactionsQuery.error ? (
+                isPendingError(sandboxTransactionsQuery.error) ? (
                   <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/transactions" />
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-destructive">
-                    <span>{(pendingTxQuery.error as Error).message}</span>
-                    <Button size="sm" variant="ghost" onClick={() => pendingTxQuery.refetch()}>
+                    <span>{(sandboxTransactionsQuery.error as Error).message}</span>
+                    <Button size="sm" variant="ghost" onClick={() => sandboxTransactionsQuery.refetch()}>
                       Retry
                     </Button>
                   </div>
                 )
-              ) : (
-                <SandboxTxTable
-                  rows={asArray(pendingTxQuery.data?.pending_items)}
-                  emptyText="No pending sandbox transactions."
-                />
-              )}
+              ) : (() => {
+                const pendingRows = asArray(sandboxTransactionsQuery.data?.pending_items);
+                if (pendingRows.length === 0) {
+                  return <p className="text-xs text-muted-foreground">No pending sandbox transactions.</p>;
+                }
+                return (
+                  <div className="overflow-x-auto rounded border border-border/40">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-2 py-1 text-left font-medium">Tx</th>
+                          <th className="px-2 py-1 text-left font-medium">Dir</th>
+                          <th className="px-2 py-1 text-right font-medium">Amount</th>
+                          <th className="px-2 py-1 text-left font-medium">Vault role</th>
+                          <th className="px-2 py-1 text-left font-medium">Status</th>
+                          <th className="px-2 py-1 text-left font-medium">Reason</th>
+                          <th className="px-2 py-1 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingRows.map((r: any, i: number) => {
+                          const id = r.id ?? "";
+                          const busyRow = rowBusy === id;
+                          return (
+                            <tr key={id || r.tx_number || i} className="border-t border-border/30 align-top">
+                              <td className="px-2 py-1 font-mono">{r.tx_number ?? id ?? "—"}</td>
+                              <td className="px-2 py-1">{r.direction ?? "—"}</td>
+                              <td className="px-2 py-1 text-right font-mono">
+                                {r.amount_minor !== undefined ? Number(r.amount_minor).toLocaleString() : "—"}
+                              </td>
+                              <td className="px-2 py-1">{r.vault_role ?? "—"}</td>
+                              <td className="px-2 py-1">{r.status ?? "—"}</td>
+                              <td className="px-2 py-1 text-muted-foreground">{r.review_reason ?? ""}</td>
+                              <td className="px-2 py-1">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!id || busyRow}
+                                    onClick={() => approvePending({ id, tx_number: r.tx_number })}
+                                  >
+                                    {busyRow ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={!id || busyRow}
+                                    onClick={() => {
+                                      setRejectTarget({ id, tx_number: r.tx_number });
+                                      setRejectReason("");
+                                    }}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>
