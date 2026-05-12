@@ -640,6 +640,7 @@ function TellerDashboard({ prefs }: { prefs: DashPrefs }) {
 
 // ─── AUDITOR DASHBOARD ───────────────────────────────────────────────────────
 function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
+  const t = useT();
   const { data, isLoading } = useDashData();
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -653,7 +654,7 @@ function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
               </span>
-              <span className="text-[10px] tracking-[0.2em] uppercase text-sky-400 font-semibold">Integrity Pulse</span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-sky-400 font-semibold">{t("dash.integrityPulse")}</span>
             </div>
             <div className="text-sm text-muted-foreground mb-1">Anomalies Detected (24h)</div>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-foreground tabular-nums tracking-tight">
@@ -663,7 +664,7 @@ function AuditorDashboard({ prefs }: { prefs: DashPrefs }) {
           <div className="flex items-center gap-6">
             <RadialGauge percentage={95} colorClass="stroke-sky-400" />
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">System Integrity Score</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("dash.systemIntegrity")}</div>
               <div className="text-sm text-foreground">Last full audit: <span className="tabular-nums">Today, 04:00 AM</span></div>
             </div>
           </div>
