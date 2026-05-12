@@ -204,5 +204,48 @@ export const adminApi = {
           pending_count?: number;
         };
       }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}/activity-basic`),
+    /**
+     * Master Admin–only sandbox transactions list.
+     * GET /admin/test-fixtures/:testRunId/transactions
+     *
+     * Used to render sandbox pending transactions in isolation from the
+     * production /approvals page. Render results read-only until backend
+     * exposes dedicated sandbox approve/reject endpoints:
+     *   POST /admin/test-fixtures/:testRunId/transactions/:txId/approve
+     *   POST /admin/test-fixtures/:testRunId/transactions/:txId/reject
+     */
+    transactions: async (testRunId: string) => {
+      type Tx = {
+        id?: string;
+        tx_number?: string;
+        created_at?: string;
+        posted_at?: string;
+        direction?: string;
+        currency_code?: string;
+        holder_currency_code?: string;
+        vault_currency_code?: string;
+        amount_minor?: number | string;
+        status?: string;
+        comment?: string;
+        review_reason?: string;
+      };
+      const res = await apiFetch<any>(
+        `/admin/test-fixtures/${encodeURIComponent(testRunId)}/transactions`,
+      );
+      const root = res?.data ?? res ?? {};
+      const items: Tx[] = Array.isArray(root.items)
+        ? root.items
+        : Array.isArray(root)
+          ? root
+          : [];
+      const pending_items: Tx[] = Array.isArray(root.pending_items)
+        ? root.pending_items
+        : items.filter((t) => String(t.status ?? "").toLowerCase() === "pending");
+      const posted_items: Tx[] = Array.isArray(root.posted_items)
+        ? root.posted_items
+        : items.filter((t) => String(t.status ?? "").toLowerCase() === "posted");
+      const totals = root.totals ?? {};
+      return { items, pending_items, posted_items, totals };
+    },
   },
 };
