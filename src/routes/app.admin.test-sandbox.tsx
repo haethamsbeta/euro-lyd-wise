@@ -17,6 +17,7 @@ import {
 import { SectionHeader } from "@/components/app/section-header";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 import { useShowMasterTools } from "@/lib/admin-mode";
+import { CurrencyTotalsStrip } from "@/components/app/currency-totals-strip";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/dahabApi";
 
@@ -141,6 +142,13 @@ function TestSandboxPage() {
     retry: false,
   });
 
+  const activityQuery = useQuery({
+    queryKey: ["admin", "test-fixtures", fixture?.test_run_id, "activity-basic"],
+    queryFn: () => api.admin.testFixtures.activityBasic(fixture!.test_run_id),
+    enabled: showMaster && !!fixture?.test_run_id,
+    retry: false,
+  });
+
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
   }, [showMaster, nav]);
@@ -191,6 +199,9 @@ function TestSandboxPage() {
       appendLog({ action: "Create fixture", status: "ok", detail: `test_run_id=${normalized.test_run_id}` });
       toast.success("Test fixture created");
       fixturesQuery.refetch();
+      // Pull fresh holder/accounts/vaults/balances/transactions from the
+      // Master-Admin-only activity-basic endpoint.
+      activityQuery.refetch();
     } catch (e) {
       handleError("Create fixture", e, "POST /admin/test-fixtures/e2e");
     } finally {
@@ -338,7 +349,37 @@ function TestSandboxPage() {
   const withdrawVault = fixture ? findPayable(currency) : undefined;
   const ha = fixture ? findHolderAccount(currency) : undefined;
   const fixtures = getFixtureList(fixturesQuery.data);
-  const activeFullFixture = fixture;
+  const fixtureActivity = activityQuery.data;
+  const activityAccounts = asArray(fixtureActivity?.accounts);
+  const activityVaults = asArray(fixtureActivity?.vaults);
+  const activityBalances = asArray(fixtureActivity?.balances_by_currency);
+  const activityTransactions = asArray(fixtureActivity?.transactions);
+  const activityPending = asArray(fixtureActivity?.pending_transactions);
+  const activityTotals = fixtureActivity?.totals ?? {};
+  // Hydrate the active fixture from the activity payload when available, so
+  // findHolderAccount / findReceivable / findPayable read the freshest data.
+  const activeFullFixture: Fixture | null = fixture
+    ? {
+        ...fixture,
+        holder: fixtureActivity?.holder
+          ? {
+              id: fixtureActivity.holder.id,
+              name:
+                fixtureActivity.holder.name ??
+                fixtureActivity.holder.canonical_name ??
+                fixture.holder?.name ??
+                "Test holder",
+              dahab_account_number: fixtureActivity.holder.dahab_account_number,
+              is_test: fixtureActivity.holder.is_test,
+              test_run_id: fixtureActivity.holder.test_run_id,
+              source_system: fixtureActivity.holder.source_system,
+            }
+          : fixture.holder,
+        holder_accounts:
+          activityAccounts.length > 0 ? activityAccounts : getFixtureAccounts(fixture),
+        vaults: activityVaults.length > 0 ? activityVaults : getFixtureVaults(fixture),
+      }
+    : null;
   const accounts = getFixtureAccounts(activeFullFixture);
   const vaults = getFixtureVaults(activeFullFixture);
   const nextSteps = asArray(activeFullFixture?.next_steps);
@@ -580,8 +621,22 @@ function TestSandboxPage() {
       {/* Card 2 — Details */}
       {fixture && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Fixture details</CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => activityQuery.refetch()}
+              disabled={activityQuery.isFetching}
+              title="Reload sandbox activity"
+            >
+              {activityQuery.isFetching ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <RefreshCw />
+              )}
+              Refresh activity
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="flex flex-wrap items-center gap-3">
@@ -607,29 +662,127 @@ function TestSandboxPage() {
               ) : null}
             </div>
 
+            {/* Activity-basic load states */}
+            {activityQuery.isLoading ? (
+              <p className="text-xs text-muted-foreground">Loading sandbox activity…</p>
+            ) : activityQuery.error ? (
+              isPendingError(activityQuery.error) ? (
+                <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/activity-basic" />
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-destructive">
+                  <span>{(activityQuery.error as Error).message}</span>
+                  <Button size="sm" variant="ghost" onClick={() => activityQuery.refetch()}>
+                    Retry
+                  </Button>
+                </div>
+              )
+            ) : null}
+
+            {/* A. Sandbox balance summary */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Sandbox balances
+              </div>
+              <CurrencyTotalsStrip
+                totals={activityBalances.map((b) => ({
+                  currency: b.currency_code,
+                  total_balance:
+                    b.holder_balance ??
+                    b.holder_balance_minor ??
+                    0,
+                }))}
+                emptyText="No balances yet."
+                size="sm"
+              />
+            </div>
+
+            {/* D. Fixture status / totals */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                {
+                  label: "Accounts",
+                  value:
+                    activityTotals.holder_account_count ??
+                    activityTotals.account_count ??
+                    activityAccounts.length,
+                },
+                {
+                  label: "Vaults",
+                  value: activityTotals.vault_account_count ?? activityVaults.length,
+                },
+                {
+                  label: "Transactions",
+                  value: activityTotals.transaction_count ?? activityTransactions.length,
+                },
+                {
+                  label: "Pending",
+                  value: activityTotals.pending_count ?? activityPending.length,
+                },
+              ].map((kpi) => (
+                <div
+                  key={kpi.label}
+                  className="rounded border border-border/40 p-2"
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {kpi.label}
+                  </div>
+                  <div className="font-mono text-base">{Number(kpi.value ?? 0)}</div>
+                </div>
+              ))}
+            </div>
+
             <div>
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
                 Linked test accounts
               </div>
-              <ul className="space-y-1">
-                {accounts.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3">
-                    <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
-                      {a.currency_code}
-                    </span>
-                    <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
-                      TEST
-                    </span>
-                    {a.account_number && (
-                      <span className="font-mono text-[11px]">{a.account_number}</span>
-                    )}
-                    <span className="font-mono text-[10px] text-muted-foreground">{a.id}</span>
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              {accounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No test holder accounts.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {accounts.map((a: any) => (
+                    <li key={a.id} className="flex flex-wrap items-center gap-3">
+                      <span className="inline-flex h-6 min-w-12 items-center justify-center rounded bg-gold/10 px-2 text-xs font-semibold text-gold">
+                        {a.currency_code}
+                      </span>
+                      <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
+                        TEST
+                      </span>
+                      {a.account_number && (
+                        <span className="font-mono text-[11px]">{a.account_number}</span>
+                      )}
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {a.id}
+                      </span>
+                      {(a.current_balance !== undefined ||
+                        a.current_balance_minor !== undefined) && (
+                        <span className="font-mono text-[11px]">
+                          bal:{" "}
+                          {Number(
+                            a.current_balance ?? a.current_balance_minor ?? 0,
+                          ).toLocaleString()}
+                        </span>
+                      )}
+                      {a.source_system && (
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {a.source_system}
+                        </span>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => copyText(a.id)}
+                        aria-label="Copy account id"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to="/app/accounts/$id" params={{ id: a.id }}>Open</Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
@@ -654,6 +807,28 @@ function TestSandboxPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* E. Recent test transactions (read-only) */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Recent test transactions
+              </div>
+              <SandboxTxTable
+                rows={activityTransactions}
+                emptyText="No sandbox transactions yet."
+              />
+            </div>
+
+            {/* F. Pending test transactions (read-only) */}
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Pending test transactions
+              </div>
+              <SandboxTxTable
+                rows={activityPending}
+                emptyText="No pending sandbox transactions."
+              />
             </div>
           </CardContent>
         </Card>
@@ -815,6 +990,73 @@ function VaultCell({
       <Button asChild size="sm" variant="ghost" className="h-5 px-1.5 text-[10px]">
         <Link to="/app/vaults/$id" params={{ id: v.id }}>Open</Link>
       </Button>
+    </div>
+  );
+}
+
+type SandboxTxRow = {
+  id?: string;
+  tx_number?: string;
+  created_at?: string;
+  posted_at?: string;
+  direction?: string;
+  currency_code?: string;
+  holder_currency_code?: string;
+  vault_currency_code?: string;
+  amount_minor?: number | string;
+  status?: string;
+  comment?: string;
+};
+
+function SandboxTxTable({
+  rows,
+  emptyText,
+}: {
+  rows: SandboxTxRow[];
+  emptyText: string;
+}) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return <p className="text-xs text-muted-foreground">{emptyText}</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded border border-border/40">
+      <table className="w-full text-[11px]">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-2 py-1 text-left font-medium">When</th>
+            <th className="px-2 py-1 text-left font-medium">Tx</th>
+            <th className="px-2 py-1 text-left font-medium">Dir</th>
+            <th className="px-2 py-1 text-left font-medium">Cur</th>
+            <th className="px-2 py-1 text-right font-medium">Amount</th>
+            <th className="px-2 py-1 text-left font-medium">Status</th>
+            <th className="px-2 py-1 text-left font-medium">Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const ts = r.created_at ?? r.posted_at ?? "";
+            const cur =
+              r.currency_code ?? r.holder_currency_code ?? r.vault_currency_code ?? "";
+            return (
+              <tr key={r.id ?? r.tx_number ?? i} className="border-t border-border/30">
+                <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">
+                  {ts}
+                </td>
+                <td className="px-2 py-1 font-mono">{r.tx_number ?? r.id ?? "—"}</td>
+                <td className="px-2 py-1">{r.direction ?? "—"}</td>
+                <td className="px-2 py-1">{cur}</td>
+                <td className="px-2 py-1 text-right font-mono">
+                  {r.amount_minor !== undefined
+                    ? Number(r.amount_minor).toLocaleString()
+                    : "—"}
+                </td>
+                <td className="px-2 py-1">{r.status ?? "—"}</td>
+                <td className="px-2 py-1 text-muted-foreground">{r.comment ?? ""}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
