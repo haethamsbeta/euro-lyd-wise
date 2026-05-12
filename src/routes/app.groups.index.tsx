@@ -712,39 +712,55 @@ function GroupCard({
 
 function EmptyZeroState({ canCreate, onCreate }: { canCreate: boolean; onCreate: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-gold/25 bg-card/40 px-6 py-16 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
-        <Layers className="h-6 w-6" />
+    <Card className="p-12">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/30 bg-gold/10 text-gold">
+          <Layers className="h-6 w-6" />
+        </div>
+        <div className="max-w-md">
+          <h3 className="font-playfair text-xl font-semibold text-foreground">No groups found</h3>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Get started by creating your first group.
+          </p>
+        </div>
+        {canCreate && (
+          <Button variant="gold" onClick={onCreate} className="gap-2">
+            <Plus className="h-4 w-4" /> Create Group
+          </Button>
+        )}
       </div>
-      <div className="max-w-md">
-        <h3 className="font-playfair text-xl font-semibold text-foreground">No groups yet</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Groups let you cluster related customers and accounts—like family circles, business units, or VIP holdings—for monitoring and reporting.
-        </p>
-      </div>
-      {canCreate && (
-        <Button variant="gold" onClick={onCreate}>
-          <Plus className="h-4 w-4" /> Create First Group
-        </Button>
-      )}
-    </div>
+    </Card>
   );
 }
 
-function EmptyFilteredState({ onClear }: { onClear: () => void }) {
+function EmptyFilteredState({
+  searchTerm, canCreate, onCreate, onClear,
+}: { searchTerm: string; canCreate: boolean; onCreate: () => void; onClear: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gold/20 bg-card/30 px-6 py-12 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/15 bg-surface-2 text-muted-foreground">
-        <Search className="h-5 w-5" />
+    <Card className="p-12">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface-2 text-muted-foreground">
+          <Search className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-base font-medium text-foreground">No groups found</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {searchTerm
+              ? `No groups match "${searchTerm}". Try a different search.`
+              : "Get started by creating your first group."}
+          </p>
+        </div>
+        {canCreate ? (
+          <Button variant="gold" onClick={onCreate} className="gap-2">
+            <Plus className="h-4 w-4" /> Create Group
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={onClear} className="gap-2 border-gold/20">
+            <FilterX className="h-3.5 w-3.5" /> Clear filters
+          </Button>
+        )}
       </div>
-      <div>
-        <div className="text-sm font-medium text-foreground">No matching groups</div>
-        <p className="mt-1 text-xs text-muted-foreground">Try a different search term or change the type filter.</p>
-      </div>
-      <Button variant="outline" size="sm" onClick={onClear} className="border-gold/20">
-        <FilterX className="h-3.5 w-3.5" /> Clear filters
-      </Button>
-    </div>
+    </Card>
   );
 }
 
