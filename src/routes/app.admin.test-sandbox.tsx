@@ -346,7 +346,23 @@ function TestSandboxPage() {
   const withdrawVault = fixture ? findPayable(currency) : undefined;
   const ha = fixture ? findHolderAccount(currency) : undefined;
   const fixtures = getFixtureList(fixturesQuery.data);
-  const activeFullFixture = fixture;
+  const fixtureActivity = activityQuery.data;
+  const activityAccounts = asArray(fixtureActivity?.accounts);
+  const activityVaults = asArray(fixtureActivity?.vaults);
+  const activityBalances = asArray(fixtureActivity?.balances_by_currency);
+  const activityTransactions = asArray(fixtureActivity?.transactions);
+  const activityPending = asArray(fixtureActivity?.pending_transactions);
+  const activityTotals = fixtureActivity?.totals ?? {};
+  // Hydrate the active fixture from the activity payload when available, so
+  // findHolderAccount / findReceivable / findPayable read the freshest data.
+  const activeFullFixture: Fixture | null = fixture
+    ? {
+        ...fixture,
+        holder: fixtureActivity?.holder ?? fixture.holder,
+        holder_accounts: activityAccounts.length > 0 ? activityAccounts : getFixtureAccounts(fixture),
+        vaults: activityVaults.length > 0 ? activityVaults : getFixtureVaults(fixture),
+      }
+    : null;
   const accounts = getFixtureAccounts(activeFullFixture);
   const vaults = getFixtureVaults(activeFullFixture);
   const nextSteps = asArray(activeFullFixture?.next_steps);
