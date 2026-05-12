@@ -360,9 +360,9 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
           <div className="flex-1 lg:basis-5/12">
             <div className="flex items-center gap-2 mb-3">
               <LivePulse />
-              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">Network Pulse</span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-semibold">{t("dash.networkPulse")}</span>
             </div>
-            <div className="text-sm text-muted-foreground mb-1">Total Consolidated Balance — LYD Equivalent</div>
+            <div className="text-sm text-muted-foreground mb-1">{t("dash.totalConsolidated")}</div>
             <div className="font-serif text-4xl sm:text-5xl lg:text-4xl xl:text-[44px] font-bold text-foreground tabular-nums tracking-tight">
               {hasConsolidatedTotal ? (
                 networkLyd != null ? (
@@ -464,7 +464,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               <div className="font-serif text-2xl font-bold text-foreground tabular-nums">
                 {fmtTotal(k.value ?? null)}
               </div>
-              <div className="mt-1 text-[10px] text-muted-foreground">DAHABDB total</div>
+              <div className="mt-1 text-[10px] text-muted-foreground">{t("dash.dahabdbTotal")}</div>
             </PremiumCard>
           </Link>
         ))}
@@ -484,7 +484,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             ) : (
               <VaultGaugeCard
                 icon={<Wallet className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                title="Cash Vaults"
+                title={t("dash.cashVaults")}
                 percent={vaultUtilization(cashSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                   label: `${c} currency cash vault`,
@@ -500,7 +500,7 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
             ) : (
               <VaultGaugeCard
                 icon={<Landmark className="w-32 h-32 lg:w-24 lg:h-24 text-gold" />}
-                title="Bank Vaults"
+                title={t("dash.bankVaults")}
                 percent={vaultUtilization(bankSource ?? new Map())}
                 rows={CURRENCIES.filter((c) => prefs.showCurrencies[c]).map((c) => ({
                   label: c, value: formatMinorOrMissing(bankSource?.get(c) ?? 0, c),
