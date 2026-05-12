@@ -64,7 +64,7 @@ export const adminApi = {
             : items.length;
       return { items, total };
     },
-    create: () =>
+    createE2E: (body: { starting_balance: number }) =>
       apiFetch<{
         test_run_id: string;
         holder: {
@@ -100,11 +100,28 @@ export const adminApi = {
           test_run_id?: string;
           source_system?: string;
         }>;
-      }>("/admin/test-fixtures/e2e", { method: "POST" }),
-    cleanup: (testRunId: string) =>
+      }>("/admin/test-fixtures/e2e", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    delete: (testRunId: string) =>
       apiFetch<{ ok: true }>(`/admin/test-fixtures/${encodeURIComponent(testRunId)}`, {
         method: "DELETE",
       }),
+    deleteAll: () =>
+      apiFetch<{ ok: true; deleted?: number }>(`/admin/test-fixtures`, {
+        method: "DELETE",
+      }),
+    approveTransaction: (testRunId: string, txId: string) =>
+      apiFetch<{ ok: true }>(
+        `/admin/test-fixtures/${encodeURIComponent(testRunId)}/transactions/${encodeURIComponent(txId)}/approve`,
+        { method: "POST", body: JSON.stringify({}) },
+      ),
+    rejectTransaction: (testRunId: string, txId: string, rejectReason: string) =>
+      apiFetch<{ ok: true }>(
+        `/admin/test-fixtures/${encodeURIComponent(testRunId)}/transactions/${encodeURIComponent(txId)}/reject`,
+        { method: "POST", body: JSON.stringify({ reject_reason: rejectReason }) },
+      ),
     /**
      * Master Admin–only sandbox activity.
      * GET /admin/test-fixtures/:testRunId/activity-basic

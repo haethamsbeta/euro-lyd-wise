@@ -7,6 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -156,6 +165,12 @@ function TestSandboxPage() {
     enabled: showMaster && !!fixture?.test_run_id,
     retry: false,
   });
+  const sandboxTransactionsQuery = pendingTxQuery;
+
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; tx_number?: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   useEffect(() => {
     if (!showMaster) nav({ to: "/app", search: {} as any });
@@ -190,7 +205,7 @@ function TestSandboxPage() {
     setBusy("create");
     setPendingErr(null);
     try {
-      const raw: any = await api.admin.testFixtures.create();
+      const raw: any = await api.admin.testFixtures.createE2E({ starting_balance: 10000 });
       const created = raw?.data ?? raw;
       const accounts = getFixtureAccounts(created);
       const vaults = getFixtureVaults(created);
@@ -222,7 +237,7 @@ function TestSandboxPage() {
     if (!fixture) return;
     setBusy("cleanup");
     try {
-      await api.admin.testFixtures.cleanup(fixture.test_run_id);
+      await api.admin.testFixtures.delete(fixture.test_run_id);
       appendLog({ action: "Cleanup fixture", status: "ok", detail: fixture.test_run_id });
       persist(null);
       toast.success("Test fixture removed");
@@ -237,7 +252,7 @@ function TestSandboxPage() {
   async function deleteFixtureById(testRunId: string) {
     setBusy(`del-${testRunId}`);
     try {
-      await api.admin.testFixtures.cleanup(testRunId);
+      await api.admin.testFixtures.delete(testRunId);
       appendLog({ action: "Delete fixture", status: "ok", detail: testRunId });
       toast.success("Fixture deleted");
       if (fixture?.test_run_id === testRunId) persist(null);
@@ -246,6 +261,69 @@ function TestSandboxPage() {
       handleError("Delete fixture", e, `DELETE /admin/test-fixtures/${testRunId}`);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function deleteAllFixtures() {
+    setBusy("delete-all");
+    try {
+      await api.admin.testFixtures.deleteAll();
+      appendLog({ action: "Delete all fixtures", status: "ok", detail: "DELETE /admin/test-fixtures" });
+      toast.success("All sandbox fixtures deleted");
+      persist(null);
+      fixturesQuery.refetch();
+    } catch (e) {
+      handleError("Delete all fixtures", e, "DELETE /admin/test-fixtures");
+    } finally {
+      setBusy(null);
+      setConfirmDeleteAll(false);
+    }
+  }
+
+  function refetchSandbox() {
+    fixturesQuery.refetch();
+    activityQuery.refetch();
+    sandboxTransactionsQuery.refetch();
+  }
+
+  async function approvePending(tx: { id?: string; tx_number?: string }) {
+    if (!fixture || !tx.id) return;
+    setRowBusy(tx.id);
+    try {
+      await api.admin.testFixtures.approveTransaction(fixture.test_run_id, tx.id);
+      toast.success(`Approved ${tx.tx_number ?? tx.id}`);
+      appendLog({ action: "Approve sandbox tx", status: "ok", detail: tx.tx_number ?? tx.id });
+      refetchSandbox();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Approve failed";
+      appendLog({ action: "Approve sandbox tx", status: "error", detail: msg });
+      toast.error(msg);
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function submitReject() {
+    if (!fixture || !rejectTarget?.id) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      toast.error("Reject reason is required");
+      return;
+    }
+    setRowBusy(rejectTarget.id);
+    try {
+      await api.admin.testFixtures.rejectTransaction(fixture.test_run_id, rejectTarget.id, reason);
+      toast.success(`Rejected ${rejectTarget.tx_number ?? rejectTarget.id}`);
+      appendLog({ action: "Reject sandbox tx", status: "ok", detail: rejectTarget.tx_number ?? rejectTarget.id });
+      setRejectTarget(null);
+      setRejectReason("");
+      refetchSandbox();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Reject failed";
+      appendLog({ action: "Reject sandbox tx", status: "error", detail: msg });
+      toast.error(msg);
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -464,6 +542,15 @@ function TestSandboxPage() {
           >
             {busy === "cleanup" ? <Loader2 className="animate-spin" /> : <Trash2 />}
             Cleanup Fixture
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDeleteAll(true)}
+            disabled={busy !== null}
+            title="Delete every sandbox fixture from the backend"
+          >
+            {busy === "delete-all" ? <Loader2 className="animate-spin" /> : <Trash2 />}
+            Delete all sandbox data
           </Button>
           {fixture && (
             <span className="ml-auto self-center font-mono text-xs text-muted-foreground">
@@ -826,10 +913,29 @@ function TestSandboxPage() {
               <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
                 Recent test transactions
               </div>
-              <SandboxTxTable
-                rows={activityTransactions}
-                emptyText="No sandbox transactions yet."
-              />
+              {sandboxTransactionsQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground">Loading sandbox transactions…</p>
+              ) : sandboxTransactionsQuery.error ? (
+                isPendingError(sandboxTransactionsQuery.error) ? (
+                  <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/transactions" />
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-destructive">
+                    <span>{(sandboxTransactionsQuery.error as Error).message}</span>
+                    <Button size="sm" variant="ghost" onClick={() => sandboxTransactionsQuery.refetch()}>
+                      Retry
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <SandboxTxTable
+                  rows={
+                    asArray(sandboxTransactionsQuery.data?.posted_items).length > 0
+                      ? asArray(sandboxTransactionsQuery.data?.posted_items)
+                      : asArray(sandboxTransactionsQuery.data?.items)
+                  }
+                  emptyText="No sandbox transactions yet."
+                />
+              )}
             </div>
 
             {/* F. Pending test transactions (read-only) */}
@@ -838,30 +944,85 @@ function TestSandboxPage() {
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">
                   Pending test transactions
                 </div>
-                <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
-                  <AlertTriangle className="h-3 w-3" />
-                  Sandbox approval endpoint pending.
-                </span>
               </div>
-              {pendingTxQuery.isLoading ? (
+              {sandboxTransactionsQuery.isLoading ? (
                 <p className="text-xs text-muted-foreground">Loading sandbox pending…</p>
-              ) : pendingTxQuery.error ? (
-                isPendingError(pendingTxQuery.error) ? (
+              ) : sandboxTransactionsQuery.error ? (
+                isPendingError(sandboxTransactionsQuery.error) ? (
                   <BackendPending endpoint="GET /admin/test-fixtures/:testRunId/transactions" />
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-destructive">
-                    <span>{(pendingTxQuery.error as Error).message}</span>
-                    <Button size="sm" variant="ghost" onClick={() => pendingTxQuery.refetch()}>
+                    <span>{(sandboxTransactionsQuery.error as Error).message}</span>
+                    <Button size="sm" variant="ghost" onClick={() => sandboxTransactionsQuery.refetch()}>
                       Retry
                     </Button>
                   </div>
                 )
-              ) : (
-                <SandboxTxTable
-                  rows={asArray(pendingTxQuery.data?.pending_items)}
-                  emptyText="No pending sandbox transactions."
-                />
-              )}
+              ) : (() => {
+                const pendingRows = asArray(sandboxTransactionsQuery.data?.pending_items);
+                if (pendingRows.length === 0) {
+                  return <p className="text-xs text-muted-foreground">No pending sandbox transactions.</p>;
+                }
+                return (
+                  <div className="overflow-x-auto rounded border border-border/40">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-2 py-1 text-left font-medium">Tx</th>
+                          <th className="px-2 py-1 text-left font-medium">Dir</th>
+                          <th className="px-2 py-1 text-right font-medium">Amount</th>
+                          <th className="px-2 py-1 text-left font-medium">Vault role</th>
+                          <th className="px-2 py-1 text-left font-medium">Status</th>
+                          <th className="px-2 py-1 text-left font-medium">Reason</th>
+                          <th className="px-2 py-1 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingRows.map((r: any, i: number) => {
+                          const id = r.id ?? "";
+                          const busyRow = rowBusy === id;
+                          return (
+                            <tr key={id || r.tx_number || i} className="border-t border-border/30 align-top">
+                              <td className="px-2 py-1 font-mono">{r.tx_number ?? id ?? "—"}</td>
+                              <td className="px-2 py-1">{r.direction ?? "—"}</td>
+                              <td className="px-2 py-1 text-right font-mono">
+                                {r.amount_minor !== undefined ? Number(r.amount_minor).toLocaleString() : "—"}
+                              </td>
+                              <td className="px-2 py-1">{r.vault_role ?? "—"}</td>
+                              <td className="px-2 py-1">{r.status ?? "—"}</td>
+                              <td className="px-2 py-1 text-muted-foreground">{r.review_reason ?? ""}</td>
+                              <td className="px-2 py-1">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!id || busyRow}
+                                    onClick={() => approvePending({ id, tx_number: r.tx_number })}
+                                  >
+                                    {busyRow ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={!id || busyRow}
+                                    onClick={() => {
+                                      setRejectTarget({ id, tx_number: r.tx_number });
+                                      setRejectReason("");
+                                    }}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -987,6 +1148,66 @@ function TestSandboxPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRejectTarget(null);
+            setRejectReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject sandbox transaction</DialogTitle>
+            <DialogDescription>
+              {rejectTarget?.tx_number ? `Tx ${rejectTarget.tx_number}` : "Sandbox transaction"} —
+              provide a reason. This calls the sandbox-only reject endpoint.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reject reason (required)"
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitReject}
+              disabled={!rejectReason.trim() || rowBusy === rejectTarget?.id}
+            >
+              {rowBusy === rejectTarget?.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDeleteAll} onOpenChange={setConfirmDeleteAll}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all sandbox data?</DialogTitle>
+            <DialogDescription>
+              This calls DELETE /admin/test-fixtures and removes every sandbox fixture from the
+              backend. Production data is not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDeleteAll(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={deleteAllFixtures} disabled={busy === "delete-all"}>
+              {busy === "delete-all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 />}
+              Delete all
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
