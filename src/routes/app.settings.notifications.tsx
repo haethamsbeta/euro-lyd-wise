@@ -245,8 +245,8 @@ function NotifSettingsPage() {
   if (isLoading || !draft) {
     return (
       <>
-        <PageHeader title="Notifications" description="Choose what to be notified about and when." />
-        <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+        <PageHeader title={t("settings.notifications.title")} description={t("settings.notifications.subtitle")} />
+        <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
       </>
     );
   }
@@ -262,8 +262,8 @@ function NotifSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Notifications"
-        description="Choose what to be notified about and customize reminders."
+        title={t("settings.notifications.title")}
+        description={t("settings.notifications.subtitle")}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={sendSelfTest} disabled={testing}>
