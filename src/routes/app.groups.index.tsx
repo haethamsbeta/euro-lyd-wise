@@ -419,16 +419,34 @@ function GroupsPage() {
 // KPI cards
 // ────────────────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, icon, hint }: { label: string; value: React.ReactNode; icon: React.ReactNode; hint?: string }) {
+function KpiCard({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-gold/15 bg-card/70 p-4">
-      <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 text-gold">{icon}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    <Card className="p-5">
+      <div className="mb-3 flex items-start justify-between">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold">
+          {icon}
+        </div>
       </div>
-      <div className="mt-2 font-playfair text-2xl font-semibold tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
-    </div>
+      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+    </Card>
+  );
+}
+
+function TypeChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+        active
+          ? "border-gold/40 bg-gold/10 text-gold"
+          : "border-border bg-surface-2 text-muted-foreground hover:border-gold/30 hover:text-foreground",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
