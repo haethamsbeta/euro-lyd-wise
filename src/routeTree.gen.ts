@@ -46,6 +46,7 @@ import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
 import { Route as AppAdminTestSandboxRouteImport } from './routes/app.admin.test-sandbox'
 import { Route as AppAdminSandboxWorkspaceRouteImport } from './routes/app.admin.sandbox-workspace'
+import { Route as AppAdminSandboxMultiTransactionRouteImport } from './routes/app.admin.sandbox-multi-transaction'
 import { Route as AppAdminSandboxMultiEntryRouteImport } from './routes/app.admin.sandbox-multi-entry'
 import { Route as AppAdminFxRatesRouteImport } from './routes/app.admin.fx-rates'
 import { Route as AppAdminBranchesRouteImport } from './routes/app.admin.branches'
@@ -243,6 +244,12 @@ const AppAdminSandboxWorkspaceRoute =
     path: '/admin/sandbox-workspace',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminSandboxMultiTransactionRoute =
+  AppAdminSandboxMultiTransactionRouteImport.update({
+    id: '/admin/sandbox-multi-transaction',
+    path: '/admin/sandbox-multi-transaction',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminSandboxMultiEntryRoute =
   AppAdminSandboxMultiEntryRouteImport.update({
     id: '/admin/sandbox-multi-entry',
@@ -317,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
+  '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
@@ -362,6 +370,7 @@ export interface FileRoutesByTo {
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
+  '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
@@ -411,6 +420,7 @@ export interface FileRoutesById {
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
+  '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
@@ -461,6 +471,7 @@ export interface FileRouteTypes {
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/admin/sandbox-multi-entry'
+    | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
@@ -506,6 +517,7 @@ export interface FileRouteTypes {
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/admin/sandbox-multi-entry'
+    | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
@@ -554,6 +566,7 @@ export interface FileRouteTypes {
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
     | '/app/admin/sandbox-multi-entry'
+    | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
@@ -853,6 +866,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSandboxWorkspaceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/sandbox-multi-transaction': {
+      id: '/app/admin/sandbox-multi-transaction'
+      path: '/admin/sandbox-multi-transaction'
+      fullPath: '/app/admin/sandbox-multi-transaction'
+      preLoaderRoute: typeof AppAdminSandboxMultiTransactionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/admin/sandbox-multi-entry': {
       id: '/app/admin/sandbox-multi-entry'
       path: '/admin/sandbox-multi-entry'
@@ -960,6 +980,7 @@ interface AppRouteChildren {
   AppAdminBranchesRoute: typeof AppAdminBranchesRoute
   AppAdminFxRatesRoute: typeof AppAdminFxRatesRoute
   AppAdminSandboxMultiEntryRoute: typeof AppAdminSandboxMultiEntryRoute
+  AppAdminSandboxMultiTransactionRoute: typeof AppAdminSandboxMultiTransactionRoute
   AppAdminSandboxWorkspaceRoute: typeof AppAdminSandboxWorkspaceRoute
   AppAdminTestSandboxRoute: typeof AppAdminTestSandboxRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
@@ -991,6 +1012,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminBranchesRoute: AppAdminBranchesRoute,
   AppAdminFxRatesRoute: AppAdminFxRatesRoute,
   AppAdminSandboxMultiEntryRoute: AppAdminSandboxMultiEntryRoute,
+  AppAdminSandboxMultiTransactionRoute: AppAdminSandboxMultiTransactionRoute,
   AppAdminSandboxWorkspaceRoute: AppAdminSandboxWorkspaceRoute,
   AppAdminTestSandboxRoute: AppAdminTestSandboxRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
