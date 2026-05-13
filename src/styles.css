@@ -949,3 +949,60 @@ html.theme-night .surface-cream {
       radial-gradient(circle at 50% 50%, rgba(168,132,47,0.06), transparent 60%);
   }
 }
+
+/* ============================================================
+   Mobile-only polish (≤640px). Phone-targeted refinements only.
+   Desktop and tablet layouts are intentionally untouched.
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Prevent accidental horizontal scroll across the app */
+  html, body { overflow-x: hidden; }
+  img, svg, video, canvas { max-width: 100%; height: auto; }
+
+  /* Stop iOS zoom-on-focus by ensuring inputs are at least 16px */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Comfortable tap targets on phones */
+  button:not([data-no-tap]),
+  [role="button"]:not([data-no-tap]),
+  a[role="button"]:not([data-no-tap]) {
+    min-height: 40px;
+  }
+
+  /* Slightly tighten card padding so content breathes on small screens */
+  .card-futur > .p-6 { padding: 1rem; }
+
+  /* Make any plain table inside a card horizontally scrollable
+     instead of overflowing the viewport */
+  .card-futur { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Reusable wrapper for tables that need horizontal scroll */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Bottom dock safe-area bottom padding already handled inline; ensure
+     main content above the dock isn't covered by it */
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+  /* Dialog / sheet content should not touch screen edges on phones */
+  [data-radix-dialog-content],
+  [data-radix-popper-content-wrapper] > [role="dialog"] {
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  /* Tighten oversized display headings on phones */
+  h1.font-serif { font-size: 1.5rem; line-height: 1.2; }
+  h2.font-serif { font-size: 1.25rem; line-height: 1.25; }
+
+  /* Ensure clickable nav/menu items sit comfortably */
+  .min-h-\[44px\] { min-height: 44px; }
+}
+
+@media (max-width: 400px) {
+  /* Very small phones: a touch tighter horizontal padding on root containers */
+  .container, [class*="max-w-7xl"], [class*="max-w-6xl"] {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
