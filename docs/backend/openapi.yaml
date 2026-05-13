@@ -764,10 +764,70 @@ paths:
         - { $ref: '#/components/parameters/Cursor' }
       responses: { '200': { description: OK } }
   /api/transactions/deposit:  { post: { tags: [transactions, 'role:admin', 'role:teller'], summary: TX-2 post_transaction(deposit), responses: { '201': { description: Created } } } }
-  /api/transactions/withdraw: { post: { tags: [transactions, 'role:admin', 'role:teller'], summary: TX-3 post_transaction(withdraw), responses: { '201': { description: Created } } } }
+  /api/transactions/withdraw:
+    post:
+      tags: [transactions, 'role:admin', 'role:teller']
+      summary: TX-3 post_transaction(withdraw)
+      x-roles: [admin, teller]
+      responses:
+        '201': { description: Created }
+        '422':
+          description: |
+            Over-limit. Returned once Step 5 enforcement is live in
+            `post_transaction` (currently advisory via `/withdraw-quote`).
+          x-status: planned
+          content: { application/json: { schema: { $ref: '#/components/schemas/OverLimitError' } } }
   /api/transactions/{tx_id}/correct:
     parameters: [{ name: tx_id, in: path, required: true, schema: { type: string } }]
     post: { tags: [transactions, 'role:admin'], summary: TX-7 correct_transaction, responses: { '201': { description: Created } } }
+
+  /api/holder-accounts/{id}/limits:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [accounts]
+      summary: ACC-4 Account limits snapshot (sp_account_limits)
+      x-roles: [admin, teller, auditor, consumer]
+      description: |
+        Returns the derived balance/credit snapshot. Consumer role only sees
+        accounts they own (RLS).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AccountLimitsSnapshot' } } } }
+    put:
+      tags: [accounts, 'role:admin']
+      summary: ACC-5 Set account limits (sp_set_account_limits)
+      x-roles: [admin]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SetAccountLimitsRequest' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AccountLimitsSnapshot' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/holder-accounts/{id}/withdraw-quote:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    post:
+      tags: [accounts, transactions]
+      summary: ACC-6 Quote a hypothetical withdrawal (sp_withdraw_quote)
+      x-roles: [admin, teller, consumer]
+      description: |
+        Stateless preview used by the New Transaction wizard and the customer
+        portal to render "available to withdraw", over-limit warning, and a
+        balance-vs-credit split before the user submits.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WithdrawQuoteRequest' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/WithdrawQuoteResponse' } } } }
+
+  /api/holder-accounts/{id}/withdraw-limit:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    post:
+      deprecated: true
+      tags: [accounts, 'role:admin']
+      summary: '[DEPRECATED] sp_set_holder_withdraw_limit — use PUT /holder-accounts/{id}/limits instead'
+      x-roles: [admin]
+      x-status: deprecated
+      description: |
+        Legacy single-rule withdraw cap. Superseded by the protected-balance +
+        revolving-credit model (`balance_limit_minor`, `credit_limit_minor`).
+        Scheduled for removal in Step 6 cleanup.
+      responses: { '200': { description: OK } }
 
   /api/approvals:
     get: { tags: [approvals, 'role:admin'], summary: TX-4 Pending queue, parameters: [ { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: OK } } }
