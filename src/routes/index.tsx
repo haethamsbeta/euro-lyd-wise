@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability.",
+          "Welcome to Dahab — choose the customer portal for account holders or the staff back-office for Dahab's multi-currency private banking team.",
       },
       { property: "og:title", content: "Dahab — Private Banking Ledger" },
       { property: "og:description", content: "Multi-currency private banking for families and businesses in Libya, with double-entry precision and full audit trails." },
