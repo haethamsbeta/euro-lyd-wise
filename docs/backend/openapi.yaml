@@ -6,6 +6,44 @@ info:
     Source-of-truth API for the DAHAB frontend. All numbers, totals, charts,
     and KPIs originate from this API. The frontend never invents values.
     See docs/BACKEND_SOURCE_OF_TRUTH.md.
+
+    ## Conventions
+    - **Money**: every monetary field is a BIGINT in the currency's minor unit
+      (USD/EUR cents, LYD dirham). Never floats. Field suffix: `_minor`.
+    - **Currencies**: `USD`, `EUR`, `LYD`.
+    - **Response envelope**: every JSON response is
+      `{ success: boolean, data: T, message: string, timestamp: string }`.
+      Errors follow `{ success: false, code?: string, message: string, details?: object }`
+      with the matching HTTP status (400/401/403/404/409/422/500).
+    - **Auth**: Bearer JWT in `Authorization: Bearer <token>`. The token is
+      issued by `POST /api/auth/login` (or the passkey login flow) and refreshed
+      by `POST /api/auth/refresh`.
+    - **Roles**: `admin`, `teller`, `auditor`, `consumer`. Each operation lists
+      the roles allowed via the `x-roles` extension and via tags
+      (`role:admin`, `role:teller`, ...).
+
+    ## Auth flow
+    ```
+    POST /api/auth/login {email,password}
+      -> 200 { access_token, refresh_token, user, must_change_password }
+         |
+         |-- must_change_password=true ---> client redirects to /change-password
+         |                                  POST /api/auth/change-password
+         |
+         |-- must_change_password=false --> normal app
+
+    Optional passkey enrollment (after login):
+      POST /api/auth/passkey/register/start   -> WebAuthn challenge
+      POST /api/auth/passkey/register/finish  -> persists credential
+
+    Passwordless login:
+      POST /api/auth/passkey/login/start      -> WebAuthn challenge (public)
+      POST /api/auth/passkey/login/finish     -> { access_token, ... }
+
+    Forgot / reset:
+      POST /api/auth/forgot-password {email}
+      POST /api/auth/reset-password  {token,newPassword}
+    ```
 servers:
   - url: https://api.dahablibya.com
     description: Production
@@ -14,24 +52,25 @@ servers:
 security:
   - bearerAuth: []
 tags:
-  - name: auth
-  - name: dashboard
-  - name: holders
-  - name: accounts
-  - name: transactions
-  - name: approvals
-  - name: vaults
-  - name: groups
-  - name: imports
-  - name: reports
-  - name: audit
-  - name: me
-  - name: admin
-  - name: portal
-  - name: role:admin
-  - name: role:teller
-  - name: role:auditor
-  - name: role:consumer
+  - { name: auth,         description: Login, logout, passkeys, password reset, current user. }
+  - { name: dashboard,    description: Aggregated KPIs for staff/teller/auditor home screens. }
+  - { name: holders,      description: Account holders (customers) — search, create, link accounts. }
+  - { name: accounts,     description: Holder accounts (per-currency wallets) — balance, ledger, limits. }
+  - { name: transactions, description: Cash deposits, withdrawals, corrections. }
+  - { name: approvals,    description: Pending tx approvals (admin queue). }
+  - { name: vaults,       description: Internal cash/bank vaults, FX rates, vault targets. }
+  - { name: groups,       description: Account groups (cohorts of holder accounts). }
+  - { name: imports,      description: Excel import batches and review queue. }
+  - { name: reports,      description: Business, cash-flow, approval-speed, liquidity, compliance reports. }
+  - { name: audit,        description: Append-only audit log. }
+  - { name: me,           description: Current-user notifications, preferences, recent activity. }
+  - { name: admin,        description: Admin-only configuration (branches, FX rates, users, vault targets, push). }
+  - { name: portal,       description: Customer-facing read-only endpoints (consumer role). }
+  - { name: push,         description: Web-push subscriptions and test sends. }
+  - { name: 'role:admin',    description: Requires admin role. }
+  - { name: 'role:teller',   description: Requires teller role. }
+  - { name: 'role:auditor',  description: Requires auditor role. }
+  - { name: 'role:consumer', description: Requires consumer role (portal). }
 
 components:
   securitySchemes:
