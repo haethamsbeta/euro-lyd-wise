@@ -31,7 +31,7 @@ export function SectionHeader({
             <span className="eyebrow">{eyebrow}</span>
           </div>
         ) : null}
-        <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-serif text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
           {title}
         </h1>
         {subtitle ? (
