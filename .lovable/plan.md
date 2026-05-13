@@ -1,57 +1,58 @@
-## Goal
+## Speed optimization plan
 
-Polish the phone experience (≈320–430px) of the existing DAHAB web app without changing desktop/tablet visuals, functionality, routes, copy, or business logic.
+### Honest baseline first
 
-## Approach
+The numbers I just measured (FCP 3.4s, TTFB 1.25s) come from the **preview dev server**, which serves unminified CSS, runs cold SSR per request, and adds dev-only overhead like `lovable.js` and `@tanstack-start/styles.css`. In production (`dahablibya.com`) those drop dramatically without any code change.
 
-All work is **CSS / responsive className changes only**. No component logic, no route changes, no data changes. Edits are gated to phone widths using Tailwind's `max-sm:` (≤639px) and, where needed, `max-[400px]:` for very small phones. Default and `sm:`/`md:`/`lg:` styles stay untouched, so desktop and tablet renderings are byte-identical.
+So the goal here is **only the bottlenecks that survive production**: font payload, render-blocking CSS, LCP preload priority, framer-motion on the landing page, and HTTP cache headers for static assets.
 
-## Scope of files
+I will **not** rewrite the design, change `src/styles.css` semantics, change routing, or touch the app shell.
 
-1. **`src/styles.css`** — add a small mobile-only block at the end (inside a `@media (max-width: 640px)` query) covering:
-   - Base font smoothing & `font-size: 15px` on `html` for comfortable reading; `line-height` bump on body copy.
-   - Prevent horizontal scroll: `html, body { overflow-x: hidden; }` and `img, svg, video { max-width: 100%; height: auto; }`.
-   - Form controls: minimum `font-size: 16px` on `input, select, textarea` to stop iOS zoom-on-focus.
-   - Tap target floor: `button, [role="button"], a.btn, .tap` get `min-height: 44px`.
-   - Card / section spacing: `.card-futur` reduced inner padding (`p-4` equivalent), section vertical rhythm tightened.
-   - Dialog/Sheet: full-width with safe-area insets (`padding-inline: max(env(safe-area-inset-left), 12px)` etc.), bottom sheets respect `env(safe-area-inset-bottom)`.
-   - Tables: enable horizontal scroll wrapper (`.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }`) for any tables already wrapped; add a fallback rule to make raw `<table>` scrollable inside `.card-futur`.
-   - Bottom dock: respect safe-area inset bottom; add `padding-bottom: env(safe-area-inset-bottom)` and bump z-index spacing on main content (`main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }` only on mobile when dock is visible).
+---
 
-2. **`src/components/app/app-shell.tsx`** — adjust only responsive classes:
-   - Top bar: tighter horizontal padding on mobile (`px-3 sm:px-6`), reduce gap, hide non-essential desktop chrome already conditional.
-   - Mobile sheet/menu trigger: ensure `h-11 w-11` tap size on phones.
-   - Main content wrapper: `px-3 sm:px-6 py-4 sm:py-8` to remove cramped feel.
+### 1. Trim Google Fonts payload
 
-3. **`src/components/app/bottom-dock.tsx`** — verify and add `pb-[env(safe-area-inset-bottom)]`, `min-h-[56px]` items, slightly larger icons on phones; raised center button keeps existing visual.
+`__root.tsx` requests Inter (4 weights), Space Grotesk (2), IBM Plex Sans Arabic (3) = 9 font files on every page. The landing/login realistically use 2–3 weights. Reduce to:
+- Inter: 400, 600
+- Space Grotesk: 700
+- IBM Plex Sans Arabic: 400, 700
 
-4. **`src/components/app/section-header.tsx`** — stack title/actions vertically on `max-sm:` (`flex-col items-start gap-3 sm:flex-row sm:items-center`), reduce title size to `text-xl sm:text-2xl`.
+Estimated saving: ~120 KB across the woff2 fetches, fewer connections, faster paint.
 
-5. **`src/components/app/kpi-card.tsx`** + **`currency-totals-strip.tsx`** — switch to single-column / horizontal-scroll on mobile (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`, or `flex overflow-x-auto snap-x` strip), keep desktop grid identical.
+### 2. LCP image: add `fetchpriority="high"`
 
-6. **Tables on data-heavy pages** (`app.transactions.index.tsx`, `app.holders.index.tsx`, `app.accounts.index.tsx`, `app.vaults.index.tsx`, `app.audit.tsx`, `app.approvals.tsx`, `app.users.tsx`) — wrap the existing `<Table>` in a `<div className="table-wrap -mx-3 sm:mx-0 px-3 sm:px-0">` to enable horizontal scroll without altering columns. No column hiding, no row template changes.
+`__root.tsx` already preloads `/brand/dahab-icon.webp`. Add `fetchpriority: "high"` so the browser races it ahead of the font CSS.
 
-7. **Dialogs** (`src/components/ui/dialog.tsx`, `sheet.tsx`, `drawer.tsx`) — add `max-sm:w-[calc(100vw-1rem)] max-sm:rounded-xl max-sm:p-4` to content; preserve desktop sizing.
+### 3. Defer framer-motion on landing
 
-8. **Forms / wizard** (`new-transaction-wizard.tsx`, `holders.new.tsx`, login pages) — only className tweaks: `grid-cols-1 sm:grid-cols-2`, larger input height on phones (`max-sm:h-11`), full-width primary CTAs on mobile (`w-full sm:w-auto`).
+`src/routes/index.tsx` imports `framer-motion` at module top, which adds ~35 KB gzip to the landing chunk for what is mostly a fade/slide-in stagger. Replace the `motion.div` wrappers with a tiny CSS keyframe utility (`@keyframes fade-up` already-style fade-in delay). Keep framer-motion everywhere else it's already used in the app.
 
-9. **Global search & notification bell triggers** — `h-11 w-11` on phones for comfortable tap.
+Estimated saving: smaller landing chunk, faster TTI on the first page users see.
 
-## Out of scope (not touched)
+### 4. Cache headers for static brand & icon assets
 
-- Mobile customer app under `/m/*` and `src/components/mobile/*` (already a dedicated phone UI).
-- Any desktop-only or `sm:`+ classes (only adding/adjusting `max-sm:` / mobile-first base where currently cramped).
-- Backend, auth, routing, copy, i18n strings, icons, color tokens.
-- The `/app/admin/sandbox-multi-entry`, `/app/admin/test-sandbox`, and other sandbox pages logic — only the same generic table/dialog/section-header wrapper polish applies.
+Add `public/_headers` (TanStack Start static assets are served as-is) so `/brand/*`, `/icon-*.png`, `/favicon.*`, and `/apple-touch-icon.png` get `Cache-Control: public, max-age=31536000, immutable`. Eliminates the 859 ms re-fetch of `dahab-icon.webp` on warm visits.
 
-## Verification
+### 5. Drop oversized PNG fallback if unused
 
-After edits, open the preview at 375×812 and 414×896 and confirm on:
-- `/app` dashboard, `/app/transactions`, `/app/holders`, `/app/accounts`, `/app/vaults`, `/app/approvals`, `/app/users`, login.
+`public/brand/dahab-logo-full.png` is 167 KB. The component uses the `.webp` (40 KB) inside a `<picture>` with PNG fallback. I will keep the PNG fallback (some old browsers need it) but verify nothing else preloads or links the PNG directly. No-op if it's already only used as fallback.
 
-Checks:
-1. No horizontal page scroll (tables scroll inside their wrapper instead).
-2. All buttons/icons ≥44px tap targets.
-3. Inputs do not trigger iOS zoom (≥16px font).
-4. Section headers, KPI cards, and dialogs fit screen with comfortable padding.
-5. Resize back to 1280px+ — desktop is visually unchanged (spot check dashboard + transactions list).
+### 6. Don't touch the rest
+
+I am explicitly **not** doing these because the data does not support them:
+- Splitting `src/styles.css` — Tailwind v4 already tree-shakes utilities; the @layer component blocks are used app-wide. Risk > reward.
+- Rewriting routes for code-splitting — TanStack Start auto-splits route components by default (see `<tanstack-code-splitting>`). It's already optimal.
+- Adding image transformer / sharp — overkill for the few brand assets we have.
+- Upgrading Lovable Cloud compute — TTFB issue is dev-server cold start, not DB load.
+
+---
+
+### Files I'll change
+
+- `src/routes/__root.tsx` — slimmer Google Fonts URL, add `fetchpriority: "high"` to icon preload.
+- `src/routes/index.tsx` — replace `motion.div` with CSS-animated `<div>`s, drop `framer-motion` import.
+- `public/_headers` (new) — long-cache rule for `/brand/*`, icons, favicons.
+
+### How I'll verify
+
+After publishing, re-run `browser--performance_profile` against the published URL (`https://dahablibya.com/`), not the preview, and compare FCP, TTFB, and largest-resource size. Numbers from the preview are not a valid benchmark.
