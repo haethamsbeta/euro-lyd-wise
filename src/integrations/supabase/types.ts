@@ -1600,6 +1600,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      sp_withdraw_quote: {
+        Args: { p_account_id: number; p_amount: number }
+        Returns: {
+          account_id: number
+          allowed: boolean
+          amount: number
+          available_credit: number
+          available_to_withdraw: number
+          balance: number
+          balance_limit: number
+          credit_limit: number
+          credit_used: number
+          currency_code: string
+          reason: string
+          shortfall: number
+          spendable_balance: number
+          use_balance: number
+          use_credit: number
+        }[]
+      }
     }
     Enums: {
       account_kind: "customer" | "vault"
