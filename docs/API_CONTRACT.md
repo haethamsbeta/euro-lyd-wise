@@ -1,5 +1,9 @@
 # DAHAB — API Contract
 
+> Machine-readable spec lives at [`docs/backend/openapi.yaml`](./backend/openapi.yaml).
+> Includes auth/passkey flows, the new `/holder-accounts/{id}/limits` and
+> `/holder-accounts/{id}/withdraw-quote` surface, and per-operation `x-roles`.
+
 The frontend must NEVER talk to RDS directly. All access goes through this
 HTTPS API. Every endpoint requires a Cognito (or compatible) JWT in
 `Authorization: Bearer <token>` unless flagged Public.
