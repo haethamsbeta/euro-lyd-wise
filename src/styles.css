@@ -756,12 +756,8 @@ html.theme-night .surface-cream {
   html.theme-night ::-webkit-scrollbar-thumb:hover { background: var(--gold-deep); }
   html.theme-night ::selection { background: var(--gold); color: #14181F; }
 
-  /* Make every <h1>/<h2> render in the serif by default for that
-     editorial banking feel — components can override with class names. */
-  html.theme-night h1, html.theme-night h2, html.theme-night h3 {
-    font-family: var(--font-serif);
-    letter-spacing: -0.01em;
-  }
+  /* (h1–h4 already pick up var(--font-serif) from the base layer, so no
+     night-mode override is needed here.) */
 }
 
 /* ──────────────────────────────────────────────────────────────────────
