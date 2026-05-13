@@ -1,48 +1,57 @@
 ## Goal
 
-Make `/app/admin/sandbox-multi-entry` (Composite Journal Entry) the single visible sandbox test destination. Leave the existing **Sandbox Transactions** page (`/app/admin/test-sandbox`) untouched per your instruction.
+Polish the phone experience (≈320–430px) of the existing DAHAB web app without changing desktop/tablet visuals, functionality, routes, copy, or business logic.
 
-## Scope (what changes)
+## Approach
 
-Only routing/navigation cleanup. The Composite Journal Entry page itself already implements the full builder/review/posting/ledger/reset flow you described — no rebuild.
+All work is **CSS / responsive className changes only**. No component logic, no route changes, no data changes. Edits are gated to phone widths using Tailwind's `max-sm:` (≤639px) and, where needed, `max-[400px]:` for very small phones. Default and `sm:`/`md:`/`lg:` styles stay untouched, so desktop and tablet renderings are byte-identical.
 
-### 1. Sidebar (`src/components/app/app-shell.tsx`)
-- Change the `Sandbox Test` admin nav item from `/app/admin/sandbox-workspace` → `/app/admin/sandbox-multi-entry`.
-- Keep the separate `Sandbox Transactions` item pointing at `/app/admin/test-sandbox` (untouched).
-- No new sidebar items.
+## Scope of files
 
-### 2. Internal sandbox tab bar (`src/components/app/sandbox-nav.tsx`)
-- Remove the `Workspace`, `Multi-Transaction`, and `Ledger Entries` tabs. Since Composite Journal Entry has its own internal Composite Entry / Transaction Posting toggle, the cross-page tab bar isn't needed anymore.
-- Either delete the `<SandboxNav />` rendering on the remaining sandbox pages or strip it down so users don't see the old multi-page choice. The consumer selector / reset workspace / sandbox-mode banner currently inside `SandboxNav` are only used by the legacy workspace pages, so they can be dropped from the multi-entry page (which already has its own sandbox banner and reset).
+1. **`src/styles.css`** — add a small mobile-only block at the end (inside a `@media (max-width: 640px)` query) covering:
+   - Base font smoothing & `font-size: 15px` on `html` for comfortable reading; `line-height` bump on body copy.
+   - Prevent horizontal scroll: `html, body { overflow-x: hidden; }` and `img, svg, video { max-width: 100%; height: auto; }`.
+   - Form controls: minimum `font-size: 16px` on `input, select, textarea` to stop iOS zoom-on-focus.
+   - Tap target floor: `button, [role="button"], a.btn, .tap` get `min-height: 44px`.
+   - Card / section spacing: `.card-futur` reduced inner padding (`p-4` equivalent), section vertical rhythm tightened.
+   - Dialog/Sheet: full-width with safe-area insets (`padding-inline: max(env(safe-area-inset-left), 12px)` etc.), bottom sheets respect `env(safe-area-inset-bottom)`.
+   - Tables: enable horizontal scroll wrapper (`.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }`) for any tables already wrapped; add a fallback rule to make raw `<table>` scrollable inside `.card-futur`.
+   - Bottom dock: respect safe-area inset bottom; add `padding-bottom: env(safe-area-inset-bottom)` and bump z-index spacing on main content (`main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }` only on mobile when dock is visible).
 
-### 3. Legacy routes — redirect, don't 404
-Update three route files to immediately redirect to `/app/admin/sandbox-multi-entry`:
-- `src/routes/app.admin.sandbox-workspace.tsx`
-- `src/routes/app.admin.sandbox-ledger.tsx`
-- `src/routes/app.admin.sandbox-multi-transaction.tsx`
+2. **`src/components/app/app-shell.tsx`** — adjust only responsive classes:
+   - Top bar: tighter horizontal padding on mobile (`px-3 sm:px-6`), reduce gap, hide non-essential desktop chrome already conditional.
+   - Mobile sheet/menu trigger: ensure `h-11 w-11` tap size on phones.
+   - Main content wrapper: `px-3 sm:px-6 py-4 sm:py-8` to remove cramped feel.
 
-Each becomes a thin file using TanStack Router's `redirect` in `beforeLoad`:
+3. **`src/components/app/bottom-dock.tsx`** — verify and add `pb-[env(safe-area-inset-bottom)]`, `min-h-[56px]` items, slightly larger icons on phones; raised center button keeps existing visual.
 
-```ts
-export const Route = createFileRoute("/app/admin/sandbox-workspace")({
-  beforeLoad: () => { throw redirect({ to: "/app/admin/sandbox-multi-entry" }); },
-});
-```
+4. **`src/components/app/section-header.tsx`** — stack title/actions vertically on `max-sm:` (`flex-col items-start gap-3 sm:flex-row sm:items-center`), reduce title size to `text-xl sm:text-2xl`.
 
-Old bookmarks land on the Composite Journal Entry page. No broken links.
+5. **`src/components/app/kpi-card.tsx`** + **`currency-totals-strip.tsx`** — switch to single-column / horizontal-scroll on mobile (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`, or `flex overflow-x-auto snap-x` strip), keep desktop grid identical.
 
-### 4. Composite Journal Entry page
-No changes. The existing `src/routes/app.admin.sandbox-multi-entry.tsx` already covers: 50-customer mock data, vaults/payables/receivables for all 6 currencies, dynamic inflows/outflows, locked-currency picker, per-currency balance validation, ledger preview, mandatory review modal, posting simulation with one shared `TXN-XXXXXXX` id, receipt, internal Composite Entry / Transaction Posting Ledger toggle, posted detail view, reset, examples, and the backend-ready service shims.
+6. **Tables on data-heavy pages** (`app.transactions.index.tsx`, `app.holders.index.tsx`, `app.accounts.index.tsx`, `app.vaults.index.tsx`, `app.audit.tsx`, `app.approvals.tsx`, `app.users.tsx`) — wrap the existing `<Table>` in a `<div className="table-wrap -mx-3 sm:mx-0 px-3 sm:px-0">` to enable horizontal scroll without altering columns. No column hiding, no row template changes.
 
-If `<SandboxNav />` is currently rendered at the top of that page, remove that import/render so the legacy cross-tab UI no longer appears.
+7. **Dialogs** (`src/components/ui/dialog.tsx`, `sheet.tsx`, `drawer.tsx`) — add `max-sm:w-[calc(100vw-1rem)] max-sm:rounded-xl max-sm:p-4` to content; preserve desktop sizing.
 
-## Out of scope
-- `/app/admin/test-sandbox` (Sandbox Transactions) — not touched.
-- All non-sandbox pages, design system, auth, production ledger, RDS wiring.
-- No new routes, no separate ledger/posting routes, no new sidebar entries.
+8. **Forms / wizard** (`new-transaction-wizard.tsx`, `holders.new.tsx`, login pages) — only className tweaks: `grid-cols-1 sm:grid-cols-2`, larger input height on phones (`max-sm:h-11`), full-width primary CTAs on mobile (`w-full sm:w-auto`).
 
-## Acceptance
-- Clicking `Sandbox Test` in the sidebar lands directly on Composite Journal Entry.
-- Visiting `/app/admin/sandbox-workspace`, `/app/admin/sandbox-ledger`, or `/app/admin/sandbox-multi-transaction` immediately redirects there.
-- No visible Workspace / Multi-Transaction / Ledger Entries tabs anywhere.
-- `Sandbox Transactions` menu entry and page still work exactly as today.
+9. **Global search & notification bell triggers** — `h-11 w-11` on phones for comfortable tap.
+
+## Out of scope (not touched)
+
+- Mobile customer app under `/m/*` and `src/components/mobile/*` (already a dedicated phone UI).
+- Any desktop-only or `sm:`+ classes (only adding/adjusting `max-sm:` / mobile-first base where currently cramped).
+- Backend, auth, routing, copy, i18n strings, icons, color tokens.
+- The `/app/admin/sandbox-multi-entry`, `/app/admin/test-sandbox`, and other sandbox pages logic — only the same generic table/dialog/section-header wrapper polish applies.
+
+## Verification
+
+After edits, open the preview at 375×812 and 414×896 and confirm on:
+- `/app` dashboard, `/app/transactions`, `/app/holders`, `/app/accounts`, `/app/vaults`, `/app/approvals`, `/app/users`, login.
+
+Checks:
+1. No horizontal page scroll (tables scroll inside their wrapper instead).
+2. All buttons/icons ≥44px tap targets.
+3. Inputs do not trigger iOS zoom (≥16px font).
+4. Section headers, KPI cards, and dialogs fit screen with comfortable padding.
+5. Resize back to 1280px+ — desktop is visually unchanged (spot check dashboard + transactions list).
