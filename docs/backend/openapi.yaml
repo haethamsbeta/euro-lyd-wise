@@ -52,25 +52,44 @@ servers:
 security:
   - bearerAuth: []
 tags:
-  - { name: auth,         description: Login, logout, passkeys, password reset, current user. }
-  - { name: dashboard,    description: Aggregated KPIs for staff/teller/auditor home screens. }
-  - { name: holders,      description: Account holders (customers) — search, create, link accounts. }
-  - { name: accounts,     description: Holder accounts (per-currency wallets) — balance, ledger, limits. }
-  - { name: transactions, description: Cash deposits, withdrawals, corrections. }
-  - { name: approvals,    description: Pending tx approvals (admin queue). }
-  - { name: vaults,       description: Internal cash/bank vaults, FX rates, vault targets. }
-  - { name: groups,       description: Account groups (cohorts of holder accounts). }
-  - { name: imports,      description: Excel import batches and review queue. }
-  - { name: reports,      description: Business, cash-flow, approval-speed, liquidity, compliance reports. }
-  - { name: audit,        description: Append-only audit log. }
-  - { name: me,           description: Current-user notifications, preferences, recent activity. }
-  - { name: admin,        description: Admin-only configuration (branches, FX rates, users, vault targets, push). }
-  - { name: portal,       description: Customer-facing read-only endpoints (consumer role). }
-  - { name: push,         description: Web-push subscriptions and test sends. }
-  - { name: 'role:admin',    description: Requires admin role. }
-  - { name: 'role:teller',   description: Requires teller role. }
-  - { name: 'role:auditor',  description: Requires auditor role. }
-  - { name: 'role:consumer', description: Requires consumer role (portal). }
+  - name: auth
+    description: "Login, logout, passkeys, password reset, current user."
+  - name: dashboard
+    description: "Aggregated KPIs for staff/teller/auditor home screens."
+  - name: holders
+    description: "Account holders (customers): search, create, link accounts."
+  - name: accounts
+    description: "Holder accounts (per-currency wallets): balance, ledger, limits."
+  - name: transactions
+    description: "Cash deposits, withdrawals, and corrections."
+  - name: approvals
+    description: "Pending transaction approvals (admin queue)."
+  - name: vaults
+    description: "Internal cash/bank vaults, FX rates, and vault targets."
+  - name: groups
+    description: "Account groups (cohorts of holder accounts)."
+  - name: imports
+    description: "Excel import batches and the review queue."
+  - name: reports
+    description: "Business, cash-flow, approval-speed, liquidity, and compliance reports."
+  - name: audit
+    description: "Append-only audit log."
+  - name: me
+    description: "Current-user notifications, preferences, and recent activity."
+  - name: admin
+    description: "Admin-only configuration: branches, FX rates, users, vault targets, push."
+  - name: portal
+    description: "Customer-facing read-only endpoints (consumer role)."
+  - name: push
+    description: "Web-push subscriptions and test sends."
+  - name: 'role:admin'
+    description: "Requires admin role."
+  - name: 'role:teller'
+    description: "Requires teller role."
+  - name: 'role:auditor'
+    description: "Requires auditor role."
+  - name: 'role:consumer'
+    description: "Requires consumer role (portal)."
 
 components:
   securitySchemes:
