@@ -128,8 +128,7 @@ export function AppShell() {
   const visibleNav = NAV.filter(
     (i) =>
       hasAnyRole(effectiveRoles, i.roles) &&
-      (i.to.startsWith("/app/admin/test-sandbox") ||
-       i.to.startsWith("/app/admin/sandbox")
+      (i.to.startsWith("/app/admin/test-sandbox")
         ? showMasterTools
         : true),
   );
