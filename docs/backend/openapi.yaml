@@ -651,9 +651,14 @@ paths:
       tags: [auth]
       security: []
       summary: AUTH-1 Email/password login
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, password], properties: { email: { type: string, format: email }, password: { type: string, minLength: 8 } } } } } }
+      x-roles: [public]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /api/auth/refresh: { post: { tags: [auth], security: [], summary: AUTH-2, responses: { '200': { description: OK } } } }
@@ -666,6 +671,39 @@ paths:
       tags: [auth]
       summary: AUTH-7 Current user
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthMe' } } } } }
+
+  /api/auth/passkey/register/start:
+    post:
+      tags: [auth]
+      summary: AUTH-8 WebAuthn passkey enrollment — request challenge
+      x-roles: [admin, teller, auditor, consumer]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PasskeyChallenge' } } } }
+  /api/auth/passkey/register/finish:
+    post:
+      tags: [auth]
+      summary: AUTH-9 WebAuthn passkey enrollment — submit attestation
+      x-roles: [admin, teller, auditor, consumer]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasskeyAttestation' } } } }
+      responses: { '200': { description: OK } }
+  /api/auth/passkey/login/start:
+    post:
+      tags: [auth]
+      security: []
+      summary: AUTH-10 WebAuthn passkey login — request challenge (public)
+      x-roles: [public]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { email: { type: string, format: email, nullable: true } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PasskeyChallenge' } } } }
+  /api/auth/passkey/login/finish:
+    post:
+      tags: [auth]
+      security: []
+      summary: AUTH-11 WebAuthn passkey login — submit assertion (public)
+      x-roles: [public]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PasskeyAttestation' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } } }
 
   /api/dashboard/staff:
     get:
