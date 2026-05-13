@@ -290,30 +290,8 @@ function AccountDetail() {
           </CardContent>
         </Card>
 
-        {/* Withdrawal Limits */}
-        {isAdmin ? (
-          <WithdrawLimitsCard account={a} utilPct={utilPct} utilTone={utilTone} />
-        ) : (
-          <Card className="card-luxe">
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Withdrawal limit</div>
-              <div className="mt-1 font-mono text-base">
-                {wlEnabled ? fmt(wlAmount, currency) : <span className="text-muted-foreground">Not set</span>}
-              </div>
-              {wlEnabled ? (
-                <div className="mt-3">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-card/60">
-                    <div className={cn("h-full transition-all", utilTone)} style={{ width: `${utilPct}%` }} />
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{utilPct}% used</div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Credit / Debit limits (admin) */}
-        {isAdmin ? <LimitsCard account={a} /> : null}
+        {/* Account Limits (Balance limit + Credit limit) */}
+        <AccountLimitsCard account={a} isAdmin={isAdmin} />
 
         {/* Transactions */}
         <TransactionsTable rows={ledger} loading={ledgerQ.isLoading} currency={currency} accountId={String(accountId)} />
@@ -620,5 +598,151 @@ function Th({ label, k, sortKey, sortDir, onClick, className }: { label: string;
         {label} {active ? (sortDir === "asc" ? "↑" : "↓") : ""}
       </button>
     </th>
+  );
+}
+
+function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolean }) {
+  const qc = useQueryClient();
+  const currency = account.currency_code;
+  const accountId = account.id;
+
+  const limitsQ = useQuery({
+    queryKey: ["account.limits", accountId],
+    enabled: !!accountId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("sp_account_limits", { p_account_id: accountId });
+      if (error) throw error;
+      const row: any = Array.isArray(data) ? data[0] : data;
+      return row ?? null;
+    },
+  });
+
+  const snap = limitsQ.data;
+  const balance = Number(snap?.balance ?? account.current_balance ?? 0);
+  const balanceLimit = Number(snap?.balance_limit ?? account.balance_limit ?? 0);
+  const creditLimit = Number(snap?.credit_limit ?? account.credit_limit ?? 0);
+  const creditUsed = Number(snap?.credit_used ?? account.credit_used ?? 0);
+  const spendable = Number(snap?.spendable_balance ?? Math.max(balance - balanceLimit, 0));
+  const availCredit = Number(snap?.available_credit ?? Math.max(creditLimit - creditUsed, 0));
+  const availWithdraw = Number(snap?.available_to_withdraw ?? spendable + availCredit);
+  const overLimit = !!snap?.over_limit || creditUsed > creditLimit;
+
+  const [editing, setEditing] = useState(false);
+  const [bl, setBl] = useState(String(balanceLimit));
+  const [cl, setCl] = useState(String(creditLimit));
+  useEffect(() => {
+    setBl(String(balanceLimit));
+    setCl(String(creditLimit));
+  }, [balanceLimit, creditLimit, accountId]);
+
+  const blNum = Number(bl);
+  const clNum = Number(cl);
+  const blInvalid = !Number.isFinite(blNum) || blNum < 0;
+  const clInvalid = !Number.isFinite(clNum) || clNum < 0;
+  const invalid = blInvalid || clInvalid;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("sp_set_account_limits", {
+        p_account_id: accountId,
+        p_balance_limit: blNum,
+        p_credit_limit: clNum,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Limits updated", { duration: 2500 });
+      qc.invalidateQueries({ queryKey: ["account.limits", accountId] });
+      qc.invalidateQueries({ queryKey: ["account.detail", accountId] });
+      setEditing(false);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to update limits"),
+  });
+
+  return (
+    <Card className="card-luxe">
+      <CardContent className="p-4 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Limits · {currency}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">Balance limit protects a minimum customer balance. Credit limit adds revolving capacity beyond the spendable balance.</div>
+          </div>
+          {isAdmin && !editing ? (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              <Pencil className="h-3.5 w-3.5 me-1" /> Edit
+            </Button>
+          ) : null}
+          {isAdmin && editing ? (
+            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBl(String(balanceLimit)); setCl(String(creditLimit)); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
+
+        {isAdmin && editing ? (
+          <div className="grid gap-3 sm:grid-cols-2 border-t border-gold/15 pt-4">
+            <div>
+              <label className="block text-xs text-muted-foreground">Balance limit ({currency})</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={bl}
+                onChange={(e) => setBl(e.target.value)}
+                className={cn("mt-1", blInvalid && "border-destructive")}
+              />
+              {blInvalid ? <div className="mt-1 text-[11px] text-destructive">Must be 0 or greater.</div> : (
+                <div className="mt-1 text-[11px] text-muted-foreground">Minimum balance to protect before credit is used.</div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Credit limit ({currency})</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={cl}
+                onChange={(e) => setCl(e.target.value)}
+                className={cn("mt-1", clInvalid && "border-destructive")}
+              />
+              {clInvalid ? <div className="mt-1 text-[11px] text-destructive">Must be 0 or greater.</div> : (
+                <div className="mt-1 text-[11px] text-muted-foreground">Extra amount this customer can withdraw beyond spendable balance.</div>
+              )}
+            </div>
+            <div className="sm:col-span-2 flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setBl(String(balanceLimit)); setCl(String(creditLimit)); }}>Cancel</Button>
+              <Button size="sm" variant="gold" onClick={() => save.mutate()} disabled={save.isPending || invalid}>
+                <Check className="h-3.5 w-3.5 me-1" /> Save changes
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 border-t border-gold/15 pt-4">
+          <SummaryStat label="Current balance" value={fmt(balance, currency)} />
+          <SummaryStat label="Balance limit" value={fmt(balanceLimit, currency)} />
+          <SummaryStat label="Spendable balance" value={fmt(spendable, currency)} tone="success" />
+          <SummaryStat label="Credit limit" value={fmt(creditLimit, currency)} />
+          <SummaryStat label="Credit used" value={fmt(creditUsed, currency)} tone={overLimit ? "danger" : "default"} />
+          <SummaryStat label="Available credit" value={fmt(availCredit, currency)} />
+          <SummaryStat label="Available to withdraw" value={fmt(availWithdraw, currency)} tone={overLimit ? "danger" : "success"} />
+          {overLimit ? (
+            <div className="sm:col-span-2 lg:col-span-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+              This account is over its credit limit and cannot withdraw until corrected.
+            </div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SummaryStat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "success" | "danger" }) {
+  const toneCls = tone === "success" ? "text-[var(--success)]" : tone === "danger" ? "text-destructive" : "text-foreground";
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 font-mono text-sm", toneCls)}>{value}</div>
+    </div>
   );
 }
