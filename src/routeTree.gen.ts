@@ -48,6 +48,7 @@ import { Route as AppAdminTestSandboxRouteImport } from './routes/app.admin.test
 import { Route as AppAdminSandboxWorkspaceRouteImport } from './routes/app.admin.sandbox-workspace'
 import { Route as AppAdminSandboxMultiTransactionRouteImport } from './routes/app.admin.sandbox-multi-transaction'
 import { Route as AppAdminSandboxMultiEntryRouteImport } from './routes/app.admin.sandbox-multi-entry'
+import { Route as AppAdminSandboxLedgerRouteImport } from './routes/app.admin.sandbox-ledger'
 import { Route as AppAdminFxRatesRouteImport } from './routes/app.admin.fx-rates'
 import { Route as AppAdminBranchesRouteImport } from './routes/app.admin.branches'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
@@ -256,6 +257,11 @@ const AppAdminSandboxMultiEntryRoute =
     path: '/admin/sandbox-multi-entry',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminSandboxLedgerRoute = AppAdminSandboxLedgerRouteImport.update({
+  id: '/admin/sandbox-ledger',
+  path: '/admin/sandbox-ledger',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminFxRatesRoute = AppAdminFxRatesRouteImport.update({
   id: '/admin/fx-rates',
   path: '/admin/fx-rates',
@@ -323,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-ledger': typeof AppAdminSandboxLedgerRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
@@ -369,6 +376,7 @@ export interface FileRoutesByTo {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-ledger': typeof AppAdminSandboxLedgerRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
@@ -419,6 +427,7 @@ export interface FileRoutesById {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-ledger': typeof AppAdminSandboxLedgerRoute
   '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/sandbox-multi-transaction': typeof AppAdminSandboxMultiTransactionRoute
   '/app/admin/sandbox-workspace': typeof AppAdminSandboxWorkspaceRoute
@@ -470,6 +479,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-ledger'
     | '/app/admin/sandbox-multi-entry'
     | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-ledger'
     | '/app/admin/sandbox-multi-entry'
     | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
@@ -565,6 +576,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-ledger'
     | '/app/admin/sandbox-multi-entry'
     | '/app/admin/sandbox-multi-transaction'
     | '/app/admin/sandbox-workspace'
@@ -880,6 +892,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSandboxMultiEntryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/sandbox-ledger': {
+      id: '/app/admin/sandbox-ledger'
+      path: '/admin/sandbox-ledger'
+      fullPath: '/app/admin/sandbox-ledger'
+      preLoaderRoute: typeof AppAdminSandboxLedgerRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/admin/fx-rates': {
       id: '/app/admin/fx-rates'
       path: '/admin/fx-rates'
@@ -979,6 +998,7 @@ interface AppRouteChildren {
   AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppAdminBranchesRoute: typeof AppAdminBranchesRoute
   AppAdminFxRatesRoute: typeof AppAdminFxRatesRoute
+  AppAdminSandboxLedgerRoute: typeof AppAdminSandboxLedgerRoute
   AppAdminSandboxMultiEntryRoute: typeof AppAdminSandboxMultiEntryRoute
   AppAdminSandboxMultiTransactionRoute: typeof AppAdminSandboxMultiTransactionRoute
   AppAdminSandboxWorkspaceRoute: typeof AppAdminSandboxWorkspaceRoute
@@ -1011,6 +1031,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountsIdRoute: AppAccountsIdRoute,
   AppAdminBranchesRoute: AppAdminBranchesRoute,
   AppAdminFxRatesRoute: AppAdminFxRatesRoute,
+  AppAdminSandboxLedgerRoute: AppAdminSandboxLedgerRoute,
   AppAdminSandboxMultiEntryRoute: AppAdminSandboxMultiEntryRoute,
   AppAdminSandboxMultiTransactionRoute: AppAdminSandboxMultiTransactionRoute,
   AppAdminSandboxWorkspaceRoute: AppAdminSandboxWorkspaceRoute,
