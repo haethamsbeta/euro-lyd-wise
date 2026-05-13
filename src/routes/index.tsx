@@ -22,6 +22,43 @@ export const Route = createFileRoute("/")({
         content:
           "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability.",
       },
+      { property: "og:title", content: "Dahab — Private Banking Ledger" },
+      { property: "og:description", content: "Multi-currency private banking for families and businesses in Libya, with double-entry precision and full audit trails." },
+      { property: "og:url", content: "https://dahablibya.com/" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://dahablibya.com/" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: "Dahab",
+              alternateName: "ذهب",
+              url: "https://dahablibya.com/",
+              description: "Private banking ledger for families and businesses in Libya.",
+            },
+            {
+              "@type": "FinancialService",
+              name: "Dahab — Private Banking",
+              url: "https://dahablibya.com/",
+              areaServed: "LY",
+              currenciesAccepted: "LYD, USD, EUR, GBP",
+              description: "Multi-currency accounts, vault custody, and audited transaction posting.",
+            },
+            {
+              "@type": "WebSite",
+              name: "Dahab",
+              url: "https://dahablibya.com/",
+            },
+          ],
+        }),
+      },
     ],
   }),
 });
