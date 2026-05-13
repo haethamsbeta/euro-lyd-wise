@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/m/")({
   component: MobileWelcome,
-  head: () => ({ meta: [{ title: "DAHAM — Banking with the strength of gold" }] }),
+  head: () => ({ meta: [{ title: "DAHAB — Banking with the strength of gold" }] }),
 });
 
 function MobileWelcome() {
@@ -14,7 +14,7 @@ function MobileWelcome() {
         <DahamLogo size={132} />
         <div className="mt-6 text-center">
           <div className="font-serif text-4xl tracking-[0.35em] text-foreground">دهــــم</div>
-          <div className="mt-2 text-2xl font-semibold tracking-[0.4em] gold-text">DAHAM</div>
+          <div className="mt-2 text-2xl font-semibold tracking-[0.4em] gold-text">DAHAB</div>
           <div className="mt-3 text-sm text-foreground/80">شركة دهــم للخدمات الماليـة</div>
           <div className="text-xs text-muted-foreground">Dahab Financial Services Company</div>
         </div>
