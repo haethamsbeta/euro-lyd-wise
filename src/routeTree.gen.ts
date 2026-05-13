@@ -45,6 +45,7 @@ import { Route as AppHoldersNewRouteImport } from './routes/app.holders.new'
 import { Route as AppHoldersIdRouteImport } from './routes/app.holders.$id'
 import { Route as AppGroupsIdRouteImport } from './routes/app.groups.$id'
 import { Route as AppAdminTestSandboxRouteImport } from './routes/app.admin.test-sandbox'
+import { Route as AppAdminSandboxMultiEntryRouteImport } from './routes/app.admin.sandbox-multi-entry'
 import { Route as AppAdminFxRatesRouteImport } from './routes/app.admin.fx-rates'
 import { Route as AppAdminBranchesRouteImport } from './routes/app.admin.branches'
 import { Route as AppAccountsIdRouteImport } from './routes/app.accounts.$id'
@@ -235,6 +236,12 @@ const AppAdminTestSandboxRoute = AppAdminTestSandboxRouteImport.update({
   path: '/admin/test-sandbox',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminSandboxMultiEntryRoute =
+  AppAdminSandboxMultiEntryRouteImport.update({
+    id: '/admin/sandbox-multi-entry',
+    path: '/admin/sandbox-multi-entry',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminFxRatesRoute = AppAdminFxRatesRouteImport.update({
   id: '/admin/fx-rates',
   path: '/admin/fx-rates',
@@ -302,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -345,6 +353,7 @@ export interface FileRoutesByTo {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -392,6 +401,7 @@ export interface FileRoutesById {
   '/app/accounts/$id': typeof AppAccountsIdRoute
   '/app/admin/branches': typeof AppAdminBranchesRoute
   '/app/admin/fx-rates': typeof AppAdminFxRatesRoute
+  '/app/admin/sandbox-multi-entry': typeof AppAdminSandboxMultiEntryRoute
   '/app/admin/test-sandbox': typeof AppAdminTestSandboxRoute
   '/app/groups/$id': typeof AppGroupsIdRoute
   '/app/holders/$id': typeof AppHoldersIdRoute
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-multi-entry'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-multi-entry'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -529,6 +541,7 @@ export interface FileRouteTypes {
     | '/app/accounts/$id'
     | '/app/admin/branches'
     | '/app/admin/fx-rates'
+    | '/app/admin/sandbox-multi-entry'
     | '/app/admin/test-sandbox'
     | '/app/groups/$id'
     | '/app/holders/$id'
@@ -820,6 +833,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminTestSandboxRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/sandbox-multi-entry': {
+      id: '/app/admin/sandbox-multi-entry'
+      path: '/admin/sandbox-multi-entry'
+      fullPath: '/app/admin/sandbox-multi-entry'
+      preLoaderRoute: typeof AppAdminSandboxMultiEntryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/admin/fx-rates': {
       id: '/app/admin/fx-rates'
       path: '/admin/fx-rates'
@@ -919,6 +939,7 @@ interface AppRouteChildren {
   AppAccountsIdRoute: typeof AppAccountsIdRoute
   AppAdminBranchesRoute: typeof AppAdminBranchesRoute
   AppAdminFxRatesRoute: typeof AppAdminFxRatesRoute
+  AppAdminSandboxMultiEntryRoute: typeof AppAdminSandboxMultiEntryRoute
   AppAdminTestSandboxRoute: typeof AppAdminTestSandboxRoute
   AppGroupsIdRoute: typeof AppGroupsIdRoute
   AppHoldersIdRoute: typeof AppHoldersIdRoute
@@ -948,6 +969,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountsIdRoute: AppAccountsIdRoute,
   AppAdminBranchesRoute: AppAdminBranchesRoute,
   AppAdminFxRatesRoute: AppAdminFxRatesRoute,
+  AppAdminSandboxMultiEntryRoute: AppAdminSandboxMultiEntryRoute,
   AppAdminTestSandboxRoute: AppAdminTestSandboxRoute,
   AppGroupsIdRoute: AppGroupsIdRoute,
   AppHoldersIdRoute: AppHoldersIdRoute,
@@ -1007,3 +1029,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
