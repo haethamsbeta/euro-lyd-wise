@@ -290,30 +290,8 @@ function AccountDetail() {
           </CardContent>
         </Card>
 
-        {/* Withdrawal Limits */}
-        {isAdmin ? (
-          <WithdrawLimitsCard account={a} utilPct={utilPct} utilTone={utilTone} />
-        ) : (
-          <Card className="card-luxe">
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Withdrawal limit</div>
-              <div className="mt-1 font-mono text-base">
-                {wlEnabled ? fmt(wlAmount, currency) : <span className="text-muted-foreground">Not set</span>}
-              </div>
-              {wlEnabled ? (
-                <div className="mt-3">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-card/60">
-                    <div className={cn("h-full transition-all", utilTone)} style={{ width: `${utilPct}%` }} />
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{utilPct}% used</div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Credit / Debit limits (admin) */}
-        {isAdmin ? <LimitsCard account={a} /> : null}
+        {/* Account Limits (Balance limit + Credit limit) */}
+        <AccountLimitsCard account={a} isAdmin={isAdmin} />
 
         {/* Transactions */}
         <TransactionsTable rows={ledger} loading={ledgerQ.isLoading} currency={currency} accountId={String(accountId)} />
