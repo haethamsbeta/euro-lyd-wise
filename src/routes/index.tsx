@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
 import {
   Building2,
   User,
@@ -63,18 +62,9 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.05 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0 },
-};
+// Lightweight CSS-driven stagger so the landing page doesn't ship framer-motion.
+const fadeUp = "animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-500";
+const stagger = (i: number) => ({ animationDelay: `${50 + i * 100}ms` });
 
 function Index() {
   return (
@@ -94,16 +84,11 @@ function Index() {
         </svg>
       </div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-          className="relative z-10 flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-10"
-      >
+      <div className="relative z-10 flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-10">
         {/* Header */}
-        <motion.header
-          variants={itemVariants}
-          className="mx-auto flex w-full max-w-7xl items-center justify-between"
+        <header
+          className={`mx-auto flex w-full max-w-7xl items-center justify-between ${fadeUp}`}
+          style={stagger(0)}
         >
           <Link to="/" aria-label="Dahab — Home" className="flex items-center gap-3">
             <DahabCoin />
@@ -118,11 +103,11 @@ function Index() {
             </div>
             <LanguageToggle />
           </div>
-        </motion.header>
+        </header>
 
         {/* Hero */}
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center py-8 sm:py-16">
-          <motion.div variants={itemVariants} className="mb-8 sm:mb-14 text-center">
+          <div className={`mb-8 sm:mb-14 text-center ${fadeUp}`} style={stagger(1)}>
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.08)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
               <Sparkles className="h-3 w-3" /> Welcome to Dahab
             </span>
@@ -135,12 +120,12 @@ function Index() {
               Choose the experience that fits you — for our families and
               businesses, or for our staff who serve them.
             </p>
-          </motion.div>
+          </div>
 
           {/* Choice cards */}
-          <motion.div
-            variants={itemVariants}
-            className="grid w-full max-w-4xl gap-4 sm:gap-5 md:grid-cols-2"
+          <div
+            className={`grid w-full max-w-4xl gap-4 sm:gap-5 md:grid-cols-2 ${fadeUp}`}
+            style={stagger(2)}
           >
             {/* Customer Portal */}
             <Link
@@ -219,12 +204,12 @@ function Index() {
                 </div>
               </PremiumCard>
             </Link>
-          </motion.div>
+          </div>
 
           {/* Mobile Teller subtle link */}
-          <motion.div
-            variants={itemVariants}
-            className="mt-6 sm:mt-10 flex items-center justify-center"
+          <div
+            className={`mt-6 sm:mt-10 flex items-center justify-center ${fadeUp}`}
+            style={stagger(3)}
           >
             <Link
               to="/m"
@@ -236,13 +221,13 @@ function Index() {
                 <span className="ms-1 text-gold">Open the field app →</span>
               </span>
             </Link>
-          </motion.div>
+          </div>
         </main>
 
         {/* Footer */}
-        <motion.footer
-          variants={itemVariants}
-          className="mx-auto mt-auto w-full max-w-7xl border-t border-border/40 pt-8"
+        <footer
+          className={`mx-auto mt-auto w-full max-w-7xl border-t border-border/40 pt-8 ${fadeUp}`}
+          style={stagger(4)}
         >
           <div className="flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
             <p>© 2026 Dahab Bank · Member of the Libyan Banking Association</p>
@@ -252,8 +237,8 @@ function Index() {
               <a href="#" className="transition-colors hover:text-gold">Support</a>
             </div>
           </div>
-        </motion.footer>
-      </motion.div>
+        </footer>
+      </div>
     </div>
   );
 }
