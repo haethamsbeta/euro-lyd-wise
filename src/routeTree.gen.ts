@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as MRouteImport } from './routes/m'
@@ -58,6 +59,11 @@ import { Route as AppTransactionsNewDepositRouteImport } from './routes/app.tran
 import { Route as ApiPublicHooksNotificationsTickRouteImport } from './routes/api/public/hooks/notifications-tick'
 import { Route as ApiPublicAdminSeedDemoRouteImport } from './routes/api/public/admin/seed-demo'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -315,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -363,6 +370,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/m': typeof MRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/about': typeof AppAboutRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/audit': typeof AppAuditRoute
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/m'
     | '/portal'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
@@ -513,6 +523,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/portal'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/m'
     | '/portal'
     | '/reset-password'
+    | '/sitemap.xml'
     | '/app/about'
     | '/app/approvals'
     | '/app/audit'
@@ -613,12 +625,20 @@ export interface RootRouteChildren {
   MRoute: typeof MRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPublicAdminSeedDemoRoute: typeof ApiPublicAdminSeedDemoRoute
   ApiPublicHooksNotificationsTickRoute: typeof ApiPublicHooksNotificationsTickRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -1088,6 +1108,7 @@ const rootRouteChildren: RootRouteChildren = {
   MRoute: MRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPublicAdminSeedDemoRoute: ApiPublicAdminSeedDemoRoute,
   ApiPublicHooksNotificationsTickRoute: ApiPublicHooksNotificationsTickRoute,
 }
