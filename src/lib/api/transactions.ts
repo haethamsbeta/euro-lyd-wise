@@ -82,7 +82,11 @@ export const transactionsApi = {
   postCash: (body: PostCashTransactionInput) =>
     apiFetch<Transaction>("/transactions", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        amount_minor: body.amount,
+        amount: body.amount / 100,
+      }),
     }),
   correct: (id: string | number, reason: string) =>
     apiFetch<Transaction>(`/transactions/${id}/correct`, {
