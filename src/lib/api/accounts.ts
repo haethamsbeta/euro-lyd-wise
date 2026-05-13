@@ -53,4 +53,14 @@ export const accountsApi = {
     apiFetch<{ url: string; expires_at: string }>(
       `/holder-accounts/${id}/statement.pdf${qs(range)}`,
     ),
+  limits: (id: string | number) =>
+    apiFetch<any>(`/holder-accounts/${id}/limits`),
+  setLimits: (
+    id: string | number,
+    body: { balance_limit: number; credit_limit: number },
+  ) =>
+    apiFetchEnvelope<any>(`/holder-accounts/${id}/limits`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };
