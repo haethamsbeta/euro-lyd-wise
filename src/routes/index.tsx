@@ -61,7 +61,7 @@ function Index() {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="relative z-10 flex min-h-screen flex-col px-6 py-10"
+          className="relative z-10 flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-10"
       >
         {/* Header */}
         <motion.header
@@ -84,17 +84,17 @@ function Index() {
         </motion.header>
 
         {/* Hero */}
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center py-16">
-          <motion.div variants={itemVariants} className="mb-14 text-center">
+        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center py-8 sm:py-16">
+          <motion.div variants={itemVariants} className="mb-8 sm:mb-14 text-center">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.08)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
               <Sparkles className="h-3 w-3" /> Welcome to Dahab
             </span>
-            <h1 className="font-serif text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-6xl">
+            <h1 className="font-serif text-3xl sm:text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-6xl">
               How would you like
               <br />
               to <span className="italic text-gold-soft">continue?</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
+            <p className="mx-auto mt-4 sm:mt-5 max-w-xl text-sm sm:text-base leading-relaxed text-muted-foreground md:text-lg">
               Choose the experience that fits you — for our families and
               businesses, or for our staff who serve them.
             </p>
@@ -103,7 +103,7 @@ function Index() {
           {/* Choice cards */}
           <motion.div
             variants={itemVariants}
-            className="grid w-full max-w-4xl gap-5 md:grid-cols-2"
+            className="grid w-full max-w-4xl gap-4 sm:gap-5 md:grid-cols-2"
           >
             {/* Customer Portal */}
             <Link
@@ -113,20 +113,20 @@ function Index() {
             >
               <PremiumCard
                 variant="premium"
-                className="h-full p-8 transition-all group-hover:-translate-y-1 group-hover:border-[oklch(0.82_0.14_85/0.5)] group-hover:shadow-[0_12px_48px_oklch(0_0_0/0.5),0_0_80px_oklch(0.82_0.14_85/0.12)]"
+                className="h-full p-6 sm:p-8 transition-all group-hover:-translate-y-1 group-hover:border-[oklch(0.82_0.14_85/0.5)] group-hover:shadow-[0_12px_48px_oklch(0_0_0/0.5),0_0_80px_oklch(0.82_0.14_85/0.12)]"
               >
                 <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[oklch(0.82_0.14_85/0.04)] blur-3xl transition-colors group-hover:bg-[oklch(0.82_0.14_85/0.08)]" />
                 <div className="relative z-10 flex h-full flex-col">
-                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-[oklch(0.82_0.14_85/0.3)] bg-gradient-to-br from-[oklch(0.82_0.14_85/0.3)] via-[oklch(0.55_0.13_72/0.4)] to-card shadow-[0_0_30px_oklch(0.82_0.14_85/0.2)] transition-transform group-hover:scale-105">
+                  <div className="mb-4 sm:mb-6 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl border border-[oklch(0.82_0.14_85/0.3)] bg-gradient-to-br from-[oklch(0.82_0.14_85/0.3)] via-[oklch(0.55_0.13_72/0.4)] to-card shadow-[0_0_30px_oklch(0.82_0.14_85/0.2)] transition-transform group-hover:scale-105">
                     <User className="h-6 w-6 text-gold-soft" />
                   </div>
                   <span className="mb-2 text-[10px] font-medium uppercase tracking-[0.25em] text-gold">
                     For account holders
                   </span>
-                  <h2 className="mb-3 font-serif text-2xl font-semibold text-foreground">
+                  <h2 className="mb-2 sm:mb-3 font-serif text-xl sm:text-2xl font-semibold text-foreground">
                     Customer Portal
                   </h2>
-                  <p className="mb-8 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mb-6 sm:mb-8 flex-1 text-sm leading-relaxed text-muted-foreground">
                     View your accounts, balances, and statements. Send money
                     across currencies and manage your Dahab profile from one
                     place.
@@ -152,20 +152,20 @@ function Index() {
             >
               <PremiumCard
                 variant="premium"
-                className="h-full p-8 transition-all group-hover:-translate-y-1 group-hover:border-[oklch(0.82_0.14_85/0.5)] group-hover:shadow-[0_12px_48px_oklch(0_0_0/0.5),0_0_80px_oklch(0.82_0.14_85/0.12)]"
+                className="h-full p-6 sm:p-8 transition-all group-hover:-translate-y-1 group-hover:border-[oklch(0.82_0.14_85/0.5)] group-hover:shadow-[0_12px_48px_oklch(0_0_0/0.5),0_0_80px_oklch(0.82_0.14_85/0.12)]"
               >
                 <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[oklch(0.82_0.14_85/0.04)] blur-3xl transition-colors group-hover:bg-[oklch(0.82_0.14_85/0.08)]" />
                 <div className="relative z-10 flex h-full flex-col">
-                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-[oklch(0.82_0.14_85/0.3)] bg-gradient-to-br from-[oklch(0.82_0.14_85/0.3)] via-[oklch(0.55_0.13_72/0.4)] to-card shadow-[0_0_30px_oklch(0.82_0.14_85/0.2)] transition-transform group-hover:scale-105">
+                  <div className="mb-4 sm:mb-6 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl border border-[oklch(0.82_0.14_85/0.3)] bg-gradient-to-br from-[oklch(0.82_0.14_85/0.3)] via-[oklch(0.55_0.13_72/0.4)] to-card shadow-[0_0_30px_oklch(0.82_0.14_85/0.2)] transition-transform group-hover:scale-105">
                     <Building2 className="h-6 w-6 text-gold-soft" />
                   </div>
                   <span className="mb-2 text-[10px] font-medium uppercase tracking-[0.25em] text-gold">
                     For Dahab staff
                   </span>
-                  <h2 className="mb-3 font-serif text-2xl font-semibold text-foreground">
+                  <h2 className="mb-2 sm:mb-3 font-serif text-xl sm:text-2xl font-semibold text-foreground">
                     Dahab Family
                   </h2>
-                  <p className="mb-8 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mb-6 sm:mb-8 flex-1 text-sm leading-relaxed text-muted-foreground">
                     Back-office mission control. Manage holders, approve
                     transactions, oversee vaults, and audit every movement
                     across the network.
@@ -187,7 +187,7 @@ function Index() {
           {/* Mobile Teller subtle link */}
           <motion.div
             variants={itemVariants}
-            className="mt-10 flex items-center justify-center"
+            className="mt-6 sm:mt-10 flex items-center justify-center"
           >
             <Link
               to="/m"
