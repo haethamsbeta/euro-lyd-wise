@@ -24,7 +24,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/users")({
-  component: () => <RoleGate allow={["admin"]}><UsersRoute /></RoleGate>,
+  head: () => ({ meta: [{ title: "Users — Dahab" }, { name: "description", content: "Manage Dahab staff users, roles, and access across the back-office." }] }), component: () => <RoleGate allow={["admin"]}><UsersRoute /></RoleGate>,
 });
 
 const ROLES = ["admin", "teller", "auditor", "consumer"] as const;

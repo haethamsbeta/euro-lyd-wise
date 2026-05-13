@@ -34,7 +34,7 @@ const CURRENCY_TINT: Record<string, { ring: string; text: string; gradient: stri
 function tint(c?: string) { return CURRENCY_TINT[(c ?? "").toUpperCase()] ?? CURRENCY_TINT.LYD; }
 function fmt(n: number) { return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
 
-export const Route = createFileRoute("/app/holders/$id")({ component: HolderDetail });
+export const Route = createFileRoute("/app/holders/$id")({ head: () => ({ meta: [{ title: "Holder profile — Dahab" }, { name: "description", content: "View an account holder's accounts, activity, and KYC details." }] }), component: HolderDetail });
 
 type Tab = "Overview" | "Linked Accounts" | "Transactions" | "Activity" | "Notes";
 const TABS: Tab[] = ["Overview", "Linked Accounts", "Transactions", "Activity", "Notes"];

@@ -37,7 +37,7 @@ import { sendTestPushToSelf } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/app/settings/notifications")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Notification settings — Dahab" }, { name: "description", content: "Choose which Dahab events send you in-app or email notifications." }] }), component: () => (
     <RoleGate allow={["admin", "teller", "auditor"]}>
       {DATA_BACKEND === "lambda" ? <NotifSettingsLambdaPending /> : <NotifSettingsPage />}
     </RoleGate>

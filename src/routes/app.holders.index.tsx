@@ -16,7 +16,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 
-export const Route = createFileRoute("/app/holders/")({ component: HoldersList });
+export const Route = createFileRoute("/app/holders/")({ head: () => ({ meta: [{ title: "Account holders — Dahab" }, { name: "description", content: "Browse all Dahab account holders, families, and businesses on file." }] }), component: HoldersList });
 
 function HoldersList() {
   const [q, setQ] = useState("");

@@ -36,7 +36,7 @@ import type { AccountGroup, GroupMember, GroupActivity30d } from "@/lib/api/grou
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/groups/$id")({
-  component: GroupDetailPage,
+  head: () => ({ meta: [{ title: "Group details — Dahab" }, { name: "description", content: "View a customer group's holders, accounts, and shared activity." }] }), component: GroupDetailPage,
   head: () => ({ meta: [{ title: "Group" }] }),
 });
 

@@ -16,7 +16,7 @@ import { formatDateTime } from "@/lib/format";
 import { Plus, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/app/admin/fx-rates")({
-  component: () => <RoleGate allow={["admin"]}><FxRatesPage /></RoleGate>,
+  head: () => ({ meta: [{ title: "FX rates — Dahab admin" }, { name: "description", content: "Configure foreign exchange rates used across Dahab transactions." }] }), component: () => <RoleGate allow={["admin"]}><FxRatesPage /></RoleGate>,
 });
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;

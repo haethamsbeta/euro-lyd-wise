@@ -21,7 +21,7 @@ const LAMBDA_PENDING_MSG =
   "Creating DAHAB Family users requires Lambda user management endpoint (POST /users). This form is disabled until the backend exposes that endpoint.";
 
 export const Route = createFileRoute("/app/users/new-consumer")({
-  component: () => (
+  head: () => ({ meta: [{ title: "New customer user — Dahab" }, { name: "description", content: "Create a new customer-portal user linked to an account holder." }] }), component: () => (
     <RoleGate allow={["admin"]}>
       <NewConsumerPage />
     </RoleGate>

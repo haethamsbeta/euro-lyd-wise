@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/vaults/")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Vaults — Dahab" }, { name: "description", content: "Per-currency vault balances, custody movements, and reconciliation." }] }), component: () => (
     <RoleGate allow={["admin", "auditor"]}>
       <VaultsPage />
     </RoleGate>

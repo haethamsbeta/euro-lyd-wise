@@ -27,7 +27,7 @@ import { ApiError } from "@/lib/dahabApi";
 import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/holders/new")({
-  component: () => (
+  head: () => ({ meta: [{ title: "New account holder — Dahab" }, { name: "description", content: "Onboard a new individual or business account holder into Dahab." }] }), component: () => (
     <RoleGate allow={["admin"]}>
       <NewHolderPage />
     </RoleGate>

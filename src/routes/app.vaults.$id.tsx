@@ -30,7 +30,7 @@ import { isTestRow } from "@/lib/api/_shared";
 import { useShowMasterTools } from "@/lib/admin-mode";
 
 export const Route = createFileRoute("/app/vaults/$id")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Vault details — Dahab" }, { name: "description", content: "Live balance, recent movements, and audit for a single Dahab vault." }] }), component: () => (
     <RoleGate allow={["admin", "auditor"]}>
       <VaultDetail />
     </RoleGate>

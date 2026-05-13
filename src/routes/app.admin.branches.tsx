@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Plus, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/app/admin/branches")({
-  component: () => <RoleGate allow={["admin"]}><BranchesPage /></RoleGate>,
+  head: () => ({ meta: [{ title: "Branches — Dahab admin" }, { name: "description", content: "Manage Dahab branches, locations, and operational settings." }] }), component: () => <RoleGate allow={["admin"]}><BranchesPage /></RoleGate>,
 });
 
 function BranchesPage() {
