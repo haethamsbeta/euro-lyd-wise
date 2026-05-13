@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { apiFetch, ApiError } from "@/lib/dahabApi";
+import { SandboxNav } from "@/components/app/sandbox-nav";
 
 export const Route = createFileRoute("/app/admin/sandbox-multi-entry")({
   component: SandboxMultiEntryPage,
@@ -276,13 +277,8 @@ function SandboxMultiEntryPage() {
 
   return (
     <div className="pb-32">
-      {/* SANDBOX BANNER */}
-      <div className="max-w-6xl mx-auto mb-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-        <Beaker className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
-        <div className="text-sm font-medium text-amber-300">
-          SANDBOX ONLY — No production balances affected.
-        </div>
-      </div>
+      {/* Shared sandbox header: banner + consumer picker + tabs */}
+      <SandboxNav />
 
       {/* Breadcrumb + Title */}
       <div className="max-w-6xl mx-auto space-y-3 mb-6">
