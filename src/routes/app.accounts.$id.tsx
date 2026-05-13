@@ -608,7 +608,7 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
 
   const limitsQ = useQuery({
     queryKey: ["account.limits", accountId],
-    enabled: !!accountId,
+    enabled: !!accountId && DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("sp_account_limits", { p_account_id: accountId });
       if (error) throw error;
@@ -643,6 +643,9 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
 
   const save = useMutation({
     mutationFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        throw new Error("Editing limits via the Lambda backend isn't wired up yet.");
+      }
       const { error } = await supabase.rpc("sp_set_account_limits", {
         p_account_id: accountId,
         p_balance_limit: blNum,
