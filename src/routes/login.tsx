@@ -28,7 +28,15 @@ export const Route = createFileRoute("/login")({
     lock: s.lock === 1 || s.lock === "1" || s.lock === true ? 1 : undefined,
   }),
   component: LoginPage,
-  head: () => ({ meta: [{ title: "Sign in — Dahab" }] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in — Dahab" },
+      { name: "description", content: "Sign in to Dahab — access your customer portal or the staff back-office for our private banking ledger." },
+      { property: "og:title", content: "Sign in — Dahab" },
+      { property: "og:description", content: "Sign in to your Dahab customer portal or staff back-office." },
+      { property: "og:url", content: "https://dahablibya.com/login" },
+    ],
+  }),
 });
 
 const credSchema = z.object({
