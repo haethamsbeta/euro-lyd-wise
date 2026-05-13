@@ -22,7 +22,7 @@ import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
-type Currency = "USD" | "EUR" | "LYD";
+type Currency = "USD" | "EUR" | "LYD" | "GBP";
 
 type HolderCardHit = {
   holder_account_id: string | number;
@@ -125,7 +125,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         const accountItems: any[] = (accountsRes as any)?.items ?? [];
         const holderById = new Map<string | number, any>();
         for (const h of holdersRes as any[]) holderById.set(h.id, h);
-        const allowed = new Set(["USD", "EUR", "LYD"]);
+        const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
         return accountItems
           .filter((r) => allowed.has(String(r.currency_code)))
           .filter((r) =>
