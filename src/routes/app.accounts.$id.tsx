@@ -608,8 +608,12 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
 
   const limitsQ = useQuery({
     queryKey: ["account.limits", accountId],
-    enabled: !!accountId && DATA_BACKEND !== "lambda",
+    enabled: !!accountId,
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r: any = await api.accounts.limits(accountId);
+        return r ?? null;
+      }
       const { data, error } = await supabase.rpc("sp_account_limits", { p_account_id: accountId });
       if (error) throw error;
       const row: any = Array.isArray(data) ? data[0] : data;
@@ -644,7 +648,11 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
   const save = useMutation({
     mutationFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        throw new Error("Editing limits via the Lambda backend isn't wired up yet.");
+        await api.accounts.setLimits(accountId, {
+          balance_limit: blNum,
+          credit_limit: clNum,
+        });
+        return;
       }
       const { error } = await supabase.rpc("sp_set_account_limits", {
         p_account_id: accountId,
@@ -657,6 +665,7 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
       toast.success("Limits updated", { duration: 2500 });
       qc.invalidateQueries({ queryKey: ["account.limits", accountId] });
       qc.invalidateQueries({ queryKey: ["account.detail", accountId] });
+      qc.invalidateQueries({ queryKey: ["accounts.list"] });
       setEditing(false);
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to update limits"),
