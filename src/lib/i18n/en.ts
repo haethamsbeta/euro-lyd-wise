@@ -120,6 +120,7 @@ export const en = {
   "nav.fxRates": "FX rates",
   "nav.branches": "Branches",
  "nav.testSandbox": "Test Sandbox",
+"nav.testSandboxTx": "Sandbox Transactions",
 
   // short labels used by the bottom dock so phone labels never truncate
   "dock.dashboard": "Home",
