@@ -42,8 +42,7 @@ import { BackendPending, isPendingError } from "@/components/app/backend-pending
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/groups/")({
-  component: GroupsPage,
-  head: () => ({ meta: [{ title: "Groups" }] }),
+  head: () => ({ meta: [{ title: "Customer groups — Dahab" }, { name: "description", content: "Browse customer groups and their linked account holders." }] }), component: GroupsPage,
 });
 
 const isLambda = DATA_BACKEND === "lambda";

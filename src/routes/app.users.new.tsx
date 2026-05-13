@@ -21,7 +21,7 @@ const SUPABASE_DISABLED_MSG =
   "Use the backend (Lambda) to create staff members. Supabase mode does not write users.";
 
 export const Route = createFileRoute("/app/users/new")({
-  component: () => (
+  head: () => ({ meta: [{ title: "New staff user — Dahab" }, { name: "description", content: "Invite a new Dahab staff member and assign their role." }] }), component: () => (
     <RoleGate allow={["admin"]}>
       <NewMemberPage />
     </RoleGate>

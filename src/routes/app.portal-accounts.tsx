@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { adminListUserEmails, adminListHolders } from "@/server/admin.functions";
 
 export const Route = createFileRoute("/app/portal-accounts")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Portal accounts — Dahab" }, { name: "description", content: "Manage which accounts holders can see and move money from in the customer portal." }] }), component: () => (
     <RoleGate allow={["admin"]}>
       <PortalAccountsPage />
     </RoleGate>

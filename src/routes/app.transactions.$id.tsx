@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/transactions/$id")({
-  component: TxDetail,
+  head: () => ({ meta: [{ title: "Transaction details — Dahab" }, { name: "description", content: "Inspect the legs, balances, and audit history of a single Dahab transaction." }] }), component: TxDetail,
 });
 
 type TxFull = {

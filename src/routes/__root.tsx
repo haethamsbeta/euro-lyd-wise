@@ -48,6 +48,8 @@ export const Route = createRootRoute({
       { property: "og:title", content: "Dahab — Private Banking" },
       { property: "og:description", content: "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability." },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Dahab" },
+      { property: "og:url", content: "https://dahablibya.com/" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Dahab — Private Banking" },
       { name: "twitter:description", content: "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability." },

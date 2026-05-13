@@ -1,0 +1,17 @@
+# Dahab — Private Banking Ledger
+
+> Dahab (ذهب, "gold") is a private banking ledger for families and businesses in Libya, built on double-entry precision and gold-standard auditability.
+
+Dahab provides a customer portal for account holders and a back-office for Dahab staff (admins, tellers, auditors). It supports multi-currency accounts (LYD, USD, EUR, GBP), vault custody, transaction approvals, and full audit trails.
+
+## Pages
+
+- [Home](/): Choose between the Customer Portal and the Dahab Family staff back-office.
+- [Sign in](/login): Sign in to the customer portal or back-office.
+- [Customer portal](/portal): Account holder portal with balances, statements, and transfers.
+- [About](/app/about): About Dahab and backend diagnostics.
+
+## Optional
+
+- [Mobile teller](/m): Field teller app for Dahab staff.
+- [Forgot password](/forgot-password): Recover your Dahab account.

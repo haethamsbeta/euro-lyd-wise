@@ -25,7 +25,7 @@ import {
 import { RoleGate } from "@/components/app/app-shell";
 
 export const Route = createFileRoute("/app/accounts/$id")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
     <RoleGate allow={["admin", "auditor"]}>
       <AccountDetail />
     </RoleGate>

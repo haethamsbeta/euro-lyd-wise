@@ -15,7 +15,7 @@ import { normalizeLambdaUser } from "@/lib/lambdaUser";
 
 export const Route = createFileRoute("/m/login")({
   component: MobileLogin,
-  head: () => ({ meta: [{ title: "DAHAM — Sign in" }] }),
+  head: () => ({ meta: [{ title: "DAHAB — Sign in" }] }),
 });
 
 function MobileLogin() {
@@ -105,7 +105,7 @@ function MobileLogin() {
         <div className="mt-4 flex flex-col items-center">
           <DahamLogo size={96} />
           <div className="mt-3 font-serif text-2xl tracking-[0.35em] text-foreground">دهــــم</div>
-          <div className="mt-1 text-lg font-semibold tracking-[0.4em] gold-text">DAHAM</div>
+          <div className="mt-1 text-lg font-semibold tracking-[0.4em] gold-text">DAHAB</div>
           <div className="mt-2 text-xs text-foreground/80" dir="rtl">شركة دهــم للخدمات الماليـة</div>
           <div className="text-[11px] text-muted-foreground">Dahab Financial Services Company</div>
         </div>

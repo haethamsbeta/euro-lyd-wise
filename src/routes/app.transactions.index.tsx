@@ -60,7 +60,7 @@ import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/transactions/")({
-  component: TxList,
+  head: () => ({ meta: [{ title: "Transactions — Dahab" }, { name: "description", content: "Search and filter every transaction posted across the Dahab ledger." }] }), component: TxList,
   validateSearch: (search: Record<string, unknown>): { q?: string; focus?: string } => {
     const out: { q?: string; focus?: string } = {};
     if (typeof search.q === "string") out.q = search.q;

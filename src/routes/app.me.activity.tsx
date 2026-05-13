@@ -11,7 +11,7 @@ import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
-export const Route = createFileRoute("/app/me/activity")({ component: MyActivity });
+export const Route = createFileRoute("/app/me/activity")({ head: () => ({ meta: [{ title: "My activity — Dahab" }, { name: "description", content: "Personal activity history for your Dahab back-office account." }] }), component: MyActivity });
 
 function MyActivity() {
   const t = useT();

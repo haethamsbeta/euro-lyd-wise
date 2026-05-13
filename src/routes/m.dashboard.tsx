@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/m/dashboard")({
   component: MobileDashboard,
-  head: () => ({ meta: [{ title: "DAHAM — Dashboard" }] }),
+  head: () => ({ meta: [{ title: "DAHAB — Dashboard" }] }),
 });
 
 function MobileDashboard() {
@@ -99,7 +99,7 @@ function MobileDashboard() {
         <div>
           <div className="text-foreground/80">Good morning,</div>
           <h1 className="font-serif text-3xl text-gold-deep capitalize">{firstName}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Welcome back to your DAHAM account</p>
+          <p className="text-sm text-muted-foreground mt-1">Welcome back to your DAHAB account</p>
         </div>
 
         {/* balance card */}

@@ -25,7 +25,7 @@ import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
 
 export const Route = createFileRoute("/app/approvals")({
-  component: () => (
+  head: () => ({ meta: [{ title: "Approvals queue — Dahab" }, { name: "description", content: "Review and approve pending Dahab transactions awaiting authorization." }] }), component: () => (
     <RoleGate allow={["admin"]}>
       <Approvals />
     </RoleGate>

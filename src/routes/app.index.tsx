@@ -29,7 +29,7 @@ import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { BackendPending } from "@/components/app/backend-pending";
 import { useShowMasterTools } from "@/lib/admin-mode";
 
-export const Route = createFileRoute("/app/")({ component: Dashboard });
+export const Route = createFileRoute("/app/")({ head: () => ({ meta: [{ title: "Back-office dashboard — Dahab" }, { name: "description", content: "Daily Dahab dashboard with vault balances, pending approvals, and activity." }] }), component: Dashboard });
 
 const CURRENCIES = ["USD", "EUR", "LYD"] as const;
 type Currency = (typeof CURRENCIES)[number];

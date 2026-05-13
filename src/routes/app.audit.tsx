@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/audit")({
-  component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
+  head: () => ({ meta: [{ title: "Audit log — Dahab" }, { name: "description", content: "Inspect the full audit trail of changes and actions across Dahab." }] }), component: () => <RoleGate allow={["admin", "auditor"]}><Audit /></RoleGate>,
 });
 
 type AuditRow = {
