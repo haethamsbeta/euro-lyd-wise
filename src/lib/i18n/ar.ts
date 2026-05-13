@@ -121,6 +121,7 @@ export const ar: Dict = {
   "nav.fxRates": "أسعار الصرف",
   "nav.branches": "الفروع",
   "nav.testSandbox": "بيئة الاختبار",
+  "nav.testSandboxTx": "معاملات بيئة الاختبار",
 
   // short labels used by the bottom dock so phone labels never truncate
   "dock.dashboard": "الرئيسية",
