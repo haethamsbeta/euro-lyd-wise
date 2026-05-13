@@ -608,7 +608,7 @@ function AccountLimitsCard({ account, isAdmin }: { account: any; isAdmin: boolea
 
   const limitsQ = useQuery({
     queryKey: ["account.limits", accountId],
-    enabled: !!accountId,
+    enabled: !!accountId && DATA_BACKEND !== "lambda",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("sp_account_limits", { p_account_id: accountId });
       if (error) throw error;
