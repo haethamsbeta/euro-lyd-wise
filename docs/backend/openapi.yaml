@@ -180,6 +180,141 @@ components:
         withdraw_limit_amount_minor: { type: integer }
         withdraw_limit_enabled: { type: boolean }
         is_primary_account: { type: boolean }
+        balance_limit_minor:
+          type: integer
+          nullable: true
+          description: |
+            Minimum protected balance — funds the holder is not allowed to spend
+            below. NULL = no minimum. Replaces the legacy
+            `withdraw_limit_amount_minor` rule.
+        credit_limit_minor:
+          type: integer
+          description: Pre-approved revolving credit line. 0 = no credit.
+        credit_used_minor:
+          type: integer
+          description: Currently drawn portion of the credit line.
+
+    AccountLimitsSnapshot:
+      type: object
+      description: |
+        Derived snapshot returned by `sp_account_limits(account_id)`. All
+        calculations are server-side; the frontend renders these values verbatim.
+      required:
+        - account_id
+        - currency
+        - balance_minor
+        - balance_limit_minor
+        - credit_limit_minor
+        - credit_used_minor
+        - spendable_balance_minor
+        - available_credit_minor
+        - available_to_withdraw_minor
+        - over_limit
+      properties:
+        account_id: { type: string }
+        currency: { $ref: '#/components/schemas/Currency' }
+        balance_minor: { type: integer, description: Current ledger balance. }
+        balance_limit_minor: { type: integer, nullable: true, description: Protected minimum balance. }
+        credit_limit_minor: { type: integer }
+        credit_used_minor: { type: integer }
+        spendable_balance_minor:
+          type: integer
+          description: max(0, balance_minor - balance_limit_minor).
+        available_credit_minor:
+          type: integer
+          description: max(0, credit_limit_minor - credit_used_minor).
+        available_to_withdraw_minor:
+          type: integer
+          description: spendable_balance_minor + available_credit_minor.
+        over_limit:
+          type: boolean
+          description: True when balance < balance_limit_minor or credit_used > credit_limit.
+
+    SetAccountLimitsRequest:
+      type: object
+      description: Admin-only. Pass either field; omit to leave unchanged.
+      properties:
+        balance_limit_minor: { type: integer, nullable: true, minimum: 0 }
+        credit_limit_minor:  { type: integer, minimum: 0 }
+
+    WithdrawQuoteRequest:
+      type: object
+      required: [amount_minor]
+      properties:
+        amount_minor: { type: integer, minimum: 1 }
+
+    WithdrawQuoteResponse:
+      type: object
+      description: |
+        Output of `sp_withdraw_quote(account_id, amount)`. Splits the requested
+        amount between protected balance and revolving credit and reports
+        whether the withdrawal is allowed.
+      required: [allowed, shortfall_minor, use_balance_minor, use_credit_minor, snapshot]
+      properties:
+        allowed: { type: boolean }
+        shortfall_minor:
+          type: integer
+          description: Amount the user is short by when allowed=false. 0 when allowed.
+        reason:
+          type: string
+          nullable: true
+          enum: [null, OVER_LIMIT, INSUFFICIENT_FUNDS, ACCOUNT_FROZEN]
+        use_balance_minor: { type: integer, description: Portion funded from spendable balance. }
+        use_credit_minor:  { type: integer, description: Portion funded from credit line. }
+        snapshot: { $ref: '#/components/schemas/AccountLimitsSnapshot' }
+
+    OverLimitError:
+      type: object
+      description: 422 body returned by withdraw endpoints once Step 5 enforcement lands.
+      required: [success, code, message, shortfall_minor, snapshot]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string, enum: [OVER_LIMIT] }
+        message: { type: string }
+        shortfall_minor: { type: integer }
+        snapshot: { $ref: '#/components/schemas/AccountLimitsSnapshot' }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+
+    LoginResponse:
+      type: object
+      required: [access_token, user]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string, nullable: true }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer, description: Seconds until access_token expires. }
+        must_change_password:
+          type: boolean
+          description: |
+            When true, client must redirect to `/change-password` and call
+            `POST /api/auth/change-password` before any other API access.
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            full_name: { type: string }
+            roles: { type: array, items: { $ref: '#/components/schemas/AppRole' } }
+
+    PasskeyChallenge:
+      type: object
+      description: |
+        WebAuthn `PublicKeyCredentialCreationOptions` (register) or
+        `PublicKeyCredentialRequestOptions` (login), JSON-encoded with
+        base64url-encoded buffers. Pass straight to
+        `navigator.credentials.create()` / `.get()` after decoding.
+      additionalProperties: true
+
+    PasskeyAttestation:
+      type: object
+      description: WebAuthn attestation/assertion response, base64url-encoded buffers.
+      additionalProperties: true
 
     LedgerEntry:
       type: object
