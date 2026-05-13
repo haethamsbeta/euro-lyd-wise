@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2, Fingerprint } from "lucide-react";
+import { Loader2, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
@@ -39,13 +39,6 @@ const signupSchema = credSchema.extend({
   fullName: z.string().trim().min(2, "Enter your name").max(100),
 });
 
-const DEMO_LOGINS: { role: string; email: string; password: string; tone: string }[] = [
-  { role: "Admin",    email: "admin@demo.test",    password: "Admin#12345",   tone: "bg-[oklch(0.82_0.14_85/0.15)] text-gold border-[oklch(0.82_0.14_85/0.3)]" },
-  { role: "Teller",   email: "teller@demo.test",   password: "Teller#12345",  tone: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
-  { role: "Auditor",  email: "auditor@demo.test",  password: "Auditor#12345", tone: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
-  { role: "Customer", email: "consumer@demo.test", password: "Customer#1234", tone: "bg-sky-500/10 text-sky-300 border-sky-500/30" },
-];
-
 type Filler = (email: string, password: string) => void;
 let __fillSignIn: Filler | null = null;
 
@@ -60,15 +53,15 @@ function LoginPage() {
   }, [session, loading, nav, isStaff]);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-6 sm:py-10">
       {/* Atmosphere */}
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh]" style={{ backgroundImage: "var(--gradient-vault)" }} />
       <div className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[oklch(0.82_0.14_85/0.07)] blur-3xl" />
 
-      <div className="flex w-full max-w-md flex-col gap-5">
+      <div className="flex w-full max-w-md flex-col gap-4 sm:gap-5">
         <div className="flex flex-col items-center text-center">
           <DahabMark size="lg" showIcon />
-          <p className="mt-4 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+          <p className="mt-4 text-[10px] sm:text-xs uppercase tracking-[0.28em] sm:tracking-[0.32em] text-muted-foreground">
             {t("login.privateBankingLedger")}
           </p>
         </div>
@@ -76,18 +69,18 @@ function LoginPage() {
         {/* Portal switcher removed — portal is always selected on the landing page. */}
 
         <Card className="card-luxe rounded-xl">
-          <CardHeader className="text-center">
+          <CardHeader className="text-center px-5 sm:px-6 pt-5 sm:pt-6">
             <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-gold/80">
               {t("login.privateBadge")}
             </p>
-            <CardTitle className="mt-2 font-serif text-3xl font-semibold gold-text">
+            <CardTitle className="mt-2 font-serif text-2xl sm:text-3xl font-semibold gold-text">
               {isStaff ? t("login.staffTitle") : t("login.consumerTitle")}
             </CardTitle>
-            <CardDescription className="mt-2 text-foreground/70">
+            <CardDescription className="mt-2 text-sm text-foreground/70">
               {isStaff ? t("login.staffSubtitle") : t("login.consumerSubtitle")}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6 pb-5 sm:pb-6">
             {isStaff ? (
               <>
                 <SignInForm portal={portal} />
@@ -127,10 +120,6 @@ function LoginPage() {
             </p>
           </CardContent>
         </Card>
-
-        {/* Demo Fill / Prepare buttons are dev-only; never shipped to production
-            (no password retrieval ever happens — only static dev credentials). */}
-        {import.meta.env.DEV && <DemoCredentials portal={portal} lock={true} />}
 
         <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />
