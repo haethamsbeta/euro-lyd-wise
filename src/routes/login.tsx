@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, Loader2, Fingerprint } from "lucide-react";
+import { Loader2, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { DahabMark } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
@@ -39,13 +39,6 @@ const signupSchema = credSchema.extend({
   fullName: z.string().trim().min(2, "Enter your name").max(100),
 });
 
-const DEMO_LOGINS: { role: string; email: string; password: string; tone: string }[] = [
-  { role: "Admin",    email: "admin@demo.test",    password: "Admin#12345",   tone: "bg-[oklch(0.82_0.14_85/0.15)] text-gold border-[oklch(0.82_0.14_85/0.3)]" },
-  { role: "Teller",   email: "teller@demo.test",   password: "Teller#12345",  tone: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
-  { role: "Auditor",  email: "auditor@demo.test",  password: "Auditor#12345", tone: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
-  { role: "Customer", email: "consumer@demo.test", password: "Customer#1234", tone: "bg-sky-500/10 text-sky-300 border-sky-500/30" },
-];
-
 type Filler = (email: string, password: string) => void;
 let __fillSignIn: Filler | null = null;
 
@@ -60,15 +53,15 @@ function LoginPage() {
   }, [session, loading, nav, isStaff]);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-6 sm:py-10">
       {/* Atmosphere */}
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh]" style={{ backgroundImage: "var(--gradient-vault)" }} />
       <div className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[oklch(0.82_0.14_85/0.07)] blur-3xl" />
 
-      <div className="flex w-full max-w-md flex-col gap-5">
+      <div className="flex w-full max-w-md flex-col gap-4 sm:gap-5">
         <div className="flex flex-col items-center text-center">
           <DahabMark size="lg" showIcon />
-          <p className="mt-4 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+          <p className="mt-4 text-[10px] sm:text-xs uppercase tracking-[0.28em] sm:tracking-[0.32em] text-muted-foreground">
             {t("login.privateBankingLedger")}
           </p>
         </div>
@@ -76,18 +69,18 @@ function LoginPage() {
         {/* Portal switcher removed — portal is always selected on the landing page. */}
 
         <Card className="card-luxe rounded-xl">
-          <CardHeader className="text-center">
+          <CardHeader className="text-center px-5 sm:px-6 pt-5 sm:pt-6">
             <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-gold/80">
               {t("login.privateBadge")}
             </p>
-            <CardTitle className="mt-2 font-serif text-3xl font-semibold gold-text">
+            <CardTitle className="mt-2 font-serif text-2xl sm:text-3xl font-semibold gold-text">
               {isStaff ? t("login.staffTitle") : t("login.consumerTitle")}
             </CardTitle>
-            <CardDescription className="mt-2 text-foreground/70">
+            <CardDescription className="mt-2 text-sm text-foreground/70">
               {isStaff ? t("login.staffSubtitle") : t("login.consumerSubtitle")}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6 pb-5 sm:pb-6">
             {isStaff ? (
               <>
                 <SignInForm portal={portal} />
@@ -127,10 +120,6 @@ function LoginPage() {
             </p>
           </CardContent>
         </Card>
-
-        {/* Demo Fill / Prepare buttons are dev-only; never shipped to production
-            (no password retrieval ever happens — only static dev credentials). */}
-        {import.meta.env.DEV && <DemoCredentials portal={portal} lock={true} />}
 
         <div className="flex items-center justify-center gap-3 pt-1">
           <LanguageToggle variant="subtle" />
@@ -400,103 +389,5 @@ function SignUpForm() {
 }
 
 function DemoCredentials({ portal, lock }: { portal: PortalKind; lock: boolean }) {
-  const t = useT();
-  const [seeding, setSeeding] = useState(false);
-  const [seeded, setSeeded] = useState(false);
-
-  const visible = lock
-    ? DEMO_LOGINS.filter((u) =>
-        portal === "staff" ? u.role !== "Customer" : u.role === "Customer",
-      )
-    : DEMO_LOGINS;
-
-  async function runSeed() {
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/public/admin/seed-demo", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok || json.ok === false) throw new Error(json.error || "Seed failed");
-      setSeeded(true);
-      toast.success(t("demo.ready"));
-    } catch (e: any) {
-      toast.error(e.message ?? t("demo.failed"));
-    } finally {
-      setSeeding(false);
-    }
-  }
-
-  function fill(email: string, password: string) {
-    if (__fillSignIn) {
-      __fillSignIn(email, password);
-      toast.success(`${t("demo.filledToast")} ${email}`);
-    } else {
-      toast.message(t("demo.switchTab"));
-    }
-  }
-
-  function copy(text: string, label: string) {
-    navigator.clipboard.writeText(text).then(
-      () => toast.success(`${label} ${t("demo.copied")}`),
-      () => toast.error(t("demo.copyFailed")),
-    );
-  }
-
-  return (
-    <Card className="card-luxe rounded-xl">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 font-serif text-base font-medium">
-          <Sparkles className="h-4 w-4 text-gold" />
-          {t("demo.title")}
-        </CardTitle>
-        <CardDescription className="text-xs">
-          {t("demo.intro")} <span className="font-medium text-foreground">{t("demo.introCta")}</span> {t("demo.introTail")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button
-          onClick={runSeed}
-          disabled={seeding}
-          size="sm"
-          className={
-            seeded
-              ? "w-full border border-[oklch(0.82_0.14_85/0.3)] bg-transparent text-gold hover:bg-[oklch(0.82_0.14_85/0.08)]"
-              : "w-full bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95"
-          }
-          variant={seeded ? "outline" : "default"}
-        >
-          {seeding ? (
-            <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{t("demo.preparing")}</>
-          ) : seeded ? (
-            t("demo.prepared")
-          ) : (
-            t("demo.prepare")
-          )}
-        </Button>
-
-        <ul className="divide-y divide-[oklch(0.82_0.14_85/0.12)] overflow-hidden rounded-md border border-[oklch(0.82_0.14_85/0.18)] text-xs">
-          {visible.map((u) => (
-            <li key={u.email} className="flex items-center gap-2 p-2.5">
-              <span className={`inline-flex w-16 shrink-0 justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${u.tone}`}>
-                {u.role}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-mono text-[11px]">{u.email}</div>
-                <div className="truncate font-mono text-[11px] text-muted-foreground">{u.password}</div>
-              </div>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-gold hover:bg-[oklch(0.82_0.14_85/0.1)] hover:text-gold" onClick={() => fill(u.email, u.password)}>
-                {t("demo.fill")}
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-[oklch(0.82_0.14_85/0.1)]" onClick={() => copy(`${u.email} / ${u.password}`, u.role)} aria-label={`Copy ${u.role} credentials`}>
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          {t("demo.note")}
-        </p>
-      </CardContent>
-    </Card>
-  );
+  return null;
 }
