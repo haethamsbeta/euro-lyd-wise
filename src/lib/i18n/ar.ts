@@ -1,6 +1,7 @@
 import type { Dict } from "./en";
 
 export const ar: Dict = {
+  "nav.sandboxMultiEntry": "صندوق تجريبي متعدد القيود",
   // common
   "common.signIn": "تسجيل الدخول",
   "common.signOut": "تسجيل الخروج",
