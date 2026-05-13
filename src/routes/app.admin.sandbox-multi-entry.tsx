@@ -76,6 +76,68 @@ const DEMO_HOLDERS: DemoHolder[] = [
       { id: "A-1004-LYD", displayName: "Fatima Personal — LYD", accountNumber: "DH•••• 5512", currency: "LYD", balance: 8740 },
     ],
   },
+  {
+    id: "H-1005", dahabNumber: "DH-5560-7781", canonicalName: "Omar Triki", type: "Individual",
+    accounts: [
+      { id: "A-1005-LYD", displayName: "Omar Personal — LYD", accountNumber: "DH•••• 6601", currency: "LYD", balance: 15300 },
+      { id: "A-1005-USD", displayName: "Omar Personal — USD", accountNumber: "DH•••• 6602", currency: "USD", balance: 4200 },
+      { id: "A-1005-EUR", displayName: "Omar Personal — EUR", accountNumber: "DH•••• 6603", currency: "EUR", balance: 2750 },
+    ],
+  },
+  {
+    id: "H-1006", dahabNumber: "DH-6102-3344", canonicalName: "Tripoli Exchange Co.", type: "Corporate",
+    accounts: [
+      { id: "A-1006-LYD", displayName: "Tripoli Exchange LYD", accountNumber: "DH•••• 7820", currency: "LYD", balance: 215000 },
+      { id: "A-1006-USD", displayName: "Tripoli Exchange USD", accountNumber: "DH•••• 7821", currency: "USD", balance: 142000 },
+      { id: "A-1006-EUR", displayName: "Tripoli Exchange EUR", accountNumber: "DH•••• 7822", currency: "EUR", balance: 96400 },
+      { id: "A-1006-GBP", displayName: "Tripoli Exchange GBP", accountNumber: "DH•••• 7823", currency: "GBP", balance: 41200 },
+    ],
+  },
+  {
+    id: "H-1007", dahabNumber: "DH-6840-9012", canonicalName: "Layla Haddad", type: "Individual",
+    accounts: [
+      { id: "A-1007-LYD", displayName: "Layla Personal — LYD", accountNumber: "DH•••• 8810", currency: "LYD", balance: 6320 },
+      { id: "A-1007-GBP", displayName: "Layla Personal — GBP", accountNumber: "DH•••• 8811", currency: "GBP", balance: 1800 },
+    ],
+  },
+  {
+    id: "H-1008", dahabNumber: "DH-7233-4571", canonicalName: "Benghazi Logistics Group", type: "Corporate",
+    accounts: [
+      { id: "A-1008-USD", displayName: "Benghazi Logistics USD", accountNumber: "DH•••• 9101", currency: "USD", balance: 58400 },
+      { id: "A-1008-EUR", displayName: "Benghazi Logistics EUR", accountNumber: "DH•••• 9102", currency: "EUR", balance: 27300 },
+    ],
+  },
+  {
+    id: "H-1009", dahabNumber: "DH-7901-2256", canonicalName: "Sahara Heritage Trust", type: "Trust",
+    accounts: [
+      { id: "A-1009-LYD", displayName: "Sahara Heritage LYD", accountNumber: "DH•••• 9550", currency: "LYD", balance: 380000 },
+      { id: "A-1009-USD", displayName: "Sahara Heritage USD", accountNumber: "DH•••• 9551", currency: "USD", balance: 64000 },
+      { id: "A-1009-EUR", displayName: "Sahara Heritage EUR", accountNumber: "DH•••• 9552", currency: "EUR", balance: 51000 },
+      { id: "A-1009-GBP", displayName: "Sahara Heritage GBP", accountNumber: "DH•••• 9553", currency: "GBP", balance: 33500 },
+    ],
+  },
+  {
+    id: "H-1010", dahabNumber: "DH-8420-1190", canonicalName: "Yusuf Mabrouk", type: "Individual",
+    accounts: [
+      { id: "A-1010-LYD", displayName: "Yusuf Personal — LYD", accountNumber: "DH•••• 0420", currency: "LYD", balance: 2150 },
+      { id: "A-1010-USD", displayName: "Yusuf Personal — USD", accountNumber: "DH•••• 0421", currency: "USD", balance: 980 },
+    ],
+  },
+  {
+    id: "H-1011", dahabNumber: "DH-9012-5567", canonicalName: "Misrata Industrial Partners", type: "Corporate",
+    accounts: [
+      { id: "A-1011-LYD", displayName: "Misrata Industrial LYD", accountNumber: "DH•••• 1330", currency: "LYD", balance: 124000 },
+      { id: "A-1011-EUR", displayName: "Misrata Industrial EUR", accountNumber: "DH•••• 1331", currency: "EUR", balance: 78600 },
+      { id: "A-1011-GBP", displayName: "Misrata Industrial GBP", accountNumber: "DH•••• 1332", currency: "GBP", balance: 45200 },
+    ],
+  },
+  {
+    id: "H-1012", dahabNumber: "DH-9788-3301", canonicalName: "Aisha Belkacem", type: "Individual",
+    accounts: [
+      { id: "A-1012-LYD", displayName: "Aisha Personal — LYD", accountNumber: "DH•••• 2240", currency: "LYD", balance: 11200 },
+      { id: "A-1012-EUR", displayName: "Aisha Personal — EUR", accountNumber: "DH•••• 2241", currency: "EUR", balance: 3400 },
+    ],
+  },
 ];
 
 function formatCurrency(value: number, currency: string) {
