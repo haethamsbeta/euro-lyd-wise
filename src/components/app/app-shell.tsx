@@ -62,6 +62,9 @@ const NAV: NavItem[] = [
   { to: "/app/admin/branches", labelKey: "nav.branches", icon: Building2, roles: ["admin"] },
   { to: "/app/admin/test-sandbox", labelKey: "nav.testSandbox", icon: FlaskConical, roles: ["admin"] },
   { to: "/app/admin/sandbox-multi-entry", labelKey: "nav.sandboxMultiEntry", icon: FlaskConical, roles: ["admin"] },
+  { to: "/app/admin/sandbox-workspace", labelKey: "nav.sandboxMultiEntry", icon: FlaskConical, roles: ["admin"] },
+  { to: "/app/admin/sandbox-multi-transaction", labelKey: "nav.sandboxMultiEntry", icon: FlaskConical, roles: ["admin"] },
+  { to: "/app/admin/sandbox-ledger", labelKey: "nav.sandboxMultiEntry", icon: FlaskConical, roles: ["admin"] },
   { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
   { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
@@ -130,7 +133,7 @@ export function AppShell() {
     (i) =>
       hasAnyRole(effectiveRoles, i.roles) &&
       (i.to.startsWith("/app/admin/test-sandbox") ||
-       i.to.startsWith("/app/admin/sandbox-multi-entry")
+       i.to.startsWith("/app/admin/sandbox")
         ? showMasterTools
         : true),
   );
