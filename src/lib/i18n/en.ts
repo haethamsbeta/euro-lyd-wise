@@ -1,4 +1,5 @@
 export const en = {
+  "nav.sandboxMultiEntry": "Sandbox Multi-Entry",
   // common
   "common.signIn": "Sign in",
   "common.signOut": "Sign out",
