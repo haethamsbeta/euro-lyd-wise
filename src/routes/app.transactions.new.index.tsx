@@ -10,7 +10,6 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/app/transactions/new/")({
   head: () => ({ meta: [{ title: "New transaction — Dahab" }, { name: "description", content: "Choose a transaction type to post into the Dahab ledger." }] }), validateSearch: (s) => searchSchema.parse(s),
   component: NewTxPage,
-  head: () => ({ meta: [{ title: "New transaction" }] }),
 });
 
 function NewTxPage() {

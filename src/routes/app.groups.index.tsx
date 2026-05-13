@@ -43,7 +43,6 @@ import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/app/groups/")({
   head: () => ({ meta: [{ title: "Customer groups — Dahab" }, { name: "description", content: "Browse customer groups and their linked account holders." }] }), component: GroupsPage,
-  head: () => ({ meta: [{ title: "Groups" }] }),
 });
 
 const isLambda = DATA_BACKEND === "lambda";

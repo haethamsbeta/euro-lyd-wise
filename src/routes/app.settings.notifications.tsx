@@ -42,7 +42,6 @@ export const Route = createFileRoute("/app/settings/notifications")({
       {DATA_BACKEND === "lambda" ? <NotifSettingsLambdaPending /> : <NotifSettingsPage />}
     </RoleGate>
   ),
-  head: () => ({ meta: [{ title: "Notification settings" }] }),
 });
 
 function NotifSettingsLambdaPending() {
