@@ -85,13 +85,12 @@ function Index() {
       </div>
 
       <div
-        className="relative z-10 flex min-h-[100svh] md:min-h-screen flex-col px-4 sm:px-6 sm:py-10"
-        style={{
-          paddingTop: "max(1.25rem, env(safe-area-inset-top))",
-          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-          paddingLeft: "max(1rem, env(safe-area-inset-left))",
-          paddingRight: "max(1rem, env(safe-area-inset-right))",
-        }}
+        className="relative z-10 flex min-h-[100svh] md:min-h-screen flex-col
+                   pt-[max(1.25rem,env(safe-area-inset-top))]
+                   pb-[max(1rem,env(safe-area-inset-bottom))]
+                   pl-[max(1rem,env(safe-area-inset-left))]
+                   pr-[max(1rem,env(safe-area-inset-right))]
+                   sm:px-6 sm:py-10"
       >
         {/* Header */}
         <header
