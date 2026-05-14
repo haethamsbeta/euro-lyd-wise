@@ -51,6 +51,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/dahabApi";
 import { ExportPdfButton } from "@/components/app/export-pdf";
 import { describeTx } from "@/lib/tx-describe";
 import { useDebounced } from "@/hooks/use-debounced";
