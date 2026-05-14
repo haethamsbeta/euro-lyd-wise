@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { api } from "@/lib/api";
@@ -154,9 +154,21 @@ function AccountsList() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by holder, DAHAB #, account #, alias, phone…"
-              className="ps-9"
+              placeholder="Search by holder name, DAHAB #, account #, alias, phone, email…"
+              className="ps-9 pe-9"
+              autoComplete="off"
+              spellCheck={false}
             />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                aria-label="Clear search"
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
