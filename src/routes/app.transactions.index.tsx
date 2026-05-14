@@ -301,6 +301,7 @@ function TxList() {
         comment: r.comment,
         created_at: r.created_at,
         customer_account_id: r.customer_account_id,
+        ledger_account_id: String(r.customer_account_id ?? ""),
         vault_account_id: r.vault_account_id ?? null,
         reverses_tx_id: r.reverses_tx_id,
         corrected_by_tx_id: r.corrected_by_tx_id,
