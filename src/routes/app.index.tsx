@@ -1224,21 +1224,48 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
   // Debounce search input so we don't hit the backend on every keystroke.
   const [debounced, setDebounced] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(q.trim()), 220);
-    return () => clearTimeout(t);
+    const id = setTimeout(() => setDebounced(q.trim()), 150);
+    return () => clearTimeout(id);
   }, [q]);
   const { data: results } = useQuery({
-    queryKey: ["dash.pin.holders.search.v4", isLambda, debounced],
+    queryKey: ["dash.pin.holders.search.v5", isLambda, debounced],
     queryFn: async () => {
       if (isLambda) {
-        const list = await api.holders
-          .list({ q: debounced || undefined, limit: 15 })
-          .catch(() => [] as any[]);
-        return (list as any[]).map((h) => ({
-          id: String(h.id),
-          name: h.holder_name ?? h.canonical_name,
-          account_number: h.dahab_account_number,
-        }));
+        // Search holders directly AND search accounts (by account number / dahab number),
+        // then merge so users can find by name, account number, or DAHAB number.
+        const term = debounced;
+        const [holdersRes, acctsRes] = await Promise.all([
+          api.holders.list({ q: term || undefined, limit: 25 }).catch(() => [] as any[]),
+          term
+            ? api.accounts
+                .list({ q: term, limit: 25 })
+                .then((r) => r.items)
+                .catch(() => [] as any[])
+            : Promise.resolve([] as any[]),
+        ]);
+        const map = new Map<string, { id: string; name: string; account_number: string }>();
+        for (const h of holdersRes as any[]) {
+          map.set(String(h.id), {
+            id: String(h.id),
+            name: h.holder_name ?? h.canonical_name,
+            account_number: h.dahab_account_number,
+          });
+        }
+        for (const a of acctsRes as any[]) {
+          const hid = String(a.account_holder_id ?? a.holder_id ?? "");
+          if (!hid || map.has(hid)) continue;
+          map.set(hid, {
+            id: hid,
+            name: a.holder_name ?? a.account_display_name ?? a.account_number ?? hid,
+            account_number: a.dahab_account_number ?? a.account_number ?? "",
+          });
+        }
+        const norm = (s: string) => (s || "").toLowerCase().replace(/[\s\-_/]/g, "");
+        const nq = norm(term);
+        const all = Array.from(map.values());
+        return nq
+          ? all.filter((r) => norm(r.name).includes(nq) || norm(r.account_number).includes(nq))
+          : all.slice(0, 25);
       }
       const term = debounced;
       if (term) {
