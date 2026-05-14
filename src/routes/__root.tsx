@@ -121,11 +121,12 @@ function RootComponent() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Treat data as fresh for 30s — switching tabs no longer refetches
-      // every dashboard/transactions/vault query.
-      staleTime: 30_000,
-      // Keep cached data around for 5 minutes so navigating back is instant.
-      gcTime: 5 * 60_000,
+      // Treat data as fresh for 60s — matches the dashboard poll cadence so
+      // navigating between routes does not trigger a refetch in between
+      // polls. Each query can override with its own `staleTime` when needed.
+      staleTime: 60_000,
+      // Keep cached data around for 10 minutes so navigating back is instant.
+      gcTime: 10 * 60_000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: "always",
       retry: 1,
