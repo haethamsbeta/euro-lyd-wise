@@ -123,6 +123,8 @@ function AccountDetail() {
         return items.map((e: any) => ({
           id: e.id,
           tx_number: e.tx_number,
+          source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+          display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
           posted_at: e.posted_at,
           description: e.description ?? "",
           // Backend returns minor units; convert for the existing display helpers.
@@ -148,7 +150,11 @@ function AccountDetail() {
         .order("posted_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((e: any) => ({
+        ...e,
+        source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+        display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+      }));
     },
   });
 
