@@ -6,7 +6,6 @@ export const holdersApi = {
   list: (params: { q?: string; status?: string; limit?: number; offset?: number } = {}) =>
     apiFetch<PagedResult<Holder> | Holder[]>(`/holders${qs(params)}`).then((res) => {
       const rows = Array.isArray(res) ? res : (res?.items ?? []);
-      if (import.meta.env.DEV) console.log("holder rows", rows.length);
       return rows;
     }),
   listPaged: (params: { q?: string; status?: string; limit?: number; offset?: number } = {}) =>
@@ -38,10 +37,6 @@ export const holdersApi = {
       `/holders/${encodeURIComponent(String(id))}/accounts`,
     ).then((res) => {
       const items = Array.isArray(res) ? res : (res?.items ?? []);
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.log("[holders.accounts]", `/holders/${id}/accounts`, items.length, "items");
-      }
       return items;
     }),
   addAccount: (id: string | number, body: Partial<HolderAccount>) =>

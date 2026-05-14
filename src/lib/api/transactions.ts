@@ -43,7 +43,6 @@ export const transactionsApi = {
       `/transactions${qs(params)}`,
     ).then((res) => {
       const rows = Array.isArray(res) ? res : (res?.items ?? []);
-      if (import.meta.env.DEV) console.log("transaction rows", rows.length);
       return rows;
     }),
   /**

@@ -333,16 +333,6 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
     enabled: DATA_BACKEND === "lambda",
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.reports : false,
   });
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.log("[dashboard liquidity health raw]", liquidity.data);
-    // eslint-disable-next-line no-console
-    console.log("[dashboard liquidity health status]", {
-      isLoading: liquidity.isLoading,
-      isError: liquidity.isError,
-      error: liquidity.error,
-    });
-  }
   const networkLyd = liquidity.data?.network_total_lyd_minor ?? null;
   const networkUsd = liquidity.data?.network_total_usd_minor ?? null;
   const missingRates = Array.isArray(liquidity.data?.missing_rates)

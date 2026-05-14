@@ -52,11 +52,34 @@ export interface AuditorDashboard {
 
 export const dashboardApi = {
   admin: async () => {
+    return adminCached();
+  },
+  teller: () => apiFetch<TellerDashboard>("/dashboard/teller"),
+  auditor: () => apiFetch<AuditorDashboard>("/dashboard/auditor"),
+};
+
+// In-flight + short-TTL cache for /dashboard/staff. Three independent React
+// Query hooks (useDashData, useDashboardSummary, PendingApprovalsButton) all
+// call this on mount and on every 60s poll. Without dedupe each mount fires
+// 3 identical network requests in parallel — coalesce them into one and
+// reuse the response for 5s so initial paint and polling stays snappy.
+let _adminInflight: Promise<any> | null = null;
+let _adminCachedAt = 0;
+let _adminCachedValue: any = null;
+const ADMIN_TTL_MS = 5_000;
+
+async function adminCached(): Promise<AdminDashboard> {
+  const now = Date.now();
+  if (_adminCachedValue && now - _adminCachedAt < ADMIN_TTL_MS) {
+    return _adminCachedValue;
+  }
+  if (_adminInflight) return _adminInflight;
+  _adminInflight = (async () => {
     const res = await apiFetch<any>("/dashboard/staff");
-    if (import.meta.env.DEV) console.log("dashboard payload", res);
     // Normalize new contract { summary, vault_balances_by_currency,
     // recent_transactions } into the legacy AdminDashboard shape so
     // existing call sites keep working without a sweeping refactor.
+    let normalized: any = res;
     if (res && (res.summary || res.vault_balances_by_currency)) {
       const s = res.summary ?? {};
       const vb: any[] = res.vault_balances_by_currency ?? [];
@@ -86,7 +109,7 @@ export const dashboardApi = {
             holder_count: r.holder_count != null ? Number(r.holder_count) : null,
           }))
         : null;
-      return {
+      normalized = {
         ...res,
         totals,
         pending_approvals: Number(s.pending_approvals ?? 0),
@@ -104,8 +127,13 @@ export const dashboardApi = {
         holder_balances_by_currency: holderByCur,
       } as AdminDashboard & Record<string, any>;
     }
-    return res as AdminDashboard;
-  },
-  teller: () => apiFetch<TellerDashboard>("/dashboard/teller"),
-  auditor: () => apiFetch<AuditorDashboard>("/dashboard/auditor"),
-};
+    _adminCachedValue = normalized;
+    _adminCachedAt = Date.now();
+    return normalized as AdminDashboard;
+  })();
+  try {
+    return await _adminInflight;
+  } finally {
+    _adminInflight = null;
+  }
+}
