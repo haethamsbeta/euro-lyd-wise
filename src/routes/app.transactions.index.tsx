@@ -951,14 +951,71 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     },
     onSuccess: (newTx: any) => {
       qc.invalidateQueries();
-      toast.success(
-        newTx?.status === "posted"
-          ? `Corrected → ${newTx.tx_number}`
-          : `Correction queued for approval → ${newTx?.tx_number ?? ""}`,
-      );
+      const num = newTx?.tx_number ? ` → ${newTx.tx_number}` : "";
+      if (newTx?.status === "posted") {
+        toast.success(`Correction posted${num}`, {
+          description: "The original entry was reversed and the corrected entry is live.",
+        });
+      } else {
+        toast.warning(`Correction queued for admin approval${num}`, {
+          description:
+            "The corrected amount overdrafts the account or exceeds its debit limit. An admin must approve before it posts.",
+        });
+      }
       onClose();
     },
-    onError: (e: any) => toast.error(e.message ?? "Correction failed"),
+    onError: (e: unknown) => {
+      // Network failure (offline / DNS / CORS preflight): fetch throws
+      // TypeError before any HTTP status is available.
+      if (e instanceof TypeError) {
+        toast.error("Network error", {
+          description:
+            "Could not reach the backend. Check your connection and try again.",
+        });
+        return;
+      }
+      if (e instanceof ApiError) {
+        const msg = e.message || "Correction rejected";
+        if (e.status === 401 || e.status === 403) {
+          toast.error("Not authorized", {
+            description:
+              "Your account does not have permission to correct this transaction.",
+          });
+          return;
+        }
+        if (e.status === 404) {
+          toast.error("Transaction not found", {
+            description:
+              "The original entry no longer exists. Refresh the list and try again.",
+          });
+          return;
+        }
+        if (e.status === 409) {
+          toast.error("Conflict", {
+            description:
+              msg ||
+              "This transaction has already been corrected or reversed.",
+          });
+          return;
+        }
+        if (e.status === 422 || e.status === 400) {
+          toast.error("Correction rejected", { description: msg });
+          return;
+        }
+        if (e.status >= 500) {
+          toast.error("Backend error", {
+            description: `${msg} (HTTP ${e.status}). Please retry shortly.`,
+          });
+          return;
+        }
+        toast.error("Correction failed", {
+          description: e.status ? `${msg} (HTTP ${e.status})` : msg,
+        });
+        return;
+      }
+      const msg = (e as any)?.message || "Unknown error";
+      toast.error("Correction failed", { description: msg });
+    },
   });
 
   return (
