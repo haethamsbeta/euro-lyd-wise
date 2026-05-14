@@ -237,7 +237,7 @@ function TxList() {
           status: r.status,
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
-          customer_account_id: String(r.customer_account_id ?? r.holder_account_id ?? r.account_id ?? ""),
+          customer_account_id: accountIdFromTransactionRow(r),
           ledger_account_id: accountIdFromTransactionRow(r),
           vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
