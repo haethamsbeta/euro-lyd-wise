@@ -17,6 +17,13 @@ import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { useIsRealMasterAdmin } from "@/lib/admin-mode";
 import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX, Trash2 } from "lucide-react";
+import { Users as UsersIcon } from "lucide-react";
+import {
+  TableLoadingSkeleton,
+  EmptyState,
+  ErrorState,
+  errorMessage,
+} from "@/components/app/state-views";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
@@ -51,7 +58,7 @@ function UsersPage() {
   const isLambda = DATA_BACKEND === "lambda";
   const PENDING_MSG = "User management write endpoint pending.";
 
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["users.profiles"],
     enabled: !!user,
     retry: false,
