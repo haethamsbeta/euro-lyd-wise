@@ -697,7 +697,12 @@ function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { 
   const filtered = entries.filter((e) => {
     if (search) {
       const s = search.toLowerCase();
-      if (!(e.description ?? "").toLowerCase().includes(s) && !(e.tx_number ?? "").toLowerCase().includes(s)) return false;
+      const matches =
+        (e.description ?? "").toLowerCase().includes(s) ||
+        (e.tx_number ?? "").toLowerCase().includes(s) ||
+        (e.source_entry_code ?? "").toLowerCase().includes(s) ||
+        (e.display_tx_number ?? "").toLowerCase().includes(s);
+      if (!matches) return false;
     }
     const isCredit = Number(e.credit_amount ?? 0) > 0;
     if (filter === "Credit" && !isCredit) return false;
@@ -778,7 +783,7 @@ function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { 
                         <span className="text-xs text-text-secondary">#{e.account_id}</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.tx_number}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.display_tx_number ?? e.tx_number}</td>
                     <td
                       className={cn(
                         "px-5 py-3 text-right font-medium tabular-nums",
