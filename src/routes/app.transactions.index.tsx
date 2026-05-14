@@ -101,12 +101,12 @@ type DatePreset = "all" | "today" | "week" | "month" | "custom";
 
 function accountIdFromTransactionRow(r: any): string {
   return String(
-    r.customer_account_id ??
-      r.holder_account_id ??
+    r.holder_account_id ??
       r.account_id ??
-      r.customerAccountId ??
       r.holderAccountId ??
       r.accountId ??
+      r.customer_account_id ??
+      r.customerAccountId ??
       "",
   );
 }
