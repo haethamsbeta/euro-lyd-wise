@@ -43,8 +43,8 @@ const ITEMS: Record<DockKey, Omit<DockItemDef, "badge">> = {
 
 const DOCK_CONFIG: Record<AppRole, { left: DockKey[]; right: DockKey[]; showFab: boolean }> = {
   admin:    { left: ["Dashboard", "Transactions"], right: ["Holders", "Approvals"], showFab: true },
-  teller:   { left: ["Dashboard", "Transactions"], right: ["Holders", "Transactions"], showFab: true },
-  auditor:  { left: ["Dashboard", "Transactions"], right: ["Holders", "Transactions"], showFab: false },
+  teller:   { left: ["Dashboard", "Transactions"], right: ["Holders"],              showFab: true },
+  auditor:  { left: ["Dashboard", "Transactions"], right: ["Holders"],              showFab: false },
   consumer: { left: ["Dashboard"],                  right: [],                       showFab: false },
 };
 
