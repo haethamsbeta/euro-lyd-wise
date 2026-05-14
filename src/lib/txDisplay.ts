@@ -2,10 +2,10 @@
  * Frontend-only helper: pick the user-facing TX number for display.
  *
  * The backend stores both an internal generated reference (`tx_number`,
- * e.g. ALM-7388-3C7A01A0) and the original accounting code from the
- * source ledger (`source_entry_code` / `source_cash_entry_code`,
- * mirrored from AlMizan_Cloud.dbo.Entry.Code). Users recognize the
- * accounting code; the internal one is only meaningful to engineers.
+ * e.g. ALM-7388-3C7A01A0) and the user-facing accounting code
+ * (`display_tx_number`, sourced from AlMizan_Cloud.dbo.Entry.Code when
+ * imported). Users recognize the accounting code; the internal one is
+ * only meaningful to engineers.
  *
  * This helper does NOT mutate the row — it only computes what to render.
  * Use the original `tx_number` field for any backend call (correction,
@@ -56,20 +56,12 @@ export function sourceCashEntryCode(r: TxDisplaySource | null | undefined): stri
   );
 }
 
-function originalCodeFromGeneratedTxNumber(r: TxDisplaySource | null | undefined): string | null {
-  const tx = cleanCode(r?.tx_number ?? r?.txNumber);
-  if (!tx) return null;
-  const almMatch = tx.match(/^ALM-(\d+)(?:-|$)/i);
-  return almMatch?.[1] ?? null;
-}
-
 export function displayTxNumber(r: TxDisplaySource | null | undefined): string {
   return (
     cleanCode(r?.display_tx_number) ??
     cleanCode(r?.displayTxNumber) ??
     sourceEntryCode(r) ??
     sourceCashEntryCode(r) ??
-    originalCodeFromGeneratedTxNumber(r) ??
     cleanCode(r?.tx_number ?? r?.txNumber) ??
     ""
   );
@@ -88,8 +80,7 @@ export function systemTxNumber(r: TxDisplaySource | null | undefined): string | 
  * Normalize a backend row for user-facing rendering:
  *  - preserves the original system reference as `system_tx_number`
  *  - sets `display_tx_number` from the priority chain
- *  - overrides `tx_number` with the display code so any UI that still
- *    renders `row.tx_number` shows the accounting code
+ *  - keeps `tx_number` as the backend-provided system reference
  *
  * Backend identifiers (`id`) and all other fields are left untouched —
  * correction/reversal/idempotency continue to use `id`.
@@ -105,14 +96,14 @@ export function normalizeTxRow<T extends TxDisplaySource>(
 } {
   const sys = systemTxNumber(r);
   const display = displayTxNumber(r);
-  const visible = display || (sys ?? "");
+  const rawTx = cleanCode(r?.tx_number ?? r?.txNumber) ?? (sys ?? "");
   return {
     ...(r as object),
     system_tx_number: sys,
     source_entry_code: sourceEntryCode(r),
     source_cash_entry_code: sourceCashEntryCode(r),
-    display_tx_number: visible,
-    tx_number: visible,
+    display_tx_number: display || rawTx,
+    tx_number: rawTx,
   } as T & {
     system_tx_number: string | null;
     display_tx_number: string;
