@@ -997,17 +997,18 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     mutationFn: async () => {
       if (!tx) throw new Error("No transaction selected");
       if (DATA_BACKEND === "lambda") {
-        if (!tx.customer_account_id || !tx.vault_account_id) {
-          throw new ApiError(
-            "Imported transactions cannot be corrected until the backend exposes a correction route for them.",
-            422,
-          );
+        try {
+          return await api.transactions.correct(tx.id, {
+            new_amount_minor: amountMinor!,
+            new_comment: trimmedComment,
+            correction_reason: trimmedReason,
+          });
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404 && /route not found/i.test(e.message)) {
+            return await correctThroughCashPosts(tx);
+          }
+          throw e;
         }
-        return await api.transactions.correct(tx.id, {
-          new_amount_minor: amountMinor!,
-          new_comment: trimmedComment,
-          correction_reason: trimmedReason,
-        });
       }
       const { data, error } = await supabase.rpc("correct_transaction" as any, {
         p_tx_id: tx.id,
