@@ -23,7 +23,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { RoleGate } from "@/components/app/app-shell";
-import { displayTxNumber, sourceEntryCode } from "@/lib/txDisplay";
+import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/accounts/$id")({
   head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
