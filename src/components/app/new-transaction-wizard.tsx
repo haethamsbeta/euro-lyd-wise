@@ -966,7 +966,7 @@ function CustomerStep({
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
-            placeholder="Search by customer name or DAHAB number…"
+            placeholder="Search by name, account number, or DAHAB number…"
             className="h-14 rounded-2xl border-gold/20 bg-card/60 pl-12 pr-12 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40 focus-visible:border-gold/60 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1033,7 +1033,7 @@ function CustomerStep({
           <div>
             <div className="text-sm font-medium text-foreground">Find a customer</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Start typing a customer name or DAHAB number to search.
+              Type a name, account number, or DAHAB number — results appear from the first character.
             </p>
           </div>
         </div>
@@ -1047,7 +1047,7 @@ function CustomerStep({
             <X className="h-5 w-5" />
           </div>
           <div className="text-sm font-medium text-foreground">No customers found</div>
-          <p className="text-xs text-muted-foreground">Try searching by customer name or DAHAB number.</p>
+          <p className="text-xs text-muted-foreground">Try a name, account number, or DAHAB number.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
