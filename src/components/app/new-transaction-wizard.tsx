@@ -863,27 +863,91 @@ function CustomerStep({
     if (picked) setBrowseHolderId(picked.account_holder_id);
   }, [picked]);
 
-  // Group results by customer
+  // Light client-side fallback filter so partial matches (case-insensitive,
+  // ignoring spaces/dashes/slashes) always surface even if the backend `q`
+  // parameter is strict. Searches name, account_number, DAHAB number, alias.
+  const filteredResults = useMemo(() => {
+    if (!results) return [] as HolderCardHit[];
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_/]/g, "");
+    const q = norm(debounced);
+    if (!q) return results;
+    return results.filter((r) => {
+      const hay = norm(
+        `${r.holder_name} ${r.account_number} ${r.dahab_account_number} ${r.alias ?? ""}`,
+      );
+      return hay.includes(q);
+    });
+  }, [results, debounced]);
+
   const customers = useMemo(() => {
-    if (!results) return [];
     const map = new Map<string | number, { holder: HolderCardHit; accountCount: number }>();
-    for (const r of results) {
+    for (const r of filteredResults) {
       const ex = map.get(r.account_holder_id);
       if (ex) ex.accountCount += 1;
       else map.set(r.account_holder_id, { holder: r, accountCount: 1 });
     }
     return Array.from(map.values());
-  }, [results]);
+  }, [filteredResults]);
+
+  // After a customer is selected, fetch ALL of their linked accounts so the
+  // account tile grid is complete (independent of which fields matched the
+  // search term).
+  const { data: holderAccountsAll } = useQuery({
+    enabled: !!selectedHolderId,
+    queryKey: ["holder.accounts.all", String(selectedHolderId ?? "")],
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!selectedHolderId) return [] as HolderCardHit[];
+      const list = await api.holders.accounts(selectedHolderId).catch(() => [] as any[]);
+      const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
+      const seedHolder =
+        results?.find((r) => r.account_holder_id === selectedHolderId) ?? picked ?? null;
+      return (list as any[])
+        .filter((r) => allowed.has(String(r.currency_code)))
+        .filter(
+          (r) => !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
+        )
+        .map(
+          (r) =>
+            ({
+              holder_account_id: r.id,
+              account_number: r.account_number,
+              currency: r.currency_code as Currency,
+              balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+              account_holder_id: r.account_holder_id ?? selectedHolderId,
+              dahab_account_number:
+                seedHolder?.dahab_account_number ?? r.account_number ?? "",
+              holder_name:
+                seedHolder?.holder_name ?? r.account_display_name ?? r.account_number,
+              phone: seedHolder?.phone ?? null,
+              status: r.status ?? "ACTIVE",
+              account_nature: r.account_nature ?? null,
+              alias: r.alias_name ?? null,
+              withdraw_limit_minor: Math.round(
+                Number((r as any).withdraw_limit_amount ?? 0) * 100,
+              ),
+              withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
+              holder_type: seedHolder?.holder_type ?? "INDIVIDUAL",
+            }) as HolderCardHit,
+        );
+    },
+  });
 
   const selectedHolder = useMemo(() => {
-    if (!selectedHolderId || !results) return null;
-    return results.find((r) => r.account_holder_id === selectedHolderId) ?? picked ?? null;
-  }, [selectedHolderId, results, picked]);
+    if (!selectedHolderId) return null;
+    return (
+      results?.find((r) => r.account_holder_id === selectedHolderId) ??
+      picked ??
+      holderAccountsAll?.[0] ??
+      null
+    );
+  }, [selectedHolderId, results, picked, holderAccountsAll]);
 
   const accountsForSelected = useMemo(() => {
-    if (!selectedHolderId || !results) return [];
-    return results.filter((r) => r.account_holder_id === selectedHolderId);
-  }, [selectedHolderId, results]);
+    if (!selectedHolderId) return [];
+    if (holderAccountsAll && holderAccountsAll.length) return holderAccountsAll;
+    return (results ?? []).filter((r) => r.account_holder_id === selectedHolderId);
+  }, [selectedHolderId, results, holderAccountsAll]);
 
   function handleChangeCustomer() {
     setBrowseHolderId(null);
@@ -892,7 +956,7 @@ function CustomerStep({
   }
 
   const showSearchMode = !selectedHolder;
-  const showHint = showSearchMode && debounced.length < 2;
+  const showHint = showSearchMode && debounced.length < 1;
   const showNoResults = showSearchMode && !showHint && !isFetching && customers.length === 0;
 
   return (
