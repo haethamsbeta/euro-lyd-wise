@@ -980,7 +980,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       transaction_category: "cash",
       amount: amountMinor!,
       currency_code: original.currency,
-      vault_account_id: replacementVault.id,
+      vault_account_id: replacementVault!.id,
       comment: trimmedComment,
       idempotency_key: nextIdempotencyKey(),
     });
