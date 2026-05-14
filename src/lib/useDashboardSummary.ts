@@ -39,6 +39,8 @@ export function useDashboardSummary() {
       };
     },
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
