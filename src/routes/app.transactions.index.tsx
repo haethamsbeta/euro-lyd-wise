@@ -168,11 +168,15 @@ function TxList() {
   const PAGE_SIZE = 20;
   const [offset, setOffset] = useState(0);
 
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedQ]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v4.adapterDisplay", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
+        const paged = await api.transactions.listPaged({ q: debouncedQ.trim() || undefined, limit: PAGE_SIZE, offset });
         const rawItems: any[] = Array.isArray(paged.items) ? paged.items : [];
         const items: Tx[] = rawItems.map((r: any) => ({
           id: String(r.id),
