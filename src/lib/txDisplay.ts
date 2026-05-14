@@ -14,6 +14,10 @@
 type TxDisplaySource = {
   tx_number?: string | number | null;
   txNumber?: string | number | null;
+  system_tx_number?: string | number | null;
+  systemTxNumber?: string | number | null;
+  display_tx_number?: string | number | null;
+  displayTxNumber?: string | number | null;
   source_entry_code?: string | number | null;
   sourceEntryCode?: string | number | null;
   source_entry_number?: string | number | null;
@@ -61,6 +65,8 @@ function originalCodeFromGeneratedTxNumber(r: TxDisplaySource | null | undefined
 
 export function displayTxNumber(r: TxDisplaySource | null | undefined): string {
   return (
+    cleanCode(r?.display_tx_number) ??
+    cleanCode(r?.displayTxNumber) ??
     sourceEntryCode(r) ??
     sourceCashEntryCode(r) ??
     originalCodeFromGeneratedTxNumber(r) ??
@@ -69,9 +75,56 @@ export function displayTxNumber(r: TxDisplaySource | null | undefined): string {
   );
 }
 
-/** True when the internal tx_number differs from the displayed code. */
+/** Return the original system-generated tx reference (e.g. ALM-7388-3C7A01A0). */
+export function systemTxNumber(r: TxDisplaySource | null | undefined): string | null {
+  return (
+    cleanCode(r?.system_tx_number) ??
+    cleanCode(r?.systemTxNumber) ??
+    cleanCode(r?.tx_number ?? r?.txNumber)
+  );
+}
+
+/**
+ * Normalize a backend row for user-facing rendering:
+ *  - preserves the original system reference as `system_tx_number`
+ *  - sets `display_tx_number` from the priority chain
+ *  - overrides `tx_number` with the display code so any UI that still
+ *    renders `row.tx_number` shows the accounting code
+ *
+ * Backend identifiers (`id`) and all other fields are left untouched —
+ * correction/reversal/idempotency continue to use `id`.
+ */
+export function normalizeTxRow<T extends TxDisplaySource>(
+  r: T,
+): T & {
+  system_tx_number: string | null;
+  display_tx_number: string;
+  source_entry_code: string | null;
+  source_cash_entry_code: string | null;
+  tx_number: string;
+} {
+  const sys = systemTxNumber(r);
+  const display = displayTxNumber(r);
+  const visible = display || (sys ?? "");
+  return {
+    ...(r as object),
+    system_tx_number: sys,
+    source_entry_code: sourceEntryCode(r),
+    source_cash_entry_code: sourceCashEntryCode(r),
+    display_tx_number: visible,
+    tx_number: visible,
+  } as T & {
+    system_tx_number: string | null;
+    display_tx_number: string;
+    source_entry_code: string | null;
+    source_cash_entry_code: string | null;
+    tx_number: string;
+  };
+}
+
+/** True when the internal system reference differs from the displayed code. */
 export function hasInternalRef(r: TxDisplaySource | null | undefined): boolean {
   const display = displayTxNumber(r);
-  const txNumber = cleanCode(r?.tx_number ?? r?.txNumber);
-  return !!txNumber && display !== "" && display !== txNumber;
+  const sys = systemTxNumber(r);
+  return !!sys && display !== "" && display !== sys;
 }

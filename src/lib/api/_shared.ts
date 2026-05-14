@@ -8,6 +8,7 @@
  */
 export { apiFetch, apiFetchEnvelope, ApiError } from "@/lib/dahabApi";
 export type { ApiEnvelope, Currency } from "@/lib/dahabApi";
+export { normalizeTxRow, displayTxNumber, systemTxNumber, sourceEntryCode, sourceCashEntryCode, hasInternalRef } from "@/lib/txDisplay";
 
 /** Build a query string from an object, skipping null/undefined/empty values. */
 export function qs(params: Record<string, string | number | boolean | undefined | null>): string {

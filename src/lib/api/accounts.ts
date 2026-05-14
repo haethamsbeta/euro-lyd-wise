@@ -1,5 +1,5 @@
 // Holder-account adapter (single account view + ledger).
-import { apiFetch, apiFetchEnvelope, qs } from "./_shared";
+import { apiFetch, apiFetchEnvelope, qs, normalizeTxRow } from "./_shared";
 import type { HolderAccount, LedgerEntry, PagedResult } from "@/lib/dahabApi";
 
 export const accountsApi = {
@@ -36,7 +36,13 @@ export const accountsApi = {
   ledger: (
     id: string | number,
     range: { from?: string; to?: string; limit?: number; offset?: number } = {},
-  ) => apiFetch<LedgerEntry[]>(`/holder-accounts/${id}/ledger${qs(range)}`),
+  ) =>
+    apiFetch<LedgerEntry[] | { items: LedgerEntry[] }>(
+      `/holder-accounts/${id}/ledger${qs(range)}`,
+    ).then((res) => {
+      const rows: any[] = Array.isArray(res) ? res : ((res as any)?.items ?? []);
+      return rows.map((r) => normalizeTxRow(r)) as unknown as LedgerEntry[];
+    }),
   setWithdrawLimit: (
     id: string | number,
     body: {

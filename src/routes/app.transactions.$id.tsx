@@ -36,7 +36,7 @@ import {
   Copy,
   User as UserIcon,
 } from "lucide-react";
-import { displayTxNumber, hasInternalRef, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
+import { displayTxNumber, hasInternalRef, sourceCashEntryCode, sourceEntryCode, systemTxNumber } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/transactions/$id")({
   head: () => ({ meta: [{ title: "Transaction details — Dahab" }, { name: "description", content: "Inspect the legs, balances, and audit history of a single Dahab transaction." }] }), component: TxDetail,
@@ -45,6 +45,7 @@ export const Route = createFileRoute("/app/transactions/$id")({
 type TxFull = {
   id: string;
   tx_number: string;
+  system_tx_number: string | null;
   source_entry_code: string | null;
   source_cash_entry_code: string | null;
   display_tx_number: string;
@@ -100,6 +101,7 @@ function TxDetail() {
         const mapped: TxFull = {
           id: String(r.id),
           tx_number: r.tx_number,
+          system_tx_number: systemTxNumber(r),
           source_entry_code: sourceEntryCode(r),
           source_cash_entry_code: sourceCashEntryCode(r),
           display_tx_number: displayTxNumber(r),
@@ -147,6 +149,7 @@ function TxDetail() {
       const r = data as any;
       return {
         ...(r as TxFull),
+        system_tx_number: systemTxNumber(r),
         source_entry_code: sourceEntryCode(r),
         source_cash_entry_code: sourceCashEntryCode(r),
         display_tx_number: displayTxNumber(r ?? {}),
@@ -310,7 +313,7 @@ function TxDetail() {
               </div>
               {hasInternalRef(tx) ? (
                 <div className="text-[11px] font-mono text-text-tertiary">
-                  System ref: {tx.tx_number}
+                  System ref: {tx.system_tx_number ?? tx.tx_number}
                 </div>
               ) : null}
               <div className="flex items-end gap-3">
