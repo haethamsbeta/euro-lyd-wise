@@ -17,7 +17,7 @@ import { isTestRow } from "@/lib/api/_shared";
 export const Route = createFileRoute("/app/accounts/")({ head: () => ({ meta: [{ title: "Accounts — Dahab" }, { name: "description", content: "Browse all customer accounts and balances across currencies in the Dahab back-office." }] }), component: AccountsList });
 
 const ALLOWED_CURRENCIES = new Set(["LYD", "USD", "EUR", "GBP"]);
-const PAGE_SIZES = [50, 100] as const;
+const PAGE_SIZES = [20, 50] as const;
 
 function fmtAmount(n: number, currency: string) {
   return `${Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`;
@@ -25,7 +25,7 @@ function fmtAmount(n: number, currency: string) {
 
 function AccountsList() {
   const navigate = useNavigate();
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
   const dq = useDebounced(q, 300);
