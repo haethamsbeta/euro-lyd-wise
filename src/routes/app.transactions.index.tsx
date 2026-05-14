@@ -85,6 +85,7 @@ type Tx = {
   comment: string;
   created_at: string;
   customer_account_id: string;
+  ledger_account_id: string;
   vault_account_id: string | null;
   reverses_tx_id: string | null;
   corrected_by_tx_id: string | null;
@@ -236,7 +237,8 @@ function TxList() {
           status: r.status,
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
-          customer_account_id: accountIdFromTransactionRow(r),
+          customer_account_id: String(r.customer_account_id ?? r.holder_account_id ?? r.account_id ?? ""),
+          ledger_account_id: accountIdFromTransactionRow(r),
           vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
@@ -246,7 +248,7 @@ function TxList() {
           attachment_count: 0,
         }));
 
-        const accountIds = [...new Set(items.map((t) => t.customer_account_id).filter(Boolean))];
+        const accountIds = [...new Set(items.map((t) => t.ledger_account_id).filter(Boolean))];
         const ledgerByAccount = new Map<string, any[]>();
         await Promise.all(
           accountIds.map(async (accountId) => {
@@ -260,9 +262,9 @@ function TxList() {
         );
         const usedByAccount = new Map<string, Set<number>>();
         const normalizedItems = items.map((tx) => {
-          const entries = ledgerByAccount.get(tx.customer_account_id) ?? [];
-          const used = usedByAccount.get(tx.customer_account_id) ?? new Set<number>();
-          usedByAccount.set(tx.customer_account_id, used);
+          const entries = ledgerByAccount.get(tx.ledger_account_id) ?? [];
+          const used = usedByAccount.get(tx.ledger_account_id) ?? new Set<number>();
+          usedByAccount.set(tx.ledger_account_id, used);
           const match = findLedgerTxNumber(tx, entries, used);
           if (!match) return tx;
           used.add(match.index);
