@@ -37,7 +37,10 @@ function MobileLogin() {
     if (DATA_BACKEND === "lambda") {
       try {
         const raw = await api.auth.login({ email: email.trim(), password });
-        console.log("[LOGIN RAW]", raw);
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log("[LOGIN RAW]", raw);
+        }
         const payload = raw?.data?.access_token ? raw.data : raw;
         const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
@@ -55,12 +58,15 @@ function MobileLogin() {
         localStorage.setItem("dahab.signed_in_at", String(Date.now()));
 
         const hasToken = !!localStorage.getItem("dahab.access_token");
-        console.log("[LOGIN STORED]", {
-          hasToken,
-          keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
-          role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
-          is_master_admin: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.is_master_admin,
-        });
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log("[LOGIN STORED]", {
+            hasToken,
+            keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
+            role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
+            is_master_admin: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.is_master_admin,
+          });
+        }
         setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
         if (!hasToken) throw new Error("Lambda token storage failed");
 
