@@ -4,6 +4,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------- Mobile viewport & safe-area baseline (iPhone 11+) ----------
+   With viewport-fit=cover + black-translucent status bar, the page draws
+   under the notch / Dynamic Island. Make sure the background fills the
+   full screen and that fixed/sticky chrome and full-height containers
+   respect the visible viewport height. */
+html, body, #root {
+  min-height: 100vh;          /* fallback */
+  min-height: 100dvh;         /* dynamic — accounts for browser chrome */
+  background-color: var(--background);
+}
+@supports (height: 100dvh) {
+  .min-h-screen { min-height: 100dvh; }
+  .h-screen { height: 100dvh; }
+}
+
 /* ============================================================
    DAHAB — luxe gold-on-obsidian design system.
    "Dahab" (ذهب) means "gold" in Arabic. Treat every surface
