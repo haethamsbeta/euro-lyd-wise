@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { PageHeader } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { api } from "@/lib/api";
@@ -38,28 +38,80 @@ function AccountsList() {
     setOffset(0);
   }, [dq, currency, status, pageSize]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
-    queryKey: ["holder-accounts.list", offset, pageSize, dq, currency, status],
-    queryFn: () => {
-      if (DATA_BACKEND !== "lambda") {
-        return Promise.resolve({
-          items: [] as any[],
-          total: 0,
-          limit: pageSize,
-          offset,
-          next_offset: null as number | null,
-        });
+  // The backend's /holder-accounts pagination + ?q= filter are unreliable
+  // (returns inconsistent page sizes and empty `items` for valid searches).
+  // Fetch the full set once and do search / filter / paginate client-side.
+  const { data: allData, isLoading, isFetching, isError, error, refetch } = useQuery({
+    queryKey: ["holder-accounts.full"],
+    queryFn: async () => {
+      if (DATA_BACKEND !== "lambda") return [] as any[];
+      const PAGE = 200;
+      const all: any[] = [];
+      let off = 0;
+      // Hard cap to avoid runaway loops; ~709 accounts expected.
+      for (let i = 0; i < 50; i++) {
+        const res = await api.holderAccounts.list({ limit: PAGE, offset: off });
+        const items = res?.items ?? [];
+        all.push(...items);
+        const total = (res as any)?.total;
+        const next = (res as any)?.next_offset;
+        if (items.length === 0) break;
+        if (typeof total === "number" && all.length >= total) break;
+        off = typeof next === "number" && next > off ? next : off + items.length;
       }
-      return api.holderAccounts.list({
-        limit: pageSize,
-        offset,
-        q: dq.trim() || undefined,
-        currency: currency ?? undefined,
-        status: status ?? undefined,
-      });
+      return all;
     },
+    staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
+
+  // Client-side filter/search.
+  const filtered = useMemo(() => {
+    const rows = (allData ?? []).filter((r: any) => !isTestRow(r));
+    const needle = dq.trim().toLowerCase();
+    return rows.filter((a: any) => {
+      if (currency) {
+        const cur = String(a.currency_code ?? a.currency ?? "").toUpperCase();
+        if (cur !== currency) return false;
+      }
+      if (status) {
+        const st = String(a.status ?? "").toLowerCase();
+        if (st !== status.toLowerCase()) return false;
+      }
+      if (!needle) return true;
+      const hay = [
+        a.holder_name,
+        a.holder_dahab_account_number,
+        a.dahab_account_number,
+        a.account_number,
+        a.account_display_name,
+        a.account_alias_name,
+        a.alias_name,
+        a.holder_phone,
+        a.phone_number,
+        a.holder_email,
+        a.source_account_code,
+      ]
+        .filter(Boolean)
+        .map((x: any) => String(x).toLowerCase())
+        .join(" \u0001 ");
+      return hay.includes(needle);
+    });
+  }, [allData, dq, currency, status]);
+
+  // Pseudo "data" object the rest of the component expected.
+  const pageItems = useMemo(
+    () => filtered.slice(offset, offset + pageSize),
+    [filtered, offset, pageSize],
+  );
+  const data = {
+    items: pageItems,
+    total: filtered.length,
+    limit: pageSize,
+    offset,
+    next_offset:
+      offset + pageSize < filtered.length ? offset + pageSize : (null as number | null),
+  };
 
   useEffect(() => {
     if (isError && import.meta.env.DEV) {
@@ -75,8 +127,8 @@ function AccountsList() {
 
   const hasFilters = !!(dq.trim() || currency || status);
 
-  const items: any[] = (data?.items ?? []).filter((r: any) => !isTestRow(r));
-  const total = data?.total ?? dashSummary?.holderAccountCount ?? null;
+  const items: any[] = data.items;
+  const total = data.total ?? dashSummary?.holderAccountCount ?? null;
   const start = items.length > 0 ? offset + 1 : 0;
   const end = offset + items.length;
   const nextOffset = data?.next_offset;
@@ -102,9 +154,21 @@ function AccountsList() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by holder, DAHAB #, account #, alias, phone…"
-              className="ps-9"
+              placeholder="Search by holder name, DAHAB #, account #, alias, phone, email…"
+              className="ps-9 pe-9"
+              autoComplete="off"
+              spellCheck={false}
             />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                aria-label="Clear search"
+                className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
