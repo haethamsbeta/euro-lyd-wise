@@ -518,6 +518,10 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               onUnpin={(id) =>
                 update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
               }
+              onPin={(id) => {
+                if (!prefs.pinnedAccountIds.includes(id))
+                  update({ ...prefs, pinnedAccountIds: [...prefs.pinnedAccountIds, id] });
+              }}
             />
           </div>
         )}
@@ -1030,8 +1034,9 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 }
 
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
-function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string) => void }) {
+function PinnedCustomers({ ids, onUnpin, onPin }: { ids: string[]; onUnpin: (id: string) => void; onPin: (id: string) => void }) {
   const t = useT();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const isLambda = DATA_BACKEND === "lambda";
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   const sortedKey = ids.slice().sort().join(",");
@@ -1086,12 +1091,50 @@ function PinnedCustomers({ ids, onUnpin }: { ids: string[]; onUnpin: (id: string
           <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-gold">{t("dash.pinnedTitle")}</h2>
           <span className="chip chip-gold">{ids.length}</span>
         </div>
-        <Users className="w-4 h-4 text-gold" />
+        <div className="flex items-center gap-2">
+          <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
+            <SheetTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-gold/40 text-gold hover:bg-gold/10"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add customer
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="overflow-y-auto w-full sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle className="font-serif">Pin a customer</SheetTitle>
+                <SheetDescription>
+                  Search DAHAB customers by name, DAHAB number, or linked account number.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6">
+                <PinAccountPicker
+                  pinned={ids}
+                  onAdd={(id) => onPin(id)}
+                  onRemove={(id) => onUnpin(id)}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Users className="w-4 h-4 text-gold" />
+        </div>
       </div>
       {ids.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gold/30 bg-surface-2/50 p-4 text-center">
           <Star className="w-5 h-5 text-gold/60 mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground">Pin customers via the Customize panel to see their accounts here.</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Use <span className="font-semibold text-foreground">Add customer</span> to search DAHAB accounts by name, DAHAB number, or account number and pin customers here.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-gold/40 text-gold hover:bg-gold/10"
+            onClick={() => setPickerOpen(true)}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add customer
+          </Button>
         </div>
       ) : isLoading ? (
         <p className="text-xs text-muted-foreground">Loading…</p>
