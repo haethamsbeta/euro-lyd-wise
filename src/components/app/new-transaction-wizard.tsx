@@ -594,12 +594,15 @@ function ActionBar({
   rightLabel: string; rightDisabled: boolean; rightOnClick: () => void; submitting: boolean;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gold/15 bg-card/95 backdrop-blur-md">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-20 border-t border-gold/15 bg-card/95 backdrop-blur-md"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-4 md:px-8">
-        <Button type="button" variant="outline" className="border-gold/20" onClick={leftOnClick} disabled={submitting}>
+        <Button type="button" variant="outline" className="shrink-0 border-gold/20" onClick={leftOnClick} disabled={submitting}>
           <ChevronLeft className="h-4 w-4" /> {leftLabel}
         </Button>
-        <Button type="button" variant="gold" className="min-w-[180px]" disabled={rightDisabled} onClick={rightOnClick}>
+        <Button type="button" variant="gold" className="min-w-[140px] sm:min-w-[180px]" disabled={rightDisabled} onClick={rightOnClick}>
           {submitting ? (
             <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing…</span>
           ) : (
