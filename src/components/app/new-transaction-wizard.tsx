@@ -101,32 +101,59 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const [debounced, setDebounced] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 200);
+    const t = setTimeout(() => setDebounced(search.trim()), 120);
     return () => clearTimeout(t);
   }, [search]);
 
   const { data: results, isFetching, isError } = useQuery({
-    // Only run a search once we have a step active AND at least 2 characters
-    // typed. This avoids the heavy initial "list everything" fetch that made
-    // the customer step feel frozen.
-    enabled: stepIdx === 1 && debounced.length >= 2,
+    // Run a search from the very first character so users don't have to
+    // type two letters before anything happens.
+    enabled: stepIdx === 1 && debounced.length >= 1,
     queryKey: ["holder_cards.search", debounced],
     staleTime: 30_000,
     queryFn: async () => {
       const term = debounced;
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode — lightweight search via backend endpoints. We rely on
-        // the fields already returned by /holder-accounts (account_display_name,
-        // account_number, currency, balance) and avoid per-holder fetches.
+        // Lambda mode — search across both accounts and holders so a query
+        // by holder name, account number, OR DAHAB number all return hits.
+        // For every holder that matched (by name / DAHAB number) we also
+        // pull their full linked account list, so the user can see every
+        // eligible account regardless of which field the search matched.
         const [accountsRes, holdersRes] = await Promise.all([
-          api.accounts.list({ q: term, limit: 30 }),
-          api.holders.list({ q: term, limit: 20 }).catch(() => [] as any[]),
+          api.accounts.list({ q: term, limit: 50 }).catch(() => ({ items: [] as any[] })),
+          api.holders.list({ q: term, limit: 25 }).catch(() => [] as any[]),
         ]);
         const accountItems: any[] = (accountsRes as any)?.items ?? [];
+        const holderRows: any[] = Array.isArray(holdersRes) ? holdersRes : [];
         const holderById = new Map<string | number, any>();
-        for (const h of holdersRes as any[]) holderById.set(h.id, h);
+        for (const h of holderRows) holderById.set(h.id, h);
+
+        // Holders that matched by name/DAHAB number but whose accounts did
+        // not surface in the accounts query — fetch their accounts directly.
+        const accountHolderIds = new Set(accountItems.map((r) => String(r.account_holder_id)));
+        const missingHolders = holderRows.filter(
+          (h) => !accountHolderIds.has(String(h.id)),
+        );
+        const extraAccountLists = await Promise.all(
+          missingHolders.slice(0, 15).map((h) =>
+            api.holders.accounts(h.id).catch(() => [] as any[]),
+          ),
+        );
+        for (const list of extraAccountLists) {
+          for (const a of list as any[]) accountItems.push(a);
+        }
+
+        // De-duplicate (a holder hit + an account hit can return the same row).
+        const seen = new Set<string>();
+        const merged = accountItems.filter((r) => {
+          const k = String(r.id ?? r.holder_account_id ?? "");
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
         const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
-        return accountItems
+        return merged
           .filter((r) => allowed.has(String(r.currency_code)))
           .filter((r) =>
             !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
@@ -836,27 +863,91 @@ function CustomerStep({
     if (picked) setBrowseHolderId(picked.account_holder_id);
   }, [picked]);
 
-  // Group results by customer
+  // Light client-side fallback filter so partial matches (case-insensitive,
+  // ignoring spaces/dashes/slashes) always surface even if the backend `q`
+  // parameter is strict. Searches name, account_number, DAHAB number, alias.
+  const filteredResults = useMemo(() => {
+    if (!results) return [] as HolderCardHit[];
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_/]/g, "");
+    const q = norm(debounced);
+    if (!q) return results;
+    return results.filter((r) => {
+      const hay = norm(
+        `${r.holder_name} ${r.account_number} ${r.dahab_account_number} ${r.alias ?? ""}`,
+      );
+      return hay.includes(q);
+    });
+  }, [results, debounced]);
+
   const customers = useMemo(() => {
-    if (!results) return [];
     const map = new Map<string | number, { holder: HolderCardHit; accountCount: number }>();
-    for (const r of results) {
+    for (const r of filteredResults) {
       const ex = map.get(r.account_holder_id);
       if (ex) ex.accountCount += 1;
       else map.set(r.account_holder_id, { holder: r, accountCount: 1 });
     }
     return Array.from(map.values());
-  }, [results]);
+  }, [filteredResults]);
+
+  // After a customer is selected, fetch ALL of their linked accounts so the
+  // account tile grid is complete (independent of which fields matched the
+  // search term).
+  const { data: holderAccountsAll } = useQuery({
+    enabled: !!selectedHolderId,
+    queryKey: ["holder.accounts.all", String(selectedHolderId ?? "")],
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!selectedHolderId) return [] as HolderCardHit[];
+      const list = await api.holders.accounts(selectedHolderId).catch(() => [] as any[]);
+      const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
+      const seedHolder =
+        results?.find((r) => r.account_holder_id === selectedHolderId) ?? picked ?? null;
+      return (list as any[])
+        .filter((r) => allowed.has(String(r.currency_code)))
+        .filter(
+          (r) => !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
+        )
+        .map(
+          (r) =>
+            ({
+              holder_account_id: r.id,
+              account_number: r.account_number,
+              currency: r.currency_code as Currency,
+              balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+              account_holder_id: r.account_holder_id ?? selectedHolderId,
+              dahab_account_number:
+                seedHolder?.dahab_account_number ?? r.account_number ?? "",
+              holder_name:
+                seedHolder?.holder_name ?? r.account_display_name ?? r.account_number,
+              phone: seedHolder?.phone ?? null,
+              status: r.status ?? "ACTIVE",
+              account_nature: r.account_nature ?? null,
+              alias: r.alias_name ?? null,
+              withdraw_limit_minor: Math.round(
+                Number((r as any).withdraw_limit_amount ?? 0) * 100,
+              ),
+              withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
+              holder_type: seedHolder?.holder_type ?? "INDIVIDUAL",
+            }) as HolderCardHit,
+        );
+    },
+  });
 
   const selectedHolder = useMemo(() => {
-    if (!selectedHolderId || !results) return null;
-    return results.find((r) => r.account_holder_id === selectedHolderId) ?? picked ?? null;
-  }, [selectedHolderId, results, picked]);
+    if (!selectedHolderId) return null;
+    return (
+      results?.find((r) => r.account_holder_id === selectedHolderId) ??
+      picked ??
+      holderAccountsAll?.[0] ??
+      null
+    );
+  }, [selectedHolderId, results, picked, holderAccountsAll]);
 
   const accountsForSelected = useMemo(() => {
-    if (!selectedHolderId || !results) return [];
-    return results.filter((r) => r.account_holder_id === selectedHolderId);
-  }, [selectedHolderId, results]);
+    if (!selectedHolderId) return [];
+    if (holderAccountsAll && holderAccountsAll.length) return holderAccountsAll;
+    return (results ?? []).filter((r) => r.account_holder_id === selectedHolderId);
+  }, [selectedHolderId, results, holderAccountsAll]);
 
   function handleChangeCustomer() {
     setBrowseHolderId(null);
@@ -865,7 +956,7 @@ function CustomerStep({
   }
 
   const showSearchMode = !selectedHolder;
-  const showHint = showSearchMode && debounced.length < 2;
+  const showHint = showSearchMode && debounced.length < 1;
   const showNoResults = showSearchMode && !showHint && !isFetching && customers.length === 0;
 
   return (
@@ -875,7 +966,7 @@ function CustomerStep({
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
-            placeholder="Search by customer name or DAHAB number…"
+            placeholder="Search by name, account number, or DAHAB number…"
             className="h-14 rounded-2xl border-gold/20 bg-card/60 pl-12 pr-12 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40 focus-visible:border-gold/60 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -942,7 +1033,7 @@ function CustomerStep({
           <div>
             <div className="text-sm font-medium text-foreground">Find a customer</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Start typing a customer name or DAHAB number to search.
+              Type a name, account number, or DAHAB number — results appear from the first character.
             </p>
           </div>
         </div>
@@ -956,7 +1047,7 @@ function CustomerStep({
             <X className="h-5 w-5" />
           </div>
           <div className="text-sm font-medium text-foreground">No customers found</div>
-          <p className="text-xs text-muted-foreground">Try searching by customer name or DAHAB number.</p>
+          <p className="text-xs text-muted-foreground">Try a name, account number, or DAHAB number.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
