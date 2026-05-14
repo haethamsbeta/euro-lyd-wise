@@ -934,7 +934,30 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       );
     }
 
+    const vaults = await api.vaults.list();
+    const findCashVault = (direction: Tx["direction"]) => {
+      const requiredRole = direction === "deposit" ? "receiv" : "pay";
+      return vaults.find((vault: any) => {
+        const currency = vault.currency_code ?? vault.currency;
+        const roleText = String(vault.internal_role ?? vault.vault_role ?? vault.name ?? "").toLowerCase();
+        return currency === original.currency && roleText.includes(requiredRole);
+      });
+    };
     const reverseDirection = original.direction === "deposit" ? "withdraw" : "deposit";
+    const reversalVault = findCashVault(reverseDirection);
+    const replacementVault = findCashVault(original.direction);
+    if (!reversalVault) {
+      throw new ApiError(
+        `Missing ${reverseDirection === "deposit" ? "Cash Receivable" : "Cash Payable"} vault for ${original.currency}.`,
+        422,
+      );
+    }
+    if (amountMinor !== 0 && !replacementVault) {
+      throw new ApiError(
+        `Missing ${original.direction === "deposit" ? "Cash Receivable" : "Cash Payable"} vault for ${original.currency}.`,
+        422,
+      );
+    }
     const reasonSuffix = trimmedReason ? ` — ${trimmedReason}` : "";
     const reversal = await api.transactions.postCash({
       holder_account_id: original.customer_account_id,
@@ -943,7 +966,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       transaction_category: "cash",
       amount: original.amount_minor,
       currency_code: original.currency,
-      vault_account_id: original.vault_account_id,
+      vault_account_id: reversalVault.id,
       comment: `Correction reversal of ${original.tx_number}${reasonSuffix}`.slice(0, 280),
       idempotency_key: nextIdempotencyKey(),
     });
@@ -957,7 +980,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       transaction_category: "cash",
       amount: amountMinor!,
       currency_code: original.currency,
-      vault_account_id: original.vault_account_id,
+      vault_account_id: replacementVault!.id,
       comment: trimmedComment,
       idempotency_key: nextIdempotencyKey(),
     });
