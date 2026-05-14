@@ -17,6 +17,8 @@ import { useEffectiveRoles } from "@/lib/role-view";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 
 type DockItemDef = {
   key: string;
@@ -136,10 +138,18 @@ export function BottomDock() {
   const cfg = DOCK_CONFIG[role];
 
   // Live pending-approvals count for admin badge. RLS already blocks others.
+  // Single source of truth: read pending count from the same /dashboard/staff
+  // payload the dashboard already fetches. The adapter dedupes concurrent
+  // calls via a 5s in-flight cache, so this does not add a network round-trip
+  // when the dashboard is also mounted.
   const { data: pendingCount = 0 } = useQuery({
     enabled: role === "admin",
-    queryKey: ["approvals.count"],
+    queryKey: ["dashboard.pending"],
     queryFn: async () => {
+      if (DATA_BACKEND === "lambda") {
+        const r: any = await api.dashboard.admin().catch(() => null);
+        return Number(r?.pending_approvals ?? 0);
+      }
       const { count, error } = await supabase
         .from("transactions")
         .select("id", { count: "exact", head: true })
@@ -147,7 +157,8 @@ export function BottomDock() {
       if (error) throw error;
       return count ?? 0;
     },
-    refetchInterval: 60_000,
+    refetchInterval:
+      REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
   });
 
   const withBadge = (key: DockKey): DockItemDef => {
