@@ -36,7 +36,7 @@ import {
   Copy,
   User as UserIcon,
 } from "lucide-react";
-import { displayTxNumber, hasInternalRef } from "@/lib/txDisplay";
+import { displayTxNumber, hasInternalRef, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/transactions/$id")({
   head: () => ({ meta: [{ title: "Transaction details — Dahab" }, { name: "description", content: "Inspect the legs, balances, and audit history of a single Dahab transaction." }] }), component: TxDetail,
@@ -100,8 +100,8 @@ function TxDetail() {
         const mapped: TxFull = {
           id: String(r.id),
           tx_number: r.tx_number,
-          source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
-          source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+          source_entry_code: sourceEntryCode(r),
+          source_cash_entry_code: sourceCashEntryCode(r),
           display_tx_number: displayTxNumber(r),
           direction: r.direction,
           channel: r.channel ?? "cash",
@@ -147,8 +147,8 @@ function TxDetail() {
       const r = data as any;
       return {
         ...(r as TxFull),
-        source_entry_code: r?.source_entry_code != null ? String(r.source_entry_code) : null,
-        source_cash_entry_code: r?.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+        source_entry_code: sourceEntryCode(r),
+        source_cash_entry_code: sourceCashEntryCode(r),
         display_tx_number: displayTxNumber(r ?? {}),
       } as TxFull;
     },

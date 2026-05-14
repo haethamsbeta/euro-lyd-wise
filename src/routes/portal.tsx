@@ -38,6 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DahabMark, DahabCoin } from "@/components/brand/dahab-mark";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useT } from "@/lib/i18n";
+import { displayTxNumber } from "@/lib/txDisplay";
 import { cn } from "@/lib/utils";
 import { SessionTimeoutProvider } from "@/lib/session-timeout";
 import { IdleWarningDialog } from "@/components/app/idle-warning-dialog";
@@ -494,7 +495,7 @@ function PortalAccountCard({
       ["Date", "TX #", "Description", "Debit", "Credit", "Balance"],
       ...filtered.map((e: any) => [
         new Date(e.posted_at).toISOString(),
-        e.tx_number,
+        displayTxNumber(e),
         e.description ?? "",
         e.debit_amount,
         e.credit_amount,
@@ -645,7 +646,7 @@ function PortalAccountCard({
                   {filtered.map((e: any) => (
                     <tr key={e.id} className="border-t border-[oklch(0.82_0.14_85/0.08)]">
                       <td className="p-2 text-xs">{new Date(e.posted_at).toLocaleString()}</td>
-                      <td className="p-2 font-mono text-xs">{e.tx_number}</td>
+                      <td className="p-2 font-mono text-xs">{displayTxNumber(e)}</td>
                       <td className="p-2">{e.description}</td>
                       <td className="p-2 text-end tabular-nums">{Number(e.debit_amount).toLocaleString()}</td>
                       <td className="p-2 text-end tabular-nums text-emerald-500">{Number(e.credit_amount).toLocaleString()}</td>

@@ -23,6 +23,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { RoleGate } from "@/components/app/app-shell";
+import { displayTxNumber, sourceEntryCode } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/accounts/$id")({
   head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
@@ -123,8 +124,8 @@ function AccountDetail() {
         return items.map((e: any) => ({
           id: e.id,
           tx_number: e.tx_number,
-          source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
-          display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+          source_entry_code: sourceEntryCode(e),
+          display_tx_number: displayTxNumber(e),
           posted_at: e.posted_at,
           description: e.description ?? "",
           // Backend returns minor units; convert for the existing display helpers.
@@ -152,8 +153,8 @@ function AccountDetail() {
       if (error) throw error;
       return (data ?? []).map((e: any) => ({
         ...e,
-        source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
-        display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+        source_entry_code: sourceEntryCode(e),
+        display_tx_number: displayTxNumber(e),
       }));
     },
   });
