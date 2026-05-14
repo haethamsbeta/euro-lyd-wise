@@ -135,8 +135,12 @@ function TestSandboxPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [pendingErr, setPendingErr] = useState<string | null>(null);
   const [currency, setCurrency] = useState<Currency>("LYD");
-  const [normalAmount, setNormalAmount] = useState("10000"); // minor units
-  const [bigAmount, setBigAmount] = useState("999999999"); // designed to exceed limits
+  const [normalAmount, setNormalAmount] = useState("10000"); // minor units (= 100.00)
+  // Designed to exceed the per-currency approval threshold (typically
+  // 25,000 major / 2,500,000 minor) but stay within the fixture's starting
+  // balance, so the backend returns status=pending instead of rejecting
+  // with OVER_LIMIT. Pairs with starting_balance below.
+  const [bigAmount, setBigAmount] = useState("5000000"); // = 50,000.00
   const [log, setLog] = useState<LogRow[]>([]);
 
   // TEMP: Sandbox transaction posting disabled while backend isolation is hardened.
@@ -205,7 +209,10 @@ function TestSandboxPage() {
     setBusy("create");
     setPendingErr(null);
     try {
-      const raw: any = await api.admin.testFixtures.createE2E({ starting_balance: 10000 });
+      // Seed the fixture with enough balance that the "Pending approval"
+      // test (a withdrawal of bigAmount) does NOT trip the OVER_LIMIT
+      // guard before the approval-threshold check runs server-side.
+      const raw: any = await api.admin.testFixtures.createE2E({ starting_balance: 100000000 });
       const created = raw?.data ?? raw;
       const accounts = getFixtureAccounts(created);
       const vaults = getFixtureVaults(created);
