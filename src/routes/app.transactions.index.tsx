@@ -81,6 +81,7 @@ type Tx = {
   comment: string;
   created_at: string;
   customer_account_id: string;
+  vault_account_id: string | null;
   reverses_tx_id: string | null;
   corrected_by_tx_id: string | null;
   customer_name: string | null;
@@ -163,6 +164,7 @@ function TxList() {
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
           customer_account_id: String(r.customer_account_id ?? ""),
+          vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
           customer_name: r.holder_name ?? r.account_display_name ?? null,
@@ -179,7 +181,7 @@ function TxList() {
       const { data, error } = await supabase
         .from("transactions")
         .select(
-          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, reverses_tx_id, corrected_by_tx_id,
+          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, vault_account_id, reverses_tx_id, corrected_by_tx_id,
            customer:accounts!transactions_customer_account_id_fkey(name, account_number),
            transaction_attachments(count)`,
         )
@@ -198,6 +200,7 @@ function TxList() {
         comment: r.comment,
         created_at: r.created_at,
         customer_account_id: r.customer_account_id,
+        vault_account_id: r.vault_account_id ?? null,
         reverses_tx_id: r.reverses_tx_id,
         corrected_by_tx_id: r.corrected_by_tx_id,
         customer_name: r.customer?.name ?? null,
@@ -912,6 +915,54 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
   const [comment, setComment] = useState("");
   const [reason, setReason] = useState("");
 
+  const nextIdempotencyKey = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const correctThroughCashPosts = async (original: Tx) => {
+    if (original.channel !== "cash") {
+      throw new ApiError(
+        "Bank transaction corrections are not available until the backend correction endpoint is deployed.",
+        422,
+      );
+    }
+    if (!original.customer_account_id || !original.vault_account_id) {
+      throw new ApiError(
+        "This transaction is missing account linkage, so it cannot be reversed from the transaction list.",
+        422,
+      );
+    }
+
+    const reverseDirection = original.direction === "deposit" ? "withdraw" : "deposit";
+    const reasonSuffix = trimmedReason ? ` — ${trimmedReason}` : "";
+    const reversal = await api.transactions.postCash({
+      holder_account_id: original.customer_account_id,
+      direction: reverseDirection,
+      channel: "cash",
+      transaction_category: "cash",
+      amount: original.amount_minor,
+      currency_code: original.currency,
+      vault_account_id: original.vault_account_id,
+      comment: `Correction reversal of ${original.tx_number}${reasonSuffix}`.slice(0, 280),
+      idempotency_key: nextIdempotencyKey(),
+    });
+
+    if (amountMinor === 0) return reversal;
+
+    return await api.transactions.postCash({
+      holder_account_id: original.customer_account_id,
+      direction: original.direction,
+      channel: "cash",
+      transaction_category: "cash",
+      amount: amountMinor!,
+      currency_code: original.currency,
+      vault_account_id: original.vault_account_id,
+      comment: trimmedComment,
+      idempotency_key: nextIdempotencyKey(),
+    });
+  };
+
   useEffect(() => {
     if (tx) {
       setAmount((tx.amount_minor / 100).toFixed(2));
@@ -946,11 +997,18 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     mutationFn: async () => {
       if (!tx) throw new Error("No transaction selected");
       if (DATA_BACKEND === "lambda") {
-        return await api.transactions.correct(tx.id, {
-          new_amount_minor: amountMinor!,
-          new_comment: trimmedComment,
-          correction_reason: trimmedReason,
-        });
+        try {
+          return await api.transactions.correct(tx.id, {
+            new_amount_minor: amountMinor!,
+            new_comment: trimmedComment,
+            correction_reason: trimmedReason,
+          });
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404 && /route not found/i.test(e.message)) {
+            return await correctThroughCashPosts(tx);
+          }
+          throw e;
+        }
       }
       const { data, error } = await supabase.rpc("correct_transaction" as any, {
         p_tx_id: tx.id,
@@ -996,9 +1054,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
           return;
         }
         if (e.status === 404) {
-          toast.error("Transaction not found", {
-            description:
-              "The original entry no longer exists. Refresh the list and try again.",
+          const routeMissing = /route not found/i.test(msg);
+          toast.error(routeMissing ? "Correction endpoint unavailable" : "Transaction not found", {
+            description: routeMissing
+              ? "The backend does not currently expose transaction corrections for this environment."
+              : "The original entry no longer exists. Refresh the list and try again.",
           });
           return;
         }
