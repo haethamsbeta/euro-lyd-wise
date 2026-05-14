@@ -85,6 +85,7 @@ type Tx = {
   comment: string;
   created_at: string;
   customer_account_id: string;
+  ledger_account_id: string;
   vault_account_id: string | null;
   reverses_tx_id: string | null;
   corrected_by_tx_id: string | null;
@@ -98,6 +99,72 @@ type StatusFilter = "all" | "posted" | "pending" | "rejected" | "reversed";
 type DirectionFilter = "all" | "deposit" | "withdraw";
 type ChannelFilter = "all" | "cash" | "bank";
 type DatePreset = "all" | "today" | "week" | "month" | "custom";
+
+function accountIdFromTransactionRow(r: any): string {
+  return String(
+    r.holder_account_id ??
+      r.account_id ??
+      r.holderAccountId ??
+      r.accountId ??
+      r.customer_account_id ??
+      r.customerAccountId ??
+      "",
+  );
+}
+
+function amountToMinor(value: unknown, alreadyMinor: unknown): number {
+  if (alreadyMinor !== null && alreadyMinor !== undefined && alreadyMinor !== "") {
+    return Math.round(Number(alreadyMinor) || 0);
+  }
+  return Math.round((Number(value) || 0) * 100);
+}
+
+function ledgerAmountMinor(e: any, tx: Tx): number {
+  const debit = amountToMinor(e.debit_amount, e.debit_amount_minor ?? e.debit_minor);
+  const credit = amountToMinor(e.credit_amount, e.credit_amount_minor ?? e.credit_minor);
+  return tx.direction === "withdraw" ? debit : credit;
+}
+
+function findLedgerTxNumber(tx: Tx, entries: any[], used: Set<number>): { index: number; txNumber: string } | null {
+  let bestIndex = -1;
+  let bestTxNumber = "";
+  let bestScore = -1;
+  const txTime = new Date(tx.created_at).getTime();
+  const txComment = (tx.comment ?? "").trim().toLowerCase();
+
+  entries.forEach((e, index) => {
+    if (used.has(index)) return;
+    const ledgerTx = displayTxNumber(e) || String(e.tx_number ?? "").trim();
+    if (!ledgerTx) return;
+
+    let score = 0;
+    if (String(e.transaction_id ?? e.tx_id ?? e.transactionId ?? "") === tx.id) score += 100;
+    if (String(e.id ?? "") === tx.id) score += 50;
+    if (String(e.currency_code ?? e.currency ?? "") === tx.currency) score += 2;
+    if (Math.abs(ledgerAmountMinor(e, tx) - tx.amount_minor) <= 1) score += 4;
+
+    const ledgerTime = new Date(e.posted_at ?? e.created_at ?? "").getTime();
+    if (Number.isFinite(txTime) && Number.isFinite(ledgerTime)) {
+      const diffMinutes = Math.abs(txTime - ledgerTime) / 60_000;
+      if (diffMinutes <= 2) score += 4;
+      else if (diffMinutes <= 60) score += 2;
+      else if (new Date(txTime).toDateString() === new Date(ledgerTime).toDateString()) score += 1;
+    }
+
+    const ledgerDesc = String(e.description ?? e.comment ?? "").trim().toLowerCase();
+    if (txComment && ledgerDesc && ledgerDesc === txComment) score += 3;
+    if (tx.direction === "withdraw" && Number(e.debit_amount_minor ?? e.debit_minor ?? e.debit_amount ?? 0) > 0) score += 1;
+    if (tx.direction === "deposit" && Number(e.credit_amount_minor ?? e.credit_minor ?? e.credit_amount ?? 0) > 0) score += 1;
+
+    if (score >= 6 && score > bestScore) {
+      bestIndex = index;
+      bestTxNumber = ledgerTx;
+      bestScore = score;
+    }
+  });
+
+  return bestIndex >= 0 ? { index: bestIndex, txNumber: bestTxNumber } : null;
+}
 
 function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
   const now = new Date();
@@ -152,7 +219,7 @@ function TxList() {
   const [offset, setOffset] = useState(0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["transactions.list.v2", debouncedQ, offset],
+    queryKey: ["transactions.list.v3.ledgerTxDisplay", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
@@ -170,7 +237,8 @@ function TxList() {
           status: r.status,
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
-          customer_account_id: String(r.customer_account_id ?? ""),
+          customer_account_id: accountIdFromTransactionRow(r),
+          ledger_account_id: accountIdFromTransactionRow(r),
           vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
@@ -179,9 +247,32 @@ function TxList() {
           customer_dahab_number: r.dahab_account_number ?? null,
           attachment_count: 0,
         }));
+
+        const accountIds = [...new Set(items.map((t) => t.ledger_account_id).filter(Boolean))];
+        const ledgerByAccount = new Map<string, any[]>();
+        await Promise.all(
+          accountIds.map(async (accountId) => {
+            try {
+              const res: any = await api.accounts.ledger(accountId, { limit: PAGE_SIZE * 3, offset: 0 });
+              ledgerByAccount.set(accountId, Array.isArray(res) ? res : (res?.items ?? []));
+            } catch {
+              ledgerByAccount.set(accountId, []);
+            }
+          }),
+        );
+        const usedByAccount = new Map<string, Set<number>>();
+        const normalizedItems = items.map((tx) => {
+          const entries = ledgerByAccount.get(tx.ledger_account_id) ?? [];
+          const used = usedByAccount.get(tx.ledger_account_id) ?? new Set<number>();
+          usedByAccount.set(tx.ledger_account_id, used);
+          const match = findLedgerTxNumber(tx, entries, used);
+          if (!match) return tx;
+          used.add(match.index);
+          return { ...tx, display_tx_number: match.txNumber };
+        });
         return {
-          rows: items,
-          total: paged.total ?? items.length,
+          rows: normalizedItems,
+          total: paged.total ?? normalizedItems.length,
           nextOffset: paged.next_offset ?? null,
         };
       }
@@ -210,6 +301,7 @@ function TxList() {
         comment: r.comment,
         created_at: r.created_at,
         customer_account_id: r.customer_account_id,
+        ledger_account_id: String(r.customer_account_id ?? ""),
         vault_account_id: r.vault_account_id ?? null,
         reverses_tx_id: r.reverses_tx_id,
         corrected_by_tx_id: r.corrected_by_tx_id,
