@@ -16,7 +16,6 @@ import {
   EmptyState,
   ErrorState,
   GridLoadingSkeleton,
-  TableLoadingSkeleton,
   errorMessage,
 } from "@/components/app/state-views";
 import {
