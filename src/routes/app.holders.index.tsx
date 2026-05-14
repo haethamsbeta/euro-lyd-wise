@@ -142,9 +142,24 @@ function HoldersList() {
           </p>
         )}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+          <GridLoadingSkeleton cards={6} />
+        ) : isError ? (
+          <ErrorState
+            title="Couldn't load holders"
+            description={errorMessage(error, "The holders service did not respond.")}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("holders.empty")}</p>
+          <EmptyState
+            title={dq.trim() ? "No matches" : t("holders.empty")}
+            description={
+              dq.trim()
+                ? `No holders match "${dq.trim()}". Try another name, phone, email, or account number.`
+                : "Account holders will appear here once they are created."
+            }
+            icon={UserPlus}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((h: any) => (
