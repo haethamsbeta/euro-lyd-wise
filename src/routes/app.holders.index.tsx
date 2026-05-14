@@ -15,6 +15,12 @@ import { useT } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import {
+  EmptyState,
+  ErrorState,
+  GridLoadingSkeleton,
+  errorMessage,
+} from "@/components/app/state-views";
 
 export const Route = createFileRoute("/app/holders/")({ head: () => ({ meta: [{ title: "Account holders — Dahab" }, { name: "description", content: "Browse all Dahab account holders, families, and businesses on file." }] }), component: HoldersList });
 
@@ -27,7 +33,7 @@ function HoldersList() {
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const { data: dashSummary } = useDashboardSummary();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["holders.list", dq, PAGE_SIZE],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
@@ -136,9 +142,24 @@ function HoldersList() {
           </p>
         )}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+          <GridLoadingSkeleton cards={6} />
+        ) : isError ? (
+          <ErrorState
+            title="Couldn't load holders"
+            description={errorMessage(error, "The holders service did not respond.")}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("holders.empty")}</p>
+          <EmptyState
+            title={dq.trim() ? "No matches" : t("holders.empty")}
+            description={
+              dq.trim()
+                ? `No holders match "${dq.trim()}". Try another name, phone, email, or account number.`
+                : "Account holders will appear here once they are created."
+            }
+            icon={UserPlus}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((h: any) => (
