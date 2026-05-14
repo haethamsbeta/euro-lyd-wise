@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,80 +105,81 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: results, isFetching, isError } = useQuery({
-    // Require at least 2 characters before hitting the backend — single-letter
-    // queries return huge unfiltered result sets and make the search feel slow.
-    enabled: stepIdx === 1 && debounced.length >= 2,
-    queryKey: ["holder_cards.search", debounced],
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
-    placeholderData: (prev) => prev,
+  const { data: accountIndex, isFetching: isIndexFetching, isError } = useQuery({
+    enabled: stepIdx === 1 && DATA_BACKEND === "lambda",
+    queryKey: ["holder-accounts.search-index"],
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
-      const term = debounced;
-      if (DATA_BACKEND === "lambda") {
-        // Search accounts + holders in parallel, but do not fan out into
-        // per-holder account requests while the user is typing.
-        const [accountsRes, holdersRes] = await Promise.all([
-          api.accounts.list({ q: term, limit: 20 }).catch(() => ({ items: [] as any[] })),
-          api.holders.listPaged({ q: term, limit: 10, offset: 0 }).catch(() => ({ items: [] as any[] })),
-        ]);
-        const accountItems: any[] = (accountsRes as any)?.items ?? [];
-        const holderRows: any[] = (holdersRes as any)?.items ?? [];
-        const holderById = new Map<string | number, any>();
-        for (const h of holderRows) holderById.set(h.id, h);
-        for (const h of holderRows) {
-          for (const a of (h.accounts ?? h.holder_accounts ?? []) as any[]) {
-            accountItems.push({ ...a, account_holder_id: a.account_holder_id ?? h.id, __holder: h });
-          }
-        }
-
-        // De-duplicate (a holder hit + an account hit can return the same row).
-        const seen = new Set<string>();
-        const merged = accountItems.filter((r) => {
-          const k = String(r.id ?? r.holder_account_id ?? "");
-          if (!k || seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-
-        const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
-        return merged
-          .filter((r) => allowed.has(String(r.currency_code)))
-          .filter((r) =>
-            !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
-          )
-          .map((r) => {
-            const holder = r.__holder ?? holderById.get(r.account_holder_id) ?? {};
-            return {
-              holder_account_id: r.id,
-              account_number: r.account_number,
-              currency: r.currency_code as Currency,
-              balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
-              account_holder_id: r.account_holder_id,
-              dahab_account_number:
-                holder.dahab_account_number ?? r.holder_dahab_account_number ?? r.dahab_account_number ?? r.account_number ?? "",
-              holder_name:
-                holder.holder_name ??
-                holder.canonical_name ??
-                holder.full_name ??
-                r.holder_name ??
-                r.account_display_name ??
-                r.account_number,
-              phone: holder.phone ?? holder.phone_number ?? r.holder_phone ?? r.phone_number ?? null,
-              status: r.status ?? "ACTIVE",
-              account_nature: r.account_nature ?? null,
-              alias: r.alias_name ?? r.account_alias_name ?? null,
-              withdraw_limit_minor: Math.round(
-                Number((r as any).withdraw_limit_amount ?? 0) * 100,
-              ),
-              withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
-              holder_type: (holder.holder_type ?? "INDIVIDUAL") as string,
-            } as HolderCardHit;
-          });
+      const all: any[] = [];
+      let offset = 0;
+      for (let i = 0; i < 5; i += 1) {
+        const page = await api.holderAccounts.list({ limit: 1000, offset });
+        const items = page?.items ?? [];
+        all.push(...items);
+        const total = (page as any)?.total;
+        const next = (page as any)?.next_offset;
+        if (items.length === 0) break;
+        if (typeof total === "number" && all.length >= total) break;
+        if (typeof next !== "number" || next <= offset) break;
+        offset = next;
       }
-      return [] as HolderCardHit[];
+      return all;
     },
   });
+
+  const results = useMemo(() => {
+    const term = debounced.trim();
+    if (term.length < 2) return null;
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_/]/g, "");
+    const q = norm(term);
+    const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
+    const seen = new Set<string>();
+    return (accountIndex ?? [])
+      .filter((r: any) => allowed.has(String(r.currency_code ?? r.currency)))
+      .filter((r: any) => !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id))
+      .filter((r: any) => {
+        const hay = norm([
+          r.holder_name,
+          r.canonical_name,
+          r.account_display_name,
+          r.account_alias_name,
+          r.alias_name,
+          r.account_number,
+          r.source_account_code,
+          r.dahab_account_number,
+          r.holder_dahab_account_number,
+          r.holder_phone,
+          r.phone_number,
+        ].filter(Boolean).join(" "));
+        return hay.includes(q);
+      })
+      .filter((r: any) => {
+        const key = String(r.id ?? r.holder_account_id ?? "");
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 40)
+      .map((r: any) => ({
+        holder_account_id: r.id ?? r.holder_account_id,
+        account_number: r.account_number,
+        currency: (r.currency_code ?? r.currency) as Currency,
+        balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
+        account_holder_id: r.account_holder_id ?? r.holder_id,
+        dahab_account_number: r.holder_dahab_account_number ?? r.dahab_account_number ?? "",
+        holder_name: r.holder_name ?? r.canonical_name ?? r.account_display_name ?? r.account_number,
+        phone: r.holder_phone ?? r.phone_number ?? r.phone ?? null,
+        status: r.status ?? r.account_status ?? "ACTIVE",
+        account_nature: r.account_nature ?? null,
+        alias: r.account_alias_name ?? r.alias_name ?? null,
+        withdraw_limit_minor: Math.round(Number((r as any).withdraw_limit_amount ?? 0) * 100),
+        withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
+        holder_type: (r.holder_type ?? "INDIVIDUAL") as string,
+      })) as HolderCardHit[];
+  }, [accountIndex, debounced]);
+  const isFetching = isIndexFetching && !accountIndex;
 
   const currency: Currency = picked?.currency ?? "USD";
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
