@@ -62,17 +62,21 @@ export function NewMemberPage() {
         status,
         must_change_password: mustChange,
       };
-      // eslint-disable-next-line no-console
-      console.log("[create dahab member]", {
-        payload: { ...payload, password: "***" },
-        endpoint: "/users",
-        mode: DATA_BACKEND,
-      });
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log("[create dahab member]", {
+          payload: { ...payload, password: "***" },
+          endpoint: "/users",
+          mode: DATA_BACKEND,
+        });
+      }
       return api.users.create(payload);
     },
     onSuccess: async (res: any) => {
-      // eslint-disable-next-line no-console
-      console.log("[create dahab member] success", res);
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log("[create dahab member] success", res);
+      }
       toast.success(res?.message ?? t("usersNew.created"));
       await qc.invalidateQueries({ queryKey: ["users.profiles"] });
       nav({ to: "/app/users" });

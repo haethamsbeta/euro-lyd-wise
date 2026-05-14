@@ -108,16 +108,18 @@ function VaultDetail() {
             Number(r.cash_vault_effect_minor) !== 0
               ? r.cash_vault_effect_minor
               : r.amount_minor;
-          // eslint-disable-next-line no-console
-          console.log("[vault activity amount debug]", {
-            tx_number: r.tx_number,
-            amount_minor: r.amount_minor,
-            cash_vault_effect_minor: r.cash_vault_effect_minor,
-            rawVaultAmountMinor,
-            displayAmountMinor: Math.abs(Number(rawVaultAmountMinor || 0)),
-            displayDirection: r.cash_vault_direction || r.direction,
-            displayCurrency: r.currency_code || vault?.currency_code,
-          });
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.log("[vault activity amount debug]", {
+              tx_number: r.tx_number,
+              amount_minor: r.amount_minor,
+              cash_vault_effect_minor: r.cash_vault_effect_minor,
+              rawVaultAmountMinor,
+              displayAmountMinor: Math.abs(Number(rawVaultAmountMinor || 0)),
+              displayDirection: r.cash_vault_direction || r.direction,
+              displayCurrency: r.currency_code || vault?.currency_code,
+            });
+          }
         }
         return rows.map((r: any) => ({
           id: r.id,
