@@ -84,6 +84,10 @@ type Attachment = {
   uploaded_by: string;
 };
 
+function visibleTx(row: Pick<TxFull, "display_tx_number" | "source_entry_code" | "source_cash_entry_code" | "tx_number">) {
+  return row.display_tx_number ?? row.source_entry_code ?? row.source_cash_entry_code ?? row.tx_number;
+}
+
 function TxDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -267,6 +271,7 @@ function TxDetail() {
   const isFailed = tx.status === "rejected";
   const creator = tx.created_by_user_id ? profileMap?.get(tx.created_by_user_id) : null;
   const approver = tx.approved_by_user_id ? profileMap?.get(tx.approved_by_user_id) : null;
+  const visibleTxNumber = visibleTx(tx);
 
   return (
     <div className="p-4 sm:p-6 space-y-6 pb-12">
@@ -279,7 +284,7 @@ function TxDetail() {
           <ArrowLeft className="h-3.5 w-3.5" /> Transactions
         </Link>
         <span className="text-text-tertiary">/</span>
-        <span className="font-mono text-foreground">{tx.display_tx_number || tx.tx_number}</span>
+        <span className="font-mono text-foreground">{visibleTxNumber}</span>
       </div>
 
       {/* Hero */}
@@ -294,7 +299,7 @@ function TxDetail() {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-mono font-semibold text-foreground">
-                  {tx.display_tx_number || tx.tx_number}
+                  {visibleTxNumber}
                 </h1>
                 <StatusBadge status={status} />
                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-surface-2 text-text-secondary capitalize">
@@ -302,7 +307,7 @@ function TxDetail() {
                 </span>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(tx.display_tx_number || tx.tx_number);
+                    navigator.clipboard.writeText(visibleTxNumber);
                     toast.success("Copied");
                   }}
                   className="text-text-secondary hover:text-gold transition-colors"
