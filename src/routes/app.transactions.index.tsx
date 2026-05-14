@@ -923,12 +923,14 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
   const trimmedComment = comment.trim();
   const trimmedReason = reason.trim();
-  const ready =
-    !!tx &&
-    amountMinor !== null &&
-    amountMinor > 0 &&
-    trimmedComment.length >= 3 &&
-    trimmedReason.length >= 10;
+  const amountValid = amountMinor !== null && amountMinor > 0;
+  const commentValid = trimmedComment.length >= 3;
+  const reasonValid = trimmedReason.length >= 10;
+  const ready = !!tx && amountValid && commentValid && reasonValid;
+  const missing: string[] = [];
+  if (!amountValid) missing.push("a valid amount");
+  if (!commentValid) missing.push("a comment (min 3 characters)");
+  if (!reasonValid) missing.push(`a correction reason (min 10 characters, ${trimmedReason.length}/10)`);
 
   const correct = useMutation({
     mutationFn: async () => {
@@ -1075,6 +1077,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
                 maxLength={280}
                 onChange={(e) => setComment(e.target.value)}
               />
+              {!commentValid ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Minimum 3 characters ({trimmedComment.length}/3).
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -1088,6 +1095,9 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
                 maxLength={500}
                 onChange={(e) => setReason(e.target.value)}
               />
+              <p className={cn("mt-1 text-xs", reasonValid ? "text-muted-foreground" : "text-destructive")}>
+                Required for audit · minimum 10 characters ({trimmedReason.length}/10).
+              </p>
             </div>
 
             <Alert>
@@ -1102,10 +1112,26 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
         ) : null}
 
         <DialogFooter>
+          {!ready && tx ? (
+            <p className="mr-auto self-center text-xs text-muted-foreground">
+              Add {missing.join(", ")} to continue.
+            </p>
+          ) : null}
           <Button variant="outline" onClick={onClose} disabled={correct.isPending}>
             Cancel
           </Button>
-          <Button onClick={() => correct.mutate()} disabled={!ready || correct.isPending}>
+          <Button
+            onClick={() => {
+              if (!ready) {
+                toast.error("Cannot post correction yet", {
+                  description: `Please provide ${missing.join(", ")}.`,
+                });
+                return;
+              }
+              correct.mutate();
+            }}
+            disabled={correct.isPending}
+          >
             {correct.isPending ? "Correcting…" : "Reverse & post correction"}
           </Button>
         </DialogFooter>
