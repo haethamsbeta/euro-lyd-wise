@@ -1021,13 +1021,26 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       if (!tx) throw new Error("No transaction selected");
       if (DATA_BACKEND === "lambda") {
         try {
+          // Zero-amount corrections must NEVER call the replacement-style
+          // backend endpoint (which would attempt to post a 0-amount entry).
+          // Skip straight to the reversal-only fallback path.
+          if (amountMinor === 0) {
+            return await correctThroughCashPosts(tx);
+          }
           return await api.transactions.correct(tx.id, {
             new_amount_minor: amountMinor!,
             new_comment: trimmedComment,
             correction_reason: trimmedReason,
           });
         } catch (e) {
-          if (e instanceof ApiError && e.status === 404 && /route not found/i.test(e.message)) {
+          // Backend correction endpoint may be missing in some environments.
+          // Fall back to the cash post/reverse flow for any "endpoint missing"
+          // signal (404 / 405 / "Route not found" message), instead of
+          // surfacing a misleading "Transaction not found" error.
+          const isEndpointMissing =
+            e instanceof ApiError &&
+            (e.status === 404 || e.status === 405 || /route not found/i.test(e.message ?? ""));
+          if (isEndpointMissing) {
             return await correctThroughCashPosts(tx);
           }
           throw e;
@@ -1045,7 +1058,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     onSuccess: (newTx: any) => {
       qc.invalidateQueries();
       const num = newTx?.tx_number ? ` → ${newTx.tx_number}` : "";
-      if (newTx?.status === "posted") {
+      if (amountMinor === 0) {
+        toast.success(`Reversed${num}`, {
+          description: `${tx?.tx_number ?? "The original entry"} was reversed. No replacement entry was posted.`,
+        });
+      } else if (newTx?.status === "posted") {
         toast.success(`Correction posted${num}`, {
           description: "The original entry was reversed and the corrected entry is live.",
         });
@@ -1077,11 +1094,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
           return;
         }
         if (e.status === 404) {
-          const routeMissing = /route not found/i.test(msg);
-          toast.error(routeMissing ? "Correction endpoint unavailable" : "Transaction not found", {
-            description: routeMissing
-              ? "The backend does not currently expose transaction corrections for this environment."
-              : "The original entry no longer exists. Refresh the list and try again.",
+          // The endpoint-missing case is handled in the mutationFn fallback,
+          // so a 404 reaching here is an actual not-found from a sub-call.
+          // Avoid the misleading "Transaction not found" wording.
+          toast.error("Correction failed", {
+            description: msg || "The backend rejected the correction (HTTP 404).",
           });
           return;
         }
