@@ -68,7 +68,7 @@ const stagger = (i: number) => ({ animationDelay: `${50 + i * 100}ms` });
 
 function Index() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+    <div className="relative min-h-[100svh] md:min-h-screen overflow-hidden bg-background text-foreground">
       {/* Background flourish */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full bg-[oklch(0.82_0.14_85/0.05)] blur-3xl" />
@@ -84,7 +84,14 @@ function Index() {
         </svg>
       </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-10">
+      <div
+        className="relative z-10 flex min-h-[100svh] md:min-h-screen flex-col
+                   pt-[max(1.25rem,env(safe-area-inset-top))]
+                   pb-[max(1rem,env(safe-area-inset-bottom))]
+                   pl-[max(1rem,env(safe-area-inset-left))]
+                   pr-[max(1rem,env(safe-area-inset-right))]
+                   sm:px-6 sm:py-10"
+      >
         {/* Header */}
         <header
           className={`mx-auto flex w-full max-w-7xl items-center justify-between ${fadeUp}`}
@@ -106,12 +113,12 @@ function Index() {
         </header>
 
         {/* Hero */}
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center py-8 sm:py-16">
-          <div className={`mb-8 sm:mb-14 text-center ${fadeUp}`} style={stagger(1)}>
+        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center py-6 sm:py-16">
+          <div className={`mb-6 sm:mb-14 text-center ${fadeUp}`} style={stagger(1)}>
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.08)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
               <Sparkles className="h-3 w-3" /> Welcome to Dahab
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-6xl">
+            <h1 className="font-serif text-[clamp(1.75rem,8vw,2.25rem)] sm:text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-6xl">
               How would you like
               <br />
               to <span className="italic text-gold-soft">continue?</span>
@@ -226,7 +233,7 @@ function Index() {
 
         {/* Footer */}
         <footer
-          className={`mx-auto mt-auto w-full max-w-7xl border-t border-border/40 pt-8 ${fadeUp}`}
+          className={`mx-auto mt-auto w-full max-w-7xl border-t border-border/40 pt-6 sm:pt-8 ${fadeUp}`}
           style={stagger(4)}
         >
           <div className="flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
