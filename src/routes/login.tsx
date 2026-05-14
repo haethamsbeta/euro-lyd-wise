@@ -222,14 +222,15 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         if (!stored) throw new Error("Lambda token storage failed");
 
         window.dispatchEvent(new Event("dahab.auth.changed"));
-        await Promise.all(
-          ["dashboard", "holders", "vaults", "transactions", "users", "notifications"].map(
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        void Promise.all(
+          ["dashboard", "dashboard.v3", "holders", "vaults", "transactions", "users", "notifications"].map(
             (key) => queryClient.invalidateQueries({ queryKey: [key] }),
           ),
         );
         setBusy(false);
         toast.success(t("login.welcomeToast"));
-        nav({ to: portal === "staff" ? "/app" : "/portal" });
+        nav({ to: portal === "staff" ? "/app" : "/portal", replace: true });
       } catch (e: any) {
         setBusy(false);
         setDebug({ called, returned, stored });
