@@ -278,6 +278,9 @@ function TxList() {
         const amountStr = formatMinorOrMissing(t.amount_minor, t.currency).toLowerCase();
         return (
           t.tx_number.toLowerCase().includes(term) ||
+          t.display_tx_number.toLowerCase().includes(term) ||
+          (t.source_entry_code ?? "").toLowerCase().includes(term) ||
+          (t.source_cash_entry_code ?? "").toLowerCase().includes(term) ||
           (t.customer_name ?? "").toLowerCase().includes(term) ||
           (t.customer_account_number ?? "").toLowerCase().includes(term) ||
           (t.customer_dahab_number ?? "").toLowerCase().includes(term) ||
@@ -792,7 +795,7 @@ function TxRow({
     >
       <td className="px-4 py-3 align-top">
         <div className="font-mono text-[12px] text-foreground group-hover:text-gold transition-colors">
-          {tx.tx_number}
+          {tx.display_tx_number || tx.tx_number}
         </div>
       </td>
       <td className="px-4 py-3 align-top">
@@ -827,7 +830,7 @@ function TxRow({
         </div>
         {reverses ? (
           <div className="mt-1 text-[10px] text-[var(--warning)] font-mono">
-            ↩ reverses {reverses.tx_number}
+            ↩ reverses {reverses.display_tx_number || reverses.tx_number}
           </div>
         ) : null}
         {tx.attachment_count > 0 ? (
