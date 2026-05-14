@@ -101,7 +101,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const [debounced, setDebounced] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 300);
+    const t = setTimeout(() => setDebounced(search.trim()), 150);
     return () => clearTimeout(t);
   }, [search]);
 
@@ -116,33 +116,20 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     queryFn: async () => {
       const term = debounced;
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode — search across accounts + holders in parallel so a
-        // query by holder name, account number, OR DAHAB number all return
-        // hits. Keep limits small for fast first-paint.
+        // Search accounts + holders in parallel, but do not fan out into
+        // per-holder account requests while the user is typing.
         const [accountsRes, holdersRes] = await Promise.all([
-          api.accounts.list({ q: term, limit: 25 }).catch(() => ({ items: [] as any[] })),
-          api.holders.list({ q: term, limit: 10 }).catch(() => [] as any[]),
+          api.accounts.list({ q: term, limit: 20 }).catch(() => ({ items: [] as any[] })),
+          api.holders.listPaged({ q: term, limit: 10, offset: 0 }).catch(() => ({ items: [] as any[] })),
         ]);
         const accountItems: any[] = (accountsRes as any)?.items ?? [];
-        const holderRows: any[] = Array.isArray(holdersRes) ? holdersRes : [];
+        const holderRows: any[] = (holdersRes as any)?.items ?? [];
         const holderById = new Map<string | number, any>();
         for (const h of holderRows) holderById.set(h.id, h);
-
-        // Holders that matched by name/DAHAB number but whose accounts did
-        // not surface in the accounts query — fetch their accounts directly.
-        // Cap to 5 parallel fetches so a broad query can't fan out into 15+
-        // network round-trips and stall the UI.
-        const accountHolderIds = new Set(accountItems.map((r) => String(r.account_holder_id)));
-        const missingHolders = holderRows.filter(
-          (h) => !accountHolderIds.has(String(h.id)),
-        );
-        const extraAccountLists = await Promise.all(
-          missingHolders.slice(0, 5).map((h) =>
-            api.holders.accounts(h.id).catch(() => [] as any[]),
-          ),
-        );
-        for (const list of extraAccountLists) {
-          for (const a of list as any[]) accountItems.push(a);
+        for (const h of holderRows) {
+          for (const a of (h.accounts ?? h.holder_accounts ?? []) as any[]) {
+            accountItems.push({ ...a, account_holder_id: a.account_holder_id ?? h.id, __holder: h });
+          }
         }
 
         // De-duplicate (a holder hit + an account hit can return the same row).
@@ -161,7 +148,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
             !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
           )
           .map((r) => {
-            const holder = holderById.get(r.account_holder_id) ?? {};
+            const holder = r.__holder ?? holderById.get(r.account_holder_id) ?? {};
             return {
               holder_account_id: r.id,
               account_number: r.account_number,
@@ -169,15 +156,18 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
               balance_minor: Math.round(Number(r.current_balance ?? 0) * 100),
               account_holder_id: r.account_holder_id,
               dahab_account_number:
-                holder.dahab_account_number ?? r.account_number ?? "",
+                holder.dahab_account_number ?? r.holder_dahab_account_number ?? r.dahab_account_number ?? r.account_number ?? "",
               holder_name:
                 holder.holder_name ??
+                holder.canonical_name ??
+                holder.full_name ??
+                r.holder_name ??
                 r.account_display_name ??
                 r.account_number,
-              phone: holder.phone ?? null,
+              phone: holder.phone ?? holder.phone_number ?? r.holder_phone ?? r.phone_number ?? null,
               status: r.status ?? "ACTIVE",
               account_nature: r.account_nature ?? null,
-              alias: r.alias_name ?? null,
+              alias: r.alias_name ?? r.account_alias_name ?? null,
               withdraw_limit_minor: Math.round(
                 Number((r as any).withdraw_limit_amount ?? 0) * 100,
               ),
