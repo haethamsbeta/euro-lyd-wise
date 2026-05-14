@@ -438,7 +438,7 @@ function TxList() {
                       isCorrected: !!r.corrected_by_tx_id,
                     });
                     return [
-                      r.tx_number,
+                      displayTxNumber(r) || r.tx_number,
                       formatDateTime(r.created_at ?? r.posted_at),
                       "—",
                       dir,
@@ -483,7 +483,7 @@ function TxList() {
                     isCorrected: !!r.corrected_by_tx_id,
                   });
                   return [
-                    r.tx_number,
+                    displayTxNumber(r) || r.tx_number,
                     formatDateTime(r.created_at),
                     customer,
                     dir,
