@@ -123,6 +123,8 @@ function AccountDetail() {
         return items.map((e: any) => ({
           id: e.id,
           tx_number: e.tx_number,
+          source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+          display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
           posted_at: e.posted_at,
           description: e.description ?? "",
           // Backend returns minor units; convert for the existing display helpers.
@@ -148,7 +150,11 @@ function AccountDetail() {
         .order("posted_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((e: any) => ({
+        ...e,
+        source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+        display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+      }));
     },
   });
 
@@ -506,7 +512,12 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
     let r = rows;
     if (debounced) {
       const q = debounced.toLowerCase();
-      r = r.filter((e) => (e.tx_number ?? "").toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q));
+      r = r.filter((e: any) =>
+        (e.tx_number ?? "").toLowerCase().includes(q) ||
+        (e.source_entry_code ?? "").toLowerCase().includes(q) ||
+        (e.display_tx_number ?? "").toLowerCase().includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q),
+      );
     }
     if (from) r = r.filter((e) => new Date(e.posted_at) >= new Date(from));
     if (to) r = r.filter((e) => new Date(e.posted_at) <= new Date(to + "T23:59:59"));
@@ -527,7 +538,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
 
   function exportCsv() {
     const head = ["Date", "TX", "Description", "Debit", "Credit", "Balance"];
-    const data = filtered.map((e) => [new Date(e.posted_at).toISOString(), e.tx_number, e.description ?? "", e.debit_amount, e.credit_amount, e.balance_after]);
+    const data = filtered.map((e: any) => [new Date(e.posted_at).toISOString(), e.display_tx_number ?? e.tx_number, e.description ?? "", e.debit_amount, e.credit_amount, e.balance_after]);
     const csv = [head, ...data].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -575,7 +586,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
               ) : filtered.map((e) => (
                 <tr key={e.id} className="border-t border-gold/10 hover:bg-gold/5">
                   <td className="p-4 text-sm whitespace-nowrap">{new Date(e.posted_at).toLocaleString()}</td>
-                  <td className="p-4 font-mono text-sm text-gold whitespace-nowrap">{e.tx_number}</td>
+                  <td className="p-4 font-mono text-sm text-gold whitespace-nowrap">{(e as any).display_tx_number ?? e.tx_number}</td>
                   <td className="p-4 text-base">{e.description}</td>
                   <td className="p-4 text-right text-base text-destructive tabular-nums">{Number(e.debit_amount) ? fmt(Number(e.debit_amount)) : "—"}</td>
                   <td className="p-4 text-right text-base text-[var(--success)] tabular-nums">{Number(e.credit_amount) ? fmt(Number(e.credit_amount)) : "—"}</td>

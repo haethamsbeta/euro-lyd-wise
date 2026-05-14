@@ -176,6 +176,8 @@ function HolderDetail() {
           description: e.description ?? "",
           posted_at: e.posted_at ?? e.created_at,
           tx_number: e.tx_number,
+          source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+          display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
           balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
         }));
         return { items, next_offset: r.next_offset, total: r.total };
@@ -187,7 +189,12 @@ function HolderDetail() {
         .order("posted_at", { ascending: false })
         .range(ledgerOffset, ledgerOffset + LEDGER_PAGE - 1);
       if (error) throw error;
-      return { items: data ?? [], next_offset: (data?.length ?? 0) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
+      const items = (data ?? []).map((e: any) => ({
+        ...e,
+        source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+        display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+      }));
+      return { items, next_offset: (items.length) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
     },
   });
   // Append page items to accumulator when new page arrives.
@@ -690,7 +697,12 @@ function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { 
   const filtered = entries.filter((e) => {
     if (search) {
       const s = search.toLowerCase();
-      if (!(e.description ?? "").toLowerCase().includes(s) && !(e.tx_number ?? "").toLowerCase().includes(s)) return false;
+      const matches =
+        (e.description ?? "").toLowerCase().includes(s) ||
+        (e.tx_number ?? "").toLowerCase().includes(s) ||
+        (e.source_entry_code ?? "").toLowerCase().includes(s) ||
+        (e.display_tx_number ?? "").toLowerCase().includes(s);
+      if (!matches) return false;
     }
     const isCredit = Number(e.credit_amount ?? 0) > 0;
     if (filter === "Credit" && !isCredit) return false;
@@ -771,7 +783,7 @@ function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { 
                         <span className="text-xs text-text-secondary">#{e.account_id}</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.tx_number}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.display_tx_number ?? e.tx_number}</td>
                     <td
                       className={cn(
                         "px-5 py-3 text-right font-medium tabular-nums",

@@ -59,6 +59,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { useT } from "@/lib/i18n";
+import { displayTxNumber } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/transactions/")({
   head: () => ({ meta: [{ title: "Transactions — Dahab" }, { name: "description", content: "Search and filter every transaction posted across the Dahab ledger." }] }), component: TxList,
@@ -73,6 +74,9 @@ export const Route = createFileRoute("/app/transactions/")({
 type Tx = {
   id: string;
   tx_number: string;
+  source_entry_code: string | null;
+  source_cash_entry_code: string | null;
+  display_tx_number: string;
   direction: "deposit" | "withdraw";
   channel: "cash" | "bank";
   currency: "USD" | "EUR" | "LYD";
@@ -156,6 +160,9 @@ function TxList() {
         const items: Tx[] = rawItems.map((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
+          source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
+          source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+          display_tx_number: displayTxNumber(r),
           direction: r.direction,
           channel: r.channel ?? "cash",
           currency: r.currency ?? r.currency_code,
@@ -192,6 +199,9 @@ function TxList() {
       const items = rows.map<Tx>((r) => ({
         id: r.id,
         tx_number: r.tx_number,
+        source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
+        source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+        display_tx_number: displayTxNumber(r),
         direction: r.direction,
         channel: r.channel,
         currency: r.currency,
@@ -268,6 +278,9 @@ function TxList() {
         const amountStr = formatMinorOrMissing(t.amount_minor, t.currency).toLowerCase();
         return (
           t.tx_number.toLowerCase().includes(term) ||
+          t.display_tx_number.toLowerCase().includes(term) ||
+          (t.source_entry_code ?? "").toLowerCase().includes(term) ||
+          (t.source_cash_entry_code ?? "").toLowerCase().includes(term) ||
           (t.customer_name ?? "").toLowerCase().includes(term) ||
           (t.customer_account_number ?? "").toLowerCase().includes(term) ||
           (t.customer_dahab_number ?? "").toLowerCase().includes(term) ||
@@ -425,7 +438,7 @@ function TxList() {
                       isCorrected: !!r.corrected_by_tx_id,
                     });
                     return [
-                      r.tx_number,
+                      displayTxNumber(r) || r.tx_number,
                       formatDateTime(r.created_at ?? r.posted_at),
                       "—",
                       dir,
@@ -470,7 +483,7 @@ function TxList() {
                     isCorrected: !!r.corrected_by_tx_id,
                   });
                   return [
-                    r.tx_number,
+                    displayTxNumber(r) || r.tx_number,
                     formatDateTime(r.created_at),
                     customer,
                     dir,
@@ -782,7 +795,7 @@ function TxRow({
     >
       <td className="px-4 py-3 align-top">
         <div className="font-mono text-[12px] text-foreground group-hover:text-gold transition-colors">
-          {tx.tx_number}
+          {tx.display_tx_number || tx.tx_number}
         </div>
       </td>
       <td className="px-4 py-3 align-top">
@@ -817,7 +830,7 @@ function TxRow({
         </div>
         {reverses ? (
           <div className="mt-1 text-[10px] text-[var(--warning)] font-mono">
-            ↩ reverses {reverses.tx_number}
+            ↩ reverses {reverses.display_tx_number || reverses.tx_number}
           </div>
         ) : null}
         {tx.attachment_count > 0 ? (

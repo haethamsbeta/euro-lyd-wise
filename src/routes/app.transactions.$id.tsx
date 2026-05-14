@@ -36,6 +36,7 @@ import {
   Copy,
   User as UserIcon,
 } from "lucide-react";
+import { displayTxNumber, hasInternalRef } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/transactions/$id")({
   head: () => ({ meta: [{ title: "Transaction details — Dahab" }, { name: "description", content: "Inspect the legs, balances, and audit history of a single Dahab transaction." }] }), component: TxDetail,
@@ -44,6 +45,9 @@ export const Route = createFileRoute("/app/transactions/$id")({
 type TxFull = {
   id: string;
   tx_number: string;
+  source_entry_code: string | null;
+  source_cash_entry_code: string | null;
+  display_tx_number: string;
   direction: "deposit" | "withdraw";
   channel: "cash" | "bank";
   currency: string;
@@ -96,6 +100,9 @@ function TxDetail() {
         const mapped: TxFull = {
           id: String(r.id),
           tx_number: r.tx_number,
+          source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
+          source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+          display_tx_number: displayTxNumber(r),
           direction: r.direction,
           channel: r.channel ?? "cash",
           currency: r.currency ?? r.currency_code,
@@ -137,7 +144,13 @@ function TxDetail() {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as unknown as TxFull;
+      const r = data as any;
+      return {
+        ...(r as TxFull),
+        source_entry_code: r?.source_entry_code != null ? String(r.source_entry_code) : null,
+        source_cash_entry_code: r?.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+        display_tx_number: displayTxNumber(r ?? {}),
+      } as TxFull;
     },
   });
 
@@ -263,7 +276,7 @@ function TxDetail() {
           <ArrowLeft className="h-3.5 w-3.5" /> Transactions
         </Link>
         <span className="text-text-tertiary">/</span>
-        <span className="font-mono text-foreground">{tx.tx_number}</span>
+        <span className="font-mono text-foreground">{tx.display_tx_number || tx.tx_number}</span>
       </div>
 
       {/* Hero */}
@@ -278,7 +291,7 @@ function TxDetail() {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-mono font-semibold text-foreground">
-                  {tx.tx_number}
+                  {tx.display_tx_number || tx.tx_number}
                 </h1>
                 <StatusBadge status={status} />
                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-surface-2 text-text-secondary capitalize">
@@ -286,7 +299,7 @@ function TxDetail() {
                 </span>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(tx.tx_number);
+                    navigator.clipboard.writeText(tx.display_tx_number || tx.tx_number);
                     toast.success("Copied");
                   }}
                   className="text-text-secondary hover:text-gold transition-colors"
@@ -295,6 +308,11 @@ function TxDetail() {
                   <Copy className="h-3.5 w-3.5" />
                 </button>
               </div>
+              {hasInternalRef(tx) ? (
+                <div className="text-[11px] font-mono text-text-tertiary">
+                  System ref: {tx.tx_number}
+                </div>
+              ) : null}
               <div className="flex items-end gap-3">
                 <span
                   className={cn(
