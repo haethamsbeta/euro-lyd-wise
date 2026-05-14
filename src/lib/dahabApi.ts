@@ -78,10 +78,6 @@ export async function apiFetchEnvelope<T>(
   const normalizedPath = normalizeApiPath(path);
   const base = API_BASE_URL.replace(/\/+$/, "");
   const url = `${base}${normalizedPath.startsWith("/") ? normalizedPath : "/" + normalizedPath}`;
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.log("[apiFetch]", init.method ?? "GET", url);
-  }
   const res = await fetch(url, { ...init, headers });
 
   let envelope: ApiEnvelope<T> | null = null;
@@ -90,10 +86,6 @@ export async function apiFetchEnvelope<T>(
   } catch {
     if (!res.ok) throw new ApiError(res.statusText || "Request failed", res.status);
     throw new ApiError("Invalid JSON response", res.status);
-  }
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.log("[apiFetch]", res.status, url, envelope);
   }
 
   if (!res.ok || !envelope?.success) {
