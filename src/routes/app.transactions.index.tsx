@@ -920,15 +920,25 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     }
   }, [tx]);
 
-  const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
+  // Allow 0 in corrections — a zero amount means "pure reversal of the
+  // original entry with no replacement value". parseAmountToMinor rejects 0
+  // (used by the new-tx wizard where 0 is invalid), so parse locally here.
+  const amountMinor = useMemo<number | null>(() => {
+    if (amount === "" || amount == null) return null;
+    const cleaned = String(amount).replace(/[, _]/g, "");
+    if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+    const n = Math.round(parseFloat(cleaned) * 100);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  }, [amount]);
   const trimmedComment = comment.trim();
   const trimmedReason = reason.trim();
-  const amountValid = amountMinor !== null && amountMinor > 0;
+  const amountValid = amountMinor !== null && amountMinor >= 0;
   const commentValid = trimmedComment.length >= 3;
   const reasonValid = trimmedReason.length >= 10;
   const ready = !!tx && amountValid && commentValid && reasonValid;
   const missing: string[] = [];
-  if (!amountValid) missing.push("a valid amount");
+  if (!amountValid) missing.push("a valid amount (0 or greater)");
   if (!commentValid) missing.push("a comment (min 3 characters)");
   if (!reasonValid) missing.push(`a correction reason (min 10 characters, ${trimmedReason.length}/10)`);
 
