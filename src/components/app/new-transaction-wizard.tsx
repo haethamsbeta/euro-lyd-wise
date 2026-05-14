@@ -932,7 +932,7 @@ function CustomerStep({
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
-            placeholder="Search by name, account number, or DAHAB number…"
+            placeholder="Search by customer name, account number, or DAHAB number…"
             className="h-14 rounded-2xl border-gold/20 bg-card/60 pl-12 pr-12 text-base placeholder:text-muted-foreground/70 focus-visible:ring-gold/40 focus-visible:border-gold/60 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
