@@ -949,6 +949,12 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     mutationFn: async () => {
       if (!tx) throw new Error("No transaction selected");
       if (DATA_BACKEND === "lambda") {
+        if (!tx.customer_account_id || !tx.vault_account_id) {
+          throw new ApiError(
+            "Imported transactions cannot be corrected until the backend exposes a correction route for them.",
+            422,
+          );
+        }
         return await api.transactions.correct(tx.id, {
           new_amount_minor: amountMinor!,
           new_comment: trimmedComment,
@@ -999,9 +1005,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
           return;
         }
         if (e.status === 404) {
-          toast.error("Transaction not found", {
-            description:
-              "The original entry no longer exists. Refresh the list and try again.",
+          const routeMissing = /route not found/i.test(msg);
+          toast.error(routeMissing ? "Correction endpoint unavailable" : "Transaction not found", {
+            description: routeMissing
+              ? "The backend does not currently expose transaction corrections for this environment."
+              : "The original entry no longer exists. Refresh the list and try again.",
           });
           return;
         }
