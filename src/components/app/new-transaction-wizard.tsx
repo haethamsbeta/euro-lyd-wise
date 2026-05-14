@@ -101,32 +101,59 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const [debounced, setDebounced] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 200);
+    const t = setTimeout(() => setDebounced(search.trim()), 120);
     return () => clearTimeout(t);
   }, [search]);
 
   const { data: results, isFetching, isError } = useQuery({
-    // Only run a search once we have a step active AND at least 2 characters
-    // typed. This avoids the heavy initial "list everything" fetch that made
-    // the customer step feel frozen.
-    enabled: stepIdx === 1 && debounced.length >= 2,
+    // Run a search from the very first character so users don't have to
+    // type two letters before anything happens.
+    enabled: stepIdx === 1 && debounced.length >= 1,
     queryKey: ["holder_cards.search", debounced],
     staleTime: 30_000,
     queryFn: async () => {
       const term = debounced;
       if (DATA_BACKEND === "lambda") {
-        // Lambda mode — lightweight search via backend endpoints. We rely on
-        // the fields already returned by /holder-accounts (account_display_name,
-        // account_number, currency, balance) and avoid per-holder fetches.
+        // Lambda mode — search across both accounts and holders so a query
+        // by holder name, account number, OR DAHAB number all return hits.
+        // For every holder that matched (by name / DAHAB number) we also
+        // pull their full linked account list, so the user can see every
+        // eligible account regardless of which field the search matched.
         const [accountsRes, holdersRes] = await Promise.all([
-          api.accounts.list({ q: term, limit: 30 }),
-          api.holders.list({ q: term, limit: 20 }).catch(() => [] as any[]),
+          api.accounts.list({ q: term, limit: 50 }).catch(() => ({ items: [] as any[] })),
+          api.holders.list({ q: term, limit: 25 }).catch(() => [] as any[]),
         ]);
         const accountItems: any[] = (accountsRes as any)?.items ?? [];
+        const holderRows: any[] = Array.isArray(holdersRes) ? holdersRes : [];
         const holderById = new Map<string | number, any>();
-        for (const h of holdersRes as any[]) holderById.set(h.id, h);
+        for (const h of holderRows) holderById.set(h.id, h);
+
+        // Holders that matched by name/DAHAB number but whose accounts did
+        // not surface in the accounts query — fetch their accounts directly.
+        const accountHolderIds = new Set(accountItems.map((r) => String(r.account_holder_id)));
+        const missingHolders = holderRows.filter(
+          (h) => !accountHolderIds.has(String(h.id)),
+        );
+        const extraAccountLists = await Promise.all(
+          missingHolders.slice(0, 15).map((h) =>
+            api.holders.accounts(h.id).catch(() => [] as any[]),
+          ),
+        );
+        for (const list of extraAccountLists) {
+          for (const a of list as any[]) accountItems.push(a);
+        }
+
+        // De-duplicate (a holder hit + an account hit can return the same row).
+        const seen = new Set<string>();
+        const merged = accountItems.filter((r) => {
+          const k = String(r.id ?? r.holder_account_id ?? "");
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
         const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
-        return accountItems
+        return merged
           .filter((r) => allowed.has(String(r.currency_code)))
           .filter((r) =>
             !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id),
