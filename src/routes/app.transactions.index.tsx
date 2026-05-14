@@ -952,6 +952,12 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
         422,
       );
     }
+    if (amountMinor !== 0 && !replacementVault) {
+      throw new ApiError(
+        `Missing ${original.direction === "deposit" ? "Cash Receivable" : "Cash Payable"} vault for ${original.currency}.`,
+        422,
+      );
+    }
     const reasonSuffix = trimmedReason ? ` — ${trimmedReason}` : "";
     const reversal = await api.transactions.postCash({
       holder_account_id: original.customer_account_id,
@@ -966,12 +972,6 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     });
 
     if (amountMinor === 0) return reversal;
-    if (!replacementVault) {
-      throw new ApiError(
-        `Missing ${original.direction === "deposit" ? "Cash Receivable" : "Cash Payable"} vault for ${original.currency}.`,
-        422,
-      );
-    }
 
     return await api.transactions.postCash({
       holder_account_id: original.customer_account_id,
