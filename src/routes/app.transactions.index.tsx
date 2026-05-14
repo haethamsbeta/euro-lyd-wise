@@ -188,7 +188,7 @@ function TxList() {
       const { data, error } = await supabase
         .from("transactions")
         .select(
-          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, vault_account_id, reverses_tx_id, corrected_by_tx_id,
+          `id, tx_number, source_entry_code, source_cash_entry_code, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, vault_account_id, reverses_tx_id, corrected_by_tx_id,
            customer:accounts!transactions_customer_account_id_fkey(name, account_number),
            transaction_attachments(count)`,
         )
@@ -455,7 +455,7 @@ function TxList() {
                 const { data, error } = await supabase
                   .from("transactions")
                   .select(
-                    `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, reverses_tx_id, corrected_by_tx_id,
+                    `id, tx_number, source_entry_code, source_cash_entry_code, direction, channel, currency, amount_minor, status, comment, created_at, reverses_tx_id, corrected_by_tx_id,
                      customer:accounts!transactions_customer_account_id_fkey(name, account_number),
                      transaction_attachments(count)`,
                   )
