@@ -13,6 +13,7 @@ import { StatementLedger } from "@/components/app/statement-ledger";
 import { useT } from "@/lib/i18n";
 import { BackendPending } from "@/components/app/backend-pending";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { displayTxNumber } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/portal/$accountId/$currency")({
   component: AccountLedger,
@@ -41,7 +42,7 @@ function AccountLedger() {
       if (e1) throw e1;
       const { data: tx, error: e2 } = await supabase
         .from("transactions")
-        .select("id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at")
+        .select("id, tx_number, source_entry_code, source_cash_entry_code, direction, channel, currency, amount_minor, status, comment, created_at")
         .eq("customer_account_id", accountId)
         .eq("currency", currency as any)
         .order("created_at", { ascending: false })
@@ -56,7 +57,7 @@ function AccountLedger() {
     const rows = [
       ["TX #", "Date", "Type", "Channel", "Currency", "Amount", "Status", "Comment"],
       ...data.tx.map((t) => [
-        t.tx_number, t.created_at, t.direction, t.channel, t.currency,
+        displayTxNumber(t), t.created_at, t.direction, t.channel, t.currency,
         (t.amount_minor / 100).toFixed(2), t.status, t.comment,
       ]),
     ];
