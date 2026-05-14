@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Loader2, UserPlus, Link2 } from "lucide-react";
 import { toast } from "sonner";
@@ -241,6 +241,9 @@ function ManageLinksDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Manage linked accounts — {consumer.name}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Search account holders and link or unlink them from this consumer.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <Input

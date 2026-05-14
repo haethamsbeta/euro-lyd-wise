@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -552,6 +552,9 @@ function UsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change user email</DialogTitle>
+            <DialogDescription className="sr-only">
+              Update the sign-in email address for this user.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-xs text-muted-foreground">Current: <span className="font-mono">{emailEdit?.current ?? "—"}</span></div>

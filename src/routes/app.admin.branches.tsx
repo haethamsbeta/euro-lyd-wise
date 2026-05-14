@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Building2 } from "lucide-react";
@@ -121,6 +121,9 @@ function BranchesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit branch" : "Add branch"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {editing ? "Update branch details." : "Create a new branch."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

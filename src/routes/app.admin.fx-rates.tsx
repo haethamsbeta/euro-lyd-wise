@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { Plus, TrendingUp } from "lucide-react";
@@ -167,6 +167,9 @@ function FxRatesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add FX rate</DialogTitle>
+            <DialogDescription className="sr-only">
+              Add a new foreign exchange rate for the selected currency.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
