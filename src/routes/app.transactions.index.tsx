@@ -81,6 +81,7 @@ type Tx = {
   comment: string;
   created_at: string;
   customer_account_id: string;
+  vault_account_id: string | null;
   reverses_tx_id: string | null;
   corrected_by_tx_id: string | null;
   customer_name: string | null;
@@ -163,6 +164,7 @@ function TxList() {
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
           customer_account_id: String(r.customer_account_id ?? ""),
+          vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
           customer_name: r.holder_name ?? r.account_display_name ?? null,
@@ -198,6 +200,7 @@ function TxList() {
         comment: r.comment,
         created_at: r.created_at,
         customer_account_id: r.customer_account_id,
+        vault_account_id: r.vault_account_id ?? null,
         reverses_tx_id: r.reverses_tx_id,
         corrected_by_tx_id: r.corrected_by_tx_id,
         customer_name: r.customer?.name ?? null,
