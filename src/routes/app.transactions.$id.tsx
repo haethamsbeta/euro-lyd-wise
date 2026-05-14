@@ -44,6 +44,9 @@ export const Route = createFileRoute("/app/transactions/$id")({
 type TxFull = {
   id: string;
   tx_number: string;
+  source_entry_code: string | null;
+  source_cash_entry_code: string | null;
+  display_tx_number: string;
   direction: "deposit" | "withdraw";
   channel: "cash" | "bank";
   currency: string;
