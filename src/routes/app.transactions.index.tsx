@@ -932,6 +932,13 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
   const correct = useMutation({
     mutationFn: async () => {
       if (!tx) throw new Error("No transaction selected");
+      if (DATA_BACKEND === "lambda") {
+        return await api.transactions.correct(tx.id, {
+          new_amount_minor: amountMinor!,
+          new_comment: trimmedComment,
+          correction_reason: trimmedReason,
+        });
+      }
       const { data, error } = await supabase.rpc("correct_transaction" as any, {
         p_tx_id: tx.id,
         p_new_amount_minor: amountMinor!,
