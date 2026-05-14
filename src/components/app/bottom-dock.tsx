@@ -182,7 +182,7 @@ export function BottomDock() {
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-24 bg-gold/10 blur-3xl pointer-events-none" />
 
       <div
-        className="relative pointer-events-auto mx-2 mb-3 max-w-2xl h-[72px] sm:mx-6 sm:mb-4 sm:h-[68px] lg:mx-auto lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-1 sm:px-2"
+        className="relative pointer-events-auto mx-2 mb-3 max-w-2xl h-[72px] sm:mx-auto sm:mb-4 sm:h-[68px] lg:mb-3 lg:h-16 rounded-2xl bg-card/90 backdrop-blur-xl border border-gold/20 flex items-center justify-around px-1 sm:px-2"
         style={{
           boxShadow:
             "0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px oklch(var(--gold) / 0.08)",
