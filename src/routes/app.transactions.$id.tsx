@@ -137,7 +137,7 @@ function TxDetail() {
       const { data, error } = await supabase
         .from("transactions")
         .select(
-          `id, tx_number, source_entry_code, source_cash_entry_code, direction, channel, currency, amount_minor, status, comment, created_at, posted_at, reject_reason, correction_reason, approved_by_user_id, created_by_user_id, customer_account_id, reverses_tx_id,
+          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, posted_at, reject_reason, correction_reason, approved_by_user_id, created_by_user_id, customer_account_id, reverses_tx_id,
            customer:accounts!transactions_customer_account_id_fkey(name, account_number),
            vault:accounts!transactions_vault_account_id_fkey(name, vault_channel)`,
         )
