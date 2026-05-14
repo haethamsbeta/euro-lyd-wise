@@ -71,6 +71,7 @@ function MobileLogin() {
         if (!hasToken) throw new Error("Lambda token storage failed");
 
         window.dispatchEvent(new Event("dahab.auth.changed"));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         void Promise.all(
           ["dashboard", "dashboard.v3", "holders", "vaults", "transactions", "users", "notifications"].map(
             (key) => queryClient.invalidateQueries({ queryKey: [key] }),
