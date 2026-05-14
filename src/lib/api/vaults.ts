@@ -34,7 +34,6 @@ export const vaultsApi = {
   list: async () => {
     const res = await apiFetch<PagedResult<InternalAccount> | InternalAccount[]>("/vaults");
     const rows = unwrap(res);
-    if (import.meta.env.DEV) console.log("vault rows", rows.length);
     return rows;
   },
   get: (id: string | number) => apiFetch<InternalAccount>(`/vaults/${id}`),
