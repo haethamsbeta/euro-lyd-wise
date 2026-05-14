@@ -1383,13 +1383,25 @@ function PinAccountPicker({ pinned, onAdd, onRemove }: { pinned: string[]; onAdd
 function AnimatedNumber({ value, currency }: { value: number; currency?: string }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
-    let start = performance.now();
+    if (!Number.isFinite(value)) {
+      setDisplay(0);
+      return;
+    }
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value);
+      return;
+    }
+    const start = performance.now();
     const duration = 1500;
+    let lastPaint = start;
     let frame: number;
     const animate = (now: number) => {
       const progress = Math.min((now - start) / duration, 1);
       const ease = 1 - Math.pow(1 - progress, 4);
-      setDisplay(value * ease);
+      if (progress === 1 || now - lastPaint >= 80) {
+        lastPaint = now;
+        setDisplay(value * ease);
+      }
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
