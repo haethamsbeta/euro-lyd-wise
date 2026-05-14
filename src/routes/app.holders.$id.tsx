@@ -176,6 +176,8 @@ function HolderDetail() {
           description: e.description ?? "",
           posted_at: e.posted_at ?? e.created_at,
           tx_number: e.tx_number,
+          source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+          display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
           balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
         }));
         return { items, next_offset: r.next_offset, total: r.total };
@@ -187,7 +189,12 @@ function HolderDetail() {
         .order("posted_at", { ascending: false })
         .range(ledgerOffset, ledgerOffset + LEDGER_PAGE - 1);
       if (error) throw error;
-      return { items: data ?? [], next_offset: (data?.length ?? 0) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
+      const items = (data ?? []).map((e: any) => ({
+        ...e,
+        source_entry_code: e.source_entry_code != null ? String(e.source_entry_code) : null,
+        display_tx_number: (e.source_entry_code ?? e.tx_number ?? "") + "",
+      }));
+      return { items, next_offset: (items.length) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
     },
   });
   // Append page items to accumulator when new page arrives.
