@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { formatMinor, formatDateTime, tStatus, tDirection, tChannel } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { displayTxNumber } from "@/lib/txDisplay";
 
 export type StatementTx = {
   id: string;
   tx_number: string;
+  display_tx_number?: string | number | null;
   source_entry_code?: string | number | null;
   source_cash_entry_code?: string | number | null;
   direction: "deposit" | "withdraw";
@@ -17,6 +17,10 @@ export type StatementTx = {
   comment: string;
   created_at: string;
 };
+
+function visibleTx(row: StatementTx) {
+  return row.display_tx_number ?? row.source_entry_code ?? row.source_cash_entry_code ?? row.tx_number;
+}
 
 /**
  * Bank-statement style ledger with running balance.
@@ -80,7 +84,7 @@ export function StatementLedger({
                 <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                   {formatDateTime(row.created_at)}
                 </td>
-                <td className="px-3 py-2 font-mono text-[13px]">{displayTxNumber(row)}</td>
+                <td className="px-3 py-2 font-mono text-[13px]">{visibleTx(row)}</td>
                 <td className="max-w-[20rem] px-3 py-2">
                   <div>{tDirection(t, row.direction)} · {tChannel(t, row.channel)}</div>
                   {row.comment ? (

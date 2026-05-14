@@ -25,6 +25,10 @@ import {
 import { RoleGate } from "@/components/app/app-shell";
 import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
+function visibleTx(row: { display_tx_number?: string | null; source_entry_code?: string | null; source_cash_entry_code?: string | null; tx_number?: string | null }) {
+  return row.display_tx_number ?? row.source_entry_code ?? row.source_cash_entry_code ?? row.tx_number ?? "";
+}
+
 export const Route = createFileRoute("/app/accounts/$id")({
   head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
     <RoleGate allow={["admin", "auditor"]}>
@@ -541,7 +545,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
 
   function exportCsv() {
     const head = ["Date", "TX", "Description", "Debit", "Credit", "Balance"];
-    const data = filtered.map((e: any) => [new Date(e.posted_at).toISOString(), e.display_tx_number ?? e.tx_number, e.description ?? "", e.debit_amount, e.credit_amount, e.balance_after]);
+    const data = filtered.map((e: any) => [new Date(e.posted_at).toISOString(), visibleTx(e), e.description ?? "", e.debit_amount, e.credit_amount, e.balance_after]);
     const csv = [head, ...data].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -589,7 +593,7 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
               ) : filtered.map((e) => (
                 <tr key={e.id} className="border-t border-gold/10 hover:bg-gold/5">
                   <td className="p-4 text-sm whitespace-nowrap">{new Date(e.posted_at).toLocaleString()}</td>
-                  <td className="p-4 font-mono text-sm text-gold whitespace-nowrap">{(e as any).display_tx_number ?? e.tx_number}</td>
+                  <td className="p-4 font-mono text-sm text-gold whitespace-nowrap">{visibleTx(e)}</td>
                   <td className="p-4 text-base">{e.description}</td>
                   <td className="p-4 text-right text-base text-destructive tabular-nums">{Number(e.debit_amount) ? fmt(Number(e.debit_amount)) : "—"}</td>
                   <td className="p-4 text-right text-base text-[var(--success)] tabular-nums">{Number(e.credit_amount) ? fmt(Number(e.credit_amount)) : "—"}</td>

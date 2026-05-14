@@ -13,6 +13,7 @@ import { StatementLedger } from "@/components/app/statement-ledger";
 import { useT } from "@/lib/i18n";
 import { BackendPending } from "@/components/app/backend-pending";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { displayTxNumber } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/portal/$accountId/$currency")({
   component: AccountLedger,
@@ -56,7 +57,7 @@ function AccountLedger() {
     const rows = [
       ["TX #", "Date", "Type", "Channel", "Currency", "Amount", "Status", "Comment"],
       ...data.tx.map((t) => [
-        t.tx_number, t.created_at, t.direction, t.channel, t.currency,
+        displayTxNumber(t), t.created_at, t.direction, t.channel, t.currency,
         (t.amount_minor / 100).toFixed(2), t.status, t.comment,
       ]),
     ];

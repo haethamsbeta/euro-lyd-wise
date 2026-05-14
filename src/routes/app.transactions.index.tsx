@@ -100,6 +100,10 @@ type DirectionFilter = "all" | "deposit" | "withdraw";
 type ChannelFilter = "all" | "cash" | "bank";
 type DatePreset = "all" | "today" | "week" | "month" | "custom";
 
+function visibleTx(row: { display_tx_number?: string | null; source_entry_code?: string | null; source_cash_entry_code?: string | null; tx_number?: string | null }) {
+  return row.display_tx_number ?? row.source_entry_code ?? row.source_cash_entry_code ?? row.tx_number ?? "";
+}
+
 function accountIdFromTransactionRow(r: any): string {
   return String(
     r.holder_account_id ??
@@ -164,11 +168,15 @@ function TxList() {
   const PAGE_SIZE = 20;
   const [offset, setOffset] = useState(0);
 
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedQ]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions.list.v4.adapterDisplay", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
+        const paged = await api.transactions.listPaged({ q: debouncedQ.trim() || undefined, limit: PAGE_SIZE, offset });
         const rawItems: any[] = Array.isArray(paged.items) ? paged.items : [];
         const items: Tx[] = rawItems.map((r: any) => ({
           id: String(r.id),
@@ -453,7 +461,7 @@ function TxList() {
                       isCorrected: !!r.corrected_by_tx_id,
                     });
                     return [
-                      displayTxNumber(r) || r.tx_number,
+                      displayTxNumber(r),
                       formatDateTime(r.created_at ?? r.posted_at),
                       "—",
                       dir,
@@ -498,7 +506,7 @@ function TxList() {
                     isCorrected: !!r.corrected_by_tx_id,
                   });
                   return [
-                    displayTxNumber(r) || r.tx_number,
+                    displayTxNumber(r),
                     formatDateTime(r.created_at),
                     customer,
                     dir,
@@ -810,7 +818,7 @@ function TxRow({
     >
       <td className="px-4 py-3 align-top">
         <div className="font-mono text-[12px] text-foreground group-hover:text-gold transition-colors">
-          {tx.display_tx_number || tx.tx_number}
+          {visibleTx(tx)}
         </div>
       </td>
       <td className="px-4 py-3 align-top">
@@ -845,7 +853,7 @@ function TxRow({
         </div>
         {reverses ? (
           <div className="mt-1 text-[10px] text-[var(--warning)] font-mono">
-            ↩ reverses {reverses.display_tx_number || reverses.tx_number}
+            ↩ reverses {visibleTx(reverses)}
           </div>
         ) : null}
         {tx.attachment_count > 0 ? (
@@ -1094,10 +1102,11 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
     },
     onSuccess: (newTx: any) => {
       qc.invalidateQueries();
-      const num = newTx?.tx_number ? ` → ${newTx.tx_number}` : "";
+      const newVisibleTx = newTx ? displayTxNumber(newTx) : "";
+      const num = newVisibleTx ? ` → ${newVisibleTx}` : "";
       if (amountMinor === 0) {
         toast.success(`Reversed${num}`, {
-          description: `${tx?.tx_number ?? "The original entry"} was reversed. No replacement entry was posted.`,
+          description: `${tx ? visibleTx(tx) : "The original entry"} was reversed. No replacement entry was posted.`,
         });
       } else if (newTx?.status === "posted") {
         toast.success(`Correction posted${num}`, {
@@ -1174,7 +1183,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
           <DialogTitle>{t("tx.correctTitle")}</DialogTitle>
           <DialogDescription>
             Posted entries are immutable. This will post a reversing entry that cancels{" "}
-            <span className="font-mono">{tx?.tx_number}</span>, then post a new corrected entry.
+            <span className="font-mono">{tx ? visibleTx(tx) : ""}</span>, then post a new corrected entry.
           </DialogDescription>
         </DialogHeader>
 
