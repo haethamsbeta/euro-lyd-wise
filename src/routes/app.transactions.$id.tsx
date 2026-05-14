@@ -220,12 +220,24 @@ function TxDetail() {
       </div>
     );
   }
-  if (error || !tx) {
+  if (error) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
+          <AlertTitle>Couldn't load transaction</AlertTitle>
+          <AlertDescription>
+            {(error as Error)?.message ?? "Network or server error. Please try again."}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  if (!tx) {
+    return (
+      <div className="p-6">
+        <Alert>
           <AlertTitle>Transaction not found</AlertTitle>
-          <AlertDescription>{(error as Error)?.message ?? "Unknown error"}</AlertDescription>
+          <AlertDescription>This transaction may have been removed or you don't have access.</AlertDescription>
         </Alert>
       </div>
     );
