@@ -23,6 +23,10 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
+function visibleTx(row: { display_tx_number?: string | null; source_entry_code?: string | null; source_cash_entry_code?: string | null; tx_number?: string | null }) {
+  return row.display_tx_number ?? row.source_entry_code ?? row.source_cash_entry_code ?? row.tx_number ?? "";
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
 
@@ -786,7 +790,7 @@ function TransactionsTab({ entries, accounts, hasMore, loading, onLoadMore }: { 
                         <span className="text-xs text-text-secondary">#{e.account_id}</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{e.display_tx_number ?? e.tx_number}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-gold-soft">{visibleTx(e)}</td>
                     <td
                       className={cn(
                         "px-5 py-3 text-right font-medium tabular-nums",
