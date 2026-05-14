@@ -125,7 +125,9 @@ function ledgerAmountMinor(e: any, tx: Tx): number {
 }
 
 function findLedgerTxNumber(tx: Tx, entries: any[], used: Set<number>): { index: number; txNumber: string } | null {
-  let best: { index: number; txNumber: string; score: number } | null = null;
+  let bestIndex = -1;
+  let bestTxNumber = "";
+  let bestScore = -1;
   const txTime = new Date(tx.created_at).getTime();
   const txComment = (tx.comment ?? "").trim().toLowerCase();
 
@@ -153,12 +155,14 @@ function findLedgerTxNumber(tx: Tx, entries: any[], used: Set<number>): { index:
     if (tx.direction === "withdraw" && Number(e.debit_amount_minor ?? e.debit_minor ?? e.debit_amount ?? 0) > 0) score += 1;
     if (tx.direction === "deposit" && Number(e.credit_amount_minor ?? e.credit_minor ?? e.credit_amount ?? 0) > 0) score += 1;
 
-    if (score >= 6 && (!best || score > best.score)) {
-      best = { index, txNumber: ledgerTx, score };
+    if (score >= 6 && score > bestScore) {
+      bestIndex = index;
+      bestTxNumber = ledgerTx;
+      bestScore = score;
     }
   });
 
-  return best ? { index: best.index, txNumber: best.txNumber } : null;
+  return bestIndex >= 0 ? { index: bestIndex, txNumber: bestTxNumber } : null;
 }
 
 function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
