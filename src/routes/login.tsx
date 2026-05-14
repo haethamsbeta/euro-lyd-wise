@@ -62,13 +62,12 @@ function LoginPage() {
 
   return (
     <div
-      className="relative flex min-h-[100svh] md:min-h-screen items-center justify-center overflow-hidden px-4 sm:py-10"
-      style={{
-        paddingTop: "max(1.5rem, env(safe-area-inset-top))",
-        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-        paddingLeft: "max(1rem, env(safe-area-inset-left))",
-        paddingRight: "max(1rem, env(safe-area-inset-right))",
-      }}
+      className="relative flex min-h-[100svh] md:min-h-screen items-center justify-center overflow-hidden
+                 pt-[max(1.5rem,env(safe-area-inset-top))]
+                 pb-[max(1.5rem,env(safe-area-inset-bottom))]
+                 pl-[max(1rem,env(safe-area-inset-left))]
+                 pr-[max(1rem,env(safe-area-inset-right))]
+                 sm:py-10"
     >
       {/* Atmosphere */}
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh]" style={{ backgroundImage: "var(--gradient-vault)" }} />
