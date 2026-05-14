@@ -15,6 +15,12 @@ import { useT } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
+import {
+  EmptyState,
+  ErrorState,
+  GridLoadingSkeleton,
+  errorMessage,
+} from "@/components/app/state-views";
 
 export const Route = createFileRoute("/app/holders/")({ head: () => ({ meta: [{ title: "Account holders — Dahab" }, { name: "description", content: "Browse all Dahab account holders, families, and businesses on file." }] }), component: HoldersList });
 
@@ -27,7 +33,7 @@ function HoldersList() {
   const isAdmin = hasAnyRole(roles, ["admin"]);
   const { data: dashSummary } = useDashboardSummary();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["holders.list", dq, PAGE_SIZE],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
