@@ -99,6 +99,8 @@ function HoldersList() {
       if (error) throw error;
       return { items: data ?? [], total: count ?? (data?.length ?? 0) };
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const items = (data?.items ?? []) as any[];

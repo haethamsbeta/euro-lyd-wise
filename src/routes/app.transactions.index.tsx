@@ -214,6 +214,8 @@ function TxList() {
     },
     refetchInterval:
       REALTIME_MODE === "polling" ? POLL_INTERVALS.transactions : false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const txRows: Tx[] = (data?.rows as Tx[] | undefined) ?? [];

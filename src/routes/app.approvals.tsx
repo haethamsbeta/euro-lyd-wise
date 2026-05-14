@@ -97,7 +97,8 @@ function Approvals() {
     },
     retry: false,
     refetchInterval: REALTIME_MODE === "polling" ? POLL_INTERVALS.approvals : false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    staleTime: 15_000,
   });
   useEffect(() => {
     if (!data) return;

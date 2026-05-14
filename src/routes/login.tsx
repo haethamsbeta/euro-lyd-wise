@@ -188,7 +188,10 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           body: JSON.stringify(parsed.data),
         });
         const envelope = await res.json();
-        console.log("[LOGIN RAW]", envelope);
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log("[LOGIN RAW]", envelope);
+        }
         const payload = envelope?.data ?? envelope;
         const accessToken = payload?.access_token;
         const refreshToken = payload?.refresh_token;
@@ -206,12 +209,15 @@ function SignInForm({ portal }: { portal: PortalKind }) {
         localStorage.setItem("dahab.signed_in_at", String(Date.now()));
 
         stored = !!localStorage.getItem("dahab.access_token");
-        console.log("[LOGIN STORED]", {
-          hasToken: stored,
-          keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
-          role: user?.role,
-          is_master_admin: user?.is_master_admin,
-        });
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log("[LOGIN STORED]", {
+            hasToken: stored,
+            keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
+            role: user?.role,
+            is_master_admin: user?.is_master_admin,
+          });
+        }
         setDebug({ called, returned, stored });
         if (!stored) throw new Error("Lambda token storage failed");
 
