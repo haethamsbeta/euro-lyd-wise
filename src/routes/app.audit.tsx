@@ -123,8 +123,8 @@ function Audit() {
     });
   }, [data]);
   const pending = isPendingError(error);
-  const hasUnexpectedError = !!error && !pending && rows.length === 0;
   const rows = acc;
+  const hasUnexpectedError = !!error && !pending && rows.length === 0;
 
   const nameOf = (row: AuditRow) => row.actor_username || "";
 
