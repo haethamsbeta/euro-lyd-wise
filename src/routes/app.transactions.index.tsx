@@ -1102,7 +1102,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       const num = newVisibleTx ? ` → ${newVisibleTx}` : "";
       if (amountMinor === 0) {
         toast.success(`Reversed${num}`, {
-          description: `${tx?.tx_number ?? "The original entry"} was reversed. No replacement entry was posted.`,
+          description: `${tx ? visibleTx(tx) : "The original entry"} was reversed. No replacement entry was posted.`,
         });
       } else if (newTx?.status === "posted") {
         toast.success(`Correction posted${num}`, {
