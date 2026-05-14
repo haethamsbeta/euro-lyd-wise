@@ -136,7 +136,7 @@ export const reportsApi = {
           x.volume_by_currency_30d ||
           x.customer_growth_7m,
       ) ?? res ?? {};
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && import.meta.env.DEV) {
       // eslint-disable-next-line no-console
       console.log("[reports business overview] root keys:", Object.keys(r ?? {}));
     }
