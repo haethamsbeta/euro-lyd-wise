@@ -1,5 +1,5 @@
 // Transactions adapter — list, get, post, correct.
-import { apiFetch, qs } from "./_shared";
+import { apiFetch, qs, normalizeTxRow } from "./_shared";
 import type { PagedResult, Transaction, TransactionCategory } from "@/lib/dahabApi";
 
 export interface PostTransactionInput {
@@ -43,7 +43,7 @@ export const transactionsApi = {
       `/transactions${qs(params)}`,
     ).then((res) => {
       const rows = Array.isArray(res) ? res : (res?.items ?? []);
-      return rows;
+      return rows.map((r: any) => normalizeTxRow(r)) as typeof rows;
     }),
   /**
    * Paged variant — returns the full backend envelope so callers can use
@@ -58,26 +58,32 @@ export const transactionsApi = {
   ) =>
     apiFetch<any>(`/transactions${qs(params)}`).then((res) => {
       if (Array.isArray(res)) {
-        return { items: res, total: res.length, limit: params.limit ?? res.length, offset: params.offset ?? 0, next_offset: null };
+        const items = res.map((r: any) => normalizeTxRow(r));
+        return { items, total: items.length, limit: params.limit ?? items.length, offset: params.offset ?? 0, next_offset: null };
       }
+      const items = (res?.items ?? []).map((r: any) => normalizeTxRow(r));
       return {
-        items: res?.items ?? [],
-        total: typeof res?.total === "number" ? res.total : (res?.items?.length ?? 0),
+        items,
+        total: typeof res?.total === "number" ? res.total : items.length,
         limit: res?.limit ?? params.limit ?? 0,
         offset: res?.offset ?? params.offset ?? 0,
         next_offset: res?.next_offset ?? null,
       };
     }),
-  get: (id: string | number) => apiFetch<Transaction>(`/transactions/${id}`),
+  get: (id: string | number) =>
+    apiFetch<Transaction>(`/transactions/${id}`).then((r) => normalizeTxRow(r as any) as Transaction),
   myRecent: (limit = 10) =>
     apiFetch<PagedResult<Transaction> | Transaction[]>(
       `/transactions/me/recent${qs({ limit })}`,
-    ).then((res) => (Array.isArray(res) ? res : (res?.items ?? []))),
+    ).then((res) => {
+      const rows = Array.isArray(res) ? res : (res?.items ?? []);
+      return rows.map((r: any) => normalizeTxRow(r)) as typeof rows;
+    }),
   post: (body: PostTransactionInput) =>
     apiFetch<Transaction>("/transactions", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
+    }).then((r) => normalizeTxRow(r as any) as Transaction),
   postCash: (body: PostCashTransactionInput) =>
     apiFetch<Transaction>("/transactions", {
       method: "POST",
@@ -86,7 +92,7 @@ export const transactionsApi = {
         amount_minor: body.amount,
         amount: body.amount / 100,
       }),
-    }),
+    }).then((r) => normalizeTxRow(r as any) as Transaction),
   /**
    * Reverse a posted transaction and post a corrected entry. Backend contract:
    * `POST /api/transactions/:id/correct` body
@@ -105,5 +111,5 @@ export const transactionsApi = {
     apiFetch<Transaction>(`/transactions/${id}/correct`, {
       method: "POST",
       body: JSON.stringify(body),
-    }),
+    }).then((r) => normalizeTxRow(r as any) as Transaction),
 };
