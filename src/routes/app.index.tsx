@@ -518,6 +518,10 @@ function AdminDashboard({ prefs, update }: { prefs: DashPrefs; update: (p: DashP
               onUnpin={(id) =>
                 update({ ...prefs, pinnedAccountIds: prefs.pinnedAccountIds.filter((x) => x !== id) })
               }
+              onPin={(id) => {
+                if (!prefs.pinnedAccountIds.includes(id))
+                  update({ ...prefs, pinnedAccountIds: [...prefs.pinnedAccountIds, id] });
+              }}
             />
           </div>
         )}
