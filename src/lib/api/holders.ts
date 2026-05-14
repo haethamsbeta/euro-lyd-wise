@@ -1,5 +1,5 @@
 // Holders adapter.
-import { apiFetch, qs } from "./_shared";
+import { apiFetch, qs, normalizeTxRow } from "./_shared";
 import type { Holder, HolderAccount, PagedResult } from "@/lib/dahabApi";
 
 export const holdersApi = {
@@ -52,17 +52,19 @@ export const holdersApi = {
   ) =>
     apiFetch<any>(`/holders/${id}/transactions${qs(params)}`).then((res) => {
       if (Array.isArray(res)) {
+        const items = res.map((r: any) => normalizeTxRow(r));
         return {
-          items: res,
-          total: res.length,
-          limit: params.limit ?? res.length,
+          items,
+          total: items.length,
+          limit: params.limit ?? items.length,
           offset: params.offset ?? 0,
           next_offset: null as number | null,
         };
       }
+      const items = (res?.items ?? []).map((r: any) => normalizeTxRow(r));
       return {
-        items: res?.items ?? [],
-        total: typeof res?.total === "number" ? res.total : (res?.items?.length ?? 0),
+        items,
+        total: typeof res?.total === "number" ? res.total : items.length,
         limit: res?.limit ?? params.limit ?? 50,
         offset: res?.offset ?? params.offset ?? 0,
         next_offset: (res?.next_offset ?? null) as number | null,
