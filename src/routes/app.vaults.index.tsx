@@ -513,7 +513,13 @@ function VaultsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {recentTx.length === 0 ? (
+                {recentLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
+                      Loading recent activity…
+                    </td>
+                  </tr>
+                ) : recentTx.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
                       No vault activity yet.
