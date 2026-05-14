@@ -63,12 +63,10 @@ export const Route = createRootRoute({
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      ({
+      {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;600&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap",
-        media: "print",
-        onLoad: "this.media='all'",
-      } as any),
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "shortcut icon", type: "image/x-icon", href: "/favicon.ico" },
@@ -77,7 +75,7 @@ export const Route = createRootRoute({
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       // Preload the brand mark so it paints with the first frame.
-      ({ rel: "preload", as: "image", href: "/brand/dahab-icon.webp", type: "image/webp", fetchpriority: "high" } as any),
+      ({ rel: "preload", as: "image", href: "/brand/dahab-icon.webp", type: "image/webp", fetchPriority: "high" } as any),
     ],
   }),
   shellComponent: RootShell,
