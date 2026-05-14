@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { ExportPdfButton } from "@/components/app/export-pdf";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
+import {
+  TableLoadingSkeleton,
+  EmptyState,
+  ErrorState,
+  errorMessage,
+} from "@/components/app/state-views";
+import { ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 
@@ -88,7 +95,7 @@ function Audit() {
   const [offset, setOffset] = useState(0);
   const [acc, setAcc] = useState<AuditRow[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
-  const { data, error, isFetching } = useQuery({
+  const { data, error, isFetching, refetch } = useQuery({
     queryKey: ["audit", offset],
     queryFn: async () => {
       const r = await api.audit.listPaged({ limit: PAGE, offset });
@@ -116,6 +123,7 @@ function Audit() {
     });
   }, [data]);
   const pending = isPendingError(error);
+  const hasUnexpectedError = !!error && !pending && rows.length === 0;
   const rows = acc;
 
   const nameOf = (row: AuditRow) => row.actor_username || "";
@@ -125,6 +133,14 @@ function Audit() {
       <PageHeader title={t("audit.title")} description={t("audit.subtitle")} />
       <div className="p-4 sm:p-6 space-y-3">
         {pending && <BackendPending endpoint="GET /audit" />}
+        {hasUnexpectedError && (
+          <ErrorState
+            title="Couldn't load audit log"
+            description={errorMessage(error, "The audit service didn't respond.")}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
+        )}
         <div className="flex justify-end">
           <ExportPdfButton
             title="Audit Log"
@@ -195,8 +211,15 @@ function Audit() {
             </Card>
           );
         })}
-        {!pending && rows.length === 0 && !isFetching && (
-          <Card><CardContent className="p-6 text-sm text-muted-foreground">{t("audit.empty")}</CardContent></Card>
+        {!pending && !hasUnexpectedError && rows.length === 0 && isFetching && (
+          <Card><CardContent className="p-2"><TableLoadingSkeleton rows={5} /></CardContent></Card>
+        )}
+        {!pending && !hasUnexpectedError && rows.length === 0 && !isFetching && (
+          <EmptyState
+            icon={ScrollText}
+            title={t("audit.empty")}
+            description="Actions performed across the app will be logged here."
+          />
         )}
         {!pending && nextOffset != null && (
           <div className="flex justify-center">
