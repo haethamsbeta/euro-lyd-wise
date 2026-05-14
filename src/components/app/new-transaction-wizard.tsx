@@ -101,67 +101,37 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const [debounced, setDebounced] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 150);
+    const t = setTimeout(() => setDebounced(search.trim()), 120);
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: accountIndex, isFetching: isIndexFetching, isError } = useQuery({
-    enabled: stepIdx === 1 && DATA_BACKEND === "lambda",
-    queryKey: ["holder-accounts.search-index"],
-    staleTime: 5 * 60_000,
-    gcTime: 10 * 60_000,
+  const { data: searchRows, isFetching: isSearchFetching, isError } = useQuery({
+    enabled: stepIdx === 1 && DATA_BACKEND === "lambda" && debounced.length >= 1,
+    queryKey: ["holder-accounts.search", debounced],
+    staleTime: 30_000,
+    gcTime: 2 * 60_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const all: any[] = [];
-      let offset = 0;
-      for (let i = 0; i < 5; i += 1) {
-        const page = await api.holderAccounts.list({ limit: 1000, offset });
-        const items = page?.items ?? [];
-        all.push(...items);
-        const total = (page as any)?.total;
-        const next = (page as any)?.next_offset;
-        if (items.length === 0) break;
-        if (typeof total === "number" && all.length >= total) break;
-        if (typeof next !== "number" || next <= offset) break;
-        offset = next;
-      }
-      return all;
+      const limit = debounced.length < 3 ? 12 : 20;
+      const page = await api.accounts.list({ q: debounced, limit, status: "ACTIVE" } as any);
+      return (page as any)?.items ?? [];
     },
   });
 
   const results = useMemo(() => {
     const term = debounced.trim();
-    if (term.length < 2) return null;
-    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_/]/g, "");
-    const q = norm(term);
+    if (term.length < 1) return null;
     const allowed = new Set(["USD", "EUR", "LYD", "GBP"]);
     const seen = new Set<string>();
-    return (accountIndex ?? [])
+    return ((searchRows ?? []) as any[])
       .filter((r: any) => allowed.has(String(r.currency_code ?? r.currency)))
       .filter((r: any) => !(r?.is_test === true || r?.source_system === "DAHAB_TEST" || !!r?.test_run_id))
-      .filter((r: any) => {
-        const hay = norm([
-          r.holder_name,
-          r.canonical_name,
-          r.account_display_name,
-          r.account_alias_name,
-          r.alias_name,
-          r.account_number,
-          r.source_account_code,
-          r.dahab_account_number,
-          r.holder_dahab_account_number,
-          r.holder_phone,
-          r.phone_number,
-        ].filter(Boolean).join(" "));
-        return hay.includes(q);
-      })
       .filter((r: any) => {
         const key = String(r.id ?? r.holder_account_id ?? "");
         if (!key || seen.has(key)) return false;
         seen.add(key);
         return true;
       })
-      .slice(0, 40)
       .map((r: any) => ({
         holder_account_id: r.id ?? r.holder_account_id,
         account_number: r.account_number,
@@ -178,8 +148,8 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
         withdraw_limit_enabled: !!(r as any).withdraw_limit_enabled,
         holder_type: (r.holder_type ?? "INDIVIDUAL") as string,
       })) as HolderCardHit[];
-  }, [accountIndex, debounced]);
-  const isFetching = isIndexFetching && !accountIndex;
+  }, [searchRows, debounced]);
+  const isFetching = isSearchFetching;
 
   const currency: Currency = picked?.currency ?? "USD";
   const amountMinor = useMemo(() => parseAmountToMinor(amount), [amount]);
