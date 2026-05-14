@@ -17,6 +17,13 @@ import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { useIsRealMasterAdmin } from "@/lib/admin-mode";
 import { KeyRound, Mail, UserPlus, BellRing, BellOff, Send, UserCheck, UserX, Trash2 } from "lucide-react";
+import { Users as UsersIcon } from "lucide-react";
+import {
+  TableLoadingSkeleton,
+  EmptyState,
+  ErrorState,
+  errorMessage,
+} from "@/components/app/state-views";
 import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
 import { sendTestPushToUser } from "@/server/push.functions";
 import { formatDistanceToNow } from "date-fns";
@@ -51,7 +58,7 @@ function UsersPage() {
   const isLambda = DATA_BACKEND === "lambda";
   const PENDING_MSG = "User management write endpoint pending.";
 
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["users.profiles"],
     enabled: !!user,
     retry: false,
@@ -271,6 +278,24 @@ function UsersPage() {
         </p>
         <Card>
           <CardContent className="p-0">
+            {isError ? (
+              <div className="p-4">
+                <ErrorState
+                  title="Couldn't load users"
+                  description={errorMessage(error, "The users service didn't respond.")}
+                  onRetry={() => refetch()}
+                  retrying={isFetching}
+                />
+              </div>
+            ) : isLoading ? (
+              <TableLoadingSkeleton rows={5} />
+            ) : profiles.length === 0 ? (
+              <EmptyState
+                icon={UsersIcon}
+                title={search ? "No users match your search" : "No users yet"}
+                description={search ? "Try a different name or ID." : "Add a staff member to get started."}
+              />
+            ) : (
             <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -518,6 +543,7 @@ function UsersPage() {
               </tbody>
             </table>
             </div>
+            )}
           </CardContent>
         </Card>
       </div>

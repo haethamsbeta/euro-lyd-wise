@@ -23,6 +23,13 @@ import { useT } from "@/lib/i18n";
 import { REALTIME_MODE, POLL_INTERVALS, DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
 import { BackendPending, isPendingError } from "@/components/app/backend-pending";
+import {
+  TableLoadingSkeleton,
+  EmptyState,
+  ErrorState,
+  errorMessage,
+} from "@/components/app/state-views";
+import { Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/app/approvals")({
   head: () => ({ meta: [{ title: "Approvals queue — Dahab" }, { name: "description", content: "Review and approve pending Dahab transactions awaiting authorization." }] }), component: () => (
@@ -56,7 +63,7 @@ function Approvals() {
     setNextOffset(null);
   }
 
-  const { data, isLoading, error, isFetching } = useQuery({
+  const { data, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: ["approvals", offset],
     queryFn: async () => {
       // Backend contract: GET /approvals/pending MUST exclude sandbox rows
@@ -172,14 +179,27 @@ function Approvals() {
   return (
     <div>
       <PageHeader title={t("approvals.title")} description={t("approvals.subtitle")} />
-      <div className="p-4 sm:p-6">
+      <div className="p-4 sm:p-6 space-y-3">
         {pending ? (
           <BackendPending endpoint="GET /approvals/pending" />
+        ) : error && rows.length === 0 ? (
+          <ErrorState
+            title="Couldn't load approvals queue"
+            description={errorMessage(error, "The approvals service didn't respond.")}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
         ) : (
         <Card>
           <CardContent className="p-0">
-            {isLoading && rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
-              : rows.length === 0 ? <div className="p-6 text-sm text-muted-foreground">{t("approvals.empty")}</div>
+            {isLoading && rows.length === 0 ? <TableLoadingSkeleton rows={4} />
+              : rows.length === 0 ? (
+                <EmptyState
+                  icon={Inbox}
+                  title={t("approvals.empty")}
+                  description="Pending transactions awaiting authorization will appear here."
+                />
+              )
               : (
               <ul className="divide-y">
                 {rows.map((row: any) => (
