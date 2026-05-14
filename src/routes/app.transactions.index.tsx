@@ -236,7 +236,7 @@ function TxList() {
           status: r.status,
           comment: r.comment ?? r.description ?? "",
           created_at: r.created_at ?? r.posted_at,
-          customer_account_id: String(r.customer_account_id ?? ""),
+          customer_account_id: accountIdFromTransactionRow(r),
           vault_account_id: r.vault_account_id ? String(r.vault_account_id) : null,
           reverses_tx_id: r.reverses_tx_id ?? null,
           corrected_by_tx_id: r.corrected_by_tx_id ?? null,
@@ -245,9 +245,32 @@ function TxList() {
           customer_dahab_number: r.dahab_account_number ?? null,
           attachment_count: 0,
         }));
+
+        const accountIds = [...new Set(items.map((t) => t.customer_account_id).filter(Boolean))];
+        const ledgerByAccount = new Map<string, any[]>();
+        await Promise.all(
+          accountIds.map(async (accountId) => {
+            try {
+              const res: any = await api.accounts.ledger(accountId, { limit: PAGE_SIZE * 3, offset: 0 });
+              ledgerByAccount.set(accountId, Array.isArray(res) ? res : (res?.items ?? []));
+            } catch {
+              ledgerByAccount.set(accountId, []);
+            }
+          }),
+        );
+        const usedByAccount = new Map<string, Set<number>>();
+        const normalizedItems = items.map((tx) => {
+          const entries = ledgerByAccount.get(tx.customer_account_id) ?? [];
+          const used = usedByAccount.get(tx.customer_account_id) ?? new Set<number>();
+          usedByAccount.set(tx.customer_account_id, used);
+          const match = findLedgerTxNumber(tx, entries, used);
+          if (!match) return tx;
+          used.add(match.index);
+          return { ...tx, display_tx_number: match.txNumber };
+        });
         return {
-          rows: items,
-          total: paged.total ?? items.length,
+          rows: normalizedItems,
+          total: paged.total ?? normalizedItems.length,
           nextOffset: paged.next_offset ?? null,
         };
       }
