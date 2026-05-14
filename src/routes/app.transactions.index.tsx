@@ -967,9 +967,13 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       amount: original.amount_minor,
       currency_code: original.currency,
       vault_account_id: reversalVault.id,
-      comment: `Correction reversal of ${original.tx_number}${reasonSuffix}`.slice(0, 280),
+      comment: `Reversal of ${original.tx_number}${reasonSuffix}`.slice(0, 280),
       idempotency_key: nextIdempotencyKey(),
-    });
+      // Audit linkage — backend ignores unknown fields; safe to pass.
+      reverses_tx_id: original.id,
+      correction_reason: trimmedReason,
+      source_tx_id: original.id,
+    } as any);
 
     if (amountMinor === 0) return reversal;
 
@@ -983,7 +987,10 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
       vault_account_id: replacementVault!.id,
       comment: trimmedComment,
       idempotency_key: nextIdempotencyKey(),
-    });
+      corrected_from_tx_id: original.id,
+      correction_reason: trimmedReason,
+      source_tx_id: original.id,
+    } as any);
   };
 
   useEffect(() => {
@@ -1250,7 +1257,13 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
             }}
             disabled={correct.isPending}
           >
-            {correct.isPending ? "Correcting…" : "Reverse & post correction"}
+            {amountMinor === 0
+              ? correct.isPending
+                ? "Reversing…"
+                : "Reverse only"
+              : correct.isPending
+              ? "Correcting…"
+              : "Reverse & post correction"}
           </Button>
         </DialogFooter>
       </DialogContent>
