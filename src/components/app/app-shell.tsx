@@ -326,7 +326,18 @@ export function AppShell() {
             </div>
           )}
 
-          <main className={cn("overflow-x-hidden pt-4 sm:pt-6", !hideDock && "pb-36 sm:pb-32 md:pb-28 lg:pb-24")}>
+          <main
+            className={cn(
+              "overflow-x-hidden pt-4 sm:pt-6",
+              // Ultra-wide desktop: cap content to a comfortable reading width
+              // so 1728/1920 screens don't stretch tables, lists, or forms
+              // edge-to-edge. Pages that already set their own max-width
+              // (dashboard uses lg:max-w-7xl) continue to work — this only
+              // bounds the outer canvas. Engages at xl (1280px+).
+              "xl:mx-auto xl:max-w-[1600px] 2xl:max-w-[1760px]",
+              !hideDock && "pb-36 sm:pb-32 md:pb-28 lg:pb-24",
+            )}
+          >
             <Outlet />
           </main>
           {!hideDock && <BottomDock />}
