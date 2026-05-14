@@ -125,6 +125,7 @@ function AccountDetail() {
           id: e.id,
           tx_number: e.tx_number,
           source_entry_code: sourceEntryCode(e),
+          source_cash_entry_code: sourceCashEntryCode(e),
           display_tx_number: displayTxNumber(e),
           posted_at: e.posted_at,
           description: e.description ?? "",
@@ -154,6 +155,7 @@ function AccountDetail() {
       return (data ?? []).map((e: any) => ({
         ...e,
         source_entry_code: sourceEntryCode(e),
+        source_cash_entry_code: sourceCashEntryCode(e),
         display_tx_number: displayTxNumber(e),
       }));
     },

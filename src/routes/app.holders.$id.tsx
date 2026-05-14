@@ -178,6 +178,7 @@ function HolderDetail() {
           posted_at: e.posted_at ?? e.created_at,
           tx_number: e.tx_number,
           source_entry_code: sourceEntryCode(e),
+          source_cash_entry_code: sourceCashEntryCode(e),
           display_tx_number: displayTxNumber(e),
           balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
         }));
@@ -193,6 +194,7 @@ function HolderDetail() {
       const items = (data ?? []).map((e: any) => ({
         ...e,
         source_entry_code: sourceEntryCode(e),
+        source_cash_entry_code: sourceCashEntryCode(e),
         display_tx_number: displayTxNumber(e),
       }));
       return { items, next_offset: (items.length) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
