@@ -1184,7 +1184,7 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
                 <p className="mt-1 text-xs text-destructive">Enter a valid amount.</p>
               ) : amountMinor === 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Amount is 0 — this will simply reverse the original transaction with no replacement entry value.
+                  0.00 means reverse this transaction only. No replacement transaction will be posted.
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
