@@ -2,10 +2,13 @@ import { useMemo } from "react";
 import { formatMinor, formatDateTime, tStatus, tDirection, tChannel } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { displayTxNumber } from "@/lib/txDisplay";
 
 export type StatementTx = {
   id: string;
   tx_number: string;
+  source_entry_code?: string | number | null;
+  source_cash_entry_code?: string | number | null;
   direction: "deposit" | "withdraw";
   channel: string;
   currency: string;
@@ -77,7 +80,7 @@ export function StatementLedger({
                 <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                   {formatDateTime(row.created_at)}
                 </td>
-                <td className="px-3 py-2 font-mono text-[13px]">{row.tx_number}</td>
+                <td className="px-3 py-2 font-mono text-[13px]">{displayTxNumber(row)}</td>
                 <td className="max-w-[20rem] px-3 py-2">
                   <div>{tDirection(t, row.direction)} · {tChannel(t, row.channel)}</div>
                   {row.comment ? (
