@@ -23,7 +23,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { RoleGate } from "@/components/app/app-shell";
-import { displayTxNumber, sourceEntryCode } from "@/lib/txDisplay";
+import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/accounts/$id")({
   head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
@@ -125,6 +125,7 @@ function AccountDetail() {
           id: e.id,
           tx_number: e.tx_number,
           source_entry_code: sourceEntryCode(e),
+          source_cash_entry_code: sourceCashEntryCode(e),
           display_tx_number: displayTxNumber(e),
           posted_at: e.posted_at,
           description: e.description ?? "",
@@ -154,6 +155,7 @@ function AccountDetail() {
       return (data ?? []).map((e: any) => ({
         ...e,
         source_entry_code: sourceEntryCode(e),
+        source_cash_entry_code: sourceCashEntryCode(e),
         display_tx_number: displayTxNumber(e),
       }));
     },

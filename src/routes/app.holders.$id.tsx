@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
-import { displayTxNumber, sourceEntryCode } from "@/lib/txDisplay";
+import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
@@ -178,6 +178,7 @@ function HolderDetail() {
           posted_at: e.posted_at ?? e.created_at,
           tx_number: e.tx_number,
           source_entry_code: sourceEntryCode(e),
+          source_cash_entry_code: sourceCashEntryCode(e),
           display_tx_number: displayTxNumber(e),
           balance_after: e.balance_after != null ? Number(e.balance_after) : Number(e.balance_after_minor ?? 0) / 100,
         }));
@@ -193,6 +194,7 @@ function HolderDetail() {
       const items = (data ?? []).map((e: any) => ({
         ...e,
         source_entry_code: sourceEntryCode(e),
+        source_cash_entry_code: sourceCashEntryCode(e),
         display_tx_number: displayTxNumber(e),
       }));
       return { items, next_offset: (items.length) === LEDGER_PAGE ? ledgerOffset + LEDGER_PAGE : null, total: null };
