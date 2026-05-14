@@ -87,9 +87,23 @@ export const transactionsApi = {
         amount: body.amount / 100,
       }),
     }),
-  correct: (id: string | number, reason: string) =>
+  /**
+   * Reverse a posted transaction and post a corrected entry. Backend contract:
+   * `POST /api/transactions/:id/correct` body
+   * `{ new_amount_minor, new_comment, correction_reason }`. Returns the new
+   * (corrected) transaction; if the new entry overdrafts the account it is
+   * queued for admin approval (status=pending) instead of posting immediately.
+   */
+  correct: (
+    id: string | number,
+    body: {
+      new_amount_minor: number;
+      new_comment: string;
+      correction_reason: string;
+    },
+  ) =>
     apiFetch<Transaction>(`/transactions/${id}/correct`, {
       method: "POST",
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(body),
     }),
 };
