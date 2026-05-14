@@ -278,6 +278,24 @@ function UsersPage() {
         </p>
         <Card>
           <CardContent className="p-0">
+            {isError ? (
+              <div className="p-4">
+                <ErrorState
+                  title="Couldn't load users"
+                  description={errorMessage(error, "The users service didn't respond.")}
+                  onRetry={() => refetch()}
+                  retrying={isFetching}
+                />
+              </div>
+            ) : isLoading ? (
+              <TableLoadingSkeleton rows={5} />
+            ) : profiles.length === 0 ? (
+              <EmptyState
+                icon={UsersIcon}
+                title={search ? "No users match your search" : "No users yet"}
+                description={search ? "Try a different name or ID." : "Add a staff member to get started."}
+              />
+            ) : (
             <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -525,6 +543,7 @@ function UsersPage() {
               </tbody>
             </table>
             </div>
+            )}
           </CardContent>
         </Card>
       </div>
