@@ -181,7 +181,7 @@ function TxList() {
       const { data, error } = await supabase
         .from("transactions")
         .select(
-          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, reverses_tx_id, corrected_by_tx_id,
+          `id, tx_number, direction, channel, currency, amount_minor, status, comment, created_at, customer_account_id, vault_account_id, reverses_tx_id, corrected_by_tx_id,
            customer:accounts!transactions_customer_account_id_fkey(name, account_number),
            transaction_attachments(count)`,
         )
@@ -914,6 +914,54 @@ function CorrectionDialog({ tx, onClose }: { tx: Tx | null; onClose: () => void 
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [reason, setReason] = useState("");
+
+  const nextIdempotencyKey = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const correctThroughCashPosts = async (original: Tx) => {
+    if (original.channel !== "cash") {
+      throw new ApiError(
+        "Bank transaction corrections are not available until the backend correction endpoint is deployed.",
+        422,
+      );
+    }
+    if (!original.customer_account_id || !original.vault_account_id) {
+      throw new ApiError(
+        "This transaction is missing account linkage, so it cannot be reversed from the transaction list.",
+        422,
+      );
+    }
+
+    const reverseDirection = original.direction === "deposit" ? "withdraw" : "deposit";
+    const reasonSuffix = trimmedReason ? ` — ${trimmedReason}` : "";
+    const reversal = await api.transactions.postCash({
+      holder_account_id: original.customer_account_id,
+      direction: reverseDirection,
+      channel: "cash",
+      transaction_category: "cash",
+      amount: original.amount_minor,
+      currency_code: original.currency,
+      vault_account_id: original.vault_account_id,
+      comment: `Correction reversal of ${original.tx_number}${reasonSuffix}`.slice(0, 280),
+      idempotency_key: nextIdempotencyKey(),
+    });
+
+    if (amountMinor === 0) return reversal;
+
+    return await api.transactions.postCash({
+      holder_account_id: original.customer_account_id,
+      direction: original.direction,
+      channel: "cash",
+      transaction_category: "cash",
+      amount: amountMinor!,
+      currency_code: original.currency,
+      vault_account_id: original.vault_account_id,
+      comment: trimmedComment,
+      idempotency_key: nextIdempotencyKey(),
+    });
+  };
 
   useEffect(() => {
     if (tx) {
