@@ -443,7 +443,7 @@ function PortalAccountCard({
       const { data, error } = await supabase
         .from("holder_ledger_entries")
         .select(
-          "id,tx_number,source_entry_code,source_cash_entry_code,posted_at,description,debit_amount,credit_amount,balance_after,currency_code",
+          "id,tx_number,posted_at,description,debit_amount,credit_amount,balance_after,currency_code",
         )
         .eq("account_id", account.id)
         .order("posted_at", { ascending: false })
