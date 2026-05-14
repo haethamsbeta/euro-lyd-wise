@@ -134,7 +134,7 @@ function ReportsPage() {
   // ── Business overview field projections (per-widget, never fabricated) ──
   const counts = businessOverview?.counts ?? null;
   const volByCcy = volumeByCurrency30d;
-  if (typeof window !== "undefined" && overview) {
+  if (typeof window !== "undefined" && import.meta.env.DEV && overview) {
     // Temporary diagnostic — confirms the adapter handed back the
     // documented Business Overview keys.
     // eslint-disable-next-line no-console
@@ -277,7 +277,7 @@ function ReportsPage() {
   const typologyRows = Array.isArray(compliance?.typology) ? compliance.typology : [];
   const alertVolumeDaily = Array.isArray(compliance?.alert_volume) ? compliance.alert_volume : [];
   const riskTypology = typologyRows.map((t) => ({ ...t, color: TYPOLOGY_COLORS[t.name] ?? GOLD }));
-  if (typeof window !== "undefined" && showMasterTools) {
+  if (typeof window !== "undefined" && import.meta.env.DEV && showMasterTools) {
     // Temporary preview debugging — remove once Reports stability is confirmed.
     // eslint-disable-next-line no-console
     console.log("[reports endpoint status]", {
