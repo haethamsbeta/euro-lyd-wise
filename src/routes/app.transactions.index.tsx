@@ -218,7 +218,7 @@ function TxList() {
   const [offset, setOffset] = useState(0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["transactions.list.v2", debouncedQ, offset],
+    queryKey: ["transactions.list.v3.ledgerTxDisplay", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
