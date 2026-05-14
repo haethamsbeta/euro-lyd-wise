@@ -59,6 +59,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND, REALTIME_MODE, POLL_INTERVALS } from "@/lib/runtimeConfig";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { useT } from "@/lib/i18n";
+import { displayTxNumber } from "@/lib/txDisplay";
 
 export const Route = createFileRoute("/app/transactions/")({
   head: () => ({ meta: [{ title: "Transactions — Dahab" }, { name: "description", content: "Search and filter every transaction posted across the Dahab ledger." }] }), component: TxList,
@@ -159,6 +160,9 @@ function TxList() {
         const items: Tx[] = rawItems.map((r: any) => ({
           id: String(r.id),
           tx_number: r.tx_number,
+          source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
+          source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+          display_tx_number: displayTxNumber(r),
           direction: r.direction,
           channel: r.channel ?? "cash",
           currency: r.currency ?? r.currency_code,
@@ -195,6 +199,9 @@ function TxList() {
       const items = rows.map<Tx>((r) => ({
         id: r.id,
         tx_number: r.tx_number,
+        source_entry_code: r.source_entry_code != null ? String(r.source_entry_code) : null,
+        source_cash_entry_code: r.source_cash_entry_code != null ? String(r.source_cash_entry_code) : null,
+        display_tx_number: displayTxNumber(r),
         direction: r.direction,
         channel: r.channel,
         currency: r.currency,
