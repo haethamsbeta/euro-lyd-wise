@@ -348,7 +348,22 @@ function VaultsPage() {
             </span>
           )}
         </h2>
-        {(() => {
+        {vaultsLoading ? (
+          <GridLoadingSkeleton cards={6} />
+        ) : vaultsIsError ? (
+          <ErrorState
+            title="Couldn't load vaults"
+            description={errorMessage(vaultsError, "The vaults service did not respond.")}
+            onRetry={() => refetchVaults()}
+            retrying={vaultsFetching}
+          />
+        ) : vaults.length === 0 ? (
+          <EmptyState
+            title="No vaults yet"
+            description="Vault accounts created by the back office will appear here."
+            icon={Landmark}
+          />
+        ) : (() => {
           const groups = new Map<string, any[]>();
           for (const v of vaults as any[]) {
             const key = v.currency_code ?? "__missing__";
