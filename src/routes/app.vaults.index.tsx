@@ -13,6 +13,13 @@ import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary } from "@/lib/useDashboardSummary";
 import { isTestRow } from "@/lib/api/_shared";
 import {
+  EmptyState,
+  ErrorState,
+  GridLoadingSkeleton,
+  TableLoadingSkeleton,
+  errorMessage,
+} from "@/components/app/state-views";
+import {
   Landmark,
   Banknote,
   Building2,
@@ -57,11 +64,20 @@ function VaultsPage() {
         }>
       : [];
 
-  const { data: vaults = [] } = useQuery({
+  const {
+    data: vaults = [],
+    isLoading: vaultsLoading,
+    isError: vaultsIsError,
+    error: vaultsError,
+    refetch: refetchVaults,
+    isFetching: vaultsFetching,
+  } = useQuery({
     queryKey: ["vaults.list"],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
-        const list = await api.vaults.list().catch(() => [] as any[]);
+        // Let errors surface — UI now renders an explicit ErrorState
+        // with a retry button instead of a silent empty grid.
+        const list = await api.vaults.list();
         const rows = Array.isArray(list) ? list : [];
         const filtered = rows.filter((r: any) => !isTestRow(r));
         // Each official vault account is single-currency. Render 1 row per
@@ -103,7 +119,7 @@ function VaultsPage() {
     },
   });
 
-  const { data: recentTx = [] } = useQuery({
+  const { data: recentTx = [], isLoading: recentLoading } = useQuery({
     queryKey: ["vaults.recentActivity"],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
