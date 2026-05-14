@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { formatMinor, formatDateTime, tStatus, tDirection, tChannel } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { displayTxNumber } from "@/lib/txDisplay";
 
 export type StatementTx = {
   id: string;
