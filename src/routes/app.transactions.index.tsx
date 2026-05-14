@@ -99,6 +99,68 @@ type DirectionFilter = "all" | "deposit" | "withdraw";
 type ChannelFilter = "all" | "cash" | "bank";
 type DatePreset = "all" | "today" | "week" | "month" | "custom";
 
+function accountIdFromTransactionRow(r: any): string {
+  return String(
+    r.customer_account_id ??
+      r.holder_account_id ??
+      r.account_id ??
+      r.customerAccountId ??
+      r.holderAccountId ??
+      r.accountId ??
+      "",
+  );
+}
+
+function amountToMinor(value: unknown, alreadyMinor: unknown): number {
+  if (alreadyMinor !== null && alreadyMinor !== undefined && alreadyMinor !== "") {
+    return Math.round(Number(alreadyMinor) || 0);
+  }
+  return Math.round((Number(value) || 0) * 100);
+}
+
+function ledgerAmountMinor(e: any, tx: Tx): number {
+  const debit = amountToMinor(e.debit_amount, e.debit_amount_minor ?? e.debit_minor);
+  const credit = amountToMinor(e.credit_amount, e.credit_amount_minor ?? e.credit_minor);
+  return tx.direction === "withdraw" ? debit : credit;
+}
+
+function findLedgerTxNumber(tx: Tx, entries: any[], used: Set<number>): { index: number; txNumber: string } | null {
+  let best: { index: number; txNumber: string; score: number } | null = null;
+  const txTime = new Date(tx.created_at).getTime();
+  const txComment = (tx.comment ?? "").trim().toLowerCase();
+
+  entries.forEach((e, index) => {
+    if (used.has(index)) return;
+    const ledgerTx = displayTxNumber(e) || String(e.tx_number ?? "").trim();
+    if (!ledgerTx) return;
+
+    let score = 0;
+    if (String(e.transaction_id ?? e.tx_id ?? e.transactionId ?? "") === tx.id) score += 100;
+    if (String(e.id ?? "") === tx.id) score += 50;
+    if (String(e.currency_code ?? e.currency ?? "") === tx.currency) score += 2;
+    if (Math.abs(ledgerAmountMinor(e, tx) - tx.amount_minor) <= 1) score += 4;
+
+    const ledgerTime = new Date(e.posted_at ?? e.created_at ?? "").getTime();
+    if (Number.isFinite(txTime) && Number.isFinite(ledgerTime)) {
+      const diffMinutes = Math.abs(txTime - ledgerTime) / 60_000;
+      if (diffMinutes <= 2) score += 4;
+      else if (diffMinutes <= 60) score += 2;
+      else if (new Date(txTime).toDateString() === new Date(ledgerTime).toDateString()) score += 1;
+    }
+
+    const ledgerDesc = String(e.description ?? e.comment ?? "").trim().toLowerCase();
+    if (txComment && ledgerDesc && ledgerDesc === txComment) score += 3;
+    if (tx.direction === "withdraw" && Number(e.debit_amount_minor ?? e.debit_minor ?? e.debit_amount ?? 0) > 0) score += 1;
+    if (tx.direction === "deposit" && Number(e.credit_amount_minor ?? e.credit_minor ?? e.credit_amount ?? 0) > 0) score += 1;
+
+    if (score >= 6 && (!best || score > best.score)) {
+      best = { index, txNumber: ledgerTx, score };
+    }
+  });
+
+  return best ? { index: best.index, txNumber: best.txNumber } : null;
+}
+
 function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
   const now = new Date();
   if (p === "today") {
