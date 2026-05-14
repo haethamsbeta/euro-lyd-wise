@@ -51,6 +51,8 @@ function VaultsPage() {
     queryKey: ["vaults.cashByCurrency"],
     enabled: DATA_BACKEND === "lambda",
     queryFn: () => api.dashboard.admin().catch(() => null),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
   const cashByCurrency =
     DATA_BACKEND === "lambda"
@@ -116,6 +118,8 @@ function VaultsPage() {
       }
       return out;
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: recentTx = [], isLoading: recentLoading } = useQuery({
@@ -144,6 +148,8 @@ function VaultsPage() {
       if (error) throw error;
       return data ?? [];
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   // Consolidated USD-equivalent reserves — sourced from the database (fx_rates).
