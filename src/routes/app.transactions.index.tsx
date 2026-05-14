@@ -214,12 +214,12 @@ function TxList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.focus]);
 
-  // Page size matches backend contract: GET /api/transactions?limit=50
-  const PAGE_SIZE = 50;
+  // Backend contract page size — kept small for fast first paint.
+  const PAGE_SIZE = 20;
   const [offset, setOffset] = useState(0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["transactions.list.v3.ledgerTxDisplay", debouncedQ, offset],
+    queryKey: ["transactions.list.v4.adapterDisplay", debouncedQ, offset],
     queryFn: async () => {
       if (DATA_BACKEND === "lambda") {
         const paged = await api.transactions.listPaged({ limit: PAGE_SIZE, offset });
@@ -247,32 +247,9 @@ function TxList() {
           customer_dahab_number: r.dahab_account_number ?? null,
           attachment_count: 0,
         }));
-
-        const accountIds = [...new Set(items.map((t) => t.ledger_account_id).filter(Boolean))];
-        const ledgerByAccount = new Map<string, any[]>();
-        await Promise.all(
-          accountIds.map(async (accountId) => {
-            try {
-              const res: any = await api.accounts.ledger(accountId, { limit: PAGE_SIZE * 3, offset: 0 });
-              ledgerByAccount.set(accountId, Array.isArray(res) ? res : (res?.items ?? []));
-            } catch {
-              ledgerByAccount.set(accountId, []);
-            }
-          }),
-        );
-        const usedByAccount = new Map<string, Set<number>>();
-        const normalizedItems = items.map((tx) => {
-          const entries = ledgerByAccount.get(tx.ledger_account_id) ?? [];
-          const used = usedByAccount.get(tx.ledger_account_id) ?? new Set<number>();
-          usedByAccount.set(tx.ledger_account_id, used);
-          const match = findLedgerTxNumber(tx, entries, used);
-          if (!match) return tx;
-          used.add(match.index);
-          return { ...tx, display_tx_number: match.txNumber };
-        });
         return {
-          rows: normalizedItems,
-          total: paged.total ?? normalizedItems.length,
+          rows: items,
+          total: paged.total ?? items.length,
           nextOffset: paged.next_offset ?? null,
         };
       }
