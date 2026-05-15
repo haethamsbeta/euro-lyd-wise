@@ -23,6 +23,7 @@ import {
   useMasterPreviewAsRegular,
   setMasterPreviewAsRegular,
   useMasterPreviewGuard,
+  useShowMasterTools,
 } from "@/lib/admin-mode";
 import {
   Sheet,
@@ -42,6 +43,7 @@ type NavItem = {
   labelKey: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   roles: AppRole[];
+  masterOnly?: boolean;
 };
 
 // Live-test navigation surface. Pages that are not yet ready for client live
@@ -56,6 +58,18 @@ const NAV: NavItem[] = [
   { to: "/app/transactions", labelKey: "nav.transactions", icon: ListOrdered, roles: ["admin", "teller", "auditor"] },
   { to: "/app/holders", labelKey: "nav.holders", icon: IdCard, roles: ["admin", "teller", "auditor"] },
   { to: "/app/approvals", labelKey: "nav.approvals", icon: ClipboardCheck, roles: ["admin"] },
+  // Master-admin-only entries — hidden from regular live-test users.
+  { to: "/app/accounts", labelKey: "nav.accounts", icon: Wallet, roles: ["admin", "teller", "auditor"], masterOnly: true },
+  { to: "/app/vaults", labelKey: "nav.vaults", icon: Wallet, roles: ["admin", "auditor"], masterOnly: true },
+  { to: "/app/groups", labelKey: "nav.groups", icon: Layers, roles: ["admin", "teller", "auditor"], masterOnly: true },
+  { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"], masterOnly: true },
+  { to: "/app/reports", labelKey: "nav.reports", icon: BarChart3, roles: ["admin", "auditor"], masterOnly: true },
+  { to: "/app/me/activity", labelKey: "nav.myActivity", icon: Activity, roles: ["admin", "teller", "auditor"], masterOnly: true },
+  { to: "/app/users", labelKey: "nav.users", icon: UsersIcon, roles: ["admin"], masterOnly: true },
+  { to: "/app/portal-accounts", labelKey: "nav.portalAccounts", icon: IdCard, roles: ["admin"], masterOnly: true },
+  { to: "/app/admin/fx-rates", labelKey: "nav.fxRates", icon: BarChart3, roles: ["admin"], masterOnly: true },
+  { to: "/app/admin/branches", labelKey: "nav.branches", icon: Building2, roles: ["admin"], masterOnly: true },
+  { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"], masterOnly: true },
   { to: "/app/admin/sandbox-multi-entry", labelKey: "nav.testSandbox", icon: FlaskConical, roles: ["admin"] },
   { to: "/app/admin/test-sandbox", labelKey: "nav.testSandboxTx", icon: FlaskConical, roles: ["admin"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
@@ -126,7 +140,8 @@ export function AppShell() {
       hasAnyRole(effectiveRoles, i.roles) &&
       (i.to.startsWith("/app/admin/test-sandbox")
         ? showMasterTools
-        : true),
+        : true) &&
+      (i.masterOnly ? showMasterTools : true),
   );
 
   // Full nav list lives in the More drawer. Bottom dock owns primary navigation.
@@ -362,6 +377,35 @@ export function RoleGate({ allow, children }: { allow: AppRole[]; children: Reac
     return (
       <div className="p-10 text-center text-sm text-muted-foreground">
         You don't have permission to view this page.
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+/**
+ * Master-admin-only gate for pages temporarily withdrawn from the live-test
+ * surface. Regular staff (including admins who aren't master, and master
+ * admins previewing as regular) see a clean "not available" state with a
+ * link back to the workspace instead of the underlying page.
+ */
+export function MasterAdminGate({ children }: { children: React.ReactNode }) {
+  const showMaster = useShowMasterTools();
+  if (!showMaster) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="card-luxe max-w-md rounded-xl p-8 text-center">
+          <ShieldAlert className="mx-auto h-10 w-10 text-warning" />
+          <h1 className="mt-3 font-serif text-xl font-semibold">Not available in this test</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This page is hidden during the current live-test window. Please return to the main workspace.
+          </p>
+          <div className="mt-6 flex justify-center gap-2">
+            <Button asChild className="bg-gradient-gold text-primary-foreground shadow-gold hover:opacity-95">
+              <Link to="/app">Back to dashboard</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

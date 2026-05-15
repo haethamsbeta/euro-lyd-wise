@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMinor, formatMinorOrMissing, formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
-import { RoleGate } from "@/components/app/app-shell";
+import { RoleGate, MasterAdminGate } from "@/components/app/app-shell";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useDashboardSummary } from "@/lib/useDashboardSummary";
@@ -34,9 +34,11 @@ import {
 
 export const Route = createFileRoute("/app/vaults/")({
   head: () => ({ meta: [{ title: "Vaults — Dahab" }, { name: "description", content: "Per-currency vault balances, custody movements, and reconciliation." }] }), component: () => (
-    <RoleGate allow={["admin", "auditor"]}>
-      <VaultsPage />
-    </RoleGate>
+    <MasterAdminGate>
+      <RoleGate allow={["admin", "auditor"]}>
+        <VaultsPage />
+      </RoleGate>
+    </MasterAdminGate>
   ),
 });
 
