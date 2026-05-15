@@ -1029,6 +1029,7 @@ function RecentTransactionsTable({ rows, loading, redacted = false }: { rows: an
 // ─── Pinned customers + Customize sheet (kept from prior implementation) ────
 function PinnedCustomers({ ids, onUnpin, onPin }: { ids: string[]; onUnpin: (id: string) => void; onPin: (id: string) => void }) {
   const t = useT();
+  const showMasterTools = useShowMasterTools();
   const [pickerOpen, setPickerOpen] = useState(false);
   const isLambda = DATA_BACKEND === "lambda";
   const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
@@ -1159,6 +1160,7 @@ function PinnedCustomers({ ids, onUnpin, onPin }: { ids: string[]; onUnpin: (id:
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                     {accounts.map((a: any) => (
+                      showMasterTools ? (
                       <Link
                         key={a.id}
                         to="/app/accounts/$id"
@@ -1178,6 +1180,25 @@ function PinnedCustomers({ ids, onUnpin, onPin }: { ids: string[]; onUnpin: (id:
                           </div>
                         )}
                       </Link>
+                      ) : (
+                        <div
+                          key={a.id}
+                          className="rounded-lg border border-border bg-card/60 p-2.5"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <CurrencyBadge currency={a.currency_code} />
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{a.account_nature}</span>
+                          </div>
+                          <div className="font-serif text-base text-gold tabular-nums num">
+                            {Number(a.current_balance ?? 0).toLocaleString()}
+                          </div>
+                          {a.account_display_name && (
+                            <div className="text-[10px] text-muted-foreground truncate mt-0.5" dir="auto">
+                              {a.account_display_name}
+                            </div>
+                          )}
+                        </div>
+                      )
                     ))}
                   </div>
                 )}
