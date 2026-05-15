@@ -88,9 +88,11 @@ function Sparkline({ data, color = GOLD }: { data: number[]; color?: string }) {
 
 export const Route = createFileRoute("/app/reports")({
   component: () => (
-    <RoleGate allow={["admin", "auditor"]}>
-      <ReportsPage />
-    </RoleGate>
+    <MasterAdminGate>
+      <RoleGate allow={["admin", "auditor"]}>
+        <ReportsPage />
+      </RoleGate>
+    </MasterAdminGate>
   ),
   head: () => ({ meta: [{ title: "Reports & Insights — Dahab" }] }),
 });
