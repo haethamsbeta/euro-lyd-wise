@@ -14,7 +14,8 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { useDashboardSummary, fmtTotal } from "@/lib/useDashboardSummary";
 import { isTestRow } from "@/lib/api/_shared";
 
-export const Route = createFileRoute("/app/accounts/")({ head: () => ({ meta: [{ title: "Accounts — Dahab" }, { name: "description", content: "Browse all customer accounts and balances across currencies in the Dahab back-office." }] }), component: AccountsList });
+import { MasterAdminGate } from "@/components/app/app-shell";
+export const Route = createFileRoute("/app/accounts/")({ head: () => ({ meta: [{ title: "Accounts — Dahab" }, { name: "description", content: "Browse all customer accounts and balances across currencies in the Dahab back-office." }] }), component: () => (<MasterAdminGate><AccountsList /></MasterAdminGate>) });
 
 const ALLOWED_CURRENCIES = new Set(["LYD", "USD", "EUR", "GBP"]);
 const PAGE_SIZES = [20, 50] as const;
