@@ -44,20 +44,29 @@ type NavItem = {
   roles: AppRole[];
 };
 
-// Live-test navigation surface. Pages that are not yet ready for client live
-// testing (accounts, vaults, groups, audit, reports, my activity, portal
-// accounts, fx rates, branches, notification settings) are intentionally
-// omitted from the visible nav for this test window. They remain reachable
-// by direct URL for the master admin via the sandbox/admin tools, but are
-// not advertised as live-test entry points.
+// Full back-office navigation. Pages previously hidden for live testing
+// (accounts, vaults, groups, audit, reports, my activity, users, portal
+// accounts, fx rates, branches, notification settings) are restored here
+// with their original role gates and ordering.
 const NAV: NavItem[] = [
   { to: "/app", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["admin", "teller", "auditor"] },
   { to: "/app/transactions/new", labelKey: "nav.newTransaction", icon: PlusCircle, roles: ["admin", "teller"] },
   { to: "/app/transactions", labelKey: "nav.transactions", icon: ListOrdered, roles: ["admin", "teller", "auditor"] },
   { to: "/app/holders", labelKey: "nav.holders", icon: IdCard, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/accounts", labelKey: "nav.linkedAccounts", icon: Layers, roles: ["admin", "teller", "auditor"] },
+  { to: "/app/vaults", labelKey: "nav.vaults", icon: Wallet, roles: ["admin", "auditor"] },
+  { to: "/app/groups", labelKey: "nav.groups", icon: Layers, roles: ["admin", "auditor"] },
   { to: "/app/approvals", labelKey: "nav.approvals", icon: ClipboardCheck, roles: ["admin"] },
+  { to: "/app/me/activity", labelKey: "nav.myActivity", icon: Activity, roles: ["admin", "teller"] },
+  { to: "/app/audit", labelKey: "nav.audit", icon: ScrollText, roles: ["admin", "auditor"] },
+  { to: "/app/reports", labelKey: "nav.reports", icon: BarChart3, roles: ["admin", "auditor"] },
+  { to: "/app/users", labelKey: "nav.users", icon: UserCog, roles: ["admin"] },
+  { to: "/app/portal-accounts", labelKey: "nav.portalAccounts", icon: UsersIcon, roles: ["admin"] },
+  { to: "/app/admin/fx-rates", labelKey: "nav.fxRates", icon: BarChart3, roles: ["admin"] },
+  { to: "/app/admin/branches", labelKey: "nav.branches", icon: Building2, roles: ["admin"] },
   { to: "/app/admin/sandbox-multi-entry", labelKey: "nav.testSandbox", icon: FlaskConical, roles: ["admin"] },
   { to: "/app/admin/test-sandbox", labelKey: "nav.testSandboxTx", icon: FlaskConical, roles: ["admin"] },
+  { to: "/app/settings/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["admin", "teller", "auditor"] },
   { to: "/app/settings/security", labelKey: "nav.security", icon: Fingerprint, roles: ["admin", "teller", "auditor"] },
   { to: "/app/about", labelKey: "nav.about", icon: Info, roles: ["admin", "teller", "auditor"] },
 ];
