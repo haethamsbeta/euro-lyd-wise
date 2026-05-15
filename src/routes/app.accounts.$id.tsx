@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { RoleGate } from "@/components/app/app-shell";
+import { RoleGate, MasterAdminGate } from "@/components/app/app-shell";
 import { displayTxNumber, sourceCashEntryCode, sourceEntryCode } from "@/lib/txDisplay";
 
 function visibleTx(row: { display_tx_number?: string | null; source_entry_code?: string | null; source_cash_entry_code?: string | null; tx_number?: string | null }) {
@@ -31,9 +31,11 @@ function visibleTx(row: { display_tx_number?: string | null; source_entry_code?:
 
 export const Route = createFileRoute("/app/accounts/$id")({
   head: () => ({ meta: [{ title: "Account details — Dahab" }, { name: "description", content: "View account balance, statement, and transactions in the Dahab back-office." }] }), component: () => (
-    <RoleGate allow={["admin", "auditor"]}>
-      <AccountDetail />
-    </RoleGate>
+    <MasterAdminGate>
+      <RoleGate allow={["admin", "auditor"]}>
+        <AccountDetail />
+      </RoleGate>
+    </MasterAdminGate>
   ),
   notFoundComponent: () => (
     <div className="p-8 text-center">
