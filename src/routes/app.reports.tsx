@@ -11,7 +11,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
-import { RoleGate, PageHeader, MasterAdminGate } from "@/components/app/app-shell";
+import { RoleGate, PageHeader } from "@/components/app/app-shell";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { CurrencyBadge } from "@/components/ui/currency-badge";
 import { Button } from "@/components/ui/button";
@@ -88,11 +88,9 @@ function Sparkline({ data, color = GOLD }: { data: number[]; color?: string }) {
 
 export const Route = createFileRoute("/app/reports")({
   component: () => (
-    <MasterAdminGate>
-      <RoleGate allow={["admin", "auditor"]}>
-        <ReportsPage />
-      </RoleGate>
-    </MasterAdminGate>
+    <RoleGate allow={["admin", "auditor"]}>
+      <ReportsPage />
+    </RoleGate>
   ),
   head: () => ({ meta: [{ title: "Reports & Insights — Dahab" }] }),
 });
