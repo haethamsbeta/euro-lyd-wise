@@ -35,13 +35,13 @@ export const VAPID_PUBLIC = VAPID_PUBLIC_KEY;
 // Per-feature polling intervals (ms). Used as `refetchInterval` on react-query
 // hooks and as `setInterval` cadence for non-query subscriptions.
 export const POLL_INTERVALS = {
-  notifications: 30_000,
-  approvals: 30_000,
-  pushStatus: 30_000,
-  dashboard: 60_000,
-  vaultActivity: 60_000,
-  transactions: 60_000,
-  reports: 120_000,
+  notifications: 60_000,
+  approvals: 60_000,
+  pushStatus: 60_000,
+  dashboard: 120_000,
+  vaultActivity: 120_000,
+  transactions: 120_000,
+  reports: 300_000,
 } as const;
 
 // Backwards-compat alias used by older call sites.
