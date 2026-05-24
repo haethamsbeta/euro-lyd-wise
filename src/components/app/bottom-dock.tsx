@@ -158,7 +158,8 @@ export function BottomDock() {
       return count ?? 0;
     },
     refetchInterval:
-      REALTIME_MODE === "polling" ? POLL_INTERVALS.dashboard : false,
+      REALTIME_MODE === "polling" ? POLL_INTERVALS.approvals : false,
+    refetchOnWindowFocus: false,
   });
 
   const withBadge = (key: DockKey): DockItemDef => {
