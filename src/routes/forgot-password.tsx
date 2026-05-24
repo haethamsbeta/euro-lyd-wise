@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { authService } from "@/lib/authService";
 import { DahabMark } from "@/components/brand/dahab-mark";
+import { api } from "@/lib/api";
+import { DATA_BACKEND } from "@/lib/runtimeConfig";
 
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
@@ -27,7 +29,11 @@ function ForgotPasswordPage() {
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setBusy(true);
     try {
-      await authService.sendPasswordResetEmail(parsed.data.email);
+      if (DATA_BACKEND === "lambda") {
+        await api.auth.forgotPassword(parsed.data.email);
+      } else {
+        await authService.sendPasswordResetEmail(parsed.data.email);
+      }
     } catch {
       // Swallow to avoid email enumeration.
     } finally {
