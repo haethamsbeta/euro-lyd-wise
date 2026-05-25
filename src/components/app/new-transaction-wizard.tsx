@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import {
   ArrowDownRight, ArrowUpRight, Landmark, Search, AlertTriangle, Loader2, X,
   Phone, ShieldCheck, Wallet, Sparkles, Check, ChevronLeft, ChevronRight, Pencil,
-  Clock, ShieldAlert, Receipt, ArrowLeft, Building2, User, ArrowRight, Hash,
+  Clock, ShieldAlert, Receipt, ArrowLeft, Building2, User, ArrowRight, Hash, Share2,
 } from "lucide-react";
 import { formatMinor, parseAmountToMinor } from "@/lib/format";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { shareReceiptPdf } from "@/lib/receiptPdf";
 
 type Direction = "deposit" | "withdraw";
 type Channel = "cash" | "bank";
@@ -1398,6 +1399,36 @@ function ResultScreen({
   const isDeposit = type === "deposit";
   const tx: any = (result as any).tx ?? null;
   const txNumber = tx?.tx_number ?? tx?.id ?? "—";
+  const [sharingReceipt, setSharingReceipt] = useState(false);
+
+  async function handleShareReceipt() {
+    try {
+      setSharingReceipt(true);
+      const outcome = await shareReceiptPdf({
+        txNumber: String(txNumber),
+        status: tx?.status ?? result.kind,
+        direction: type,
+        amountMinor,
+        currency,
+        customerName: picked.holder_name,
+        dahabNumber: picked.dahab_account_number,
+        accountNumber: picked.account_number,
+        accountName: picked.alias,
+        channel,
+        vaultName: channel === "cash" ? "Cash Vault" : "Bank Vault",
+        comment: result.kind === "failed" ? (result as any).error || comment : comment,
+        createdAt: tx?.created_at ?? new Date(),
+        postedAt: tx?.posted_at ?? null,
+        reason: tx?.reject_reason ?? tx?.review_reason ?? tx?.review_note ?? (result.kind === "failed" ? (result as any).error : null),
+        systemRef: tx?.system_tx_number ?? tx?.id ?? null,
+      });
+      toast.success(outcome.shared ? "Receipt ready to share." : "Receipt PDF downloaded.");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not create receipt PDF.");
+    } finally {
+      setSharingReceipt(false);
+    }
+  }
 
   const sign = isDeposit ? "+" : "−";
   const tone =
@@ -1520,6 +1551,24 @@ function ResultScreen({
           </div>
         )}
 
+        {result.kind === "failed" && (
+          <div className="mt-8 overflow-hidden rounded-2xl border border-red-500/25 bg-card/60 backdrop-blur-md animate-fade-in">
+            <div className="flex items-center justify-between border-b border-red-500/15 bg-surface-2/50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-red-400" />
+                <span className="text-sm font-medium text-foreground">Receipt</span>
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">Failed</span>
+            </div>
+            <ReceiptRow label="Date / time" value={new Date().toLocaleString()} />
+            <ReceiptRow label="Type" value={isDeposit ? "Deposit" : "Withdrawal"} />
+            <ReceiptRow label="Customer" value={`${picked.holder_name} · ${picked.dahab_account_number || "—"}`} />
+            <ReceiptRow label="Account" value={`#${picked.account_number} (${picked.currency})`} />
+            <ReceiptRow label="Amount" value={`${formatMinor(amountMinor, currency)} ${currency}`} mono />
+            <ReceiptRow label="Reason" value={result.kind === "failed" ? result.error : "Failed"} last />
+          </div>
+        )}
+
         {!canViewBalances && result.kind === "pending" && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
             This transaction requires admin review before settlement.
@@ -1528,6 +1577,10 @@ function ResultScreen({
 
         {/* Actions */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <Button variant="outline" className="border-gold/20" onClick={handleShareReceipt} disabled={sharingReceipt}>
+            {sharingReceipt ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+            {sharingReceipt ? "Preparing PDF…" : "Share PDF Receipt"}
+          </Button>
           {result.kind === "failed" ? (
             <>
               <Button variant="outline" className="border-gold/20" onClick={onTryAgain}>

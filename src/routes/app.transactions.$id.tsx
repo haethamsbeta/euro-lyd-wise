@@ -23,6 +23,7 @@ import {
   Clock,
   RotateCcw,
   Download,
+  Share2,
   ExternalLink,
   RefreshCw,
   Eye,
@@ -37,6 +38,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { displayTxNumber, hasInternalRef, sourceCashEntryCode, sourceEntryCode, systemTxNumber } from "@/lib/txDisplay";
+import { shareReceiptPdf } from "@/lib/receiptPdf";
 
 export const Route = createFileRoute("/app/transactions/$id")({
   head: () => ({ meta: [{ title: "Transaction details — Dahab" }, { name: "description", content: "Inspect the legs, balances, and audit history of a single Dahab transaction." }] }), component: TxDetail,
@@ -96,6 +98,7 @@ function TxDetail() {
   const isAuditor = hasAnyRole(roles, ["auditor"]) && !isAdmin;
   const qc = useQueryClient();
   const isLambda = DATA_BACKEND === "lambda";
+  const [sharingReceipt, setSharingReceipt] = useState(false);
 
   const { data: tx, isLoading, error } = useQuery({
     queryKey: ["tx.detail", id],
@@ -272,6 +275,36 @@ function TxDetail() {
   const creator = tx.created_by_user_id ? profileMap?.get(tx.created_by_user_id) : null;
   const approver = tx.approved_by_user_id ? profileMap?.get(tx.approved_by_user_id) : null;
   const visibleTxNumber = visibleTx(tx);
+  const receiptTx = tx;
+
+  async function handleShareReceipt() {
+    try {
+      setSharingReceipt(true);
+      const outcome = await shareReceiptPdf({
+        txNumber: visibleTxNumber,
+        status: receiptTx.status,
+        direction: receiptTx.direction,
+        amountMinor: Number(receiptTx.amount_minor ?? 0),
+        currency: receiptTx.currency,
+        customerName: receiptTx.holder_name ?? receiptTx.customer?.name ?? null,
+        dahabNumber: receiptTx.dahab_account_number ?? null,
+        accountNumber: receiptTx.account_number ?? receiptTx.customer?.account_number ?? null,
+        accountName: receiptTx.account_display_name ?? null,
+        channel: receiptTx.channel,
+        vaultName: receiptTx.vault?.name ?? null,
+        comment: receiptTx.comment ?? receiptTx.description ?? null,
+        createdAt: receiptTx.created_at,
+        postedAt: receiptTx.posted_at,
+        reason: receiptTx.reject_reason ?? receiptTx.correction_reason ?? null,
+        systemRef: receiptTx.system_tx_number ?? receiptTx.id,
+      });
+      toast.success(outcome.shared ? "Receipt ready to share." : "Receipt PDF downloaded.");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not create receipt PDF.");
+    } finally {
+      setSharingReceipt(false);
+    }
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6 pb-12">
@@ -372,9 +405,14 @@ function TxDetail() {
                 </>
               ) : null}
 
-              {isPosted ? (
-                <Button variant="outline" disabled>
-                  <Download className="mr-1.5 h-4 w-4" /> Receipt
+              {tx ? (
+                <Button variant="outline" onClick={handleShareReceipt} disabled={sharingReceipt}>
+                  {sharingReceipt ? (
+                    <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Share2 className="mr-1.5 h-4 w-4" />
+                  )}
+                  {sharingReceipt ? "Preparing…" : "Share Receipt"}
                 </Button>
               ) : null}
 
