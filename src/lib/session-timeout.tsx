@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
+import { getSignedInAt, setSignedInAt } from "@/lib/dahabAuthToken";
 
 /**
  * Security: layer client-side session timeouts on top of Supabase's built-in
@@ -20,7 +21,6 @@ export const IDLE_MS = 15 * 60_000;        // 15 minutes
 export const WARN_MS = 60_000;             //  1 minute warning
 export const HARD_CAP_MS = 8 * 60 * 60_000; // 8 hours
 
-const SIGNIN_AT_KEY = "dahab.signed_in_at";
 const CHANNEL_NAME = "dahab.auth";
 
 type Ctx = {
@@ -43,11 +43,7 @@ const ACTIVITY_EVENTS = [
 ] as const;
 
 function readSignInAt(): number | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SIGNIN_AT_KEY);
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
+  return getSignedInAt();
 }
 
 export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
@@ -67,18 +63,10 @@ export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
     if (session) {
       const existing = readSignInAt();
       if (!existing) {
-        try {
-          window.localStorage.setItem(SIGNIN_AT_KEY, String(Date.now()));
-        } catch {
-          /* ignore */
-        }
+        setSignedInAt(Date.now());
       }
     } else if (DATA_BACKEND !== "lambda") {
-      try {
-        window.localStorage.removeItem(SIGNIN_AT_KEY);
-      } catch {
-        /* ignore */
-      }
+      setSignedInAt(null);
     }
   }, [session]);
 

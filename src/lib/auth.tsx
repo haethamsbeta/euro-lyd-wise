@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { clearDahabAuthStorage, getAccessToken } from "@/lib/dahabAuthToken";
+import {
+  clearDahabAuthStorage,
+  getAccessToken,
+  getStoredLambdaUserJson,
+  setStoredLambdaUser,
+} from "@/lib/dahabAuthToken";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { api } from "@/lib/api";
 import { normalizeLambdaUser, roleFromLambdaUser, type LambdaStoredUser } from "@/lib/lambdaUser";
@@ -37,7 +42,8 @@ if (typeof window !== "undefined" && !(window as any).__dahabFetchPatched) {
           : input instanceof URL
             ? input.toString()
             : (input as Request).url;
-      if (url && url.includes("/_serverFn/")) {
+      const requestUrl = new URL(url, window.location.origin);
+      if (requestUrl.origin === window.location.origin && requestUrl.pathname.includes("/_serverFn/")) {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (token) {
@@ -60,9 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [rolesLoading, setRolesLoading] = useState(true);
 
   function readLambdaUser(): LambdaStoredUser | null {
-    if (typeof localStorage === "undefined") return null;
     try {
-      return normalizeLambdaUser(JSON.parse(localStorage.getItem("dahab.user") || "null"));
+      return normalizeLambdaUser(JSON.parse(getStoredLambdaUserJson() || "null"));
     } catch {
       return null;
     }
@@ -99,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         if (matchingUser) fresh = normalizeLambdaUser(matchingUser, fresh);
       }
-      localStorage.setItem("dahab.user", JSON.stringify(fresh));
+      setStoredLambdaUser(fresh);
       applyLambdaAuthState();
     } catch (error) {
       if (import.meta.env.DEV) console.warn("[auth] Failed to refresh Lambda user", error);

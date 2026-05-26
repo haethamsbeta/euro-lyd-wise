@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /**
@@ -11,16 +11,40 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  * the new system of record for reminder fan-out and reads from SQL Server
  * DAHABDB.
  *
- * Local/dev fallback: if those env vars are missing, we still call the
- * existing Postgres RPC so dev environments keep working until cutover.
+ * Local/dev fallback: if only INTERNAL_API_BASE_URL is missing, we still call
+ * the existing Postgres RPC so dev environments keep working until cutover.
+ * INTERNAL_WEBHOOK_SECRET is always required.
  */
+
+function verifySignature(secret: string, ts: string | null, body: string, signature: string | null) {
+  if (!ts || !signature) return false;
+  const ageMs = Math.abs(Date.now() - Number(ts));
+  if (!Number.isFinite(ageMs) || ageMs > 5 * 60_000) return false;
+  const expected = createHmac("sha256", secret).update(`${ts}.${body}`).digest("hex");
+  const a = Buffer.from(signature, "hex");
+  const b = Buffer.from(expected, "hex");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 export const Route = createFileRoute("/api/public/hooks/notifications-tick")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
         const base = process.env.INTERNAL_API_BASE_URL;
         const secret = process.env.INTERNAL_WEBHOOK_SECRET;
+        if (!secret) {
+          return Response.json(
+            { ok: false, error: "Notification tick is not configured." },
+            { status: 503 },
+          );
+        }
+        const inboundBody = await request.text();
+        const inboundTs = request.headers.get("x-timestamp");
+        const inboundSig = request.headers.get("x-signature");
+        if (!verifySignature(secret, inboundTs, inboundBody, inboundSig)) {
+          return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
+
         if (base && secret) {
           const ts = Date.now().toString();
           const body = JSON.stringify({ ts });

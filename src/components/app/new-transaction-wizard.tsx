@@ -55,6 +55,12 @@ const STEPS: { key: StepKey; label: string }[] = [
   { key: "review", label: "Review" },
 ];
 
+function createIdempotencyKey() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 type ResultState =
   | { kind: "success"; tx: any }
   | { kind: "pending"; tx: any }
@@ -73,6 +79,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [result, setResult] = useState<ResultState | null>(null);
+  const idempotencyKeyRef = useRef(createIdempotencyKey());
 
   const step = STEPS[stepIdx];
   const isDeposit = type === "deposit";
@@ -248,10 +255,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
           currency_code: currency,
           vault_account_id: cashVaultId,
           comment: trimmedComment,
-          idempotency_key:
-            (typeof crypto !== "undefined" && "randomUUID" in crypto
-              ? crypto.randomUUID()
-              : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+          idempotency_key: idempotencyKeyRef.current,
       });
       return tx as any;
     },
@@ -276,6 +280,7 @@ export function NewTransactionWizard({ initialType }: { initialType?: Direction 
     setComment("");
     setResult(null);
     setSearch("");
+    idempotencyKeyRef.current = createIdempotencyKey();
   }
 
   if (result) {

@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
 import { normalizeLambdaUser } from "@/lib/lambdaUser";
+import { getAccessToken, setLambdaAuthSession } from "@/lib/dahabAuthToken";
 
 export const Route = createFileRoute("/m/login")({
   component: MobileLogin,
@@ -48,26 +49,22 @@ function MobileLogin() {
 
         if (!accessToken) {
           console.error("[LOGIN ERROR] Missing access_token", raw);
-          setTokenStoredMessage("Lambda token stored: false");
+          if (import.meta.env.DEV) setTokenStoredMessage("Lambda token stored: false");
           throw new Error("Lambda login did not return access_token");
         }
 
-        localStorage.setItem("dahab.access_token", accessToken);
-        localStorage.setItem("dahab.refresh_token", refreshToken || "");
-        localStorage.setItem("dahab.user", JSON.stringify(user || {}));
-        localStorage.setItem("dahab.signed_in_at", String(Date.now()));
+        setLambdaAuthSession({ accessToken, refreshToken, user });
 
-        const hasToken = !!localStorage.getItem("dahab.access_token");
+        const hasToken = !!getAccessToken();
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.log("[LOGIN STORED]", {
             hasToken,
-            keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
-            role: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.role,
-            is_master_admin: JSON.parse(localStorage.getItem("dahab.user") || "{}")?.is_master_admin,
+            role: user?.role,
+            is_master_admin: user?.is_master_admin,
           });
         }
-        setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
+        if (import.meta.env.DEV) setTokenStoredMessage(`Lambda token stored: ${hasToken}`);
         if (!hasToken) throw new Error("Lambda token storage failed");
 
         window.dispatchEvent(new Event("dahab.auth.changed"));
@@ -81,7 +78,7 @@ function MobileLogin() {
         navigate({ to: "/m/dashboard", replace: true });
       } catch (e: any) {
         setBusy(false);
-        setTokenStoredMessage("Lambda token stored: false");
+        if (import.meta.env.DEV) setTokenStoredMessage("Lambda token stored: false");
         toast.error(e?.message ?? "Lambda login failed.");
       }
       return;
@@ -164,7 +161,7 @@ function MobileLogin() {
           >
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
           </Button>
-          {tokenStoredMessage ? (
+          {import.meta.env.DEV && tokenStoredMessage ? (
             <p className="text-center text-xs font-medium text-gold-deep">{tokenStoredMessage}</p>
           ) : null}
         </form>

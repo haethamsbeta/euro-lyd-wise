@@ -19,6 +19,7 @@ import { authService } from "@/lib/authService";
 import { DATA_BACKEND, API_BASE_URL } from "@/lib/runtimeConfig";
 import { useQueryClient } from "@tanstack/react-query";
 import { normalizeLambdaUser } from "@/lib/lambdaUser";
+import { getAccessToken, setLambdaAuthSession } from "@/lib/dahabAuthToken";
 
 type PortalKind = "staff" | "consumer";
 
@@ -203,17 +204,13 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           throw new Error(envelope?.message || "Lambda login did not return access_token");
         }
 
-        localStorage.setItem("dahab.access_token", accessToken);
-        localStorage.setItem("dahab.refresh_token", refreshToken || "");
-        localStorage.setItem("dahab.user", JSON.stringify(user || {}));
-        localStorage.setItem("dahab.signed_in_at", String(Date.now()));
+        setLambdaAuthSession({ accessToken, refreshToken, user });
 
-        stored = !!localStorage.getItem("dahab.access_token");
+        stored = !!getAccessToken();
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
           console.log("[LOGIN STORED]", {
             hasToken: stored,
-            keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes("dahab")),
             role: user?.role,
             is_master_admin: user?.is_master_admin,
           });
@@ -334,7 +331,7 @@ function SignInForm({ portal }: { portal: PortalKind }) {
           Sign in with Face ID
         </Button>
       ) : null}
-      {debug ? (
+      {import.meta.env.DEV && debug ? (
         <div className="rounded-md border border-[oklch(0.82_0.14_85/0.25)] bg-[oklch(0.82_0.14_85/0.05)] p-2 text-center text-[11px] font-mono text-foreground/80 space-y-0.5">
           <div>Lambda login called: {String(debug.called)}</div>
           <div>Lambda token returned: {String(debug.returned)}</div>
