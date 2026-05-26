@@ -15,7 +15,7 @@ import {
 import { Loader2, UserPlus, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { adminListUserEmails, adminListHolders } from "@/server/admin.functions";
+import { adminListUserEmails, adminListHolders } from "@/server-functions/admin.functions";
 
 export const Route = createFileRoute("/app/portal-accounts")({
   head: () => ({ meta: [{ title: "Portal accounts — Dahab" }, { name: "description", content: "Manage which accounts holders can see and move money from in the customer portal." }] }), component: () => (

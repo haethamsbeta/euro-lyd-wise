@@ -10,7 +10,7 @@ import {
   finishPasskeyRegistration,
   beginPasskeyAuthentication,
   finishPasskeyAuthentication,
-} from "@/server/webauthn.functions";
+} from "@/server-functions/webauthn.functions";
 
 export async function passkeysSupported() {
   if (!browserSupportsWebAuthn()) return false;

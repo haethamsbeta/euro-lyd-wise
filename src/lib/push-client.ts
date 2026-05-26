@@ -5,7 +5,7 @@ import {
   revokeDevice,
   subscribeThisDevice,
   unsubscribeThisDevice,
-} from "@/server/push.functions";
+} from "@/server-functions/push.functions";
 import { DATA_BACKEND, VAPID_PUBLIC } from "@/lib/runtimeConfig";
 
 export const ENDPOINT_KEY = "dahab.pushEndpoint";

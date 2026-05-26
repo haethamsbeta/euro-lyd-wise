@@ -33,7 +33,7 @@ import {
   revokeDevice,
   unsubscribeBrowser,
 } from "@/lib/push-client";
-import { sendTestPushToSelf } from "@/server/push.functions";
+import { sendTestPushToSelf } from "@/server-functions/push.functions";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/app/settings/notifications")({

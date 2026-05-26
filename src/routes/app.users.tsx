@@ -24,8 +24,8 @@ import {
   ErrorState,
   errorMessage,
 } from "@/components/app/state-views";
-import { adminListUserEmails, adminChangeUserEmail } from "@/server/admin.functions";
-import { sendTestPushToUser } from "@/server/push.functions";
+import { adminListUserEmails, adminChangeUserEmail } from "@/server-functions/admin.functions";
+import { sendTestPushToUser } from "@/server-functions/push.functions";
 import { formatDistanceToNow } from "date-fns";
 import { api } from "@/lib/api";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";

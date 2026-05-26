@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
   listMyPasskeys,
   deleteMyPasskey,
-} from "@/server/webauthn.functions";
+} from "@/server-functions/webauthn.functions";
 import { passkeysSupported, registerPasskey } from "@/lib/passkey";
 import { useT } from "@/lib/i18n";
 

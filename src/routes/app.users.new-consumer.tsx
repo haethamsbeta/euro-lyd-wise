@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { adminCreateConsumer, adminListHolders } from "@/server/admin.functions";
+import { adminCreateConsumer, adminListHolders } from "@/server-functions/admin.functions";
 import { useAuth } from "@/lib/auth";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
