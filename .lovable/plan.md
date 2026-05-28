@@ -1,58 +1,45 @@
-## Speed optimization plan
+# Fix Arabic in Shared Receipt PDF
 
-### Honest baseline first
+## Problem
+`src/lib/receiptPdf.ts` builds the receipt with jsPDF's built-in `helvetica` font. Helvetica is a Latin-1 font with no Arabic glyphs, so any Arabic content (customer name, account name, notes/comment, vault name, Arabic tagline) renders as garbled boxes/Latin substitutes. jsPDF also does not shape or reorder RTL text on its own.
 
-The numbers I just measured (FCP 3.4s, TTFB 1.25s) come from the **preview dev server**, which serves unminified CSS, runs cold SSR per request, and adds dev-only overhead like `lovable.js` and `@tanstack-start/styles.css`. In production (`dahablibya.com`) those drop dramatically without any code change.
+## Goal
+Arabic strings inside the shared PDF receipt render as proper, correctly-shaped, right-to-left Arabic — while the rest of the receipt (layout, colors, English text, share/download flow) stays exactly as it is today.
 
-So the goal here is **only the bottlenecks that survive production**: font payload, render-blocking CSS, LCP preload priority, framer-motion on the landing page, and HTTP cache headers for static assets.
+## Approach
+Keep the current jsPDF vector layout (so text remains selectable, file size stays small, no DOM capture). Add a Unicode font with Arabic coverage and an RTL shaper, and route any field that may contain Arabic through a small helper.
 
-I will **not** rewrite the design, change `src/styles.css` semantics, change routing, or touch the app shell.
+### 1. Bundle an Arabic-capable font
+- Add a Noto Naskh Arabic (regular + bold) TTF under `public/fonts/` (or `src/assets/fonts/`).
+- At PDF build time, `fetch()` the TTF (mirroring the existing `loadLogo()` pattern), base64-encode it, and register with `doc.addFileToVFS()` + `doc.addFont(..., "NotoArabic", "normal"|"bold")`. Cache the encoded data in a module-level variable like `cachedLogo`.
+- Keep `helvetica` as the default for Latin text; only switch to `"NotoArabic"` for strings detected as Arabic.
 
----
+### 2. Shape + reorder RTL text
+- Add `bidi-js` (or equivalent) and a lightweight Arabic presentation-forms shaper so isolated code points become their correct contextual forms before jsPDF draws them.
+- Helper `drawText(doc, value, x, y, opts)` that:
+  1. Detects Arabic via `/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/`.
+  2. If Arabic: switch font to `NotoArabic`, run the shaper + bidi, draw with `{ align: "right", ... }` anchored to the right edge of the field's bounding box.
+  3. If Latin: current behavior unchanged.
+- Update `valueText`, `detailRow`, the tagline line, and the notes block to go through this helper. Labels stay Latin/uppercase as today.
 
-### 1. Trim Google Fonts payload
+### 3. Field coverage
+Fields most likely to contain Arabic and that must be routed through the helper:
+- `customerName`, `accountName`, `vaultName`, `channel`
+- `comment`, `reason` (notes card body — also needs `splitTextToSize` with the Arabic font active so wrapping measures correctly)
+- The decorative tagline under the wordmark (optional: render the real Arabic "ذهب" instead of the all-caps Latin tagline)
 
-`__root.tsx` requests Inter (4 weights), Space Grotesk (2), IBM Plex Sans Arabic (3) = 9 font files on every page. The landing/login realistically use 2–3 weights. Reduce to:
-- Inter: 400, 600
-- Space Grotesk: 700
-- IBM Plex Sans Arabic: 400, 700
+### 4. Non-goals / guardrails
+- No change to layout, colors, card structure, share/download behavior, or the `ReceiptPdfData` shape.
+- No switch to `html2canvas` (would break text selection and bloat the PDF).
+- No change to in-app UI rendering — only the generated PDF.
 
-Estimated saving: ~120 KB across the woff2 fetches, fewer connections, faster paint.
+## Files to touch
+- `src/lib/receiptPdf.ts` — font loader, RTL helper, route Arabic-capable fields through it.
+- `public/fonts/NotoNaskhArabic-Regular.ttf` (+ Bold) — new asset.
+- `package.json` — add `bidi-js` (and a small Arabic shaper, e.g. `arabic-persian-reshaper`).
 
-### 2. LCP image: add `fetchpriority="high"`
-
-`__root.tsx` already preloads `/brand/dahab-icon.webp`. Add `fetchpriority: "high"` so the browser races it ahead of the font CSS.
-
-### 3. Defer framer-motion on landing
-
-`src/routes/index.tsx` imports `framer-motion` at module top, which adds ~35 KB gzip to the landing chunk for what is mostly a fade/slide-in stagger. Replace the `motion.div` wrappers with a tiny CSS keyframe utility (`@keyframes fade-up` already-style fade-in delay). Keep framer-motion everywhere else it's already used in the app.
-
-Estimated saving: smaller landing chunk, faster TTI on the first page users see.
-
-### 4. Cache headers for static brand & icon assets
-
-Add `public/_headers` (TanStack Start static assets are served as-is) so `/brand/*`, `/icon-*.png`, `/favicon.*`, and `/apple-touch-icon.png` get `Cache-Control: public, max-age=31536000, immutable`. Eliminates the 859 ms re-fetch of `dahab-icon.webp` on warm visits.
-
-### 5. Drop oversized PNG fallback if unused
-
-`public/brand/dahab-logo-full.png` is 167 KB. The component uses the `.webp` (40 KB) inside a `<picture>` with PNG fallback. I will keep the PNG fallback (some old browsers need it) but verify nothing else preloads or links the PNG directly. No-op if it's already only used as fallback.
-
-### 6. Don't touch the rest
-
-I am explicitly **not** doing these because the data does not support them:
-- Splitting `src/styles.css` — Tailwind v4 already tree-shakes utilities; the @layer component blocks are used app-wide. Risk > reward.
-- Rewriting routes for code-splitting — TanStack Start auto-splits route components by default (see `<tanstack-code-splitting>`). It's already optimal.
-- Adding image transformer / sharp — overkill for the few brand assets we have.
-- Upgrading Lovable Cloud compute — TTFB issue is dev-server cold start, not DB load.
-
----
-
-### Files I'll change
-
-- `src/routes/__root.tsx` — slimmer Google Fonts URL, add `fetchpriority: "high"` to icon preload.
-- `src/routes/index.tsx` — replace `motion.div` with CSS-animated `<div>`s, drop `framer-motion` import.
-- `public/_headers` (new) — long-cache rule for `/brand/*`, icons, favicons.
-
-### How I'll verify
-
-After publishing, re-run `browser--performance_profile` against the published URL (`https://dahablibya.com/`), not the preview, and compare FCP, TTFB, and largest-resource size. Numbers from the preview are not a valid benchmark.
+## Verification
+- Generate a receipt for a customer whose name/notes are Arabic; confirm glyphs are joined correctly and right-aligned within their field.
+- Mixed Arabic + Latin in the notes card wraps cleanly inside the card width.
+- English-only receipts look identical to today.
+- PDF text remains selectable/copyable.
