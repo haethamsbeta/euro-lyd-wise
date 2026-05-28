@@ -212,6 +212,9 @@ function detailRow(doc: any, label: string, value: string, x: number, y: number,
 export async function createReceiptPdfBlob(data: ReceiptPdfData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  // Each jsPDF instance has its own VFS, so re-register the Arabic font.
+  arabicFontRegistered = false;
+  await ensureArabicFont(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const status = statusLabel(String(data.status || ""));
