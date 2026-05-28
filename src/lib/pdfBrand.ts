@@ -201,3 +201,100 @@ export function paintIvoryBackground(doc: any, pageWidth: number, pageHeight: nu
   doc.setFillColor(...BRAND.ivory);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
 }
+
+/**
+ * Draw text with automatic Arabic font/alignment switching. When the string
+ * contains Arabic glyphs we switch to the registered IBM Plex Sans Arabic
+ * font so glyphs shape correctly, and align to the right side of `maxWidth`
+ * (passed via opts.align="right" or by giving a right-edge x).
+ * Restores the previous font afterwards.
+ */
+export function drawTextSmart(
+  doc: any,
+  text: string,
+  x: number,
+  y: number,
+  opts: { fontStyle?: "normal" | "bold"; size?: number; color?: [number, number, number]; maxWidth?: number; align?: "left" | "right" } = {},
+): void {
+  const { fontStyle = "normal", size = 10, color, maxWidth, align = "left" } = opts;
+  const prevFont = doc.getFont();
+  const prevSize = doc.getFontSize();
+  if (color) doc.setTextColor(...color);
+  doc.setFontSize(size);
+  const arabic = hasArabic(text);
+  if (arabic && isArabicFontReady(doc)) {
+    doc.setFont(ARABIC_FONT, fontStyle);
+  } else {
+    doc.setFont("helvetica", fontStyle);
+  }
+  const textOpts: any = {};
+  if (maxWidth) textOpts.maxWidth = maxWidth;
+  if (align === "right") textOpts.align = "right";
+  doc.text(text, x, y, textOpts);
+  // Restore
+  try {
+    doc.setFont(prevFont.fontName, prevFont.fontStyle);
+  } catch {
+    doc.setFont("helvetica", "normal");
+  }
+  doc.setFontSize(prevSize);
+}
+
+export function formatDateRange(fromISO: string, toISO: string): string {
+  const fmt = (iso: string) => {
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  };
+  return `${fmt(fromISO)}  \u2192  ${fmt(toISO)}`;
+}
+
+/**
+ * Draw an ivory rounded info card with two-column label/value pairs.
+ * Items wrap across rows of 3 columns. Returns the card height in pt.
+ */
+export function drawInfoCard(
+  doc: any,
+  opts: { items: Array<{ label: string; value: string }>; x: number; y: number; width: number },
+): number {
+  const { items, x, y, width } = opts;
+  if (!items.length) return 0;
+  const cols = items.length <= 2 ? items.length : items.length <= 4 ? 2 : 3;
+  const rows = Math.ceil(items.length / cols);
+  const rowH = 32;
+  const padX = 14;
+  const padY = 12;
+  const cardH = padY * 2 + rows * rowH;
+
+  // Card background
+  doc.setFillColor(...BRAND.ivorySoft);
+  doc.setDrawColor(...BRAND.borderSand);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(x, y, width, cardH, 6, 6, "FD");
+
+  // Gold left rail
+  doc.setFillColor(...BRAND.gold);
+  doc.rect(x, y, 3, cardH, "F");
+
+  const colW = (width - padX * 2) / cols;
+  items.forEach((it, idx) => {
+    const r = Math.floor(idx / cols);
+    const c = idx % cols;
+    const cx = x + padX + c * colW;
+    const cy = y + padY + r * rowH;
+    // Label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BRAND.goldDeep);
+    doc.text(String(it.label).toUpperCase(), cx, cy + 8, { charSpace: 1.1 });
+    // Value (Arabic-aware)
+    drawTextSmart(doc, String(it.value ?? "—"), cx, cy + 22, {
+      fontStyle: "bold",
+      size: 10.5,
+      color: BRAND.ink,
+      maxWidth: colW - 6,
+    });
+  });
+
+  return cardH;
+}
