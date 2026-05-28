@@ -1,22 +1,7 @@
 import { formatMinor } from "@/lib/format";
-// @ts-expect-error - no types shipped
-import reshaper from "arabic-persian-reshaper";
-// @ts-expect-error - no types shipped
-import bidiFactory from "bidi-js";
 
-const bidi = bidiFactory();
 const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const hasArabic = (s: string) => ARABIC_RE.test(s);
-
-function shapeRtl(text: string): string {
-  // 1) Convert logical Arabic codepoints to contextual presentation forms.
-  const shaped: string = reshaper.ArabicShaper.convertArabic(text);
-  // 2) Apply the Unicode Bidi algorithm in an RTL paragraph and emit the
-  //    visually-reordered string so jsPDF (which only draws LTR) renders
-  //    Arabic right-to-left while keeping embedded Latin/digits in order.
-  const levels = bidi.getEmbeddingLevels(shaped, "rtl");
-  return bidi.getReorderedString(shaped, levels);
-}
 
 const ARABIC_FONT = "NotoArabic";
 let cachedArabicFont: { regular: string; bold: string } | null = null;
@@ -35,16 +20,16 @@ async function ensureArabicFont(doc: any): Promise<boolean> {
   try {
     if (!cachedArabicFont) {
       const [regular, bold] = await Promise.all([
-        fetchAsBase64("/fonts/NotoNaskhArabic-Regular.ttf"),
-        fetchAsBase64("/fonts/NotoNaskhArabic-Bold.ttf"),
+        fetchAsBase64("/fonts/IBMPlexSansArabic-Regular.ttf"),
+        fetchAsBase64("/fonts/IBMPlexSansArabic-Bold.ttf"),
       ]);
       cachedArabicFont = { regular, bold };
     }
     if (!arabicFontRegistered) {
-      doc.addFileToVFS("NotoNaskhArabic-Regular.ttf", cachedArabicFont.regular);
-      doc.addFont("NotoNaskhArabic-Regular.ttf", ARABIC_FONT, "normal");
-      doc.addFileToVFS("NotoNaskhArabic-Bold.ttf", cachedArabicFont.bold);
-      doc.addFont("NotoNaskhArabic-Bold.ttf", ARABIC_FONT, "bold");
+      doc.addFileToVFS("IBMPlexSansArabic-Regular.ttf", cachedArabicFont.regular);
+      doc.addFont("IBMPlexSansArabic-Regular.ttf", ARABIC_FONT, "normal");
+      doc.addFileToVFS("IBMPlexSansArabic-Bold.ttf", cachedArabicFont.bold);
+      doc.addFont("IBMPlexSansArabic-Bold.ttf", ARABIC_FONT, "bold");
       arabicFontRegistered = true;
     }
     return true;
@@ -61,11 +46,6 @@ function applyFontFor(doc: any, text: string, style: "normal" | "bold" = "normal
   } else {
     doc.setFont("helvetica", style);
   }
-}
-
-// Visual-order text for drawing. Pure-Latin returns unchanged.
-function visual(text: string): string {
-  return hasArabic(text) ? shapeRtl(text) : text;
 }
 
 export type ReceiptPdfStatus = "posted" | "pending" | "rejected" | "failed" | string;
@@ -197,8 +177,7 @@ function valueText(doc: any, value: string, x: number, y: number, maxWidth: numb
   applyFontFor(doc, text, "normal");
   const lines: string[] = doc.splitTextToSize(text, maxWidth);
   if (hasArabic(text) && arabicFontRegistered) {
-    const shaped = lines.map((ln) => shapeRtl(ln));
-    doc.text(shaped, x + maxWidth, y, { align: "right" });
+    doc.text(lines, x + maxWidth, y, { align: "right" });
   } else {
     doc.text(lines, x, y);
   }
