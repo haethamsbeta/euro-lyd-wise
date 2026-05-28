@@ -383,7 +383,12 @@ function Portal() {
               </div>
               <div className="space-y-3">
                 {accounts.map((a) => (
-                  <PortalAccountCard key={a.id} account={a} hideBalance={hideBalance} />
+                  <PortalAccountCard
+                    key={a.id}
+                    account={a}
+                    hideBalance={hideBalance}
+                    holderName={holder?.canonical_name ?? ""}
+                  />
                 ))}
                 {accounts.length === 0 ? (
                   <PremiumCard className="p-6 text-center text-sm text-muted-foreground">
@@ -428,9 +433,11 @@ function presetRange(p: DatePreset): { from: Date | null; to: Date | null } {
 function PortalAccountCard({
   account,
   hideBalance,
+  holderName,
 }: {
   account: any;
   hideBalance: boolean;
+  holderName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<DatePreset>("all");
@@ -623,13 +630,20 @@ function PortalAccountCard({
               <ExportPdfButton
                 title={`DAHAB Account Statement — ${account.account_display_name} (${account.currency_code})`}
                 filenamePrefix={`dahab-statement-${account.account_number}`}
+                infoItems={[
+                  { label: "Account Holder", value: String(holderName || "—") },
+                  { label: "Account Name", value: String(account.account_display_name ?? "—") },
+                  { label: "Account #", value: String(account.account_number ?? "—") },
+                  { label: "Currency", value: String(account.currency_code ?? "—") },
+                  { label: "Balance", value: `${Number(account.current_balance ?? 0).toLocaleString()} ${account.currency_code}` },
+                ]}
                 columns={[
-                  { header: "Date", width: 120 },
-                  { header: "TX #", width: 100 },
+                  { header: "Date", width: 110 },
+                  { header: "TX #", width: 90 },
                   { header: "Description" },
                   { header: "Debit", width: 80 },
                   { header: "Credit", width: 80 },
-                  { header: "Balance", width: 90 },
+                  { header: "Balance", width: 95 },
                 ]}
                 buildRows={(fromD: Date, toD: Date) =>
                   (rows ?? [])
