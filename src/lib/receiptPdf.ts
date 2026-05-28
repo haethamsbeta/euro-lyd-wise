@@ -191,10 +191,17 @@ function smallLabel(doc: any, label: string, x: number, y: number) {
 }
 
 function valueText(doc: any, value: string, x: number, y: number, maxWidth: number, size = 11) {
-  doc.setFont("helvetica", "normal");
+  const text = clean(value);
   doc.setFontSize(size);
   doc.setTextColor(...BRAND.ink);
-  doc.text(doc.splitTextToSize(clean(value), maxWidth), x, y);
+  applyFontFor(doc, text, "normal");
+  const lines: string[] = doc.splitTextToSize(text, maxWidth);
+  if (hasArabic(text) && arabicFontRegistered) {
+    const shaped = lines.map((ln) => shapeRtl(ln));
+    doc.text(shaped, x + maxWidth, y, { align: "right" });
+  } else {
+    doc.text(lines, x, y);
+  }
 }
 
 function detailRow(doc: any, label: string, value: string, x: number, y: number, w: number) {
