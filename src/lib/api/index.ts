@@ -15,6 +15,7 @@ export { portalApi as portal } from "./portal";
 export { pushApi as push } from "./push";
 export { notificationsApi as notifications } from "./notifications";
 export { adminApi as admin } from "./admin";
+export { sandboxMultiEntryApi as sandboxMultiEntry } from "./sandboxMultiEntry";
 
 import { authApi } from "./auth";
 import { dashboardApi } from "./dashboard";
@@ -31,6 +32,7 @@ import { portalApi } from "./portal";
 import { pushApi } from "./push";
 import { notificationsApi } from "./notifications";
 import { adminApi } from "./admin";
+import { sandboxMultiEntryApi } from "./sandboxMultiEntry";
 
 export const api = {
   auth: authApi,
@@ -50,4 +52,5 @@ export const api = {
   push: pushApi,
   notifications: notificationsApi,
   admin: adminApi,
+  sandboxMultiEntry: sandboxMultiEntryApi,
 };

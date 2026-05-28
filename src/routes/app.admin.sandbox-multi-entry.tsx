@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -8,7 +9,14 @@ import {
   Beaker, RotateCcw, User, Building2, Briefcase, Wallet, Landmark,
   ChevronRight, Receipt, Sparkles, BookOpen, Eye, Download,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import type {
+  SandboxMultiEntryAccount,
+  SandboxMultiEntryRequest,
+  SandboxPostedResponse,
+} from "@/lib/api/sandboxMultiEntry";
 
 export const Route = createFileRoute("/app/admin/sandbox-multi-entry")({
   component: CompositeJournalEntryPage,
@@ -16,7 +24,7 @@ export const Route = createFileRoute("/app/admin/sandbox-multi-entry")({
 });
 
 /* ─── Types ─────────────────────────────────────────────────── */
-type CurrencyCode = "LYD" | "USD" | "EUR" | "GBP" | "TRY" | "AED";
+type CurrencyCode = "LYD" | "USD" | "EUR" | "GBP";
 type EntityType =
   | "CUSTOMER_ACCOUNT" | "CASH_VAULT" | "BANK_VAULT" | "TREASURY_VAULT"
   | "PAYABLE" | "RECEIVABLE";
@@ -79,7 +87,7 @@ interface PostedJournal {
 }
 
 /* ─── Mock seed data ────────────────────────────────────────── */
-const CURRENCIES: CurrencyCode[] = ["LYD", "USD", "EUR", "GBP", "TRY", "AED"];
+const CURRENCIES: CurrencyCode[] = ["LYD", "USD", "EUR", "GBP"];
 
 const INDIVIDUAL_NAMES = [
   "Khalid Al-Mansour","Omar Mukhtar","Layla Benghazi","Yusuf Ibn Rashid","Aisha Al-Tarhuni",
@@ -125,7 +133,6 @@ function pick<T>(arr: T[], r: () => number): T { return arr[Math.floor(r() * arr
 function balanceFor(holderType: string, currency: CurrencyCode, r: () => number): number {
   if (holderType === "Individual") {
     if (currency === "LYD") return Math.round(1000 + r() * 249000);
-    if (currency === "TRY" || currency === "AED") return Math.round(2000 + r() * 498000);
     return Math.round(500 + r() * 149500);
   }
   if (holderType === "Corporate") return Math.round(25000 + r() * 4975000);
@@ -173,13 +180,13 @@ function buildSeedCustomers(): { holders: { id: string; name: string; type: stri
 }
 
 const VAULT_SEED: { type: "CASH_VAULT" | "BANK_VAULT" | "TREASURY_VAULT"; label: string; balances: Record<CurrencyCode, number> }[] = [
-  { type: "CASH_VAULT", label: "Cash Vault", balances: { LYD: 2_500_000, USD: 450_000, EUR: 320_000, GBP: 90_000, TRY: 1_200_000, AED: 180_000 } },
-  { type: "BANK_VAULT", label: "Bank Vault", balances: { LYD: 8_400_000, USD: 1_200_000, EUR: 950_000, GBP: 380_000, TRY: 3_100_000, AED: 540_000 } },
-  { type: "TREASURY_VAULT", label: "Treasury Vault", balances: { LYD: 15_000_000, USD: 2_500_000, EUR: 2_100_000, GBP: 800_000, TRY: 5_000_000, AED: 1_250_000 } },
+  { type: "CASH_VAULT", label: "Cash Vault", balances: { LYD: 2_500_000, USD: 450_000, EUR: 320_000, GBP: 90_000 } },
+  { type: "BANK_VAULT", label: "Bank Vault", balances: { LYD: 8_400_000, USD: 1_200_000, EUR: 950_000, GBP: 380_000 } },
+  { type: "TREASURY_VAULT", label: "Treasury Vault", balances: { LYD: 15_000_000, USD: 2_500_000, EUR: 2_100_000, GBP: 800_000 } },
 ];
 
-const PAYABLE_SEED: Record<CurrencyCode, number> = { LYD: 350_000, USD: 90_000, EUR: 75_000, GBP: 30_000, TRY: 600_000, AED: 120_000 };
-const RECEIVABLE_SEED: Record<CurrencyCode, number> = { LYD: 275_000, USD: 65_000, EUR: 55_000, GBP: 22_000, TRY: 420_000, AED: 95_000 };
+const PAYABLE_SEED: Record<CurrencyCode, number> = { LYD: 350_000, USD: 90_000, EUR: 75_000, GBP: 30_000 };
+const RECEIVABLE_SEED: Record<CurrencyCode, number> = { LYD: 275_000, USD: 65_000, EUR: 55_000, GBP: 22_000 };
 
 function buildSeed(): SelectableEntity[] {
   const { accounts } = buildSeedCustomers();
@@ -230,7 +237,7 @@ function loadPersist(): Persist {
   } catch { return { entities: buildSeed(), journals: [] }; }
 }
 function savePersist(p: Persist) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch {}
+  try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch { /* storage can be unavailable in private mode */ }
 }
 
 /* ─── Helpers ───────────────────────────────────────────────── */
@@ -260,8 +267,6 @@ function ccyClass(ccy: CurrencyCode) {
     USD: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
     EUR: "text-sky-300 bg-sky-500/10 border-sky-500/30",
     GBP: "text-violet-300 bg-violet-500/10 border-violet-500/30",
-    TRY: "text-rose-300 bg-rose-500/10 border-rose-500/30",
-    AED: "text-teal-300 bg-teal-500/10 border-teal-500/30",
   } as const)[ccy];
 }
 
@@ -270,6 +275,106 @@ function uid(prefix: string) {
 }
 function newTxId() {
   return `TXN-${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
+}
+
+function isCurrencyCode(value: string): value is CurrencyCode {
+  return CURRENCIES.includes(value as CurrencyCode);
+}
+
+function toCurrencyCode(value: unknown): CurrencyCode {
+  const code = String(value || "LYD").toUpperCase();
+  return isCurrencyCode(code) ? code : "LYD";
+}
+
+function toEntityType(value: unknown): EntityType {
+  const type = String(value || "CUSTOMER_ACCOUNT").toUpperCase();
+  if (
+    type === "CUSTOMER_ACCOUNT" ||
+    type === "CASH_VAULT" ||
+    type === "BANK_VAULT" ||
+    type === "TREASURY_VAULT" ||
+    type === "PAYABLE" ||
+    type === "RECEIVABLE"
+  ) return type;
+  if (type === "VAULT") return "CASH_VAULT";
+  return "CUSTOMER_ACCOUNT";
+}
+
+function parseMoney(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number.parseFloat(String(value ?? "0").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mapBackendEntity(account: SandboxMultiEntryAccount): SelectableEntity {
+  const entityType = toEntityType(account.accountType);
+  const currency = toCurrencyCode(account.currencyCode);
+  return {
+    entityId: account.id,
+    entityType,
+    displayName: account.displayName || account.accountName,
+    accountName: account.accountName || account.accountCode,
+    dahabNumber: account.dahabNumber || undefined,
+    holderType: account.holderType || undefined,
+    currency,
+    balance: parseMoney(account.currentBalance),
+    status: "Active",
+    isSandbox: true,
+  };
+}
+
+function backendJournalToPostedJournal(
+  response: SandboxPostedResponse,
+  entityById: Map<string, SelectableEntity>,
+  fallback: { valueDate: string; memo: string; role: RoleMode },
+): PostedJournal {
+  const tx = response.transaction;
+  const txId = tx.tx_number;
+  const postedAt = tx.posted_at || tx.created_at || new Date().toISOString();
+  const ledgerRows: PostedLine[] = response.ledgerEntries.map((row, index) => {
+    const side = row.side === "OUTFLOW" ? "OUTFLOW" : "INFLOW";
+    const entityId = row.accountId || row.account_id || "";
+    const entity = entityById.get(entityId);
+    const amount = parseMoney(row.amount);
+    const balanceAfter = parseMoney(row.balanceAfter ?? row.balance_after);
+    const balanceBefore = side === "INFLOW"
+      ? round2(balanceAfter - amount)
+      : round2(balanceAfter + amount);
+    const entityType = toEntityType(row.accountType || row.account_type || entity?.entityType);
+    const currency = toCurrencyCode(row.currencyCode || row.currency_code || entity?.currency);
+    return {
+      ledgerLineId: row.id || uid("LG"),
+      txId,
+      lineNumber: Number(row.lineNumber || row.ledger_line_number || index + 1),
+      side,
+      entityId,
+      entityType,
+      displayName: row.displayName || row.display_name || entity?.displayName || row.accountName || row.account_name || "Sandbox account",
+      accountName: row.accountName || row.account_name || entity?.accountName || "Sandbox account",
+      currency,
+      amount,
+      signedAmount: side === "INFLOW" ? amount : -amount,
+      debit: parseMoney(row.debit ?? row.debit_amount),
+      credit: parseMoney(row.credit ?? row.credit_amount),
+      balanceBefore,
+      balanceAfter,
+      memo: row.memo || undefined,
+      postedAt: row.created_at || postedAt,
+      valueDate: tx.transaction_date || fallback.valueDate,
+      status: "COMPLETED",
+    };
+  });
+
+  return {
+    txId,
+    status: "COMPLETED",
+    postedAt,
+    valueDate: tx.transaction_date || fallback.valueDate,
+    memo: tx.narration || fallback.memo,
+    postedBy: fallback.role === "Teller" ? "Sandbox Teller" : "Sandbox Admin",
+    branchId: "Sandbox Branch",
+    ledgerRows,
+  };
 }
 
 /* For PAYABLE: inflow=credit, outflow=debit. For all others: inflow=debit, outflow=credit. */
@@ -285,8 +390,24 @@ function debitCreditFor(side: EntrySide, etype: EntityType, amt: number) {
 type View = "builder" | "review" | "posting" | "receipt" | "ledger" | "transactionDetail";
 
 function CompositeJournalEntryPage() {
+  const queryClient = useQueryClient();
   const [{ entities, journals }, setStore] = useState<Persist>(() => loadPersist());
   useEffect(() => { savePersist({ entities, journals }); }, [entities, journals]);
+
+  const sandboxOptions = useQuery({
+    queryKey: ["sandboxMultiEntry", "options"],
+    queryFn: api.sandboxMultiEntry.options,
+    retry: false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const postSandbox = useMutation({
+    mutationFn: (body: SandboxMultiEntryRequest) => api.sandboxMultiEntry.post(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sandboxMultiEntry", "options"] });
+    },
+  });
 
   const [role, setRole] = useState<RoleMode>("Admin");
   const [view, setView] = useState<View>("builder");
@@ -303,11 +424,23 @@ function CompositeJournalEntryPage() {
   const [openTxId, setOpenTxId] = useState<string | null>(null);
   const [exampleOpen, setExampleOpen] = useState(false);
 
+  const backendEntities = useMemo(
+    () => sandboxOptions.data?.accounts.map(mapBackendEntity) ?? [],
+    [sandboxOptions.data],
+  );
+  const backendMode = backendEntities.length > 0;
+  const activeEntities = backendMode ? backendEntities : entities;
+  const sandboxStatus = backendMode
+    ? "Backend sandbox ledger active"
+    : sandboxOptions.isError
+      ? "Local preview mode — backend sandbox schema is not available yet"
+      : "Checking backend sandbox ledger…";
+
   const entityById = useMemo(() => {
     const m = new Map<string, SelectableEntity>();
-    entities.forEach((e) => m.set(e.entityId, e));
+    activeEntities.forEach((e) => m.set(e.entityId, e));
     return m;
-  }, [entities]);
+  }, [activeEntities]);
 
   const inflowLines = lines.filter((l) => l.side === "INFLOW");
   const outflowLines = lines.filter((l) => l.side === "OUTFLOW");
@@ -381,10 +514,52 @@ function CompositeJournalEntryPage() {
   }
 
   /* ─── Posting ─────────────────────────────────────────────── */
-  function performPost() {
+  async function performPost() {
     if (!validation.ok) return;
     setView("posting");
-    setTimeout(() => {
+    setReviewOpen(false);
+
+    if (backendMode) {
+      try {
+        const request: SandboxMultiEntryRequest = {
+          transactionDate: valueDate,
+          narration: memo,
+          inflows: inflowLines.map((line) => {
+            const entity = entityById.get(line.entityId || "");
+            return {
+              accountId: entity?.entityId || "",
+              currencyCode: entity?.currency || "LYD",
+              amount: Number.parseFloat(line.amount || "0").toFixed(2),
+              memo: line.memo || undefined,
+            };
+          }),
+          outflows: outflowLines.map((line) => {
+            const entity = entityById.get(line.entityId || "");
+            return {
+              accountId: entity?.entityId || "",
+              currencyCode: entity?.currency || "LYD",
+              amount: Number.parseFloat(line.amount || "0").toFixed(2),
+              memo: line.memo || undefined,
+            };
+          }),
+          idempotencyKey: crypto.randomUUID?.() || uid("IDEMP"),
+        };
+        const response = await postSandbox.mutateAsync(request);
+        const journal = backendJournalToPostedJournal(response, entityById, { valueDate, memo, role });
+        setStore((current) => ({ entities: current.entities, journals: [journal, ...current.journals] }));
+        setPostedTx(journal);
+        setReviewAck(false);
+        setView("receipt");
+        toast.success("Composite journal posted", { description: `${journal.ledgerRows.length} ledger entries · ${journal.txId}` });
+      } catch (error) {
+        setView("builder");
+        const message = error instanceof Error ? error.message : "Could not post the sandbox journal.";
+        toast.error("Sandbox post failed", { description: message });
+      }
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
       const txId = newTxId();
       const postedAt = new Date().toISOString();
       const ent = new Map(entities.map((e) => [e.entityId, { ...e }]));
@@ -431,10 +606,19 @@ function CompositeJournalEntryPage() {
       setReviewAck(false);
       setView("receipt");
       toast.success("Composite journal posted", { description: `${journal.ledgerRows.length} ledger entries · ${txId}` });
-    }, 1100);
   }
 
   function resetSandbox() {
+    if (backendMode) {
+      setStore((current) => ({ entities: current.entities, journals: [] }));
+      clearForm();
+      setPostedTx(null);
+      setOpenTxId(null);
+      setView("builder");
+      sandboxOptions.refetch();
+      toast.success("Local sandbox view cleared.", { description: "Backend sandbox balances were left unchanged." });
+      return;
+    }
     setStore({ entities: buildSeed(), journals: [] });
     clearForm();
     setPostedTx(null);
@@ -450,24 +634,38 @@ function CompositeJournalEntryPage() {
     function make(side: EntrySide, eid: string, amount: number, m?: string): DraftLine {
       return { localId: uid("L"), side, entityId: eid, amount: String(amount), memo: m ?? "" };
     }
+    function findEntity(type: EntityType, currency: CurrencyCode) {
+      return activeEntities.find((e) => e.entityType === type && e.currency === currency)?.entityId;
+    }
+    function makeByEntity(side: EntrySide, type: EntityType, currency: CurrencyCode, amount: number, m?: string) {
+      const id = findEntity(type, currency);
+      if (!id) {
+        toast.error(`No ${entityTypeLabel(type)} ${currency} sandbox account available`);
+        return null;
+      }
+      return make(side, id, amount, m);
+    }
     if (key === "vault_usd") {
+      const bank = makeByEntity("INFLOW", "BANK_VAULT", "USD", 25000);
+      const cash = makeByEntity("OUTFLOW", "CASH_VAULT", "USD", 25000);
+      if (!bank || !cash) return;
       setMemo("Sandbox vault rebalance — USD cash moved to bank vault.");
-      setLines([make("INFLOW", "BANK_VAULT-USD", 25000), make("OUTFLOW", "CASH_VAULT-USD", 25000)]);
+      setLines([bank, cash]);
     } else if (key === "eur_split") {
-      const eurCustAccts = entities.filter((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "EUR").slice(0, 2);
+      const eurCustAccts = activeEntities.filter((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "EUR").slice(0, 2);
       if (eurCustAccts.length < 2) return toast.error("Not enough EUR customer accounts");
       setMemo("EUR incoming wire split across two customer accounts.");
       setLines([
         make("INFLOW", eurCustAccts[0].entityId, 30000),
         make("INFLOW", eurCustAccts[1].entityId, 20000),
-        make("OUTFLOW", "BANK_VAULT-EUR", 50000),
-      ]);
+        makeByEntity("OUTFLOW", "BANK_VAULT", "EUR", 50000),
+      ].filter(Boolean) as DraftLine[]);
     } else if (key === "lyd_payroll") {
-      const lyds = entities.filter((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD" && e.holderType === "Individual").slice(0, 8);
+      const lyds = activeEntities.filter((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD" && e.holderType === "Individual").slice(0, 8);
       if (lyds.length < 8) return toast.error("Not enough LYD individual accounts");
       const splits = [12000, 11500, 14000, 10500, 12500, 13000, 10500, 11000];
       const total = splits.reduce((a, b) => a + b, 0);
-      const corp = entities.find((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD" && e.holderType === "Corporate");
+      const corp = activeEntities.find((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD" && e.holderType === "Corporate");
       if (!corp) return toast.error("No corporate LYD account available");
       setMemo("Salary disbursement from corporate payroll account to multiple employee accounts.");
       setLines([
@@ -475,13 +673,18 @@ function CompositeJournalEntryPage() {
         make("OUTFLOW", corp.entityId, total),
       ]);
     } else if (key === "usd_recv") {
+      const cash = makeByEntity("INFLOW", "CASH_VAULT", "USD", 10000);
+      const recv = makeByEntity("OUTFLOW", "RECEIVABLE", "USD", 10000);
+      if (!cash || !recv) return;
       setMemo("Customer USD cash received against receivable settlement.");
-      setLines([make("INFLOW", "CASH_VAULT-USD", 10000), make("OUTFLOW", "RECEIVABLE-USD", 10000)]);
+      setLines([cash, recv]);
     } else if (key === "lyd_pay") {
-      const lyd = entities.find((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD");
+      const lyd = activeEntities.find((e) => e.entityType === "CUSTOMER_ACCOUNT" && e.currency === "LYD");
       if (!lyd) return;
+      const payable = makeByEntity("OUTFLOW", "PAYABLE", "LYD", 50000);
+      if (!payable) return;
       setMemo("Sandbox payable settlement in LYD.");
-      setLines([make("INFLOW", lyd.entityId, 50000), make("OUTFLOW", "PAYABLE-LYD", 50000)]);
+      setLines([make("INFLOW", lyd.entityId, 50000), payable]);
     }
     toast.success("Example loaded");
   }
@@ -499,7 +702,7 @@ function CompositeJournalEntryPage() {
                 Sandbox Mode — Composite Journal Entry
               </div>
               <div className="text-xs text-amber-200/70">
-                Use this page to test multi-entry transaction posting and ledger effects. No production balances are affected.
+                {sandboxStatus}. No production balances are affected.
               </div>
             </div>
           </div>
@@ -597,7 +800,7 @@ function CompositeJournalEntryPage() {
 
         {view === "ledger" && (
           <LedgerView
-            journals={journals} entities={entities}
+            journals={journals} entities={activeEntities}
             onOpen={(txId) => { setOpenTxId(txId); setView("transactionDetail"); }}
             onBack={() => setView("builder")}
           />
@@ -616,7 +819,7 @@ function CompositeJournalEntryPage() {
       <AnimatePresence>
         {pickerFor && (
           <PickerModal
-            entities={entities}
+            entities={activeEntities}
             line={lines.find((l) => l.localId === pickerFor)!}
             onClose={() => setPickerFor(null)}
             onSelect={(eid) => { updateRow(pickerFor, { entityId: eid }); setPickerFor(null); }}
@@ -798,7 +1001,7 @@ function BuilderView(p: BuilderProps) {
   );
 }
 
-function Field({ label, icon: Icon, required, children }: { label: string; icon?: any; required?: boolean; children: React.ReactNode }) {
+function Field({ label, icon: Icon, required, children }: { label: string; icon?: LucideIcon; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wider text-text-secondary font-medium mb-1.5 flex items-center gap-1">
@@ -1107,7 +1310,7 @@ function PickerModal({
               ["BANK_VAULT", "Bank Vaults"], ["TREASURY_VAULT", "Treasury Vaults"],
               ["PAYABLE", "Payables"], ["RECEIVABLE", "Receivables"],
             ] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setFilterType(k as any)}
+              <button key={k} onClick={() => setFilterType(k as "ALL" | EntityType)}
                 className={cn("text-xs px-2.5 py-1 rounded-md border transition",
                   filterType === k ? "bg-gold text-[#14181F] border-gold" : "border-border text-text-secondary hover:text-text-primary")}>
                 {l}
@@ -1414,7 +1617,7 @@ function LedgerView({
           ["CUSTOMER_ACCOUNT", "Customers"], ["CASH_VAULT", "Cash"], ["BANK_VAULT", "Bank"],
           ["TREASURY_VAULT", "Treasury"], ["PAYABLE", "Payables"], ["RECEIVABLE", "Receivables"],
         ] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setFilter(k as any)}
+          <button key={k} onClick={() => setFilter(k as "ALL" | "TODAY" | CurrencyCode | EntityType)}
             className={cn("text-xs px-2.5 py-1 rounded-md border transition",
               filter === k ? "bg-gold text-[#14181F] border-gold" : "border-border text-text-secondary hover:text-text-primary")}>
             {l}
@@ -1519,6 +1722,19 @@ function SummaryCard({ label, value, mono }: { label: string; value: string; mon
 
 /* ─── Detail view ───────────────────────────────────────────── */
 function DetailView({ tx, onBackLedger, onNew }: { tx?: PostedJournal; onBackLedger: () => void; onNew: () => void }) {
+  // Currency proof
+  const proof = useMemo(() => {
+    const m = new Map<CurrencyCode, { in: number; out: number }>();
+    (tx?.ledgerRows ?? []).forEach((r) => {
+      const c = m.get(r.currency) ?? { in: 0, out: 0 };
+      if (r.side === "INFLOW") c.in += r.amount; else c.out += r.amount;
+      m.set(r.currency, c);
+    });
+    return Array.from(m.entries()).map(([currency, v]) => ({
+      currency, in: round2(v.in), out: round2(v.out), diff: round2(v.in - v.out), settled: Math.abs(v.in - v.out) < 0.005,
+    }));
+  }, [tx]);
+
   if (!tx) {
     return (
       <div className="card-futur p-6 rounded-xl text-center text-sm text-text-secondary">
@@ -1528,19 +1744,6 @@ function DetailView({ tx, onBackLedger, onNew }: { tx?: PostedJournal; onBackLed
   }
   const inflows = tx.ledgerRows.filter((r) => r.side === "INFLOW");
   const outflows = tx.ledgerRows.filter((r) => r.side === "OUTFLOW");
-
-  // Currency proof
-  const proof = useMemo(() => {
-    const m = new Map<CurrencyCode, { in: number; out: number }>();
-    tx.ledgerRows.forEach((r) => {
-      const c = m.get(r.currency) ?? { in: 0, out: 0 };
-      if (r.side === "INFLOW") c.in += r.amount; else c.out += r.amount;
-      m.set(r.currency, c);
-    });
-    return Array.from(m.entries()).map(([currency, v]) => ({
-      currency, in: round2(v.in), out: round2(v.out), diff: round2(v.in - v.out), settled: Math.abs(v.in - v.out) < 0.005,
-    }));
-  }, [tx]);
 
   return (
     <div className="space-y-4">
