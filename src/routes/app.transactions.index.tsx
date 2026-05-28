@@ -520,6 +520,14 @@ function TxList() {
                   ];
                 });
               }}
+              buildSummary={(rs) => {
+                let deposits = 0, withdrawals = 0;
+                for (const r of rs) {
+                  if (String(r[3]).toLowerCase() === "deposit") deposits += 1;
+                  else if (String(r[3]).toLowerCase() === "withdraw") withdrawals += 1;
+                }
+                return `${rs.length} transactions  ·  ${deposits} deposits  ·  ${withdrawals} withdrawals`;
+              }}
             />
             <Link to="/app/transactions/new">
               <Button variant="gold" className="gap-1.5">
