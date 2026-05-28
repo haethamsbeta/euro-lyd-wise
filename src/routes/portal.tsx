@@ -632,7 +632,7 @@ function PortalAccountCard({
                   { header: "Balance", width: 90 },
                 ]}
                 buildRows={(fromD: Date, toD: Date) =>
-                  filtered
+                  (rows ?? [])
                     .filter((e: any) => {
                       const d = new Date(e.posted_at).getTime();
                       return d >= fromD.getTime() && d <= toD.getTime();
@@ -646,6 +646,15 @@ function PortalAccountCard({
                       String(e.balance_after ?? ""),
                     ])
                 }
+                buildSummary={(rs) => {
+                  let debit = 0, credit = 0;
+                  for (const r of rs) {
+                    debit += Number(r[3]) || 0;
+                    credit += Number(r[4]) || 0;
+                  }
+                  const net = credit - debit;
+                  return `${rs.length} entries  ·  Debits ${debit.toFixed(2)}  ·  Credits ${credit.toFixed(2)}  ·  Net ${net.toFixed(2)} ${account.currency_code}`;
+                }}
               />
             </div>
           </div>
