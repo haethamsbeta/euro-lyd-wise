@@ -1,41 +1,67 @@
-// Stub implementation for the future AWS Lambda REST backend.
-// Each method documents the expected endpoint contract that the Lambda
-// backend must implement. Switch on with VITE_AUTH_BACKEND=lambda.
-import type { AuthService } from "./authService";
+import type { AuthService, SignInResult } from "./authService";
+import { api } from "@/lib/api";
+import type { LoginResponse } from "@/lib/api/auth";
+import { clearDahabAuthStorage, getAccessToken, setLambdaAuthSession } from "@/lib/dahabAuthToken";
+import { normalizeLambdaUser } from "@/lib/lambdaUser";
 
-const BASE = import.meta.env.VITE_LAMBDA_API_BASE_URL ?? "";
-
-function notImplemented(name: string): never {
-  throw new Error(
-    `[authService.lambda] ${name} not implemented yet. ` +
-      `Set VITE_LAMBDA_API_BASE_URL and wire endpoints when AWS backend is ready.`,
-  );
+function payloadFromLogin(res: LoginResponse) {
+  return res?.data?.access_token || res?.data?.token ? res.data : res;
 }
 
 export const lambdaAuthService: AuthService = {
-  // POST {BASE}/auth/sign-in  { email, password } -> { userId, email, mustChangePassword, token }
-  async signIn() {
-    void BASE;
-    notImplemented("signIn");
+  async signIn(email, password) {
+    const payload = payloadFromLogin(await api.auth.login({ email, password }));
+    const accessToken = payload?.access_token ?? payload?.token;
+    if (!accessToken) throw new Error("Lambda login did not return an access token.");
+
+    const user = normalizeLambdaUser(payload);
+    setLambdaAuthSession({
+      accessToken,
+      refreshToken: payload?.refresh_token ?? null,
+      user,
+    });
+
+    return {
+      userId: user.id ?? user.userId ?? "",
+      email: user.email ?? null,
+      mustChangePassword: Boolean(
+        payload?.user?.must_change_password ??
+        payload?.user?.mustChangePassword ??
+        payload?.must_change_password ??
+        payload?.mustChangePassword,
+      ),
+    } satisfies SignInResult;
   },
-  // POST {BASE}/auth/forgot-password  { email } -> 204
-  async sendPasswordResetEmail() {
-    notImplemented("sendPasswordResetEmail");
+
+  async sendPasswordResetEmail(email) {
+    await api.auth.forgotPassword(email);
   },
-  // POST {BASE}/auth/reset-password  { token, newPassword } -> 204
-  async updateOwnPassword() {
-    notImplemented("updateOwnPassword");
+
+  async updateOwnPassword(newPassword, currentPassword) {
+    if (!currentPassword) {
+      throw new Error("Current password is required to change your password.");
+    }
+    await api.auth.changePassword(currentPassword, newPassword);
   },
-  // POST {BASE}/auth/me/clear-must-change-password -> 204
+
   async clearMustChangePassword() {
-    notImplemented("clearMustChangePassword");
+    // Lambda clears must_change_password as part of /auth/change-password.
   },
-  // POST {BASE}/auth/sign-out -> 204
+
   async signOut() {
-    notImplemented("signOut");
+    if (getAccessToken()) {
+      try {
+        await api.auth.logout();
+      } catch {
+        // Local sign-out must still complete if the session is already expired.
+      }
+    }
+    clearDahabAuthStorage();
   },
-  // GET  {BASE}/users/{userId}/must-change-password -> { mustChangePassword }
+
   async getMustChangePassword() {
-    notImplemented("getMustChangePassword");
+    if (!getAccessToken()) return false;
+    const me = await api.auth.me();
+    return Boolean(me?.mustChangePassword);
   },
 };

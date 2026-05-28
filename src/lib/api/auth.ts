@@ -7,12 +7,30 @@ export interface LoginResponse {
   access_token?: string;
   refresh_token?: string;
   token?: string;
-  user?: { id: string; email?: string; role?: string; [key: string]: unknown };
+  must_change_password?: boolean;
+  mustChangePassword?: boolean;
+  user?: {
+    id: string;
+    email?: string;
+    role?: string;
+    must_change_password?: boolean;
+    mustChangePassword?: boolean;
+    [key: string]: unknown;
+  };
   data?: {
     access_token?: string;
     refresh_token?: string;
     token?: string;
-    user?: { id: string; email?: string; role?: string; [key: string]: unknown };
+    must_change_password?: boolean;
+    mustChangePassword?: boolean;
+    user?: {
+      id: string;
+      email?: string;
+      role?: string;
+      must_change_password?: boolean;
+      mustChangePassword?: boolean;
+      [key: string]: unknown;
+    };
   };
 }
 export interface MeResponse {
@@ -36,7 +54,10 @@ export const authApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     apiFetch<{ ok: true }>("/auth/change-password", {
       method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
     }),
   resetPassword: (token: string, newPassword: string) =>
     apiFetch<{ ok: true }>("/auth/reset-password", {

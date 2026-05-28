@@ -7,7 +7,11 @@ export const supabaseAuthService: AuthService = {
     if (error) throw error;
     const userId = data.user!.id;
     const must = await this.getMustChangePassword(userId);
-    return { userId, email: data.user?.email ?? null, mustChangePassword: must } satisfies SignInResult;
+    return {
+      userId,
+      email: data.user?.email ?? null,
+      mustChangePassword: must,
+    } satisfies SignInResult;
   },
   async sendPasswordResetEmail(email) {
     const redirectTo =

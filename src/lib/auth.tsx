@@ -43,11 +43,16 @@ if (typeof window !== "undefined" && !(window as any).__dahabFetchPatched) {
             ? input.toString()
             : (input as Request).url;
       const requestUrl = new URL(url, window.location.origin);
-      if (requestUrl.origin === window.location.origin && requestUrl.pathname.includes("/_serverFn/")) {
+      if (
+        requestUrl.origin === window.location.origin &&
+        requestUrl.pathname.includes("/_serverFn/")
+      ) {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (token) {
-          const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+          const headers = new Headers(
+            init?.headers ?? (input instanceof Request ? input.headers : undefined),
+          );
           if (!headers.has("authorization")) headers.set("authorization", `Bearer ${token}`);
           return origFetch(input, { ...(init ?? {}), headers });
         }
@@ -98,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let fresh = normalizeLambdaUser(await api.auth.me(), existing);
       if (fresh.role === "admin" && fresh.is_master_admin !== true && fresh.email) {
         const users = await api.users.list({ q: fresh.email, limit: 10 }).catch(() => null);
-        const matchingUser = users?.items?.find((u: any) =>
-          String(u.id).toLowerCase() === String(fresh.id).toLowerCase() ||
-          String(u.email).toLowerCase() === String(fresh.email).toLowerCase(),
+        const matchingUser = users?.items?.find(
+          (u: any) =>
+            String(u.id).toLowerCase() === String(fresh.id).toLowerCase() ||
+            String(u.email).toLowerCase() === String(fresh.email).toLowerCase(),
         );
         if (matchingUser) fresh = normalizeLambdaUser(matchingUser, fresh);
       }
@@ -136,8 +142,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const handleLambdaAuthChanged = () => {
         if (applyLambdaAuthState()) void refreshLambdaUser();
       };
+      const handleLambdaAuthExpired = () => {
+        clearDahabAuthStorage();
+        setSession(null);
+        setRoles([]);
+        setLoading(false);
+        setRolesLoading(false);
+      };
       window.addEventListener("dahab.auth.changed", handleLambdaAuthChanged);
-      return () => window.removeEventListener("dahab.auth.changed", handleLambdaAuthChanged);
+      window.addEventListener("dahab.auth.expired", handleLambdaAuthExpired);
+      return () => {
+        window.removeEventListener("dahab.auth.changed", handleLambdaAuthChanged);
+        window.removeEventListener("dahab.auth.expired", handleLambdaAuthExpired);
+      };
     }
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
@@ -152,7 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // a Bearer token. Without this, every backend call returns 401.
       if (data.session && !getAccessToken()) {
         if (import.meta.env.DEV) {
-          console.warn("[auth] Supabase session present but no Lambda access_token — signing out to force re-login");
+          console.warn(
+            "[auth] Supabase session present but no Lambda access_token — signing out to force re-login",
+          );
         }
         await supabase.auth.signOut();
         setSession(null);

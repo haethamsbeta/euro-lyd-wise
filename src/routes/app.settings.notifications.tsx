@@ -14,10 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import {
-  browserNotifPermission,
-  browserNotifSupported,
-} from "@/lib/notifications";
+import { browserNotifPermission, browserNotifSupported } from "@/lib/notifications";
 import { Bell, BellOff, Send, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,7 +34,16 @@ import { sendTestPushToSelf } from "@/server-functions/push.functions";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/app/settings/notifications")({
-  head: () => ({ meta: [{ title: "Notification settings — Dahab" }, { name: "description", content: "Choose which Dahab events send you in-app or email notifications." }] }), component: () => (
+  head: () => ({
+    meta: [
+      { title: "Notification settings — Dahab" },
+      {
+        name: "description",
+        content: "Choose which Dahab events send you in-app or email notifications.",
+      },
+    ],
+  }),
+  component: () => (
     <RoleGate allow={["admin", "teller", "auditor"]}>
       {DATA_BACKEND === "lambda" ? <NotifSettingsLambdaPending /> : <NotifSettingsPage />}
     </RoleGate>
@@ -67,15 +73,43 @@ function NotifSettingsLambdaPending() {
 }
 
 const EVENTS: { key: string; label: string; help: string; roles?: string[] }[] = [
-  { key: "tx_posted", label: "Transaction posted", help: "Any deposit or withdrawal posted to the ledger." },
-  { key: "pending_created", label: "Pending approval created", help: "A withdrawal needs admin approval." },
-  { key: "approval_decision", label: "Approval decision", help: "Your submitted transaction was approved or rejected." },
-  { key: "large_tx", label: "Large transaction", help: "Transactions at or above your per-currency threshold." },
-  { key: "low_vault", label: "Low vault balance", help: "Vault drops below your per-currency floor." },
+  {
+    key: "tx_posted",
+    label: "Transaction posted",
+    help: "Any deposit or withdrawal posted to the ledger.",
+  },
+  {
+    key: "pending_created",
+    label: "Pending approval created",
+    help: "A withdrawal needs admin approval.",
+  },
+  {
+    key: "approval_decision",
+    label: "Approval decision",
+    help: "Your submitted transaction was approved or rejected.",
+  },
+  {
+    key: "large_tx",
+    label: "Large transaction",
+    help: "Transactions at or above your per-currency threshold.",
+  },
+  {
+    key: "low_vault",
+    label: "Low vault balance",
+    help: "Vault drops below your per-currency floor.",
+  },
   { key: "overdraft", label: "Overdraft", help: "A customer balance went below zero." },
   { key: "account_change", label: "Account changes", help: "New customer accounts created." },
-  { key: "reminder_pending", label: "Reminder: pending approvals", help: "Periodic reminder while approvals wait." },
-  { key: "reminder_shift", label: "Reminder: end of shift", help: "Daily summary reminder at the time you choose." },
+  {
+    key: "reminder_pending",
+    label: "Reminder: pending approvals",
+    help: "Periodic reminder while approvals wait.",
+  },
+  {
+    key: "reminder_shift",
+    label: "Reminder: end of shift",
+    help: "Daily summary reminder at the time you choose.",
+  },
   { key: "daily_summary", label: "Daily summary", help: "Daily activity recap." },
 ];
 
@@ -95,6 +129,7 @@ type Prefs = {
 function NotifSettingsPage() {
   const t = useT();
   const { user } = useAuth();
+  const userId = user?.id;
   const qc = useQueryClient();
   const [perm, setPerm] = useState<string>("default");
   const [testing, setTesting] = useState(false);
@@ -103,7 +138,11 @@ function NotifSettingsPage() {
 
   useEffect(() => {
     setPerm(browserNotifPermission());
-    try { setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY)); } catch {}
+    try {
+      setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY));
+    } catch {
+      // localStorage can be unavailable in restricted browser modes.
+    }
     pingCurrent();
   }, []);
 
@@ -112,7 +151,9 @@ function NotifSettingsPage() {
     queryKey: ["notif.prefs", user?.id],
     queryFn: async () => {
       // ensure row exists
-      await supabase.from("notification_preferences").upsert({ user_id: user!.id }, { onConflict: "user_id" });
+      await supabase
+        .from("notification_preferences")
+        .upsert({ user_id: user!.id }, { onConflict: "user_id" });
       const { data, error } = await supabase
         .from("notification_preferences")
         .select("*")
@@ -135,7 +176,9 @@ function NotifSettingsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("push_subscriptions")
-        .select("id, label, user_agent, granted, endpoint, created_at, last_seen_at, last_success_at, last_error")
+        .select(
+          "id, label, user_agent, granted, endpoint, created_at, last_seen_at, last_success_at, last_error",
+        )
         .eq("user_id", user!.id)
         .order("last_seen_at", { ascending: false });
       if (error) throw error;
@@ -144,30 +187,51 @@ function NotifSettingsPage() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     if (REALTIME_MODE === "off") return;
     if (REALTIME_MODE === "polling") {
-      const id = window.setInterval(() => refetchDevices(), POLL_INTERVALS.pushStatus);
-      return () => window.clearInterval(id);
+      const tick = () => {
+        if (document.visibilityState === "visible") void refetchDevices();
+      };
+      const id = window.setInterval(tick, POLL_INTERVALS.pushStatus);
+      const onVis = () => {
+        if (document.visibilityState === "visible") void refetchDevices();
+      };
+      document.addEventListener("visibilitychange", onVis);
+      return () => {
+        window.clearInterval(id);
+        document.removeEventListener("visibilitychange", onVis);
+      };
     }
     const ch = supabase
-      .channel(`push-devices:${user.id}`)
+      .channel(`push-devices:${userId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "push_subscriptions", filter: `user_id=eq.${user.id}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "push_subscriptions",
+          filter: `user_id=eq.${userId}`,
+        },
         () => refetchDevices(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [user?.id, refetchDevices]);
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [userId, refetchDevices]);
 
   async function sendSelfTest() {
     setTesting(true);
     try {
       const r = await sendTestPushToSelf();
       if (r.sent > 0) toast.success(`Test sent — delivered to ${r.sent} of ${r.total} device(s).`);
-      else if (r.total === 0) toast.message("In-app test sent. Enable a device below to receive system push.");
-      else toast.error(`Push delivery failed (${r.failed} of ${r.total}). See device row for details.`);
+      else if (r.total === 0)
+        toast.message("In-app test sent. Enable a device below to receive system push.");
+      else
+        toast.error(
+          `Push delivery failed (${r.failed} of ${r.total}). See device row for details.`,
+        );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -180,7 +244,11 @@ function NotifSettingsPage() {
     try {
       const r = await ensureSubscription();
       if (!r) throw new Error("Could not subscribe this browser to push.");
-      try { setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY)); } catch {}
+      try {
+        setCurrentEndpoint(localStorage.getItem(ENDPOINT_KEY));
+      } catch {
+        // localStorage can be unavailable in restricted browser modes.
+      }
       setPerm("granted");
       setDraft((d) => (d ? { ...d, browser_push_enabled: true } : d));
       toast.success("This device is now subscribed to push notifications.");
@@ -208,13 +276,17 @@ function NotifSettingsPage() {
     try {
       await revokeDevice({ data: { id } });
       await refetchDevices();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   }
   async function onRemoveRow(id: string) {
     try {
       await removeDevice({ data: { id } });
       await refetchDevices();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   }
 
   const save = useMutation({
@@ -244,7 +316,10 @@ function NotifSettingsPage() {
   if (isLoading || !draft) {
     return (
       <>
-        <PageHeader title={t("settings.notifications.title")} description={t("settings.notifications.subtitle")} />
+        <PageHeader
+          title={t("settings.notifications.title")}
+          description={t("settings.notifications.subtitle")}
+        />
         <div className="p-6 text-sm text-muted-foreground">{t("common.loading")}</div>
       </>
     );
@@ -280,13 +355,18 @@ function NotifSettingsPage() {
           <CardHeader>
             <CardTitle>Browser notifications</CardTitle>
             <CardDescription>
-              Real Web Push — system notifications fire even when the tab is closed, on every device you enable.
+              Real Web Push — system notifications fire even when the tab is closed, on every device
+              you enable.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
               <div className="flex items-center gap-2 text-sm">
-                {perm === "granted" ? <Bell className="h-4 w-4 text-primary" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
+                {perm === "granted" ? (
+                  <Bell className="h-4 w-4 text-primary" />
+                ) : (
+                  <BellOff className="h-4 w-4 text-muted-foreground" />
+                )}
                 <span>
                   Permission: <strong className="font-medium">{perm}</strong>
                 </span>
@@ -303,7 +383,13 @@ function NotifSettingsPage() {
                   <Button
                     size="sm"
                     onClick={onEnableHere}
-                    disabled={enabling || !pushSupported() || previewBlocked || iosBlocked || perm === "denied"}
+                    disabled={
+                      enabling ||
+                      !pushSupported() ||
+                      previewBlocked ||
+                      iosBlocked ||
+                      perm === "denied"
+                    }
                   >
                     {enabling ? "Enabling…" : "Enable on this device"}
                   </Button>
@@ -313,20 +399,25 @@ function NotifSettingsPage() {
 
             {previewBlocked && (
               <p className="text-xs text-muted-foreground">
-                Push subscriptions are disabled inside the editor preview iframe. Open the published or custom-domain URL to enable on a real device.
+                Push subscriptions are disabled inside the editor preview iframe. Open the published
+                or custom-domain URL to enable on a real device.
               </p>
             )}
             {iosBlocked && (
               <p className="text-xs text-muted-foreground">
-                On iOS, push notifications only work after you install the app to your Home Screen (Share → Add to Home Screen), then open it from there.
+                On iOS, push notifications only work after you install the app to your Home Screen
+                (Share → Add to Home Screen), then open it from there.
               </p>
             )}
             {!browserNotifSupported() && !previewBlocked && (
-              <p className="text-xs text-muted-foreground">This browser does not support push notifications.</p>
+              <p className="text-xs text-muted-foreground">
+                This browser does not support push notifications.
+              </p>
             )}
             {perm === "denied" && (
               <p className="text-xs text-muted-foreground">
-                You blocked notifications. Re-enable them in your browser's site settings, then refresh.
+                You blocked notifications. Re-enable them in your browser's site settings, then
+                refresh.
               </p>
             )}
 
@@ -344,7 +435,9 @@ function NotifSettingsPage() {
             <div>
               <h4 className="mb-2 text-sm font-medium">Your devices</h4>
               {(devices ?? []).length === 0 ? (
-                <p className="text-xs text-muted-foreground">No devices yet. Enable on this device to add the first one.</p>
+                <p className="text-xs text-muted-foreground">
+                  No devices yet. Enable on this device to add the first one.
+                </p>
               ) : (
                 <div className="overflow-x-auto rounded-md border">
                   <table className="w-full min-w-[640px] text-sm">
@@ -366,7 +459,11 @@ function NotifSettingsPage() {
                             <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{label}</span>
-                                {isCurrent && <Badge variant="outline" className="text-[10px]">This browser</Badge>}
+                                {isCurrent && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    This browser
+                                  </Badge>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {prettyDeviceLabel(d.user_agent)}
@@ -377,22 +474,37 @@ function NotifSettingsPage() {
                                 {d.granted && d.endpoint ? "Granted" : "Revoked"}
                               </Badge>
                               {d.last_error && (
-                                <div className="mt-1 max-w-[180px] truncate text-xs text-destructive" title={d.last_error}>
+                                <div
+                                  className="mt-1 max-w-[180px] truncate text-xs text-destructive"
+                                  title={d.last_error}
+                                >
                                   {d.last_error}
                                 </div>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-xs text-muted-foreground">{fmt(d.last_seen_at)}</td>
-                            <td className="px-3 py-2 text-xs text-muted-foreground">{fmt(d.last_success_at)}</td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground">
+                              {fmt(d.last_seen_at)}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground">
+                              {fmt(d.last_success_at)}
+                            </td>
                             <td className="px-3 py-2">
                               <div className="flex items-center gap-1">
                                 {d.granted && d.endpoint && (
-                                  <Button size="sm" variant="ghost" onClick={() => onRevokeRow(d.id)}>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => onRevokeRow(d.id)}
+                                  >
                                     <X className="me-1 h-3.5 w-3.5" /> Revoke
                                   </Button>
                                 )}
                                 {!d.granted && (
-                                  <Button size="sm" variant="ghost" onClick={() => onRemoveRow(d.id)}>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => onRemoveRow(d.id)}
+                                  >
                                     <Trash2 className="me-1 h-3.5 w-3.5" /> Remove
                                   </Button>
                                 )}
@@ -424,7 +536,13 @@ function NotifSettingsPage() {
                 max={1440}
                 value={draft.pending_reminder_minutes}
                 onChange={(e) =>
-                  setDraft({ ...draft, pending_reminder_minutes: Math.max(5, Math.min(1440, Number(e.target.value) || 30)) })
+                  setDraft({
+                    ...draft,
+                    pending_reminder_minutes: Math.max(
+                      5,
+                      Math.min(1440, Number(e.target.value) || 30),
+                    ),
+                  })
                 }
               />
               <p className="mt-1 text-xs text-muted-foreground">

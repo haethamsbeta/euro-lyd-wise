@@ -48,10 +48,26 @@ function normalizeApiPath(path: string): string {
   return p;
 }
 
-export async function apiFetch<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+function clearExpiredBrowserSession() {
+  if (typeof window === "undefined") return;
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    storage.removeItem("dahab.access_token");
+    storage.removeItem("dahab.refresh_token");
+    storage.removeItem("dahab.user");
+    storage.removeItem("dahab.signed_in_at");
+  }
+  window.dispatchEvent(new Event("dahab.auth.expired"));
+}
+
+function shouldRedirectAfterUnauthorized(path: string) {
+  if (typeof window === "undefined") return false;
+  if (path === "/auth/login" || path === "/auth/forgot-password" || path === "/auth/reset-password")
+    return false;
+  const current = window.location.pathname;
+  return !["/login", "/forgot-password", "/reset-password"].includes(current);
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const envelope = await apiFetchEnvelope<T>(path, init);
   return envelope.data;
 }
@@ -84,6 +100,12 @@ export async function apiFetchEnvelope<T>(
   }
 
   if (!res.ok || !envelope?.success) {
+    if (res.status === 401) {
+      clearExpiredBrowserSession();
+      if (shouldRedirectAfterUnauthorized(normalizedPath)) {
+        window.location.assign("/login?portal=staff");
+      }
+    }
     throw new ApiError(envelope?.message ?? res.statusText, res.status, envelope);
   }
   return envelope;
@@ -183,8 +205,7 @@ export interface InternalAccount {
 export const dahabApi = {
   holders: {
     list: () => apiFetch<Holder[]>("/holders"),
-    get: (holderId: number | string) =>
-      apiFetch<Holder>(`/holders/${holderId}`),
+    get: (holderId: number | string) => apiFetch<Holder>(`/holders/${holderId}`),
     create: (body: Partial<Holder>) =>
       apiFetch<Holder>("/holders", {
         method: "POST",
@@ -199,23 +220,20 @@ export const dahabApi = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    ledger: (
-      holderAccountId: number | string,
-      range: { from?: string; to?: string } = {},
-    ) =>
-      apiFetch<LedgerEntry[]>(
-        `/holder-accounts/${holderAccountId}/ledger${qs(range)}`,
-      ),
+    ledger: (holderAccountId: number | string, range: { from?: string; to?: string } = {}) =>
+      apiFetch<LedgerEntry[]>(`/holder-accounts/${holderAccountId}/ledger${qs(range)}`),
   },
   transactions: {
-    list: (params: {
-      q?: string;
-      from?: string;
-      to?: string;
-      category?: TransactionCategory;
-      limit?: number;
-      offset?: number;
-    } = {}) => apiFetch<Transaction[]>(`/transactions${qs(params)}`),
+    list: (
+      params: {
+        q?: string;
+        from?: string;
+        to?: string;
+        category?: TransactionCategory;
+        limit?: number;
+        offset?: number;
+      } = {},
+    ) => apiFetch<Transaction[]>(`/transactions${qs(params)}`),
   },
   internalAccounts: {
     list: () => apiFetch<InternalAccount[]>("/internal-accounts"),

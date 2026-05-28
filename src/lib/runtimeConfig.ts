@@ -6,8 +6,9 @@
 // SECURITY: Only PUBLIC frontend config goes here. Never put SQL credentials,
 // JWT_SECRET, VAPID_PRIVATE_KEY, INTERNAL_WEBHOOK_SECRET, AWS keys, or any
 // other server-side secret in this file.
-export const DATA_BACKEND = ((import.meta.env.VITE_DATA_BACKEND as string) ||
-  "lambda") as "supabase" | "lambda";
+export const DATA_BACKEND = ((import.meta.env.VITE_DATA_BACKEND as string) || "lambda") as
+  | "supabase"
+  | "lambda";
 
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string) ||
@@ -19,11 +20,7 @@ const RAW_REALTIME_MODE = ((import.meta.env.VITE_REALTIME_MODE as string) ||
 
 // In lambda mode we never use Supabase Realtime, regardless of the env value.
 export const REALTIME_MODE: RealtimeMode =
-  DATA_BACKEND === "lambda"
-    ? RAW_REALTIME_MODE === "off"
-      ? "off"
-      : "polling"
-    : RAW_REALTIME_MODE;
+  DATA_BACKEND === "lambda" ? (RAW_REALTIME_MODE === "off" ? "off" : "polling") : RAW_REALTIME_MODE;
 
 export const VAPID_PUBLIC_KEY =
   (import.meta.env.VITE_VAPID_PUBLIC_KEY as string) ||
@@ -35,13 +32,13 @@ export const VAPID_PUBLIC = VAPID_PUBLIC_KEY;
 // Per-feature polling intervals (ms). Used as `refetchInterval` on react-query
 // hooks and as `setInterval` cadence for non-query subscriptions.
 export const POLL_INTERVALS = {
-  notifications: 60_000,
-  approvals: 60_000,
-  pushStatus: 60_000,
-  dashboard: 120_000,
-  vaultActivity: 120_000,
-  transactions: 120_000,
-  reports: 300_000,
+  notifications: 120_000,
+  approvals: 120_000,
+  pushStatus: 120_000,
+  dashboard: 300_000,
+  vaultActivity: 300_000,
+  transactions: 300_000,
+  reports: 600_000,
 } as const;
 
 // Backwards-compat alias used by older call sites.

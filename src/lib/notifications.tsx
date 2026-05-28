@@ -61,7 +61,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         for (const n of next) {
           if (!seen.has(n.id)) {
             const variant =
-              n.severity === "critical" ? toast.error : n.severity === "warning" ? toast.warning : toast;
+              n.severity === "critical"
+                ? toast.error
+                : n.severity === "warning"
+                  ? toast.warning
+                  : toast;
             variant(n.title, { description: n.body });
             maybeBrowserNotify(n);
           }
@@ -79,7 +83,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     refresh();
     if (REALTIME_MODE === "off") return;
     if (REALTIME_MODE === "polling") {
-      const id = window.setInterval(refresh, POLL_INTERVALS.notifications);
+      const id = window.setInterval(() => {
+        if (document.visibilityState === "visible") void refresh();
+      }, POLL_INTERVALS.notifications);
       const onVis = () => {
         if (document.visibilityState === "visible") refresh();
       };
@@ -93,12 +99,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       .channel(`notif:${user?.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user?.id}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user?.id}`,
+        },
         (payload) => {
           const n = payload.new as Notification;
           setItems((prev) => [n, ...prev].slice(0, 50));
           // toast
-          const variant = n.severity === "critical" ? toast.error : n.severity === "warning" ? toast.warning : toast;
+          const variant =
+            n.severity === "critical"
+              ? toast.error
+              : n.severity === "warning"
+                ? toast.warning
+                : toast;
           variant(n.title, { description: n.body });
           // browser notification (foreground)
           maybeBrowserNotify(n);
@@ -106,7 +122,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user?.id}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user?.id}`,
+        },
         (payload) => {
           const n = payload.new as Notification;
           setItems((prev) => prev.map((it) => (it.id === n.id ? n : it)));
@@ -124,14 +145,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       items,
       unread: items.filter((i) => !i.read_at).length,
       markRead: async (ids) => {
-        await supabase.rpc("notifications_mark_read", { p_ids: (ids ?? null) as unknown as string[] });
+        await supabase.rpc("notifications_mark_read", {
+          p_ids: (ids ?? null) as unknown as string[],
+        });
         setItems((prev) =>
-          prev.map((it) => (!it.read_at && (!ids || ids.includes(it.id)) ? { ...it, read_at: new Date().toISOString() } : it)),
+          prev.map((it) =>
+            !it.read_at && (!ids || ids.includes(it.id))
+              ? { ...it, read_at: new Date().toISOString() }
+              : it,
+          ),
         );
       },
       markAllRead: async () => {
         await supabase.rpc("notifications_mark_all_read");
-        setItems((prev) => prev.map((it) => ({ ...it, read_at: it.read_at ?? new Date().toISOString() })));
+        setItems((prev) =>
+          prev.map((it) => ({ ...it, read_at: it.read_at ?? new Date().toISOString() })),
+        );
       },
       refresh,
     }),

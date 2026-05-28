@@ -83,20 +83,44 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
       { title: "Dahab — Private Banking" },
-      { name: "description", content: "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability." },
+      {
+        name: "description",
+        content:
+          "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability.",
+      },
       { name: "author", content: "Dahab" },
       { name: "theme-color", content: "#16120c" },
       { property: "og:title", content: "Dahab — Private Banking" },
-      { property: "og:description", content: "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability." },
+      {
+        property: "og:description",
+        content:
+          "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Dahab" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Dahab — Private Banking" },
-      { name: "twitter:description", content: "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/l092Pkcvqdhqgd0wx0no6lP8E1k1/social-images/social-1777519259491-ChatGPT_Image_Apr_30,_2026,_04_48_05_AM.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/l092Pkcvqdhqgd0wx0no6lP8E1k1/social-images/social-1777519259491-ChatGPT_Image_Apr_30,_2026,_04_48_05_AM.webp" },
+      {
+        name: "twitter:description",
+        content:
+          "Dahab (ذهب) — a private banking ledger built on double-entry precision and gold-standard auditability.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/l092Pkcvqdhqgd0wx0no6lP8E1k1/social-images/social-1777519259491-ChatGPT_Image_Apr_30,_2026,_04_48_05_AM.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/l092Pkcvqdhqgd0wx0no6lP8E1k1/social-images/social-1777519259491-ChatGPT_Image_Apr_30,_2026,_04_48_05_AM.webp",
+      },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Dahab" },
@@ -118,7 +142,13 @@ export const Route = createRootRoute({
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       // Preload the brand mark so it paints with the first frame.
-      ({ rel: "preload", as: "image", href: "/brand/dahab-icon.webp", type: "image/webp", fetchPriority: "high" } as any),
+      {
+        rel: "preload",
+        as: "image",
+        href: "/brand/dahab-icon.webp",
+        type: "image/webp",
+        fetchPriority: "high",
+      } as any,
     ],
   }),
   shellComponent: RootShell,
@@ -153,7 +183,7 @@ function RootComponent() {
             <RootErrorBoundary>
               <Outlet />
             </RootErrorBoundary>
-              <Toaster richColors position="top-right" />
+            <Toaster richColors position="top-right" />
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>
@@ -172,6 +202,7 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60_000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: "always",
+      refetchIntervalInBackground: false,
       retry: 1,
     },
   },
