@@ -163,9 +163,19 @@ function AccountLedger() {
                     String(t.comment ?? ""),
                   ]);
                 }}
+                buildSummary={(rows) => {
+                  let credit = 0, debit = 0;
+                  for (const r of rows) {
+                    const amt = Number(r[5]) || 0;
+                    if (String(r[2]).toLowerCase() === "deposit") credit += amt;
+                    else debit += amt;
+                  }
+                  const net = credit - debit;
+                  return `${rows.length} record${rows.length === 1 ? "" : "s"}  ·  Credits ${credit.toFixed(2)} ${currency}  ·  Debits ${debit.toFixed(2)} ${currency}  ·  Net ${net.toFixed(2)} ${currency}`;
+                }}
               />
               <Button variant="outline" size="sm" onClick={exportCSV}>
-                <Download className="h-4 w-4" /> {t("portal.exportCsv")}
+                <Download className="me-1.5 h-4 w-4" /> {t("portal.exportCsv")}
               </Button>
             </div>
           </CardHeader>
