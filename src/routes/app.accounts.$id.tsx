@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { ExportPdfButton } from "@/components/app/export-pdf";
 import { toast } from "sonner";
 import { useDebounced } from "@/hooks/use-debounced";
 import { cn } from "@/lib/utils";
