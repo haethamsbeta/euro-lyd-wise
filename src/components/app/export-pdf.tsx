@@ -39,6 +39,16 @@ function todayISO(offsetDays = 0) {
   return d.toISOString().slice(0, 10);
 }
 
+// Default lower bound for the export popover. We pick a deliberately wide
+// window (~5 years) so the first click captures every historical row by
+// default — users can narrow it via the date inputs. Defaulting to "last 7
+// days" produced empty PDFs for ledgers whose activity is older than a week.
+function defaultFromISO() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 5);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ExportPdfButton({
   title,
   filenamePrefix,
@@ -48,7 +58,7 @@ export function ExportPdfButton({
 }: PdfExportProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [from, setFrom] = useState(todayISO(-7));
+  const [from, setFrom] = useState(defaultFromISO());
   const [to, setTo] = useState(todayISO(0));
   const [busy, setBusy] = useState(false);
 
