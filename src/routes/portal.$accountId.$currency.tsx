@@ -137,14 +137,20 @@ function AccountLedger() {
               <ExportPdfButton
                 title={`DAHAB Account Statement — ${data?.acc?.name ?? ""} (${currency})`}
                 filenamePrefix={`dahab-statement-${currency}`}
+                infoItems={[
+                  { label: "Account Holder", value: String(data?.acc?.name ?? "—") },
+                  { label: "Account #", value: String(data?.acc?.account_number ?? "—") },
+                  { label: "Currency", value: currency },
+                  { label: "Balance", value: `${(balance / 100).toFixed(2)} ${currency}` },
+                ]}
                 columns={[
-                  { header: "TX #", width: 90 },
-                  { header: "Date", width: 120 },
-                  { header: "Type", width: 70 },
-                  { header: "Channel", width: 80 },
-                  { header: "Currency", width: 60 },
-                  { header: "Amount", width: 90 },
-                  { header: "Status", width: 70 },
+                  { header: "TX #", width: 80 },
+                  { header: "Date", width: 110 },
+                  { header: "Type", width: 60 },
+                  { header: "Channel", width: 70 },
+                  { header: "Currency", width: 55 },
+                  { header: "Amount", width: 85 },
+                  { header: "Status", width: 65 },
                   { header: "Comment" },
                 ]}
                 buildRows={(fromD, toD) => {
