@@ -177,8 +177,7 @@ function valueText(doc: any, value: string, x: number, y: number, maxWidth: numb
   applyFontFor(doc, text, "normal");
   const lines: string[] = doc.splitTextToSize(text, maxWidth);
   if (hasArabic(text) && arabicFontRegistered) {
-    const shaped = lines.map((ln) => shapeRtl(ln));
-    doc.text(shaped, x + maxWidth, y, { align: "right" });
+    doc.text(lines, x + maxWidth, y, { align: "right" });
   } else {
     doc.text(lines, x, y);
   }
