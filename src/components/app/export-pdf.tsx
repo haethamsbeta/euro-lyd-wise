@@ -9,6 +9,17 @@ import {
 } from "@/components/ui/popover";
 import { Download } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import {
+  BRAND,
+  ARABIC_FONT,
+  hasArabic,
+  ensureArabicFont,
+  isArabicFontReady,
+  loadBrandLogo,
+  drawBrandHeader,
+  drawBrandFooter,
+  paintIvoryBackground,
+} from "@/lib/pdfBrand";
 
 type Column = { header: string; width?: number };
 
@@ -57,46 +68,98 @@ export function ExportPdfButton({
 
       const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
 
+      // Brand assets (logo + Arabic font) are lazily fetched and cached
+      // across calls so a second export is instant.
+      const [logo] = await Promise.all([loadBrandLogo(), ensureArabicFont(doc)]);
+      const arabicReady = isArabicFontReady(doc);
+
+      paintIvoryBackground(doc, pageWidth, pageHeight);
+
+      const headerH = drawBrandHeader(doc, {
+        title,
+        subtitle: `Generated ${new Date().toLocaleString()}`,
+        pill: { text: `${from}  →  ${to}`, fill: BRAND.goldDeep },
+        logo,
+        pageWidth,
+      });
+
+      // Summary line above the table card
+      const summary =
+        buildSummary?.(rows) ?? `${rows.length} record${rows.length === 1 ? "" : "s"}`;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(title, 40, 40);
-
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.setTextColor(110);
-      doc.text(
-        `Date range: ${from} to ${to}   ·   Generated: ${new Date().toLocaleString()}`,
-        40,
-        58,
-      );
-      const summary = buildSummary?.(rows) ?? `${rows.length} record${rows.length === 1 ? "" : "s"}`;
-      doc.text(summary, 40, 72);
-      doc.setTextColor(0);
+      doc.setTextColor(...BRAND.goldDeep);
+      doc.text(title.toUpperCase(), 40, headerH + 26, { charSpace: 1.2 });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...BRAND.inkMuted);
+      doc.text(summary, 40, headerH + 42);
+
+      const tableTop = headerH + 56;
 
       autoTable(doc, {
-        startY: 90,
+        startY: tableTop,
         head: [columns.map((c) => c.header)],
         body: rows,
-        styles: { fontSize: 9, cellPadding: 5, valign: "top", overflow: "linebreak" },
-        headStyles: { fillColor: [30, 30, 35], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 245, 248] },
+        theme: "grid",
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          cellPadding: 6,
+          valign: "top",
+          overflow: "linebreak",
+          textColor: BRAND.ink,
+          lineColor: BRAND.borderSand,
+          lineWidth: 0.4,
+        },
+        headStyles: {
+          fillColor: BRAND.onyx,
+          textColor: BRAND.gold,
+          fontStyle: "bold",
+          fontSize: 9,
+          cellPadding: 7,
+          lineColor: BRAND.gold,
+          lineWidth: 0,
+        },
+        bodyStyles: { fillColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: BRAND.ivorySoft },
         columnStyles: Object.fromEntries(
           columns.map((c, i) => [i, c.width ? { cellWidth: c.width } : {}]),
         ),
-        margin: { left: 40, right: 40 },
+        margin: { left: 40, right: 40, bottom: 60 },
+        // Switch font + alignment for Arabic cells so glyphs shape correctly.
+        didParseCell: (data: any) => {
+          if (!arabicReady) return;
+          const raw = Array.isArray(data.cell.raw)
+            ? data.cell.raw.join(" ")
+            : String(data.cell.raw ?? "");
+          if (hasArabic(raw)) {
+            data.cell.styles.font = ARABIC_FONT;
+            data.cell.styles.halign = "right";
+          }
+        },
         didDrawPage: () => {
+          // Repaint the brand chrome on every page (autoTable handles paging).
+          if ((doc as any).internal.getCurrentPageInfo().pageNumber > 1) {
+            paintIvoryBackground(doc, pageWidth, pageHeight);
+            drawBrandHeader(doc, {
+              title,
+              subtitle: `Generated ${new Date().toLocaleString()}`,
+              pill: { text: `${from}  →  ${to}`, fill: BRAND.goldDeep },
+              logo,
+              pageWidth,
+            });
+          }
           const pageCount = doc.getNumberOfPages();
           const current = (doc as any).internal.getCurrentPageInfo().pageNumber;
-          doc.setFontSize(9);
-          doc.setTextColor(120);
-          doc.text(
-            `Page ${current} of ${pageCount}`,
-            pageWidth - 40,
-            doc.internal.pageSize.getHeight() - 20,
-            { align: "right" },
-          );
-          doc.setTextColor(0);
+          drawBrandFooter(doc, {
+            pageWidth,
+            pageHeight,
+            pageLabel: `Page ${current} of ${pageCount}`,
+            note: "Generated by DAHAB back-office",
+          });
         },
       });
 
