@@ -619,6 +619,33 @@ function PortalAccountCard({
               <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
                 <Download className="me-1.5 h-3.5 w-3.5" /> CSV
               </Button>
+              <ExportPdfButton
+                title={`DAHAB Account Statement — ${account.account_display_name} (${account.currency_code})`}
+                filenamePrefix={`dahab-statement-${account.account_number}`}
+                columns={[
+                  { header: "Date", width: 120 },
+                  { header: "TX #", width: 100 },
+                  { header: "Description" },
+                  { header: "Debit", width: 80 },
+                  { header: "Credit", width: 80 },
+                  { header: "Balance", width: 90 },
+                ]}
+                buildRows={(fromD, toD) =>
+                  filtered
+                    .filter((e: any) => {
+                      const d = new Date(e.posted_at).getTime();
+                      return d >= fromD.getTime() && d <= toD.getTime();
+                    })
+                    .map((e: any) => [
+                      new Date(e.posted_at).toLocaleString(),
+                      displayTxNumber(e),
+                      String(e.description ?? ""),
+                      String(e.debit_amount ?? ""),
+                      String(e.credit_amount ?? ""),
+                      String(e.balance_after ?? ""),
+                    ])
+                }
+              />
             </div>
           </div>
 
