@@ -14,6 +14,7 @@ import { useT } from "@/lib/i18n";
 import { BackendPending } from "@/components/app/backend-pending";
 import { DATA_BACKEND } from "@/lib/runtimeConfig";
 import { displayTxNumber } from "@/lib/txDisplay";
+import { ExportPdfButton } from "@/components/app/export-pdf";
 
 export const Route = createFileRoute("/portal/$accountId/$currency")({
   component: AccountLedger,
@@ -132,9 +133,41 @@ function AccountLedger() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">{t("portal.ledger")}</CardTitle>
-            <Button variant="outline" size="sm" onClick={exportCSV}>
-              <Download className="h-4 w-4" /> {t("portal.exportCsv")}
-            </Button>
+            <div className="flex items-center gap-2">
+              <ExportPdfButton
+                title={`DAHAB Account Statement — ${data?.acc?.name ?? ""} (${currency})`}
+                filenamePrefix={`dahab-statement-${currency}`}
+                columns={[
+                  { header: "TX #", width: 90 },
+                  { header: "Date", width: 120 },
+                  { header: "Type", width: 70 },
+                  { header: "Channel", width: 80 },
+                  { header: "Currency", width: 60 },
+                  { header: "Amount", width: 90 },
+                  { header: "Status", width: 70 },
+                  { header: "Comment" },
+                ]}
+                buildRows={(fromD, toD) => {
+                  const rows = (data?.tx ?? []).filter((t: any) => {
+                    const d = new Date(t.created_at).getTime();
+                    return d >= fromD.getTime() && d <= toD.getTime();
+                  });
+                  return rows.map((t: any) => [
+                    displayTxNumber(t),
+                    new Date(t.created_at).toLocaleString(),
+                    String(t.direction ?? ""),
+                    String(t.channel ?? ""),
+                    String(t.currency ?? ""),
+                    (Number(t.amount_minor ?? 0) / 100).toFixed(2),
+                    String(t.status ?? ""),
+                    String(t.comment ?? ""),
+                  ]);
+                }}
+              />
+              <Button variant="outline" size="sm" onClick={exportCSV}>
+                <Download className="h-4 w-4" /> {t("portal.exportCsv")}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (

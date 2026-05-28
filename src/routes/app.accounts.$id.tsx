@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth, hasAnyRole } from "@/lib/auth";
 import { useEffectiveRoles } from "@/lib/role-view";
+import { ExportPdfButton } from "@/components/app/export-pdf";
 import { toast } from "sonner";
 import { useDebounced } from "@/hooks/use-debounced";
 import { cn } from "@/lib/utils";
@@ -572,6 +573,33 @@ function TransactionsTable({ rows, loading, currency, accountId }: { rows: any[]
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
             <Download className="h-3.5 w-3.5 me-1" /> CSV
           </Button>
+          <ExportPdfButton
+            title={`DAHAB Account Ledger — ${accountId}`}
+            filenamePrefix={`dahab-ledger-${accountId}`}
+            columns={[
+              { header: "Date", width: 120 },
+              { header: "TX", width: 100 },
+              { header: "Description" },
+              { header: "Debit", width: 80 },
+              { header: "Credit", width: 80 },
+              { header: "Balance", width: 90 },
+            ]}
+            buildRows={(fromD: Date, toD: Date) =>
+              filtered
+                .filter((e: any) => {
+                  const d = new Date(e.posted_at).getTime();
+                  return d >= fromD.getTime() && d <= toD.getTime();
+                })
+                .map((e: any) => [
+                  new Date(e.posted_at).toLocaleString(),
+                  visibleTx(e),
+                  String(e.description ?? ""),
+                  String(e.debit_amount ?? ""),
+                  String(e.credit_amount ?? ""),
+                  String(e.balance_after ?? ""),
+                ])
+            }
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-base">
