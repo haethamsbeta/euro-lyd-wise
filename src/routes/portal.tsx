@@ -40,6 +40,7 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useT } from "@/lib/i18n";
 import { displayTxNumber } from "@/lib/txDisplay";
 import { cn } from "@/lib/utils";
+import { ExportPdfButton } from "@/components/app/export-pdf";
 import { SessionTimeoutProvider } from "@/lib/session-timeout";
 import { IdleWarningDialog } from "@/components/app/idle-warning-dialog";
 
@@ -630,7 +631,7 @@ function PortalAccountCard({
                   { header: "Credit", width: 80 },
                   { header: "Balance", width: 90 },
                 ]}
-                buildRows={(fromD, toD) =>
+                buildRows={(fromD: Date, toD: Date) =>
                   filtered
                     .filter((e: any) => {
                       const d = new Date(e.posted_at).getTime();
