@@ -20,16 +20,16 @@ async function ensureArabicFont(doc: any): Promise<boolean> {
   try {
     if (!cachedArabicFont) {
       const [regular, bold] = await Promise.all([
-        fetchAsBase64("/fonts/NotoNaskhArabic-Regular.ttf"),
-        fetchAsBase64("/fonts/NotoNaskhArabic-Bold.ttf"),
+        fetchAsBase64("/fonts/IBMPlexSansArabic-Regular.ttf"),
+        fetchAsBase64("/fonts/IBMPlexSansArabic-Bold.ttf"),
       ]);
       cachedArabicFont = { regular, bold };
     }
     if (!arabicFontRegistered) {
-      doc.addFileToVFS("NotoNaskhArabic-Regular.ttf", cachedArabicFont.regular);
-      doc.addFont("NotoNaskhArabic-Regular.ttf", ARABIC_FONT, "normal");
-      doc.addFileToVFS("NotoNaskhArabic-Bold.ttf", cachedArabicFont.bold);
-      doc.addFont("NotoNaskhArabic-Bold.ttf", ARABIC_FONT, "bold");
+      doc.addFileToVFS("IBMPlexSansArabic-Regular.ttf", cachedArabicFont.regular);
+      doc.addFont("IBMPlexSansArabic-Regular.ttf", ARABIC_FONT, "normal");
+      doc.addFileToVFS("IBMPlexSansArabic-Bold.ttf", cachedArabicFont.bold);
+      doc.addFont("IBMPlexSansArabic-Bold.ttf", ARABIC_FONT, "bold");
       arabicFontRegistered = true;
     }
     return true;
