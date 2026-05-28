@@ -19,6 +19,9 @@ import {
   drawBrandHeader,
   drawBrandFooter,
   paintIvoryBackground,
+  drawTextSmart,
+  drawInfoCard,
+  formatDateRange,
 } from "@/lib/pdfBrand";
 
 type Column = { header: string; width?: number };
@@ -31,6 +34,8 @@ export type PdfExportProps = {
   buildRows: (from: Date, to: Date) => Promise<string[][]> | string[][];
   /** Optional total count for header summary. */
   buildSummary?: (rows: string[][]) => string;
+  /** Optional info-card items rendered between header and table. */
+  infoItems?: Array<{ label: string; value: string }>;
 };
 
 function todayISO(offsetDays = 0) {
@@ -55,6 +60,7 @@ export function ExportPdfButton({
   columns,
   buildRows,
   buildSummary,
+  infoItems,
 }: PdfExportProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -87,27 +93,41 @@ export function ExportPdfButton({
 
       paintIvoryBackground(doc, pageWidth, pageHeight);
 
+      const pillText = formatDateRange(from, to);
       const headerH = drawBrandHeader(doc, {
         title,
         subtitle: `Generated ${new Date().toLocaleString()}`,
-        pill: { text: `${from}  →  ${to}`, fill: BRAND.goldDeep },
+        pill: { text: pillText, fill: BRAND.goldDeep },
         logo,
         pageWidth,
       });
 
+      // Optional account/holder info card under the header
+      let infoH = 0;
+      if (infoItems && infoItems.length) {
+        infoH = drawInfoCard(doc, {
+          items: infoItems,
+          x: 40,
+          y: headerH + 14,
+          width: pageWidth - 80,
+        });
+      }
+
       // Summary line above the table card
       const summary =
         buildSummary?.(rows) ?? `${rows.length} record${rows.length === 1 ? "" : "s"}`;
+      const summaryY = headerH + 14 + infoH + 18;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(...BRAND.goldDeep);
-      doc.text(title.toUpperCase(), 40, headerH + 26, { charSpace: 1.2 });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...BRAND.inkMuted);
-      doc.text(summary, 40, headerH + 42);
+      doc.text(title.toUpperCase(), 40, summaryY, { charSpace: 1.2 });
+      drawTextSmart(doc, summary, 40, summaryY + 14, {
+        size: 9,
+        color: BRAND.inkMuted,
+        maxWidth: pageWidth - 80,
+      });
 
-      const tableTop = headerH + 56;
+      const tableTop = summaryY + 26;
 
       autoTable(doc, {
         startY: tableTop,
@@ -138,7 +158,7 @@ export function ExportPdfButton({
         columnStyles: Object.fromEntries(
           columns.map((c, i) => [i, c.width ? { cellWidth: c.width } : {}]),
         ),
-        margin: { left: 40, right: 40, top: headerH + 20, bottom: 60 },
+        margin: { left: 40, right: 40, top: headerH + 14 + infoH + 44, bottom: 60 },
         // Switch font + alignment for Arabic cells so glyphs shape correctly.
         didParseCell: (data: any) => {
           if (!arabicReady) return;
@@ -159,10 +179,18 @@ export function ExportPdfButton({
             drawBrandHeader(doc, {
               title,
               subtitle: `Generated ${new Date().toLocaleString()}`,
-              pill: { text: `${from}  →  ${to}`, fill: BRAND.goldDeep },
+              pill: { text: pillText, fill: BRAND.goldDeep },
               logo,
               pageWidth,
             });
+            if (infoItems && infoItems.length) {
+              drawInfoCard(doc, {
+                items: infoItems,
+                x: 40,
+                y: headerH + 14,
+                width: pageWidth - 80,
+              });
+            }
           }
         },
         didDrawPage: (data: any) => {
